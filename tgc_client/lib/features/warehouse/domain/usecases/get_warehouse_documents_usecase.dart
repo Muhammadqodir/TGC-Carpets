@@ -1,0 +1,29 @@
+import 'package:dartz/dartz.dart';
+
+import '../../../../core/error/failures.dart';
+import '../../../../core/models/paginated_response.dart';
+import '../entities/warehouse_document_entity.dart';
+import '../repositories/warehouse_repository.dart';
+
+class GetWarehouseDocumentsUseCase {
+  final WarehouseRepository _repository;
+
+  const GetWarehouseDocumentsUseCase(this._repository);
+
+  Future<Either<Failure, PaginatedResponse<WarehouseDocumentEntity>>> call({
+    String? type,
+    String? dateFrom,
+    String? dateTo,
+    int? clientId,
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      _repository.getDocuments(
+        type: type,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+        clientId: clientId,
+        page: page,
+        perPage: perPage,
+      );
+}
