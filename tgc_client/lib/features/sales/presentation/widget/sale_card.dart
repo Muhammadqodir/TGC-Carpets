@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgc_client/core/extensions/amount.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import '../../domain/entities/sale_entity.dart';
 
@@ -44,7 +45,7 @@ class SaleCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${_formatAmount(sale.totalAmount)} so\'m',
+                  '${sale.totalAmount.toCurrencyString()} so\'m',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -70,17 +71,6 @@ class SaleCard extends StatelessWidget {
 
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-
-  String _formatAmount(double amount) {
-    final s = amount.toStringAsFixed(0);
-    final result = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      final remaining = s.length - i;
-      if (i > 0 && remaining % 3 == 0) result.write(' ');
-      result.write(s[i]);
-    }
-    return result.toString();
-  }
 }
 
 class _PaymentBadge extends StatelessWidget {

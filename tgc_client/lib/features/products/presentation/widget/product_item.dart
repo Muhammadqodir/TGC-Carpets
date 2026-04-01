@@ -32,7 +32,7 @@ class ProductItem extends StatelessWidget {
                       ),
                       if (product.stock != null)
                         _Badge(
-                          label: '${product.stock}',
+                          label: '${product.stock} ta',
                           color: product.stock! > 0
                               ? AppColors.success
                               : AppColors.error,

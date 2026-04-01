@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
+use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
@@ -26,15 +28,22 @@ Route::prefix('v1')->group(function (): void {
 
         // Auth
         Route::prefix('auth')->name('auth.')->group(function (): void {
-            Route::post('logout', [AuthController::class, 'logout'])->name('logout');
-            Route::get('me',      [AuthController::class, 'me'])->name('me');
+            Route::post('logout',          [AuthController::class, 'logout'])->name('logout');
+            Route::get('me',               [AuthController::class, 'me'])->name('me');
+            Route::post('change-password', [AuthController::class, 'changePassword'])->name('change-password');
         });
+
+        // Dashboard statistics
+        Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);
 
         // Clients
         Route::apiResource('clients', ClientController::class);
+
+        // Employees (users management)
+        Route::apiResource('employees', EmployeeController::class);
 
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);

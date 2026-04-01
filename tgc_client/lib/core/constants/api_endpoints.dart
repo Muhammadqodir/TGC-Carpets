@@ -25,4 +25,14 @@ class ApiEndpoints {
   // Sales
   static const String sales = '/sales';
   static String saleById(int id) => '/sales/$id';
+
+  // Employees
+  static const String employees = '/employees';
+  static String employeeById(int id) => '/employees/$id';
+
+  // Dashboard
+  static const String dashboardStats = '/dashboard/stats';
+
+  // Settings
+  static const String changePassword = '/auth/change-password';
 }

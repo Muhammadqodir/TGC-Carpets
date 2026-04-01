@@ -25,14 +25,9 @@ class ProductResource extends JsonResource
             'unit'       => $this->unit,
             'status'     => $this->status,
             'image_url'  => $this->image ? Storage::disk('public')->url($this->image) : null,
-            'stock'      => $this->whenLoaded('stockMovements', fn () => $this->currentStock()),
+            'stock'      => (int) ($this->stock ?? 0),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
-    }
-
-    private function currentStock(): int
-    {
-        return $this->stockMovements->sum(fn ($m) => $m->isIncoming() ? $m->quantity : -$m->quantity);
     }
 }

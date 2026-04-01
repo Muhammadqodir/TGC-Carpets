@@ -7,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
@@ -246,16 +247,22 @@ class _AddProductViewState extends State<_AddProductView> {
               const SizedBox(height: 20),
               _SectionHeader(title: 'Birlik va holat'),
               const SizedBox(height: 8),
-              _SegmentedRow<String>(
+              AppOptionSelector<String>(
                 label: 'Birlik',
-                options: const {'piece': 'Dona', 'm2': 'm²'},
+                options: const [
+                  (label: 'Dona', value: 'piece'),
+                  (label: 'm²', value: 'm2'),
+                ],
                 selected: _unit,
                 onChanged: (v) => setState(() => _unit = v),
               ),
               const SizedBox(height: 12),
-              _SegmentedRow<String>(
+              AppOptionSelector<String>(
                 label: 'Holat',
-                options: const {'active': 'Faol', 'archived': 'Arxivlangan'},
+                options: const [
+                  (label: 'Faol', value: 'active'),
+                  (label: 'Arxivlangan', value: 'archived'),
+                ],
                 selected: _status,
                 onChanged: (v) => setState(() => _status = v),
               ),
@@ -346,60 +353,7 @@ class _Field extends StatelessWidget {
   }
 }
 
-class _SegmentedRow<T> extends StatelessWidget {
-  final String label;
-  final Map<T, String> options;
-  final T selected;
-  final ValueChanged<T> onChanged;
 
-  const _SegmentedRow({
-    required this.label,
-    required this.options,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textSecondary),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SegmentedButton<T>(
-            style: SegmentedButton.styleFrom(
-              backgroundColor: AppColors.background,
-              selectedForegroundColor: Colors.white,
-              selectedBackgroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.divider),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            segments: options.entries
-                .map((e) => ButtonSegment<T>(
-                      value: e.key,
-                      label: Text(e.value),
-                    ))
-                .toList(),
-            selected: {selected},
-            onSelectionChanged: (s) => onChanged(s.first),
-            showSelectedIcon: false,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _ImagePickerWidget extends StatelessWidget {
   final XFile? pickedImage;

@@ -1,8 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/range_date_picker.dart';
 import 'package:tgc_client/core/widgets/static_grid.dart';
+import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_event.dart';
+import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:tgc_client/features/dashboard/presentation/widgets/dashboard_panel.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
@@ -15,15 +21,84 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<AuthBloc>()..add(AuthCheckRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => sl<AuthBloc>()..add(AuthCheckRequested())),
+        BlocProvider(
+          create: (_) => sl<DashboardBloc>()
+            ..add(DashboardStatsRequested(
+              from: RangeDatePicker.currentMonth.start,
+              to: RangeDatePicker.currentMonth.end,
+            )),
+        ),
+      ],
       child: const _DashboardView(),
     );
   }
 }
 
-class _DashboardView extends StatelessWidget {
+class _DashboardView extends StatefulWidget {
   const _DashboardView();
+
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  late DateTimeRange _range;
+  bool _panelVisible = false;
+  double _scrollOffset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _range = RangeDatePicker.currentMonth;
+  }
+
+  void _onRangeChanged(DateTimeRange range) {
+    setState(() => _range = range);
+    context.read<DashboardBloc>().add(
+          DashboardStatsRequested(from: range.start, to: range.end),
+        );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Chiqish'),
+        content: const Text('Paneldan chiqishni xohlaysizmi?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Chiqish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      context.read<AuthBloc>().add(AuthLogoutRequested());
+    }
+  }
+
+  Future<void> _refresh() async {
+    final completer = Completer<void>();
+    final bloc = context.read<DashboardBloc>();
+    late StreamSubscription<DashboardState> sub;
+    sub = bloc.stream.listen((state) {
+      if (state is DashboardStatsLoaded || state is DashboardError) {
+        if (!completer.isCompleted) completer.complete();
+        sub.cancel();
+      }
+    });
+    bloc.add(DashboardStatsRequested(from: _range.start, to: _range.end));
+    return completer.future;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,111 +131,158 @@ class _DashboardView extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: HugeIcon(icon: HugeIcons.strokeRoundedLogin03),
-            onPressed: () =>
-                context.read<AuthBloc>().add(AuthLogoutRequested()),
+            icon: HugeIcon(
+              icon: _panelVisible
+                  ? HugeIcons.strokeRoundedViewOff
+                  : HugeIcons.strokeRoundedView,
+              strokeWidth: 2,
+            ),
+            onPressed: () {
+              setState(() {
+                _panelVisible = !_panelVisible;
+              });
+            },
+          ),
+          IconButton(
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedLogin03,
+              strokeWidth: 2,
+            ),
+            onPressed: () => _confirmLogout(context),
           ),
         ],
       ),
-      body: BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthUnauthenticated) {
-              context.goNamed(AppRoutes.loginName);
-            }
-          },
-          child: SizedBox(
-            height: double.infinity,
-            child: SingleChildScrollView(
-              physics: AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DashboardPanel(),
-                  SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        StaticGrid(
-                          columnCount: 2,
-                          gap: 12,
+      body: Stack(
+        children: [
+          Positioned(
+            child: Container(
+              height: _scrollOffset,
+              decoration: BoxDecoration(color: AppColors.primary),
+            ),
+          ),
+          BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is AuthUnauthenticated) {
+                context.goNamed(AppRoutes.loginName);
+              }
+            },
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (scrollNotification) {
+                  if (scrollNotification is ScrollUpdateNotification) {
+                    if (scrollNotification.metrics.pixels <= 0) {
+                      setState(() {
+                        _scrollOffset = scrollNotification.metrics.pixels * -1;
+                      });
+                    }
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DashboardPanel(
+                        range: _range,
+                        onRangeChanged: _onRangeChanged,
+                        visible: _panelVisible,
+                      ),
+                      SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedPrayerRug01,
-                              label: 'Mahsulotlar',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.productsName),
-                            ),
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedUserGroup,
-                              label: 'Mijozlar',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.clientsName),
-                            ),
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedWarehouse,
-                              label: 'Ombor',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.warehouseName),
-                            ),
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedAgreement02,
-                              label: 'Savdo',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.salesName),
-                            ),
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedUserDollar,
-                              label: 'Qarzlar',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.salesName),
-                            ),
-                            _DashboardCard(
-                              icon: HugeIcons.strokeRoundedUserSettings01,
-                              label: 'Hodimlar',
-                              onTap: () =>
-                                  context.pushNamed(AppRoutes.salesName),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        Card(
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 16),
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            StaticGrid(
+                              columnCount: 2,
+                              gap: 12,
                               children: [
-                                HugeIcon(
-                                  icon: HugeIcons.strokeRoundedSettings01,
-                                  size: 32,
-                                  strokeWidth: 2,
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedPrayerRug01,
+                                  label: 'Mahsulotlar',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.productsName),
                                 ),
-                                SizedBox(width: 8),
-                                Expanded(
-                                    child: Text(
-                                  'Sozlamalar',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(fontWeight: FontWeight.bold),
-                                ))
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedUserGroup,
+                                  label: 'Mijozlar',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.clientsName),
+                                ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedWarehouse,
+                                  label: 'Ombor',
+                                  onTap: () => context
+                                      .pushNamed(AppRoutes.warehouseName),
+                                ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedAgreement02,
+                                  label: 'Savdo',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.salesName),
+                                ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedUserDollar,
+                                  label: 'Qarzlar',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.salesName),
+                                ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedUserSettings01,
+                                  label: 'Hodimlar',
+                                  onTap: () => context
+                                      .pushNamed(AppRoutes.employeesName),
+                                ),
                               ],
                             ),
-                          ),
+                            SizedBox(height: 12),
+                            Card(
+                              child: InkWell(
+                                onTap: () => context.pushNamed(AppRoutes.settingsName),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 16),
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      HugeIcon(
+                                        icon: HugeIcons.strokeRoundedSettings01,
+                                        size: 32,
+                                        strokeWidth: 2,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                          child: Text(
+                                        'Sozlamalar',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium!
+                                            .copyWith(
+                                                fontWeight: FontWeight.bold),
+                                      ))
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 32),
+                          ],
                         ),
-                        SizedBox(height: 32),
-                      ],
-                    ),
-                  )
-                ],
+                      )
+                    ],
+                  ),
+                ),
               ),
             ),
-          )),
+          )
+        ],
+      ),
     );
   }
 }

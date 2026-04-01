@@ -54,6 +54,29 @@ import '../../features/warehouse/domain/usecases/create_warehouse_document_useca
 import '../../features/warehouse/presentation/bloc/warehouse_docs_bloc.dart';
 import '../../features/warehouse/presentation/bloc/warehouse_form_bloc.dart';
 
+// Dashboard feature
+import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import '../../features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
+import '../../features/dashboard/domain/usecases/get_dashboard_stats_usecase.dart';
+import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
+
+// Settings feature
+import '../../features/settings/data/datasources/settings_remote_datasource.dart';
+import '../../features/settings/data/repositories/settings_repository_impl.dart';
+import '../../features/settings/domain/repositories/settings_repository.dart';
+import '../../features/settings/domain/usecases/change_password_usecase.dart';
+import '../../features/settings/presentation/bloc/settings_bloc.dart';
+
+// Employees
+import '../../features/employees/data/datasources/employee_remote_datasource.dart';
+import '../../features/employees/data/repositories/employee_repository_impl.dart';
+import '../../features/employees/domain/repositories/employee_repository.dart';
+import '../../features/employees/domain/usecases/get_employees_usecase.dart';
+import '../../features/employees/domain/usecases/create_employee_usecase.dart';
+import '../../features/employees/presentation/bloc/employees_bloc.dart';
+import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -178,5 +201,47 @@ Future<void> initDependencies() async {
     () => WarehouseFormBloc(
       createWarehouseDocumentUseCase: sl<CreateWarehouseDocumentUseCase>(),
     ),
+  );
+
+  // Employees
+  sl.registerLazySingleton<EmployeeRemoteDataSource>(
+    () => EmployeeRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<EmployeeRepository>(
+    () => EmployeeRepositoryImpl(remoteDataSource: sl<EmployeeRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetEmployeesUseCase(sl<EmployeeRepository>()));
+  sl.registerLazySingleton(() => CreateEmployeeUseCase(sl<EmployeeRepository>()));
+  sl.registerFactory(
+    () => EmployeesBloc(getEmployeesUseCase: sl<GetEmployeesUseCase>()),
+  );
+  sl.registerFactory(
+    () => EmployeeFormBloc(createEmployeeUseCase: sl<CreateEmployeeUseCase>()),
+  );
+
+  // ─── Dashboard Feature ─────────────────────────────────────────────────────
+  sl.registerLazySingleton<DashboardRemoteDataSource>(
+    () => DashboardRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(remoteDataSource: sl<DashboardRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetDashboardStatsUseCase(sl<DashboardRepository>()),
+  );
+  sl.registerFactory(
+    () => DashboardBloc(getDashboardStatsUseCase: sl<GetDashboardStatsUseCase>()),
+  );
+
+  // ─── Settings Feature ──────────────────────────────────────────────────────
+  sl.registerLazySingleton<SettingsRemoteDataSource>(
+    () => SettingsRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<SettingsRepository>(
+    () => SettingsRepositoryImpl(remoteDataSource: sl<SettingsRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => ChangePasswordUseCase(sl<SettingsRepository>()));
+  sl.registerFactory(
+    () => SettingsBloc(changePasswordUseCase: sl<ChangePasswordUseCase>()),
   );
 }

@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -57,6 +58,32 @@ class AuthController extends Controller
         return response()->json([
             'data' => $this->formatUser($request->user()),
         ]);
+    }
+
+    /**
+     * Change the authenticated user's password.
+     *
+     * POST /api/v1/auth/change-password
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password'     => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return response()->json(
+                ['message' => 'Joriy parol noto\'g\'ri.'],
+                422,
+            );
+        }
+
+        $user->update(['password' => Hash::make($request->new_password)]);
+
+        return response()->json(['message' => 'Parol muvaffaqiyatli o\'zgartirildi.']);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

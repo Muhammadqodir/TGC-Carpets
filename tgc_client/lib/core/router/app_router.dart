@@ -10,6 +10,9 @@ import '../../features/warehouse/presentation/pages/warehouse_page.dart';
 import '../../features/warehouse/presentation/pages/add_warehouse_document_page.dart';
 import '../../features/sales/presentation/pages/sales_page.dart';
 import '../../features/sales/presentation/pages/add_sale_page.dart';
+import '../../features/employees/presentation/pages/employees_page.dart';
+import '../../features/employees/presentation/pages/add_employee_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -75,6 +78,21 @@ class AppRouter {
             path: AppRoutes.addSale,
             name: AppRoutes.addSaleName,
             builder: (context, state) => const AddSalePage(),
+          ),
+          GoRoute(
+            path: AppRoutes.employees,
+            name: AppRoutes.employeesName,
+            builder: (context, state) => const EmployeesPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addEmployee,
+            name: AppRoutes.addEmployeeName,
+            builder: (context, state) => const AddEmployeePage(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            name: AppRoutes.settingsName,
+            builder: (context, state) => const SettingsPage(),
           ),
         ],
       ),

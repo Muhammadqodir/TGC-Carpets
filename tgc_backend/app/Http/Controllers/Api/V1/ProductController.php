@@ -10,6 +10,7 @@ use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
@@ -17,6 +18,8 @@ class ProductController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $products = Product::query()
+            ->select('products.*')
+            ->selectSub($this->stockSubquery(), 'stock')
             ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
                 $sub->where('name',     'like', '%'.$request->search.'%')
                     ->orWhere('sku_code', 'like', '%'.$request->search.'%');
@@ -48,7 +51,18 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
+        $product = Product::select('products.*')
+            ->selectSub($this->stockSubquery(), 'stock')
+            ->findOrFail($product->id);
+
         return response()->json(['data' => new ProductResource($product)]);
+    }
+
+    private function stockSubquery(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('stock_movements')
+            ->selectRaw('COALESCE(SUM(CASE WHEN movement_type IN ("in", "return") THEN quantity ELSE -quantity END), 0)')
+            ->whereColumn('stock_movements.product_id', 'products.id');
     }
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse

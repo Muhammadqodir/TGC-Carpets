@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
+import 'package:tgc_client/core/extensions/amount.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/widget/client_picker_bottom_sheet.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
@@ -71,6 +73,10 @@ class _AddSaleViewState extends State<_AddSaleView> {
         final price = double.tryParse(row.priceCtrl.text) ?? 0.0;
         return sum + (qty * price);
       });
+  double get _totalQuantity => _items.fold(0.0, (sum, row) {
+        final qty = int.tryParse(row.quantityCtrl.text) ?? 0;
+        return sum + qty;
+      });
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -78,6 +84,19 @@ class _AddSaleViewState extends State<_AddSaleView> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogBackgroundColor: AppColors.background,
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
@@ -194,8 +213,14 @@ class _AddSaleViewState extends State<_AddSaleView> {
                     const SizedBox(height: 12),
 
                     // Payment status
-                    _PaymentStatusSelector(
-                      value: _paymentStatus,
+                    AppOptionSelector<String>(
+                      label: 'To\'lov holati',
+                      options: const [
+                        (label: 'Kutilmoqda', value: 'pending'),
+                        (label: 'Qisman', value: 'partial'),
+                        (label: 'To\'langan', value: 'paid'),
+                      ],
+                      selected: _paymentStatus,
                       onChanged: (v) => setState(() => _paymentStatus = v),
                     ),
                     const SizedBox(height: 12),
@@ -238,7 +263,10 @@ class _AddSaleViewState extends State<_AddSaleView> {
                     const SizedBox(height: 12),
 
                     // ── Total ─────────────────────────────────────────────
-                    _TotalRow(total: _totalAmount),
+                    _TotalRow(
+                      total: _totalAmount,
+                      totalQuantity: _totalQuantity,
+                    ),
 
                     const SizedBox(height: 72),
                   ],
@@ -482,9 +510,9 @@ class _SaleItemFormRow extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'Jami: ${row.subtotal.toStringAsFixed(0)} so\'m',
+                  'Jami: ${row.subtotal.toCurrencyString()} so\'m',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.primaryLight,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
@@ -625,110 +653,59 @@ class _DatePickerField extends StatelessWidget {
   }
 }
 
-class _PaymentStatusSelector extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  const _PaymentStatusSelector({
-    required this.value,
-    required this.onChanged,
-  });
-
-  static const _options = [
-    (label: 'Kutilmoqda', value: 'pending'),
-    (label: 'Qisman', value: 'partial'),
-    (label: 'To\'langan', value: 'paid'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'To\'lov holati',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: _options.map((opt) {
-            final isSelected = value == opt.value;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: InkWell(
-                  onTap: () => onChanged(opt.value),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color:
-                            isSelected ? AppColors.primary : AppColors.divider,
-                        width: isSelected ? 1.5 : 1,
-                      ),
-                      color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.07)
-                          : null,
-                    ),
-                    child: Text(
-                      opt.label,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
 class _TotalRow extends StatelessWidget {
   final double total;
+  final double totalQuantity;
 
-  const _TotalRow({required this.total});
+  const _TotalRow({required this.total, required this.totalQuantity});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Umumiy summa',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Umumiy mahsulotlar soni',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColors.primary,
+                      ),
                 ),
-          ),
-          Text(
-            '${total.toStringAsFixed(0)} so\'m',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
+                Text(
+                  '${totalQuantity.toCurrencyString()} ta',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
-          ),
-        ],
-      ),
-    );
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Umumiy summa',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                ),
+                Text(
+                  '${total.toCurrencyString()} so\'m',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ));
   }
 }
