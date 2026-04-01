@@ -28,7 +28,7 @@ class _LoginFormState extends State<LoginForm> {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<AuthBloc>().add(
             AuthLoginRequested(
-              email: _emailController.text.trim(),
+              email: '${_emailController.text.trim()}@tgc-carpets.uz',
               password: _passwordController.text,
             ),
           );
@@ -47,12 +47,12 @@ class _LoginFormState extends State<LoginForm> {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
-              labelText: 'Email',
+              labelText: 'Login',
               prefixIcon: Icon(Icons.email_outlined),
+              suffixText: '@tgc-carpets.uz',
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Login kiritilishi shart';
-              if (!v.contains('@')) return 'Enter a valid email';
               return null;
             },
           ),
