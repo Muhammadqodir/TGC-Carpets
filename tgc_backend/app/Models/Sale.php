@@ -12,16 +12,6 @@ class Sale extends Model
 {
     use HasFactory;
 
-    const PAYMENT_PENDING = 'pending';
-    const PAYMENT_PARTIAL = 'partial';
-    const PAYMENT_PAID    = 'paid';
-
-    const PAYMENT_STATUSES = [
-        self::PAYMENT_PENDING,
-        self::PAYMENT_PARTIAL,
-        self::PAYMENT_PAID,
-    ];
-
     protected $fillable = [
         'uuid',
         'external_uuid',
@@ -29,7 +19,6 @@ class Sale extends Model
         'user_id',
         'sale_date',
         'total_amount',
-        'payment_status',
         'notes',
     ];
 
@@ -50,23 +39,6 @@ class Sale extends Model
                 $sale->uuid = (string) Str::uuid();
             }
         });
-    }
-
-    // ── Payment helpers ───────────────────────────────────────────────────────
-
-    public function isPaid(): bool
-    {
-        return $this->payment_status === self::PAYMENT_PAID;
-    }
-
-    public function isPartiallyPaid(): bool
-    {
-        return $this->payment_status === self::PAYMENT_PARTIAL;
-    }
-
-    public function isPending(): bool
-    {
-        return $this->payment_status === self::PAYMENT_PENDING;
     }
 
     // ── Relationships ─────────────────────────────────────────────────────────

@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Sale;
 
-use App\Models\Sale;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateSaleRequest extends FormRequest
 {
@@ -18,7 +16,6 @@ class UpdateSaleRequest extends FormRequest
         return [
             'client_id'           => ['sometimes', 'required', 'integer', 'exists:clients,id'],
             'sale_date'           => ['sometimes', 'required', 'date'],
-            'payment_status'      => ['sometimes', 'required', 'string', Rule::in(Sale::PAYMENT_STATUSES)],
             'notes'               => ['nullable', 'string'],
 
             // Supplying items replaces all existing items

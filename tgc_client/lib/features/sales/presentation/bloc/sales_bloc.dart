@@ -6,11 +6,8 @@ import 'sales_state.dart';
 class SalesBloc extends Bloc<SalesEvent, SalesState> {
   final GetSalesUseCase getSalesUseCase;
 
-  String? _paymentStatusFilter;
-
   SalesBloc({required this.getSalesUseCase}) : super(const SalesInitial()) {
     on<SalesLoadRequested>(_onLoadRequested);
-    on<SalesFilterChanged>(_onFilterChanged);
     on<SalesNextPageRequested>(_onNextPageRequested);
     on<SalesRefreshRequested>(_onRefreshRequested);
   }
@@ -27,15 +24,6 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     SalesRefreshRequested event,
     Emitter<SalesState> emit,
   ) async {
-    emit(const SalesLoading());
-    await _fetchPage(emit, page: 1, replace: true);
-  }
-
-  Future<void> _onFilterChanged(
-    SalesFilterChanged event,
-    Emitter<SalesState> emit,
-  ) async {
-    _paymentStatusFilter = event.paymentStatus;
     emit(const SalesLoading());
     await _fetchPage(emit, page: 1, replace: true);
   }
@@ -58,7 +46,6 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     required bool replace,
   }) async {
     final result = await getSalesUseCase(
-      paymentStatus: _paymentStatusFilter,
       page: page,
     );
 
@@ -72,7 +59,6 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
           sales: [...existing, ...paginated.data],
           hasNextPage: paginated.hasNextPage,
           currentPage: paginated.currentPage,
-          activeFilter: _paymentStatusFilter,
         ));
       },
     );

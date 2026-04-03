@@ -21,14 +21,12 @@ class SalesLoaded extends SalesState {
   final bool hasNextPage;
   final bool isLoadingMore;
   final int currentPage;
-  final String? activeFilter;
 
   const SalesLoaded({
     required this.sales,
     required this.hasNextPage,
     this.isLoadingMore = false,
     required this.currentPage,
-    this.activeFilter,
   });
 
   SalesLoaded copyWith({
@@ -36,15 +34,12 @@ class SalesLoaded extends SalesState {
     bool? hasNextPage,
     bool? isLoadingMore,
     int? currentPage,
-    String? activeFilter,
-    bool clearFilter = false,
   }) =>
       SalesLoaded(
         sales: sales ?? this.sales,
         hasNextPage: hasNextPage ?? this.hasNextPage,
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         currentPage: currentPage ?? this.currentPage,
-        activeFilter: clearFilter ? null : (activeFilter ?? this.activeFilter),
       );
 
   @override
@@ -53,7 +48,6 @@ class SalesLoaded extends SalesState {
         hasNextPage,
         isLoadingMore,
         currentPage,
-        activeFilter,
       ];
 }
 

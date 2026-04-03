@@ -7,7 +7,6 @@ class SaleEntity extends Equatable {
   final String? externalUuid;
   final DateTime saleDate;
   final double totalAmount;
-  final String paymentStatus;
   final String? notes;
   final int? clientId;
   final String? clientShopName;
@@ -24,7 +23,6 @@ class SaleEntity extends Equatable {
     this.externalUuid,
     required this.saleDate,
     required this.totalAmount,
-    required this.paymentStatus,
     this.notes,
     this.clientId,
     this.clientShopName,
@@ -36,10 +34,6 @@ class SaleEntity extends Equatable {
     required this.updatedAt,
   });
 
-  bool get isPaid => paymentStatus == 'paid';
-  bool get isPartial => paymentStatus == 'partial';
-  bool get isPending => paymentStatus == 'pending';
-
   @override
   List<Object?> get props => [
         id,
@@ -47,7 +41,6 @@ class SaleEntity extends Equatable {
         externalUuid,
         saleDate,
         totalAmount,
-        paymentStatus,
         notes,
         clientId,
         clientShopName,

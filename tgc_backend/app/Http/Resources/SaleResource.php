@@ -15,7 +15,6 @@ class SaleResource extends JsonResource
             'external_uuid'  => $this->external_uuid,
             'sale_date'      => $this->sale_date?->toISOString(),
             'total_amount'   => $this->total_amount,
-            'payment_status' => $this->payment_status,
             'notes'          => $this->notes,
             'client'         => $this->whenLoaded('client', fn () => [
                 'id'        => $this->client->id,

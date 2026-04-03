@@ -20,7 +20,6 @@ class SaleFormBloc extends Bloc<SaleFormEvent, SaleFormState> {
     final result = await createSaleUseCase(
       clientId: event.clientId,
       saleDate: event.saleDate,
-      paymentStatus: event.paymentStatus,
       items: event.items,
       notes: event.notes,
     );

@@ -11,7 +11,6 @@ class GetSalesUseCase {
 
   Future<Either<Failure, PaginatedResponse<SaleEntity>>> call({
     int? clientId,
-    String? paymentStatus,
     String? dateFrom,
     String? dateTo,
     int page = 1,
@@ -19,7 +18,6 @@ class GetSalesUseCase {
   }) =>
       _repository.getSales(
         clientId: clientId,
-        paymentStatus: paymentStatus,
         dateFrom: dateFrom,
         dateTo: dateTo,
         page: page,

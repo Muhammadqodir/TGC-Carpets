@@ -14,7 +14,6 @@ class SaleRepositoryImpl implements SaleRepository {
   @override
   Future<Either<Failure, PaginatedResponse<SaleEntity>>> getSales({
     int? clientId,
-    String? paymentStatus,
     String? dateFrom,
     String? dateTo,
     int page = 1,
@@ -23,7 +22,6 @@ class SaleRepositoryImpl implements SaleRepository {
     try {
       final result = await remoteDataSource.getSales(
         clientId: clientId,
-        paymentStatus: paymentStatus,
         dateFrom: dateFrom,
         dateTo: dateTo,
         page: page,
@@ -65,7 +63,6 @@ class SaleRepositoryImpl implements SaleRepository {
   Future<Either<Failure, SaleEntity>> createSale({
     required int clientId,
     required String saleDate,
-    required String paymentStatus,
     required List<Map<String, dynamic>> items,
     String? notes,
   }) async {
@@ -73,7 +70,6 @@ class SaleRepositoryImpl implements SaleRepository {
       final sale = await remoteDataSource.createSale(
         clientId: clientId,
         saleDate: saleDate,
-        paymentStatus: paymentStatus,
         items: items,
         notes: notes,
       );

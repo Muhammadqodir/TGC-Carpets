@@ -21,7 +21,6 @@ class SaleController extends Controller
         $sales = Sale::with(['client', 'user', 'items.product'])
             ->when($request->filled('client_id'),      fn ($q) => $q->where('client_id', $request->client_id))
             ->when($request->filled('user_id'),        fn ($q) => $q->where('user_id', $request->user_id))
-            ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->payment_status))
             ->when($request->filled('date_from'),      fn ($q) => $q->whereDate('sale_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),        fn ($q) => $q->whereDate('sale_date', '<=', $request->date_to))
             ->latest('sale_date')

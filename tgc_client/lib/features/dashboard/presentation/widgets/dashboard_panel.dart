@@ -106,7 +106,7 @@ class _StatGrid extends StatelessWidget {
         ),
         Expanded(
           child: _StatData(
-            title: 'Savdo so\'mda',
+            title: 'Savdo hajmi',
             value: isVisible
                 ? (stats != null ? stats!.salesAmount.toCurrencyShort() : '—')
                 : '•••',

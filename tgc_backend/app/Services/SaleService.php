@@ -37,7 +37,6 @@ class SaleService
                 'user_id'        => $userId,
                 'sale_date'      => $data['sale_date'],
                 'total_amount'   => $total,
-                'payment_status' => $data['payment_status'] ?? Sale::PAYMENT_PENDING,
                 'notes'          => $data['notes'] ?? null,
             ]);
 
@@ -64,7 +63,6 @@ class SaleService
             $sale->update(array_filter([
                 'client_id'      => $data['client_id']      ?? null,
                 'sale_date'      => $data['sale_date']       ?? null,
-                'payment_status' => $data['payment_status']  ?? null,
                 'notes'          => array_key_exists('notes', $data) ? $data['notes'] : null,
                 'total_amount'   => isset($itemsToPersist) ? $this->calculateTotal($itemsToPersist) : null,
             ], fn ($v) => $v !== null));

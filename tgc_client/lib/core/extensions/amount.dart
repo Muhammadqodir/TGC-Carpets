@@ -1,16 +1,9 @@
 extension AmountExtension on double {
   String toCurrencyString() {
-    final intPart = this.floor();
-    final decimalPart = ((this - intPart) * 100).round();
-
-    final intPartStr = intPart.toString().replaceAllMapped(
+    final parts = toStringAsFixed(2).split('.');
+    final intPartStr = parts[0].replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
-
-    if (decimalPart > 0) {
-      return '$intPartStr ${decimalPart.toString().padLeft(2, '0')}';
-    } else {
-      return intPartStr;
-    }
+    return '$intPartStr.${parts[1]}';
   }
   String toCurrencyShort() {
     if (this >= 1000000000) {

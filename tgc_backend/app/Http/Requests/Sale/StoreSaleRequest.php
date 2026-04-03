@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Sale;
 
-use App\Models\Sale;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +18,6 @@ class StoreSaleRequest extends FormRequest
             'external_uuid'       => ['nullable', 'uuid', Rule::unique('sales', 'external_uuid')],
             'client_id'           => ['required', 'integer', 'exists:clients,id'],
             'sale_date'           => ['required', 'date'],
-            'payment_status'      => ['nullable', 'string', Rule::in(Sale::PAYMENT_STATUSES)],
             'notes'               => ['nullable', 'string'],
 
             'items'               => ['required', 'array', 'min:1'],

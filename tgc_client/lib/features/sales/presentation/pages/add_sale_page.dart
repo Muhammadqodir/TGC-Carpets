@@ -6,7 +6,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/extensions/amount.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/widget/client_picker_bottom_sheet.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
@@ -39,7 +38,6 @@ class _AddSaleViewState extends State<_AddSaleView> {
 
   ClientEntity? _selectedClient;
   DateTime _selectedDate = DateTime.now();
-  String _paymentStatus = 'pending';
   final _notesCtrl = TextEditingController();
   final List<_SaleItemRow> _items = [];
 
@@ -140,7 +138,6 @@ class _AddSaleViewState extends State<_AddSaleView> {
           SaleFormSubmitted(
             clientId: _selectedClient!.id,
             saleDate: dateStr,
-            paymentStatus: _paymentStatus,
             items: items,
             notes:
                 _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
@@ -209,19 +206,6 @@ class _AddSaleViewState extends State<_AddSaleView> {
                     _DatePickerField(
                       date: _selectedDate,
                       onTap: _pickDate,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Payment status
-                    AppOptionSelector<String>(
-                      label: 'To\'lov holati',
-                      options: const [
-                        (label: 'Kutilmoqda', value: 'pending'),
-                        (label: 'Qisman', value: 'partial'),
-                        (label: 'To\'langan', value: 'paid'),
-                      ],
-                      selected: _paymentStatus,
-                      onChanged: (v) => setState(() => _paymentStatus = v),
                     ),
                     const SizedBox(height: 12),
 
@@ -491,7 +475,7 @@ class _SaleItemFormRow extends StatelessWidget {
                           RegExp(r'^\d+\.?\d{0,2}')),
                     ],
                     decoration: const InputDecoration(
-                      labelText: 'Narx (so\'m) *',
+                      labelText: 'Narx(\$) *',
                       isDense: true,
                     ),
                     onChanged: (_) => onChanged(),
@@ -510,7 +494,7 @@ class _SaleItemFormRow extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'Jami: ${row.subtotal.toCurrencyString()} so\'m',
+                  'Jami: \$ ${row.subtotal.toCurrencyString()}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -697,7 +681,7 @@ class _TotalRow extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  '${total.toCurrencyString()} so\'m',
+                  '\$ ${total.toCurrencyString()}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,

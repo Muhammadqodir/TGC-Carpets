@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/router/app_routes.dart';
-import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_bloc.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_event.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_state.dart';
@@ -78,13 +77,6 @@ class _SalesViewState extends State<_SalesView> {
             ),
           ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(48),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: 8.0),
-            child: _FilterBar(),
-          ),
-        ),
       ),
       body: BlocBuilder<SalesBloc, SalesState>(
         builder: (context, state) {
@@ -142,57 +134,6 @@ class _SalesViewState extends State<_SalesView> {
           return const SizedBox.shrink();
         },
       ),
-    );
-  }
-}
-
-class _FilterBar extends StatelessWidget {
-  const _FilterBar();
-
-  static const _filters = [
-    (label: 'Barchasi', value: null),
-    (label: 'Kutilmoqda', value: 'pending'),
-    (label: 'Qisman', value: 'partial'),
-    (label: 'To\'langan', value: 'paid'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<SalesBloc, SalesState>(
-      buildWhen: (prev, curr) => curr is SalesLoaded || prev is SalesLoaded,
-      builder: (context, state) {
-        final activeFilter = state is SalesLoaded ? state.activeFilter : null;
-
-        return SizedBox(
-          height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            itemCount: _filters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final filter = _filters[index];
-              final isActive = activeFilter == filter.value;
-              return FilterChip(
-                selectedColor: Colors.white,
-                backgroundColor: AppColors.primary,
-                label: Text(
-                  filter.label,
-                  style: TextStyle(
-                    color: isActive ? AppColors.primary : Colors.white,
-                  ),
-                ),
-                selected: isActive,
-                onSelected: (_) {
-                  context.read<SalesBloc>().add(
-                        SalesFilterChanged(paymentStatus: filter.value),
-                      );
-                },
-              );
-            },
-          ),
-        );
-      },
     );
   }
 }

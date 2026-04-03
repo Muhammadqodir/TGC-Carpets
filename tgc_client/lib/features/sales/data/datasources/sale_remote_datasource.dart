@@ -7,7 +7,6 @@ import '../models/sale_model.dart';
 abstract class SaleRemoteDataSource {
   Future<PaginatedResponse<SaleModel>> getSales({
     int? clientId,
-    String? paymentStatus,
     String? dateFrom,
     String? dateTo,
     int page = 1,
@@ -19,7 +18,6 @@ abstract class SaleRemoteDataSource {
   Future<SaleModel> createSale({
     required int clientId,
     required String saleDate,
-    required String paymentStatus,
     required List<Map<String, dynamic>> items,
     String? notes,
   });
@@ -33,7 +31,6 @@ class SaleRemoteDataSourceImpl implements SaleRemoteDataSource {
   @override
   Future<PaginatedResponse<SaleModel>> getSales({
     int? clientId,
-    String? paymentStatus,
     String? dateFrom,
     String? dateTo,
     int page = 1,
@@ -44,8 +41,6 @@ class SaleRemoteDataSourceImpl implements SaleRemoteDataSource {
         'page': page,
         'per_page': perPage,
         if (clientId != null) 'client_id': clientId,
-        if (paymentStatus != null && paymentStatus.isNotEmpty)
-          'payment_status': paymentStatus,
         if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
         if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
       };
@@ -89,7 +84,6 @@ class SaleRemoteDataSourceImpl implements SaleRemoteDataSource {
   Future<SaleModel> createSale({
     required int clientId,
     required String saleDate,
-    required String paymentStatus,
     required List<Map<String, dynamic>> items,
     String? notes,
   }) async {
@@ -99,7 +93,6 @@ class SaleRemoteDataSourceImpl implements SaleRemoteDataSource {
         data: {
           'client_id': clientId,
           'sale_date': saleDate,
-          'payment_status': paymentStatus,
           'items': items,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
         },

@@ -11,14 +11,12 @@ class CreateSaleUseCase {
   Future<Either<Failure, SaleEntity>> call({
     required int clientId,
     required String saleDate,
-    required String paymentStatus,
     required List<Map<String, dynamic>> items,
     String? notes,
   }) =>
       _repository.createSale(
         clientId: clientId,
         saleDate: saleDate,
-        paymentStatus: paymentStatus,
         items: items,
         notes: notes,
       );
