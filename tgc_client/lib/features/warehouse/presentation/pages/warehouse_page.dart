@@ -89,7 +89,7 @@ class _WarehouseViewState extends State<_WarehouseView> {
           IconButton(
             onPressed: () async {
               Navigator.of(context)
-                  .push(CupertinoPageRoute(builder: (_) => XprinterTest()));
+                  .push(CupertinoPageRoute(builder: (_) => TestXprinterPage()));
             },
             icon: const HugeIcon(
               icon: HugeIcons.strokeRoundedPrinter,
