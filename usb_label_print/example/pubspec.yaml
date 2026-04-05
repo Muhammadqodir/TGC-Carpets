@@ -1,0 +1,13 @@
+name: usb_label_print_example
+description: Example app demonstrating the usb_label_print package.
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  usb_label_print:
+    path: ../
+  qr_flutter: ^4.1.0

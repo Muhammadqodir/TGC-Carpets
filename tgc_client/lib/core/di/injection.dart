@@ -82,7 +82,9 @@ final sl = GetIt.instance;
 Future<void> initDependencies() async {
   // ─── External ────────────────────────────────────────────────────────────
   sl.registerLazySingleton<FlutterSecureStorage>(
-    () => const FlutterSecureStorage(),
+    () => const FlutterSecureStorage(
+      mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+    ),
   );
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
 

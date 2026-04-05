@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/features/warehouse/presentation/pages/test_xprinter.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
@@ -83,16 +82,6 @@ class _WarehouseViewState extends State<_WarehouseView> {
             },
             icon: const HugeIcon(
               icon: HugeIcons.strokeRoundedAdd01,
-              strokeWidth: 2,
-            ),
-          ),
-          IconButton(
-            onPressed: () async {
-              Navigator.of(context)
-                  .push(CupertinoPageRoute(builder: (_) => XprinterTest()));
-            },
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedPrinter,
               strokeWidth: 2,
             ),
           ),
