@@ -52,18 +52,19 @@ class PrinterDiscoveryService {
     }
   }
 
-  /// Windows: use `wmic` to list printer names (much faster than Get-Printer).
+  /// Windows: use .NET's InstalledPrinters via PowerShell.
   ///
-  /// Command: wmic printer get name
-  /// Output has a header line "Name" followed by printer names.
+  /// This is fast because it uses System.Drawing directly (no WMI/CIM overhead)
+  /// and works on all Windows versions (wmic is deprecated/removed in newer builds).
   Future<List<String>> _discoverWindows() async {
     try {
-      // wmic is significantly faster than PowerShell's Get-Printer
-      // because it doesn't load the PrintManagement module.
-      final result = await Process.run('wmic', [
-        'printer',
-        'get',
-        'name',
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-NoLogo',
+        '-NonInteractive',
+        '-Command',
+        'Add-Type -AssemblyName System.Drawing;'
+            '[System.Drawing.Printing.PrinterSettings]::InstalledPrinters',
       ]);
 
       if (result.exitCode != 0) {
@@ -74,7 +75,7 @@ class PrinterDiscoveryService {
       final printers = output
           .split('\n')
           .map((line) => line.trim())
-          .where((line) => line.isNotEmpty && line != 'Name')
+          .where((line) => line.isNotEmpty)
           .toList();
 
       return printers;
