@@ -2,7 +2,6 @@
 // ignore_for_file: camel_case_types
 
 import 'dart:ffi';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -10,24 +9,23 @@ import 'package:ffi/ffi.dart';
 // Win32 constants
 // ---------------------------------------------------------------------------
 
-/// PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS — enumerate local + connected
+/// PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS
 const int PRINTER_ENUM_LOCAL = 0x00000002;
 const int PRINTER_ENUM_CONNECTIONS = 0x00000004;
+
+/// GetDeviceCaps indices
+const int HORZRES = 8; // printable width in pixels
+const int VERTRES = 10; // printable height in pixels
+
+/// GDI+ InterpolationMode
+const int INTERPOLATION_HIGH_QUALITY_BICUBIC = 7;
 
 // ---------------------------------------------------------------------------
 // Win32 structs
 // ---------------------------------------------------------------------------
 
-/// DOC_INFO_1W — passed to StartDocPrinterW
-final class DOC_INFO_1 extends Struct {
-  external Pointer<Utf16> pDocName;
-  external Pointer<Utf16> pOutputFile;
-  external Pointer<Utf16> pDatatype;
-}
-
-/// PRINTER_INFO_2W — returned by EnumPrintersW (level 2)
-/// We only need pPrinterName, but must define the full struct layout
-/// so that stride calculations are correct for array indexing.
+/// PRINTER_INFO_2W — returned by EnumPrintersW (level 2).
+/// Full layout needed for correct stride when indexing the array.
 final class PRINTER_INFO_2 extends Struct {
   external Pointer<Utf16> pServerName;
   external Pointer<Utf16> pPrinterName;
@@ -60,127 +58,229 @@ final class PRINTER_INFO_2 extends Struct {
   external int AveragePPM;
 }
 
+/// DOCINFOW — passed to StartDocW (GDI printing).
+final class DOCINFOW extends Struct {
+  @Int32()
+  external int cbSize;
+  external Pointer<Utf16> lpszDocName;
+  external Pointer<Utf16> lpszOutput;
+  external Pointer<Utf16> lpszDatatype;
+  @Uint32()
+  external int fwType;
+}
+
+/// GdiplusStartupInput — passed to GdiplusStartup.
+final class GdiplusStartupInput extends Struct {
+  @Uint32()
+  external int GdiplusVersion;
+  external Pointer<Void> DebugEventCallback;
+  @Int32()
+  external int SuppressBackgroundThread;
+  @Int32()
+  external int SuppressExternalCodecs;
+}
+
 // ---------------------------------------------------------------------------
-// Function typedefs for winspool.drv
+// Function typedefs — winspool.drv (printer enumeration only)
 // ---------------------------------------------------------------------------
 
-// BOOL OpenPrinterW(LPCWSTR pPrinterName, LPHANDLE phPrinter, LPVOID pDefault)
-typedef _OpenPrinterW_C = Int32 Function(
-    Pointer<Utf16> pPrinterName,
-    Pointer<IntPtr> phPrinter,
-    Pointer<Void> pDefault);
-typedef _OpenPrinterW_Dart = int Function(
-    Pointer<Utf16> pPrinterName,
-    Pointer<IntPtr> phPrinter,
-    Pointer<Void> pDefault);
-
-// BOOL ClosePrinter(HANDLE hPrinter)
-typedef _ClosePrinter_C = Int32 Function(IntPtr hPrinter);
-typedef _ClosePrinter_Dart = int Function(int hPrinter);
-
-// DWORD StartDocPrinterW(HANDLE hPrinter, DWORD Level, LPBYTE pDocInfo)
-typedef _StartDocPrinterW_C = Uint32 Function(
-    IntPtr hPrinter, Uint32 level, Pointer<DOC_INFO_1> pDocInfo);
-typedef _StartDocPrinterW_Dart = int Function(
-    int hPrinter, int level, Pointer<DOC_INFO_1> pDocInfo);
-
-// BOOL EndDocPrinter(HANDLE hPrinter)
-typedef _EndDocPrinter_C = Int32 Function(IntPtr hPrinter);
-typedef _EndDocPrinter_Dart = int Function(int hPrinter);
-
-// BOOL StartPagePrinter(HANDLE hPrinter)
-typedef _StartPagePrinter_C = Int32 Function(IntPtr hPrinter);
-typedef _StartPagePrinter_Dart = int Function(int hPrinter);
-
-// BOOL EndPagePrinter(HANDLE hPrinter)
-typedef _EndPagePrinter_C = Int32 Function(IntPtr hPrinter);
-typedef _EndPagePrinter_Dart = int Function(int hPrinter);
-
-// BOOL WritePrinter(HANDLE hPrinter, LPVOID pBuf, DWORD cbBuf, LPDWORD pcWritten)
-typedef _WritePrinter_C = Int32 Function(
-    IntPtr hPrinter,
-    Pointer<Void> pBuf,
-    Uint32 cbBuf,
-    Pointer<Uint32> pcWritten);
-typedef _WritePrinter_Dart = int Function(
-    int hPrinter,
-    Pointer<Void> pBuf,
-    int cbBuf,
-    Pointer<Uint32> pcWritten);
-
-// BOOL EnumPrintersW(DWORD Flags, LPWSTR Name, DWORD Level,
-//   LPBYTE pPrinterEnum, DWORD cbBuf, LPDWORD pcbNeeded, LPDWORD pcReturned)
 typedef _EnumPrintersW_C = Int32 Function(
-    Uint32 flags,
-    Pointer<Utf16> name,
-    Uint32 level,
-    Pointer<Uint8> pPrinterEnum,
-    Uint32 cbBuf,
-    Pointer<Uint32> pcbNeeded,
-    Pointer<Uint32> pcReturned);
+    Uint32 flags, Pointer<Utf16> name, Uint32 level,
+    Pointer<Uint8> pPrinterEnum, Uint32 cbBuf,
+    Pointer<Uint32> pcbNeeded, Pointer<Uint32> pcReturned);
 typedef _EnumPrintersW_Dart = int Function(
-    int flags,
-    Pointer<Utf16> name,
-    int level,
-    Pointer<Uint8> pPrinterEnum,
-    int cbBuf,
-    Pointer<Uint32> pcbNeeded,
-    Pointer<Uint32> pcReturned);
+    int flags, Pointer<Utf16> name, int level,
+    Pointer<Uint8> pPrinterEnum, int cbBuf,
+    Pointer<Uint32> pcbNeeded, Pointer<Uint32> pcReturned);
 
 // ---------------------------------------------------------------------------
-// Win32 Printer API wrapper
+// Function typedefs — gdi32.dll (printer DC + document/page management)
 // ---------------------------------------------------------------------------
 
-/// Direct Win32 spooler API wrapper via dart:ffi.
+// HDC CreateDCW(LPCWSTR lpszDriver, LPCWSTR lpszDevice, ...)
+typedef _CreateDCW_C = IntPtr Function(
+    Pointer<Utf16> lpszDriver, Pointer<Utf16> lpszDevice,
+    Pointer<Utf16> lpszOutput, Pointer<Void> lpInitData);
+typedef _CreateDCW_Dart = int Function(
+    Pointer<Utf16> lpszDriver, Pointer<Utf16> lpszDevice,
+    Pointer<Utf16> lpszOutput, Pointer<Void> lpInitData);
+
+// BOOL DeleteDC(HDC hdc)
+typedef _DeleteDC_C = Int32 Function(IntPtr hdc);
+typedef _DeleteDC_Dart = int Function(int hdc);
+
+// int StartDocW(HDC hdc, const DOCINFOW* lpdi)
+typedef _StartDocW_C = Int32 Function(IntPtr hdc, Pointer<DOCINFOW> lpdi);
+typedef _StartDocW_Dart = int Function(int hdc, Pointer<DOCINFOW> lpdi);
+
+// int StartPage(HDC hdc)
+typedef _StartPage_C = Int32 Function(IntPtr hdc);
+typedef _StartPage_Dart = int Function(int hdc);
+
+// int EndPage(HDC hdc)
+typedef _EndPage_C = Int32 Function(IntPtr hdc);
+typedef _EndPage_Dart = int Function(int hdc);
+
+// int EndDoc(HDC hdc)
+typedef _EndDoc_C = Int32 Function(IntPtr hdc);
+typedef _EndDoc_Dart = int Function(int hdc);
+
+// int GetDeviceCaps(HDC hdc, int index)
+typedef _GetDeviceCaps_C = Int32 Function(IntPtr hdc, Int32 index);
+typedef _GetDeviceCaps_Dart = int Function(int hdc, int index);
+
+// ---------------------------------------------------------------------------
+// Function typedefs — gdiplus.dll (image loading + drawing)
+// ---------------------------------------------------------------------------
+
+// GpStatus GdiplusStartup(ULONG_PTR* token, GdiplusStartupInput* input, ...)
+typedef _GdiplusStartup_C = Int32 Function(
+    Pointer<IntPtr> token, Pointer<GdiplusStartupInput> input,
+    Pointer<Void> output);
+typedef _GdiplusStartup_Dart = int Function(
+    Pointer<IntPtr> token, Pointer<GdiplusStartupInput> input,
+    Pointer<Void> output);
+
+// void GdiplusShutdown(ULONG_PTR token)
+typedef _GdiplusShutdown_C = Void Function(IntPtr token);
+typedef _GdiplusShutdown_Dart = void Function(int token);
+
+// GpStatus GdipLoadImageFromFile(LPCWSTR filename, GpImage** image)
+typedef _GdipLoadImageFromFile_C = Int32 Function(
+    Pointer<Utf16> filename, Pointer<Pointer<Void>> image);
+typedef _GdipLoadImageFromFile_Dart = int Function(
+    Pointer<Utf16> filename, Pointer<Pointer<Void>> image);
+
+// GpStatus GdipCreateFromHDC(HDC hdc, GpGraphics** graphics)
+typedef _GdipCreateFromHDC_C = Int32 Function(
+    IntPtr hdc, Pointer<Pointer<Void>> graphics);
+typedef _GdipCreateFromHDC_Dart = int Function(
+    int hdc, Pointer<Pointer<Void>> graphics);
+
+// GpStatus GdipDrawImageRectI(GpGraphics*, GpImage*, INT x, y, w, h)
+typedef _GdipDrawImageRectI_C = Int32 Function(
+    Pointer<Void> graphics, Pointer<Void> image,
+    Int32 x, Int32 y, Int32 width, Int32 height);
+typedef _GdipDrawImageRectI_Dart = int Function(
+    Pointer<Void> graphics, Pointer<Void> image,
+    int x, int y, int width, int height);
+
+// GpStatus GdipSetInterpolationMode(GpGraphics*, InterpolationMode)
+typedef _GdipSetInterpolationMode_C = Int32 Function(
+    Pointer<Void> graphics, Int32 mode);
+typedef _GdipSetInterpolationMode_Dart = int Function(
+    Pointer<Void> graphics, int mode);
+
+// GpStatus GdipDeleteGraphics(GpGraphics*)
+typedef _GdipDeleteGraphics_C = Int32 Function(Pointer<Void> graphics);
+typedef _GdipDeleteGraphics_Dart = int Function(Pointer<Void> graphics);
+
+// GpStatus GdipDisposeImage(GpImage*)
+typedef _GdipDisposeImage_C = Int32 Function(Pointer<Void> image);
+typedef _GdipDisposeImage_Dart = int Function(Pointer<Void> image);
+
+// ---------------------------------------------------------------------------
+// Win32Printer — printer enumeration + GDI printing via dart:ffi
+// ---------------------------------------------------------------------------
+
+/// Direct Win32 API wrapper via dart:ffi.
 ///
-/// Loads `winspool.drv` and provides:
-///   - [enumPrinters] — fast printer discovery via EnumPrintersW
-///   - [printRaw]     — send raw bytes via OpenPrinter → WritePrinter pipeline
+/// Provides:
+///   - [enumPrinters] — instant printer discovery via EnumPrintersW
+///   - [printImage]   — print an image file through the printer driver
+///                      using GDI+ (CreateDC → GdipDrawImageRectI)
 ///
-/// This avoids PowerShell entirely, making both discovery and printing
-/// near-instant even on low-end hardware (Celeron, etc.).
+/// No PowerShell, no process spawning, near-instant on any hardware.
 class Win32Printer {
+  // -- DLL handles --
   late final DynamicLibrary _winspool;
+  late final DynamicLibrary _gdi32;
+  late final DynamicLibrary _gdiplus;
 
-  late final _OpenPrinterW_Dart _openPrinter;
-  late final _ClosePrinter_Dart _closePrinter;
-  late final _StartDocPrinterW_Dart _startDocPrinter;
-  late final _EndDocPrinter_Dart _endDocPrinter;
-  late final _StartPagePrinter_Dart _startPagePrinter;
-  late final _EndPagePrinter_Dart _endPagePrinter;
-  late final _WritePrinter_Dart _writePrinter;
+  // -- winspool.drv functions --
   late final _EnumPrintersW_Dart _enumPrinters;
 
-  Win32Printer() {
-    _winspool = DynamicLibrary.open('winspool.drv');
+  // -- gdi32.dll functions --
+  late final _CreateDCW_Dart _createDC;
+  late final _DeleteDC_Dart _deleteDC;
+  late final _StartDocW_Dart _startDoc;
+  late final _StartPage_Dart _startPage;
+  late final _EndPage_Dart _endPage;
+  late final _EndDoc_Dart _endDoc;
+  late final _GetDeviceCaps_Dart _getDeviceCaps;
 
-    _openPrinter = _winspool
-        .lookupFunction<_OpenPrinterW_C, _OpenPrinterW_Dart>('OpenPrinterW');
-    _closePrinter = _winspool
-        .lookupFunction<_ClosePrinter_C, _ClosePrinter_Dart>('ClosePrinter');
-    _startDocPrinter = _winspool
-        .lookupFunction<_StartDocPrinterW_C, _StartDocPrinterW_Dart>(
-            'StartDocPrinterW');
-    _endDocPrinter = _winspool
-        .lookupFunction<_EndDocPrinter_C, _EndDocPrinter_Dart>(
-            'EndDocPrinter');
-    _startPagePrinter = _winspool
-        .lookupFunction<_StartPagePrinter_C, _StartPagePrinter_Dart>(
-            'StartPagePrinter');
-    _endPagePrinter = _winspool
-        .lookupFunction<_EndPagePrinter_C, _EndPagePrinter_Dart>(
-            'EndPagePrinter');
-    _writePrinter = _winspool
-        .lookupFunction<_WritePrinter_C, _WritePrinter_Dart>('WritePrinter');
+  // -- gdiplus.dll functions --
+  late final _GdiplusStartup_Dart _gdipStartup;
+  late final _GdiplusShutdown_Dart _gdipShutdown;
+  late final _GdipLoadImageFromFile_Dart _gdipLoadImage;
+  late final _GdipCreateFromHDC_Dart _gdipCreateFromHDC;
+  late final _GdipDrawImageRectI_Dart _gdipDrawImageRectI;
+  late final _GdipSetInterpolationMode_Dart _gdipSetInterpolationMode;
+  late final _GdipDeleteGraphics_Dart _gdipDeleteGraphics;
+  late final _GdipDisposeImage_Dart _gdipDisposeImage;
+
+  Win32Printer() {
+    // Load DLLs
+    _winspool = DynamicLibrary.open('winspool.drv');
+    _gdi32 = DynamicLibrary.open('gdi32.dll');
+    _gdiplus = DynamicLibrary.open('gdiplus.dll');
+
+    // winspool.drv
     _enumPrinters = _winspool
         .lookupFunction<_EnumPrintersW_C, _EnumPrintersW_Dart>(
             'EnumPrintersW');
+
+    // gdi32.dll
+    _createDC = _gdi32
+        .lookupFunction<_CreateDCW_C, _CreateDCW_Dart>('CreateDCW');
+    _deleteDC = _gdi32
+        .lookupFunction<_DeleteDC_C, _DeleteDC_Dart>('DeleteDC');
+    _startDoc = _gdi32
+        .lookupFunction<_StartDocW_C, _StartDocW_Dart>('StartDocW');
+    _startPage = _gdi32
+        .lookupFunction<_StartPage_C, _StartPage_Dart>('StartPage');
+    _endPage = _gdi32
+        .lookupFunction<_EndPage_C, _EndPage_Dart>('EndPage');
+    _endDoc = _gdi32
+        .lookupFunction<_EndDoc_C, _EndDoc_Dart>('EndDoc');
+    _getDeviceCaps = _gdi32
+        .lookupFunction<_GetDeviceCaps_C, _GetDeviceCaps_Dart>(
+            'GetDeviceCaps');
+
+    // gdiplus.dll
+    _gdipStartup = _gdiplus
+        .lookupFunction<_GdiplusStartup_C, _GdiplusStartup_Dart>(
+            'GdiplusStartup');
+    _gdipShutdown = _gdiplus
+        .lookupFunction<_GdiplusShutdown_C, _GdiplusShutdown_Dart>(
+            'GdiplusShutdown');
+    _gdipLoadImage = _gdiplus
+        .lookupFunction<_GdipLoadImageFromFile_C,
+            _GdipLoadImageFromFile_Dart>('GdipLoadImageFromFile');
+    _gdipCreateFromHDC = _gdiplus
+        .lookupFunction<_GdipCreateFromHDC_C, _GdipCreateFromHDC_Dart>(
+            'GdipCreateFromHDC');
+    _gdipDrawImageRectI = _gdiplus
+        .lookupFunction<_GdipDrawImageRectI_C, _GdipDrawImageRectI_Dart>(
+            'GdipDrawImageRectI');
+    _gdipSetInterpolationMode = _gdiplus
+        .lookupFunction<_GdipSetInterpolationMode_C,
+            _GdipSetInterpolationMode_Dart>('GdipSetInterpolationMode');
+    _gdipDeleteGraphics = _gdiplus
+        .lookupFunction<_GdipDeleteGraphics_C, _GdipDeleteGraphics_Dart>(
+            'GdipDeleteGraphics');
+    _gdipDisposeImage = _gdiplus
+        .lookupFunction<_GdipDisposeImage_C, _GdipDisposeImage_Dart>(
+            'GdipDisposeImage');
   }
+
+  // -------------------------------------------------------------------------
+  // Printer enumeration
+  // -------------------------------------------------------------------------
 
   /// Enumerate installed printers using EnumPrintersW (level 2).
   ///
-  /// Returns a list of printer names. This is instant — no PowerShell,
-  /// no WMI, no process spawning.
+  /// Returns a list of printer names. Instant — no process spawning.
   List<String> enumPrinters() {
     final pcbNeeded = calloc<Uint32>();
     final pcReturned = calloc<Uint32>();
@@ -189,12 +289,7 @@ class Win32Printer {
       // First call: get required buffer size
       _enumPrinters(
         PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-        nullptr,
-        2, // level 2 = PRINTER_INFO_2
-        nullptr,
-        0,
-        pcbNeeded,
-        pcReturned,
+        nullptr, 2, nullptr, 0, pcbNeeded, pcReturned,
       );
 
       final bufferSize = pcbNeeded.value;
@@ -205,14 +300,8 @@ class Win32Printer {
       try {
         final result = _enumPrinters(
           PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-          nullptr,
-          2,
-          pBuffer,
-          bufferSize,
-          pcbNeeded,
-          pcReturned,
+          nullptr, 2, pBuffer, bufferSize, pcbNeeded, pcReturned,
         );
-
         if (result == 0) return [];
 
         final count = pcReturned.value;
@@ -227,7 +316,6 @@ class Win32Printer {
             printers.add(name.toDartString());
           }
         }
-
         return printers;
       } finally {
         calloc.free(pBuffer);
@@ -238,90 +326,143 @@ class Win32Printer {
     }
   }
 
-  /// Send raw bytes to a printer using the Win32 spooler pipeline:
-  ///   OpenPrinter → StartDocPrinter → StartPagePrinter →
-  ///   WritePrinter → EndPagePrinter → EndDocPrinter → ClosePrinter
+  // -------------------------------------------------------------------------
+  // GDI+ image printing — goes through the printer driver
+  // -------------------------------------------------------------------------
+
+  /// Print an image file to the specified printer using GDI+.
   ///
-  /// [printerName] — system printer name (from [enumPrinters]).
-  /// [data] — raw bytes to send (e.g., PNG file contents).
-  /// [docName] — document name shown in the print queue.
+  /// Flow:
+  ///   1. Initialize GDI+
+  ///   2. Load image from file (supports PNG, BMP, JPEG, etc.)
+  ///   3. Open a printer device context (DC) via CreateDCW
+  ///   4. StartDoc → StartPage
+  ///   5. Draw the image scaled to fill the printable area
+  ///   6. EndPage → EndDoc → cleanup
   ///
-  /// Returns `true` if all bytes were written successfully.
-  bool printRaw({
+  /// This goes through the printer driver, so the driver handles
+  /// rendering and communication with the hardware. Works with all
+  /// printers that have a Windows driver installed.
+  ///
+  /// Returns `true` if the print job was sent successfully.
+  bool printImage({
     required String printerName,
-    required Uint8List data,
+    required String filePath,
     String docName = 'Label',
   }) {
-    final pPrinterName = printerName.toNativeUtf16();
-    final phPrinter = calloc<IntPtr>();
+    // -- 1. Initialize GDI+ --
+    final pToken = calloc<IntPtr>();
+    final pStartupInput = calloc<GdiplusStartupInput>();
+    pStartupInput.ref.GdiplusVersion = 1;
+    pStartupInput.ref.DebugEventCallback = nullptr;
+    pStartupInput.ref.SuppressBackgroundThread = 0;
+    pStartupInput.ref.SuppressExternalCodecs = 0;
 
-    try {
-      // Open the printer
-      final openResult = _openPrinter(pPrinterName, phPrinter, nullptr);
-      if (openResult == 0) return false;
-
-      final hPrinter = phPrinter.value;
-
-      // Set up DOC_INFO_1 with RAW datatype
-      final pDocInfo = calloc<DOC_INFO_1>();
-      final pDocName = docName.toNativeUtf16();
-      final pDatatype = 'RAW'.toNativeUtf16();
-
-      pDocInfo.ref.pDocName = pDocName;
-      pDocInfo.ref.pOutputFile = nullptr;
-      pDocInfo.ref.pDatatype = pDatatype;
-
-      try {
-        // Start document
-        final docId = _startDocPrinter(hPrinter, 1, pDocInfo);
-        if (docId == 0) {
-          _closePrinter(hPrinter);
-          return false;
-        }
-
-        // Start page
-        if (_startPagePrinter(hPrinter) == 0) {
-          _endDocPrinter(hPrinter);
-          _closePrinter(hPrinter);
-          return false;
-        }
-
-        // Write data
-        final pData = calloc<Uint8>(data.length);
-        final pcWritten = calloc<Uint32>();
-        try {
-          // Copy Dart bytes into native memory
-          for (var i = 0; i < data.length; i++) {
-            pData[i] = data[i];
-          }
-
-          final writeResult = _writePrinter(
-            hPrinter,
-            pData.cast<Void>(),
-            data.length,
-            pcWritten,
-          );
-
-          final success = writeResult != 0 && pcWritten.value == data.length;
-
-          // End page + doc + close (always clean up)
-          _endPagePrinter(hPrinter);
-          _endDocPrinter(hPrinter);
-          _closePrinter(hPrinter);
-
-          return success;
-        } finally {
-          calloc.free(pData);
-          calloc.free(pcWritten);
-        }
-      } finally {
-        calloc.free(pDocInfo);
-        calloc.free(pDocName);
-        calloc.free(pDatatype);
-      }
-    } finally {
-      calloc.free(pPrinterName);
-      calloc.free(phPrinter);
+    var status = _gdipStartup(pToken, pStartupInput, nullptr);
+    if (status != 0) {
+      calloc.free(pToken);
+      calloc.free(pStartupInput);
+      return false;
     }
+    final gdipToken = pToken.value;
+    calloc.free(pStartupInput);
+
+    // -- 2. Load image from file --
+    final pFilePath = filePath.toNativeUtf16();
+    final ppImage = calloc<Pointer<Void>>();
+
+    status = _gdipLoadImage(pFilePath, ppImage);
+    calloc.free(pFilePath);
+
+    if (status != 0) {
+      calloc.free(ppImage);
+      _gdipShutdown(gdipToken);
+      calloc.free(pToken);
+      return false;
+    }
+    final hImage = ppImage.value;
+    calloc.free(ppImage);
+
+    // -- 3. Create printer DC --
+    final pDriver = 'WINSPOOL'.toNativeUtf16();
+    final pDevice = printerName.toNativeUtf16();
+
+    final hdc = _createDC(pDriver, pDevice, nullptr, nullptr);
+    calloc.free(pDriver);
+    calloc.free(pDevice);
+
+    if (hdc == 0) {
+      _gdipDisposeImage(hImage);
+      _gdipShutdown(gdipToken);
+      calloc.free(pToken);
+      return false;
+    }
+
+    // Get printable area size from the printer DC
+    final pageWidth = _getDeviceCaps(hdc, HORZRES);
+    final pageHeight = _getDeviceCaps(hdc, VERTRES);
+
+    // -- 4. Start document --
+    final pDocInfo = calloc<DOCINFOW>();
+    final pDocName = docName.toNativeUtf16();
+    pDocInfo.ref.cbSize = sizeOf<DOCINFOW>();
+    pDocInfo.ref.lpszDocName = pDocName;
+    pDocInfo.ref.lpszOutput = nullptr;
+    pDocInfo.ref.lpszDatatype = nullptr;
+    pDocInfo.ref.fwType = 0;
+
+    final docResult = _startDoc(hdc, pDocInfo);
+    calloc.free(pDocInfo);
+    calloc.free(pDocName);
+
+    if (docResult <= 0) {
+      _deleteDC(hdc);
+      _gdipDisposeImage(hImage);
+      _gdipShutdown(gdipToken);
+      calloc.free(pToken);
+      return false;
+    }
+
+    // -- 5. Start page --
+    if (_startPage(hdc) <= 0) {
+      _endDoc(hdc);
+      _deleteDC(hdc);
+      _gdipDisposeImage(hImage);
+      _gdipShutdown(gdipToken);
+      calloc.free(pToken);
+      return false;
+    }
+
+    // -- 6. Create GDI+ Graphics from printerDC and draw image --
+    final ppGraphics = calloc<Pointer<Void>>();
+    status = _gdipCreateFromHDC(hdc, ppGraphics);
+
+    bool success = false;
+    if (status == 0) {
+      final hGraphics = ppGraphics.value;
+
+      // Set high quality interpolation for crisp output
+      _gdipSetInterpolationMode(hGraphics, INTERPOLATION_HIGH_QUALITY_BICUBIC);
+
+      // Draw image scaled to fill the entire printable area
+      status = _gdipDrawImageRectI(
+          hGraphics, hImage, 0, 0, pageWidth, pageHeight);
+      success = (status == 0);
+
+      _gdipDeleteGraphics(hGraphics);
+    }
+    calloc.free(ppGraphics);
+
+    // -- 7. End page + document --
+    _endPage(hdc);
+    _endDoc(hdc);
+
+    // -- 8. Cleanup --
+    _deleteDC(hdc);
+    _gdipDisposeImage(hImage);
+    _gdipShutdown(gdipToken);
+    calloc.free(pToken);
+
+    return success;
   }
 }

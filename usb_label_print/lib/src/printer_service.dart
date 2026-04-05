@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'label_config.dart';
 import 'win32/win32_printer.dart';
@@ -8,7 +7,7 @@ import 'win32/win32_printer.dart';
 ///
 /// Uses platform-specific methods:
 ///   - macOS: `lp -d <printer> -o media=Custom.<W>x<H>mm -o fit-to-page <file>`
-///   - Windows: Win32 spooler API (OpenPrinter → WritePrinter) via dart:ffi
+///   - Windows: GDI+ rendering through the printer driver via dart:ffi
 class PrinterService {
   /// Cached Win32Printer instance (Windows only). Created once, reused.
   Win32Printer? _win32;
@@ -79,27 +78,20 @@ class PrinterService {
     }
   }
 
-  /// Windows: send raw PNG bytes directly to the printer via Win32 spooler API.
+  /// Windows: print image via GDI+ through the printer driver.
   ///
-  /// Uses OpenPrinter → StartDocPrinter(RAW) → WritePrinter → EndDocPrinter
-  /// via dart:ffi. No PowerShell, no process spawning, near-instant.
-  ///
-  /// The RAW datatype sends bytes directly to the printer driver, which
-  /// handles rendering. Most USB label printers (Xprinter, TSC, etc.)
-  /// accept PNG data directly through their Windows driver.
+  /// Uses CreateDCW → GdipDrawImageRectI → EndDoc via dart:ffi.
+  /// This renders the image through the printer driver, which converts it
+  /// to the printer's native format. Works with all printers that have a
+  /// Windows driver installed. No PowerShell, no process spawning.
   Future<bool> _printWindows(
       String filePath, String printerName, LabelConfig config) async {
     try {
       _win32 ??= Win32Printer();
 
-      // Read the PNG file bytes
-      final file = File(filePath);
-      final Uint8List data = await file.readAsBytes();
-
-      // Send raw bytes through the Win32 spooler pipeline
-      return _win32!.printRaw(
+      return _win32!.printImage(
         printerName: printerName,
-        data: data,
+        filePath: filePath,
         docName: 'Label ${config.widthMm.toStringAsFixed(0)}x${config.heightMm.toStringAsFixed(0)}mm',
       );
     } catch (e) {
