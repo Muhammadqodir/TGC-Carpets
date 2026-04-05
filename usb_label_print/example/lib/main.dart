@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 void main() {
@@ -13,7 +14,7 @@ class TgcPrinterExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TGC Printer Example',
+      title: 'USB Label Print Example',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: Colors.teal,
@@ -49,7 +50,6 @@ class _PrinterPageState extends State<PrinterPage> {
   // -- Label config (size + DPI) --
   LabelConfig _labelConfig = LabelConfig.preset58x40;
 
-  // Available presets for the dropdown
   static final _presets = <String, LabelConfig>{
     '58 x 40 mm': LabelConfig.preset58x40,
     '58 x 30 mm': LabelConfig.preset58x30,
@@ -59,8 +59,10 @@ class _PrinterPageState extends State<PrinterPage> {
   String _selectedPreset = '58 x 40 mm';
 
   // -- Label content --
-  final _textController = TextEditingController(text: 'TGC Carpets\nSKU: CP-001\nQuality: Premium');
-  final _qrDataController = TextEditingController(text: 'https://tgc-carpets.com/product/CP-001');
+  final _textController =
+      TextEditingController(text: 'TGC Carpets\nSKU: CP-001\nQuality: Premium');
+  final _qrDataController =
+      TextEditingController(text: 'https://tgc-carpets.com/product/CP-001');
 
   @override
   void initState() {
@@ -75,7 +77,6 @@ class _PrinterPageState extends State<PrinterPage> {
     super.dispose();
   }
 
-  /// Discover available system printers
   Future<void> _refreshPrinters() async {
     setState(() {
       _isLoading = true;
@@ -92,14 +93,12 @@ class _PrinterPageState extends State<PrinterPage> {
         _selectedPrinter = null;
         _statusMessage = 'No printers found.';
       } else {
-        // Auto-select first printer if none selected
         _selectedPrinter ??= printers.first;
         _statusMessage = 'Found ${printers.length} printer(s).';
       }
     });
   }
 
-  /// Render the label widget to a PNG file
   Future<void> _generatePng() async {
     setState(() {
       _isLoading = true;
@@ -107,19 +106,16 @@ class _PrinterPageState extends State<PrinterPage> {
     });
 
     final renderer = LabelRenderer(_labelKey);
-    // pixelRatio=1.0 so PNG pixels match the config exactly
     final path = await renderer.renderToPng(pixelRatio: 1.0);
 
     setState(() {
       _generatedPngPath = path;
       _isLoading = false;
-      _statusMessage = path != null
-          ? 'PNG saved to: $path'
-          : 'Failed to generate PNG.';
+      _statusMessage =
+          path != null ? 'PNG saved to: $path' : 'Failed to generate PNG.';
     });
   }
 
-  /// Print the generated PNG to the selected printer
   Future<void> _printLabel() async {
     if (_generatedPngPath == null) {
       setState(() => _statusMessage = 'Generate a PNG first.');
@@ -149,28 +145,72 @@ class _PrinterPageState extends State<PrinterPage> {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Build the label widget
+  // ---------------------------------------------------------------------------
+
+  Widget _buildLabel() {
+    return LabelWidget(
+      config: _labelConfig,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // QR code
+          SizedBox(
+            width: _labelConfig.heightPx * 0.75,
+            height: _labelConfig.heightPx * 0.75,
+            child: QrImageView(
+              data: _qrDataController.text.isEmpty
+                  ? 'empty'
+                  : _qrDataController.text,
+              version: QrVersions.auto,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Text + logo
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.grid_view_rounded, size: 40, color: Colors.teal),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: Text(
+                    _textController.text,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('TGC Label Printer'),
-      ),
+      appBar: AppBar(title: const Text('USB Label Print')),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -- Left panel: controls --
-            SizedBox(
-              width: 360,
-              child: _buildControlsPanel(),
-            ),
+            SizedBox(width: 360, child: _buildControlsPanel()),
             const SizedBox(width: 32),
-
-            // -- Right panel: label preview + generated image --
-            Expanded(
-              child: _buildPreviewPanel(),
-            ),
+            Expanded(child: _buildPreviewPanel()),
           ],
         ),
       ),
@@ -178,125 +218,132 @@ class _PrinterPageState extends State<PrinterPage> {
   }
 
   Widget _buildControlsPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // -- Label text input --
-        const Text('Label Text', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _textController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            hintText: 'Enter label text...',
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // -- Label text --
+          const Text('Label Text', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _textController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Enter label text...',
+            ),
+            onChanged: (_) => setState(() {}),
           ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        // -- QR data input --
-        const Text('QR Code Data', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _qrDataController,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            hintText: 'Enter QR code data...',
+          // -- QR data --
+          const Text('QR Code Data',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _qrDataController,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Enter QR code data...',
+            ),
+            onChanged: (_) => setState(() {}),
           ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-        // -- Label size preset --
-        const Text('Label Size', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedPreset,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // -- Label size preset --
+          const Text('Label Size', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedPreset,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: _presets.keys
+                .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedPreset = value;
+                  _labelConfig = _presets[value]!;
+                  _generatedPngPath = null;
+                });
+              }
+            },
           ),
-          items: _presets.keys
-              .map((k) => DropdownMenuItem(value: k, child: Text(k)))
-              .toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() {
-                _selectedPreset = value;
-                _labelConfig = _presets[value]!;
-                _generatedPngPath = null; // reset PNG when size changes
-              });
-            }
-          },
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '${_labelConfig.widthPx} x ${_labelConfig.heightPx} px @ ${_labelConfig.dpi} DPI',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          Text(
+            '${_labelConfig.widthPx} x ${_labelConfig.heightPx} px @ ${_labelConfig.dpi} DPI',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
 
-        // -- Printer selection --
-        const Text('Printer', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(_printers.length),
-                initialValue: _selectedPrinter,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // -- Printer selection --
+          const Text('Printer', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(_printers.length),
+                  initialValue: _selectedPrinter,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  hint: const Text('Select printer'),
+                  items: _printers
+                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedPrinter = v),
                 ),
-                hint: const Text('Select printer'),
-                items: _printers
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                    .toList(),
-                onChanged: (value) => setState(() => _selectedPrinter = value),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: _isLoading ? null : _refreshPrinters,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Printers',
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // -- Action buttons --
+          FilledButton.icon(
+            onPressed: _isLoading ? null : _generatePng,
+            icon: const Icon(Icons.image),
+            label: const Text('Generate PNG'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed:
+                _isLoading || _generatedPngPath == null || _selectedPrinter == null
+                    ? null
+                    : _printLabel,
+            icon: const Icon(Icons.print),
+            label: const Text('Print'),
+          ),
+          const SizedBox(height: 24),
+
+          // -- Status --
+          if (_isLoading) const LinearProgressIndicator(),
+          if (_statusMessage.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              _statusMessage,
+              style: TextStyle(
+                color: _statusMessage.contains('failed') ||
+                        _statusMessage.contains('No printers')
+                    ? Colors.red
+                    : Colors.green.shade700,
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _isLoading ? null : _refreshPrinters,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh Printers',
-            ),
           ],
-        ),
-        const SizedBox(height: 24),
-
-        // -- Action buttons --
-        FilledButton.icon(
-          onPressed: _isLoading ? null : _generatePng,
-          icon: const Icon(Icons.image),
-          label: const Text('Generate PNG'),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.tonalIcon(
-          onPressed: _isLoading || _generatedPngPath == null || _selectedPrinter == null
-              ? null
-              : _printLabel,
-          icon: const Icon(Icons.print),
-          label: const Text('Print'),
-        ),
-        const SizedBox(height: 24),
-
-        // -- Status message --
-        if (_isLoading) const LinearProgressIndicator(),
-        if (_statusMessage.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            _statusMessage,
-            style: TextStyle(
-              color: _statusMessage.contains('failed') || _statusMessage.contains('No printers')
-                  ? Colors.red
-                  : Colors.green.shade700,
-            ),
-          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -305,9 +352,9 @@ class _PrinterPageState extends State<PrinterPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -- Live preview of the label widget --
           Text(
-            'Label Preview (${_labelConfig.widthMm.toStringAsFixed(0)} x ${_labelConfig.heightMm.toStringAsFixed(0)} mm)',
+            'Label Preview (${_labelConfig.widthMm.toStringAsFixed(0)} x '
+            '${_labelConfig.heightMm.toStringAsFixed(0)} mm)',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
@@ -322,21 +369,12 @@ class _PrinterPageState extends State<PrinterPage> {
                 ),
               ],
             ),
-            // Wrap in RepaintBoundary so we can capture it as PNG
             child: RepaintBoundary(
               key: _labelKey,
-              child: LabelWidget(
-                text: _textController.text,
-                qrData: _qrDataController.text.isEmpty
-                    ? 'empty'
-                    : _qrDataController.text,
-                config: _labelConfig,
-                logo: const Icon(Icons.grid_view_rounded, size: 40, color: Colors.teal),
-              ),
+              child: _buildLabel(),
             ),
           ),
 
-          // -- Show generated PNG preview --
           if (_generatedPngPath != null) ...[
             const SizedBox(height: 32),
             const Text(

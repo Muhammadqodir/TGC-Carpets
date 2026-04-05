@@ -10,3 +10,4 @@ dependencies:
     sdk: flutter
   usb_label_print:
     path: ../
+  qr_flutter: ^4.1.0
