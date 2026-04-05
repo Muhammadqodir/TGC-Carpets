@@ -20,6 +20,9 @@ const int VERTRES = 10; // printable height in pixels
 /// GDI+ InterpolationMode
 const int INTERPOLATION_HIGH_QUALITY_BICUBIC = 7;
 
+/// GDI+ Unit — UnitPixel so coordinates match GetDeviceCaps pixels
+const int UNIT_PIXEL = 2;
+
 // ---------------------------------------------------------------------------
 // Win32 structs
 // ---------------------------------------------------------------------------
@@ -171,6 +174,12 @@ typedef _GdipSetInterpolationMode_C = Int32 Function(
 typedef _GdipSetInterpolationMode_Dart = int Function(
     Pointer<Void> graphics, int mode);
 
+// GpStatus GdipSetPageUnit(GpGraphics*, GpUnit unit)
+typedef _GdipSetPageUnit_C = Int32 Function(
+    Pointer<Void> graphics, Int32 unit);
+typedef _GdipSetPageUnit_Dart = int Function(
+    Pointer<Void> graphics, int unit);
+
 // GpStatus GdipDeleteGraphics(GpGraphics*)
 typedef _GdipDeleteGraphics_C = Int32 Function(Pointer<Void> graphics);
 typedef _GdipDeleteGraphics_Dart = int Function(Pointer<Void> graphics);
@@ -228,6 +237,7 @@ class Win32Printer {
   late final _GdipCreateFromHDC_Dart _gdipCreateFromHDC;
   late final _GdipDrawImageRectI_Dart _gdipDrawImageRectI;
   late final _GdipSetInterpolationMode_Dart _gdipSetInterpolationMode;
+  late final _GdipSetPageUnit_Dart _gdipSetPageUnit;
   late final _GdipDeleteGraphics_Dart _gdipDeleteGraphics;
   late final _GdipGetImageWidth_Dart _gdipGetImageWidth;
   late final _GdipGetImageHeight_Dart _gdipGetImageHeight;
@@ -280,6 +290,9 @@ class Win32Printer {
     _gdipSetInterpolationMode = _gdiplus
         .lookupFunction<_GdipSetInterpolationMode_C,
             _GdipSetInterpolationMode_Dart>('GdipSetInterpolationMode');
+    _gdipSetPageUnit = _gdiplus
+        .lookupFunction<_GdipSetPageUnit_C, _GdipSetPageUnit_Dart>(
+            'GdipSetPageUnit');
     _gdipDeleteGraphics = _gdiplus
         .lookupFunction<_GdipDeleteGraphics_C, _GdipDeleteGraphics_Dart>(
             'GdipDeleteGraphics');
@@ -470,6 +483,11 @@ class Win32Printer {
     bool success = false;
     if (status == 0) {
       final hGraphics = ppGraphics.value;
+
+      // Set page unit to pixels so coordinates match GetDeviceCaps values.
+      // Default is UnitDisplay (1/100 inch for printers), which causes
+      // the image to be drawn ~2x too large (only top-left visible).
+      _gdipSetPageUnit(hGraphics, UNIT_PIXEL);
 
       // Set high quality interpolation for crisp output
       _gdipSetInterpolationMode(hGraphics, INTERPOLATION_HIGH_QUALITY_BICUBIC);
