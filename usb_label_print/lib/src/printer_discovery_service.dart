@@ -52,15 +52,18 @@ class PrinterDiscoveryService {
     }
   }
 
-  /// Windows: use PowerShell to list printer names.
+  /// Windows: use `wmic` to list printer names (much faster than Get-Printer).
   ///
-  /// Command: Get-Printer | Select-Object -ExpandProperty Name
+  /// Command: wmic printer get name
+  /// Output has a header line "Name" followed by printer names.
   Future<List<String>> _discoverWindows() async {
     try {
-      final result = await Process.run('powershell', [
-        '-NoProfile',
-        '-Command',
-        'Get-Printer | Select-Object -ExpandProperty Name',
+      // wmic is significantly faster than PowerShell's Get-Printer
+      // because it doesn't load the PrintManagement module.
+      final result = await Process.run('wmic', [
+        'printer',
+        'get',
+        'name',
       ]);
 
       if (result.exitCode != 0) {
@@ -71,7 +74,7 @@ class PrinterDiscoveryService {
       final printers = output
           .split('\n')
           .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
+          .where((line) => line.isNotEmpty && line != 'Name')
           .toList();
 
       return printers;

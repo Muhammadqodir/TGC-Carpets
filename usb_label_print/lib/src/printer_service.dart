@@ -77,11 +77,11 @@ class PrinterService {
 
   /// Windows: use PowerShell to print the image silently with exact sizing.
   ///
-  /// Creates a temporary PowerShell script that:
-  /// 1. Loads the image
-  /// 2. Sets the paper size to match the label dimensions
-  /// 3. Draws the image scaled to fit the label
-  /// 4. Sends it to the specified printer
+  /// Writes a .ps1 script to a temp file and executes it for faster startup.
+  /// Fixes:
+  ///   - RotateFlip to correct vertical inversion on thermal printers
+  ///   - HighQualityBicubic interpolation for crisp output
+  ///   - Sets image DPI to match printer resolution
   Future<bool> _printWindows(
       String filePath, String printerName, LabelConfig config) async {
     try {
@@ -89,12 +89,23 @@ class PrinterService {
       final widthHundredths = (config.widthMm / 25.4 * 100).round();
       final heightHundredths = (config.heightMm / 25.4 * 100).round();
 
-      // PowerShell script to print image with exact paper size
+      // Escape backslashes in file path for PowerShell
+      final escapedPath = filePath.replaceAll(r'\', r'\\');
+
+      // PowerShell script with quality settings and vertical flip fix
       final psScript = '''
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Drawing.Printing
 
-\$img = [System.Drawing.Image]::FromFile("$filePath")
+\$img = [System.Drawing.Image]::FromFile("$escapedPath")
+
+# Fix vertical flip for thermal printers
+\$img.RotateFlip([System.Drawing.RotateFlipType]::RotateNoneFlipY)
+
+# Set image resolution to match printer DPI for correct sizing
+\$bmp = New-Object System.Drawing.Bitmap(\$img)
+\$bmp.SetResolution(${config.dpi}, ${config.dpi})
+
 \$pd = New-Object System.Drawing.Printing.PrintDocument
 \$pd.PrinterSettings.PrinterName = "$printerName"
 \$pd.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize("Custom", $widthHundredths, $heightHundredths)
@@ -102,20 +113,39 @@ Add-Type -AssemblyName System.Drawing.Printing
 
 \$pd.add_PrintPage({
   param(\$sender, \$e)
+  # High quality rendering
+  \$e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  \$e.Graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+  \$e.Graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  \$e.Graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+
   \$rect = New-Object System.Drawing.RectangleF(0, 0, \$e.PageBounds.Width, \$e.PageBounds.Height)
-  \$e.Graphics.DrawImage(\$img, \$rect)
+  \$e.Graphics.DrawImage(\$bmp, \$rect)
 })
 
 \$pd.Print()
+\$bmp.Dispose()
 \$img.Dispose()
 \$pd.Dispose()
 ''';
 
+      // Write script to temp file for faster execution (avoids inline parsing)
+      final tempDir = Directory.systemTemp;
+      final scriptFile = File('${tempDir.path}/usb_label_print.ps1');
+      await scriptFile.writeAsString(psScript);
+
       final result = await Process.run('powershell', [
         '-NoProfile',
-        '-Command',
-        psScript,
+        '-NoLogo',
+        '-NonInteractive',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', scriptFile.path,
       ]);
+
+      // Clean up script file
+      try {
+        await scriptFile.delete();
+      } catch (_) {}
 
       if (result.exitCode == 0) {
         return true;

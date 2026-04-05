@@ -51,7 +51,7 @@ class LabelRenderer {
       // Save to a temporary file
       final tempDir = Directory.systemTemp;
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${tempDir.path}/tgc_label_$timestamp.png');
+      final file = File('${tempDir.path}/label_$timestamp.png');
       await file.writeAsBytes(pngBytes);
 
       debugPrint('LabelRenderer: PNG saved to ${file.path}');
