@@ -175,6 +175,18 @@ typedef _GdipSetInterpolationMode_Dart = int Function(
 typedef _GdipDeleteGraphics_C = Int32 Function(Pointer<Void> graphics);
 typedef _GdipDeleteGraphics_Dart = int Function(Pointer<Void> graphics);
 
+// GpStatus GdipGetImageWidth(GpImage*, UINT* width)
+typedef _GdipGetImageWidth_C = Int32 Function(
+    Pointer<Void> image, Pointer<Uint32> width);
+typedef _GdipGetImageWidth_Dart = int Function(
+    Pointer<Void> image, Pointer<Uint32> width);
+
+// GpStatus GdipGetImageHeight(GpImage*, UINT* height)
+typedef _GdipGetImageHeight_C = Int32 Function(
+    Pointer<Void> image, Pointer<Uint32> height);
+typedef _GdipGetImageHeight_Dart = int Function(
+    Pointer<Void> image, Pointer<Uint32> height);
+
 // GpStatus GdipDisposeImage(GpImage*)
 typedef _GdipDisposeImage_C = Int32 Function(Pointer<Void> image);
 typedef _GdipDisposeImage_Dart = int Function(Pointer<Void> image);
@@ -217,6 +229,8 @@ class Win32Printer {
   late final _GdipDrawImageRectI_Dart _gdipDrawImageRectI;
   late final _GdipSetInterpolationMode_Dart _gdipSetInterpolationMode;
   late final _GdipDeleteGraphics_Dart _gdipDeleteGraphics;
+  late final _GdipGetImageWidth_Dart _gdipGetImageWidth;
+  late final _GdipGetImageHeight_Dart _gdipGetImageHeight;
   late final _GdipDisposeImage_Dart _gdipDisposeImage;
 
   Win32Printer() {
@@ -269,6 +283,12 @@ class Win32Printer {
     _gdipDeleteGraphics = _gdiplus
         .lookupFunction<_GdipDeleteGraphics_C, _GdipDeleteGraphics_Dart>(
             'GdipDeleteGraphics');
+    _gdipGetImageWidth = _gdiplus
+        .lookupFunction<_GdipGetImageWidth_C, _GdipGetImageWidth_Dart>(
+            'GdipGetImageWidth');
+    _gdipGetImageHeight = _gdiplus
+        .lookupFunction<_GdipGetImageHeight_C, _GdipGetImageHeight_Dart>(
+            'GdipGetImageHeight');
     _gdipDisposeImage = _gdiplus
         .lookupFunction<_GdipDisposeImage_C, _GdipDisposeImage_Dart>(
             'GdipDisposeImage');
@@ -402,6 +422,16 @@ class Win32Printer {
     final pageWidth = _getDeviceCaps(hdc, HORZRES);
     final pageHeight = _getDeviceCaps(hdc, VERTRES);
 
+    // Get actual image dimensions for aspect-ratio-preserving scaling
+    final pImgWidth = calloc<Uint32>();
+    final pImgHeight = calloc<Uint32>();
+    _gdipGetImageWidth(hImage, pImgWidth);
+    _gdipGetImageHeight(hImage, pImgHeight);
+    final imgWidth = pImgWidth.value;
+    final imgHeight = pImgHeight.value;
+    calloc.free(pImgWidth);
+    calloc.free(pImgHeight);
+
     // -- 4. Start document --
     final pDocInfo = calloc<DOCINFOW>();
     final pDocName = docName.toNativeUtf16();
@@ -444,9 +474,21 @@ class Win32Printer {
       // Set high quality interpolation for crisp output
       _gdipSetInterpolationMode(hGraphics, INTERPOLATION_HIGH_QUALITY_BICUBIC);
 
-      // Draw image scaled to fill the entire printable area
+      // Calculate aspect-ratio-preserving fit within the printable area
+      int destX = 0, destY = 0, destW = pageWidth, destH = pageHeight;
+      if (imgWidth > 0 && imgHeight > 0) {
+        final scaleX = pageWidth / imgWidth;
+        final scaleY = pageHeight / imgHeight;
+        final scale = scaleX < scaleY ? scaleX : scaleY;
+        destW = (imgWidth * scale).round();
+        destH = (imgHeight * scale).round();
+        destX = (pageWidth - destW) ~/ 2;
+        destY = (pageHeight - destH) ~/ 2;
+      }
+
+      // Draw image scaled to fit, centered on the page
       status = _gdipDrawImageRectI(
-          hGraphics, hImage, 0, 0, pageWidth, pageHeight);
+          hGraphics, hImage, destX, destY, destW, destH);
       success = (status == 0);
 
       _gdipDeleteGraphics(hGraphics);

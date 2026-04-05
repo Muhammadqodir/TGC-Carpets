@@ -18,12 +18,13 @@ class LabelRenderer {
   /// Captures the widget behind [repaintBoundaryKey] as a PNG image.
   ///
   /// [pixelRatio] controls the resolution of the output image.
-  /// A higher ratio produces a higher-resolution PNG.
-  /// Default is 3.0 for crisp print output.
+  /// Use 1.0 so that the output PNG pixel dimensions match [LabelConfig]
+  /// exactly (e.g., 463x320 for 58x40mm @ 203 DPI). Higher values
+  /// produce a larger PNG which gets scaled down during printing.
   ///
   /// Returns the [File] path of the saved PNG in the system temp directory,
   /// or `null` if the capture failed.
-  Future<String?> renderToPng({double pixelRatio = 3.0}) async {
+  Future<String?> renderToPng({double pixelRatio = 1.0}) async {
     try {
       // Find the RenderRepaintBoundary from the key
       final boundary = repaintBoundaryKey.currentContext?.findRenderObject()
