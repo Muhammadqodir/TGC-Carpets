@@ -1,6 +1,6 @@
 name: usb_label_print
-description: A simple Flutter package for printing labels silently on macOS and Windows using system commands.
-version: 0.1.0
+description: A simple Flutter package for printing labels silently on macOS and Windows. Uses Win32 spooler API on Windows for fast USB label printing.
+version: 0.2.0
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  ffi: ^2.1.0
   qr_flutter: ^4.1.0
 
 dev_dependencies:

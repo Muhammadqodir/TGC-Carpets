@@ -1,11 +1,16 @@
 import 'dart:io';
 
+import 'win32/win32_printer.dart';
+
 /// Discovers printers installed on the system.
 ///
-/// Uses platform-specific commands:
+/// Uses platform-specific methods:
 ///   - macOS: `lpstat -p` to list CUPS printers
-///   - Windows: `wmic printer get name` or PowerShell to list printers
+///   - Windows: Win32 EnumPrintersW via dart:ffi (instant, no PowerShell)
 class PrinterDiscoveryService {
+  /// Cached Win32Printer instance (Windows only). Created once, reused.
+  Win32Printer? _win32;
+
   /// Returns a list of printer names available on the system.
   ///
   /// Returns an empty list if no printers are found or if the
@@ -52,33 +57,14 @@ class PrinterDiscoveryService {
     }
   }
 
-  /// Windows: use .NET's InstalledPrinters via PowerShell.
+  /// Windows: use Win32 EnumPrintersW via dart:ffi.
   ///
-  /// This is fast because it uses System.Drawing directly (no WMI/CIM overhead)
-  /// and works on all Windows versions (wmic is deprecated/removed in newer builds).
+  /// This is instant — no process spawning, no PowerShell, no WMI.
+  /// Loads winspool.drv once and queries the spooler directly.
   Future<List<String>> _discoverWindows() async {
     try {
-      final result = await Process.run('powershell', [
-        '-NoProfile',
-        '-NoLogo',
-        '-NonInteractive',
-        '-Command',
-        'Add-Type -AssemblyName System.Drawing;'
-            '[System.Drawing.Printing.PrinterSettings]::InstalledPrinters',
-      ]);
-
-      if (result.exitCode != 0) {
-        return [];
-      }
-
-      final output = result.stdout as String;
-      final printers = output
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
-
-      return printers;
+      _win32 ??= Win32Printer();
+      return _win32!.enumPrinters();
     } catch (e) {
       return [];
     }

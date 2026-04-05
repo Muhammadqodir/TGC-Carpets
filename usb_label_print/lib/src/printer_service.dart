@@ -1,13 +1,17 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'label_config.dart';
+import 'win32/win32_printer.dart';
 
 /// Sends print jobs to system printers silently (no print dialog).
 ///
-/// Uses platform-specific commands:
+/// Uses platform-specific methods:
 ///   - macOS: `lp -d <printer> -o media=Custom.<W>x<H>mm -o fit-to-page <file>`
-///   - Windows: PowerShell silent print with size configuration
+///   - Windows: Win32 spooler API (OpenPrinter → WritePrinter) via dart:ffi
 class PrinterService {
+  /// Cached Win32Printer instance (Windows only). Created once, reused.
+  Win32Printer? _win32;
   /// Prints a file silently to the specified printer.
   ///
   /// [filePath] is the absolute path to the PNG file to print.
@@ -75,89 +79,32 @@ class PrinterService {
     }
   }
 
-  /// Windows: use PowerShell to print the image silently with exact sizing.
+  /// Windows: send raw PNG bytes directly to the printer via Win32 spooler API.
   ///
-  /// Writes a .ps1 script to a temp file and executes it for faster startup.
-  /// Fixes:
-  ///   - RotateFlip to correct vertical inversion on thermal printers
-  ///   - HighQualityBicubic interpolation for crisp output
-  ///   - Sets image DPI to match printer resolution
+  /// Uses OpenPrinter → StartDocPrinter(RAW) → WritePrinter → EndDocPrinter
+  /// via dart:ffi. No PowerShell, no process spawning, near-instant.
+  ///
+  /// The RAW datatype sends bytes directly to the printer driver, which
+  /// handles rendering. Most USB label printers (Xprinter, TSC, etc.)
+  /// accept PNG data directly through their Windows driver.
   Future<bool> _printWindows(
       String filePath, String printerName, LabelConfig config) async {
     try {
-      // Convert mm to hundredths of an inch for .NET PrintDocument
-      final widthHundredths = (config.widthMm / 25.4 * 100).round();
-      final heightHundredths = (config.heightMm / 25.4 * 100).round();
+      _win32 ??= Win32Printer();
 
-      // Escape backslashes in file path for PowerShell
-      final escapedPath = filePath.replaceAll(r'\', r'\\');
+      // Read the PNG file bytes
+      final file = File(filePath);
+      final Uint8List data = await file.readAsBytes();
 
-      // PowerShell script with quality settings and vertical flip fix
-      final psScript = '''
-Add-Type -AssemblyName System.Drawing
-Add-Type -AssemblyName System.Drawing.Printing
-
-\$img = [System.Drawing.Image]::FromFile("$escapedPath")
-
-# Fix vertical flip for thermal printers
-\$img.RotateFlip([System.Drawing.RotateFlipType]::RotateNoneFlipY)
-
-# Set image resolution to match printer DPI for correct sizing
-\$bmp = New-Object System.Drawing.Bitmap(\$img)
-\$bmp.SetResolution(${config.dpi}, ${config.dpi})
-
-\$pd = New-Object System.Drawing.Printing.PrintDocument
-\$pd.PrinterSettings.PrinterName = "$printerName"
-\$pd.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize("Custom", $widthHundredths, $heightHundredths)
-\$pd.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0)
-
-\$pd.add_PrintPage({
-  param(\$sender, \$e)
-  # High quality rendering
-  \$e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-  \$e.Graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-  \$e.Graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-  \$e.Graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-
-  \$rect = New-Object System.Drawing.RectangleF(0, 0, \$e.PageBounds.Width, \$e.PageBounds.Height)
-  \$e.Graphics.DrawImage(\$bmp, \$rect)
-})
-
-\$pd.Print()
-\$bmp.Dispose()
-\$img.Dispose()
-\$pd.Dispose()
-''';
-
-      // Write script to temp file for faster execution (avoids inline parsing)
-      final tempDir = Directory.systemTemp;
-      final scriptFile = File('${tempDir.path}/usb_label_print.ps1');
-      await scriptFile.writeAsString(psScript);
-
-      final result = await Process.run('powershell', [
-        '-NoProfile',
-        '-NoLogo',
-        '-NonInteractive',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', scriptFile.path,
-      ]);
-
-      // Clean up script file
-      try {
-        await scriptFile.delete();
-      } catch (_) {}
-
-      if (result.exitCode == 0) {
-        return true;
-      } else {
-        final stderr = result.stderr as String;
-        if (stderr.isNotEmpty) {
-          // ignore: avoid_print
-          print('Windows print error: $stderr');
-        }
-        return false;
-      }
+      // Send raw bytes through the Win32 spooler pipeline
+      return _win32!.printRaw(
+        printerName: printerName,
+        data: data,
+        docName: 'Label ${config.widthMm.toStringAsFixed(0)}x${config.heightMm.toStringAsFixed(0)}mm',
+      );
     } catch (e) {
+      // ignore: avoid_print
+      print('Windows print error: $e');
       return false;
     }
   }
