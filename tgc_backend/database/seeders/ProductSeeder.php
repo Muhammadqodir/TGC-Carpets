@@ -7,6 +7,7 @@ use App\Models\ProductQuality;
 use App\Models\ProductType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
@@ -67,6 +68,7 @@ class ProductSeeder extends Seeder
                     'product_type_id' => $typeId,
                 ],
                 [
+                    'uuid'               => (string) Str::uuid(),
                     'product_quality_id' => $qualityId,
                     'unit'               => 'piece',
                     'status'             => 'active',
