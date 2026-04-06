@@ -62,8 +62,10 @@ class Product extends Model
 
         static::created(function (Product $product): void {
             if (empty($product->sku_code)) {
+                $namePart  = strtoupper(Str::slug($product->name, '-'));
+                $colorPart = strtoupper(Str::slug($product->color, '-'));
                 $product->updateQuietly([
-                    'sku_code' => 'TGC-' . str_pad($product->id, 5, '0', STR_PAD_LEFT),
+                    'sku_code' => "TGC-{$namePart}-{$colorPart}",
                 ]);
             }
         });

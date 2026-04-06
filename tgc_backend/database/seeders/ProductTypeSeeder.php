@@ -9,7 +9,7 @@ class ProductTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        $types = ['Gilam', 'Kovrolin', 'Yolak'];
+        $types = ['Gilam', 'Kovrolin', 'Yolak', 'Porta'];
 
         foreach ($types as $type) {
             ProductType::firstOrCreate(['type' => $type]);
