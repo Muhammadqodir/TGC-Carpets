@@ -27,3 +27,12 @@ class ClientsNextPageRequested extends ClientsEvent {
 class ClientsRefreshRequested extends ClientsEvent {
   const ClientsRefreshRequested();
 }
+
+class ClientDeleteRequested extends ClientsEvent {
+  final int clientId;
+
+  const ClientDeleteRequested(this.clientId);
+
+  @override
+  List<Object?> get props => [clientId];
+}

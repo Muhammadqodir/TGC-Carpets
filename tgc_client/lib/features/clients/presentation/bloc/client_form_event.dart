@@ -25,12 +25,29 @@ class ClientFormSubmitted extends ClientFormEvent {
   });
 
   @override
-  List<Object?> get props => [
-        contactName,
-        phone,
-        shopName,
-        region,
-        address,
-        notes,
-      ];
+  List<Object?> get props => [contactName, phone, shopName, region, address, notes];
+}
+
+class ClientFormUpdateSubmitted extends ClientFormEvent {
+  final int clientId;
+  final String contactName;
+  final String phone;
+  final String shopName;
+  final String region;
+  final String? address;
+  final String? notes;
+
+  const ClientFormUpdateSubmitted({
+    required this.clientId,
+    required this.contactName,
+    required this.phone,
+    required this.shopName,
+    required this.region,
+    this.address,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props =>
+      [clientId, contactName, phone, shopName, region, address, notes];
 }

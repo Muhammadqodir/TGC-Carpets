@@ -22,6 +22,18 @@ abstract class ClientRemoteDataSource {
     String? address,
     String? notes,
   });
+
+  Future<ClientModel> updateClient({
+    required int id,
+    required String contactName,
+    required String phone,
+    required String shopName,
+    required String region,
+    String? address,
+    String? notes,
+  });
+
+  Future<void> deleteClient({required int id});
 }
 
 class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
@@ -104,6 +116,46 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
       return ClientModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ClientModel> updateClient({
+    required int id,
+    required String contactName,
+    required String phone,
+    required String shopName,
+    required String region,
+    String? address,
+    String? notes,
+  }) async {
+    try {
+      final response = await _dio.put(
+        ApiEndpoints.clientById(id),
+        data: {
+          'contact_name': contactName,
+          'phone': phone,
+          'shop_name': shopName,
+          'region': region,
+          if (address != null && address.isNotEmpty) 'address': address,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        },
+      );
+      return ClientModel.fromJson(
+        (response.data as Map<String, dynamic>)['data']
+            as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteClient({required int id}) async {
+    try {
+      await _dio.delete(ApiEndpoints.clientById(id));
     } on DioException catch (e) {
       _handleDioError(e);
     }

@@ -1,20 +1,26 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/usecases/delete_client_usecase.dart';
 import '../../domain/usecases/get_clients_usecase.dart';
 import 'clients_event.dart';
 import 'clients_state.dart';
 
 class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
   final GetClientsUseCase getClientsUseCase;
+  final DeleteClientUseCase deleteClientUseCase;
 
   String _searchQuery = '';
   Timer? _debounce;
 
-  ClientsBloc({required this.getClientsUseCase}) : super(const ClientsInitial()) {
+  ClientsBloc({
+    required this.getClientsUseCase,
+    required this.deleteClientUseCase,
+  }) : super(const ClientsInitial()) {
     on<ClientsLoadRequested>(_onLoadRequested);
     on<ClientsSearchChanged>(_onSearchChanged);
     on<ClientsNextPageRequested>(_onNextPageRequested);
     on<ClientsRefreshRequested>(_onRefreshRequested);
+    on<ClientDeleteRequested>(_onDelete);
   }
 
   Future<void> _onLoadRequested(
@@ -76,6 +82,7 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
           clients: [...existing, ...paginated.data],
           hasNextPage: paginated.hasNextPage,
           currentPage: paginated.currentPage,
+          total: paginated.total,
         ));
       },
     );
@@ -85,5 +92,34 @@ class ClientsBloc extends Bloc<ClientsEvent, ClientsState> {
   Future<void> close() {
     _debounce?.cancel();
     return super.close();
+  }
+
+  Future<void> _onDelete(
+    ClientDeleteRequested event,
+    Emitter<ClientsState> emit,
+  ) async {
+    final current = state;
+    if (current is! ClientsLoaded) return;
+
+    final idx = current.clients.indexWhere((c) => c.id == event.clientId);
+    if (idx == -1) return;
+    final client = current.clients[idx];
+
+    emit(current.copyWith(actionStatus: ClientActionPending(event.clientId)));
+
+    final result = await deleteClientUseCase(id: event.clientId);
+
+    result.fold(
+      (failure) => emit(current.copyWith(
+        actionStatus: ClientActionFailure(failure.message),
+      )),
+      (_) => emit(current.copyWith(
+        clients: current.clients
+            .where((c) => c.id != event.clientId)
+            .toList(),
+        total: current.total > 0 ? current.total - 1 : 0,
+        actionStatus: ClientActionSuccess('"${client.shopName}" o\'chirildi.'),
+      )),
+    );
   }
 }

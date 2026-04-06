@@ -37,6 +37,8 @@ import '../../features/clients/data/repositories/client_repository_impl.dart';
 import '../../features/clients/domain/repositories/client_repository.dart';
 import '../../features/clients/domain/usecases/get_clients_usecase.dart';
 import '../../features/clients/domain/usecases/create_client_usecase.dart';
+import '../../features/clients/domain/usecases/update_client_usecase.dart';
+import '../../features/clients/domain/usecases/delete_client_usecase.dart';
 import '../../features/clients/presentation/bloc/clients_bloc.dart';
 import '../../features/clients/presentation/bloc/client_form_bloc.dart';
 
@@ -175,11 +177,19 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(() => GetClientsUseCase(sl<ClientRepository>()));
   sl.registerLazySingleton(() => CreateClientUseCase(sl<ClientRepository>()));
+  sl.registerLazySingleton(() => UpdateClientUseCase(sl<ClientRepository>()));
+  sl.registerLazySingleton(() => DeleteClientUseCase(sl<ClientRepository>()));
   sl.registerFactory(
-    () => ClientsBloc(getClientsUseCase: sl<GetClientsUseCase>()),
+    () => ClientsBloc(
+      getClientsUseCase: sl<GetClientsUseCase>(),
+      deleteClientUseCase: sl<DeleteClientUseCase>(),
+    ),
   );
   sl.registerFactory(
-    () => ClientFormBloc(createClientUseCase: sl<CreateClientUseCase>()),
+    () => ClientFormBloc(
+      createClientUseCase: sl<CreateClientUseCase>(),
+      updateClientUseCase: sl<UpdateClientUseCase>(),
+    ),
   );
 
   // ─── Sales Feature ────────────────────────────────────────────────────────

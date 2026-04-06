@@ -84,4 +84,48 @@ class ClientRepositoryImpl implements ClientRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, ClientEntity>> updateClient({
+    required int id,
+    required String contactName,
+    required String phone,
+    required String shopName,
+    required String region,
+    String? address,
+    String? notes,
+  }) async {
+    try {
+      final client = await remoteDataSource.updateClient(
+        id: id,
+        contactName: contactName,
+        phone: phone,
+        shopName: shopName,
+        region: region,
+        address: address,
+        notes: notes,
+      );
+      return Right(client);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteClient({required int id}) async {
+    try {
+      await remoteDataSource.deleteClient(id: id);
+      return const Right(null);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

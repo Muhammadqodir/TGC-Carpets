@@ -21,4 +21,16 @@ abstract class ClientRepository {
     String? address,
     String? notes,
   });
+
+  Future<Either<Failure, ClientEntity>> updateClient({
+    required int id,
+    required String contactName,
+    required String phone,
+    required String shopName,
+    required String region,
+    String? address,
+    String? notes,
+  });
+
+  Future<Either<Failure, void>> deleteClient({required int id});
 }
