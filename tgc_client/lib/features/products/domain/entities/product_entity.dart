@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'product_type_entity.dart';
 
 class ProductEntity extends Equatable {
   final int id;
@@ -6,8 +7,8 @@ class ProductEntity extends Equatable {
   final String name;
   final String? skuCode;
   final String? barcode;
-  final int length;
-  final int width;
+  final int? productTypeId;
+  final ProductTypeEntity? productType;
   final String quality;
   final int density;
   final String color;
@@ -25,8 +26,8 @@ class ProductEntity extends Equatable {
     required this.name,
     this.skuCode,
     this.barcode,
-    required this.length,
-    required this.width,
+    this.productTypeId,
+    this.productType,
     required this.quality,
     required this.density,
     required this.color,
@@ -40,7 +41,6 @@ class ProductEntity extends Equatable {
   });
 
   bool get isActive => status == 'active';
-  String get dimensions => '${length}x$width';
 
   @override
   List<Object?> get props => [
@@ -49,8 +49,8 @@ class ProductEntity extends Equatable {
         name,
         skuCode,
         barcode,
-        length,
-        width,
+        productTypeId,
+        productType,
         quality,
         density,
         color,

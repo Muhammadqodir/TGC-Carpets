@@ -423,7 +423,7 @@ class _SaleItemFormRow extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  '${product.dimensions} · ${product.color}',
+                                  '${product.productType?.type ?? ''} · ${product.color}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall

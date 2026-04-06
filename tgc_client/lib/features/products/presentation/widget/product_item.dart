@@ -44,7 +44,11 @@ class ProductItem extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      _Badge(label: product.dimensions, color: Colors.black87),
+                      if (product.productType != null)
+                        _Badge(
+                          label: product.productType!.type,
+                          color: Colors.black87,
+                        ),
                       _Badge(
                         label: product.quality,
                         color: AppColors.primaryLight,

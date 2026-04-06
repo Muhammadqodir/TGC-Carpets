@@ -10,8 +10,7 @@ class CreateProductUseCase {
 
   Future<Either<Failure, ProductEntity>> call({
     required String name,
-    required int length,
-    required int width,
+    int? productTypeId,
     required String quality,
     required int density,
     required String color,
@@ -22,8 +21,7 @@ class CreateProductUseCase {
   }) =>
       _repository.createProduct(
         name: name,
-        length: length,
-        width: width,
+        productTypeId: productTypeId,
         quality: quality,
         density: density,
         color: color,

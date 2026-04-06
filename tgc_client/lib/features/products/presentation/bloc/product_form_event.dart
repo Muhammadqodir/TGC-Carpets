@@ -7,10 +7,13 @@ abstract class ProductFormEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class ProductFormStarted extends ProductFormEvent {
+  const ProductFormStarted();
+}
+
 class ProductFormSubmitted extends ProductFormEvent {
   final String name;
-  final String length;
-  final String width;
+  final int? productTypeId;
   final String quality;
   final String density;
   final String color;
@@ -21,8 +24,7 @@ class ProductFormSubmitted extends ProductFormEvent {
 
   const ProductFormSubmitted({
     required this.name,
-    required this.length,
-    required this.width,
+    this.productTypeId,
     required this.quality,
     required this.density,
     required this.color,
@@ -35,8 +37,7 @@ class ProductFormSubmitted extends ProductFormEvent {
   @override
   List<Object?> get props => [
         name,
-        length,
-        width,
+        productTypeId,
         quality,
         density,
         color,

@@ -77,7 +77,8 @@ class _ProductPickerTile extends StatelessWidget {
                   spacing: 4,
                   runSpacing: 2,
                   children: [
-                    _chip(product.dimensions, AppColors.textSecondary),
+                    if (product.productType != null)
+                      _chip(product.productType!.type, AppColors.textSecondary),
                     _chip(product.quality, AppColors.primaryLight),
                     _chip(product.color, AppColors.accent),
                   ],

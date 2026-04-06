@@ -3,6 +3,7 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../models/product_model.dart';
+import '../models/product_type_model.dart';
 
 abstract class ProductRemoteDataSource {
   Future<PaginatedResponse<ProductModel>> getProducts({
@@ -10,16 +11,18 @@ abstract class ProductRemoteDataSource {
     String? quality,
     String? color,
     String? status,
+    int? productTypeId,
     int page = 1,
     int perPage = 20,
   });
 
   Future<ProductModel> getProduct(int id);
 
+  Future<List<ProductTypeModel>> getProductTypes();
+
   Future<ProductModel> createProduct({
     required String name,
-    required int length,
-    required int width,
+    int? productTypeId,
     required String quality,
     required int density,
     required String color,
@@ -41,6 +44,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     String? quality,
     String? color,
     String? status,
+    int? productTypeId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -52,6 +56,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         if (quality != null && quality.isNotEmpty) 'quality': quality,
         if (color != null && color.isNotEmpty) 'color': color,
         if (status != null && status.isNotEmpty) 'status': status,
+        if (productTypeId != null) 'product_type_id': productTypeId,
       };
 
       final response = await _dio.get(
@@ -90,10 +95,22 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
+  Future<List<ProductTypeModel>> getProductTypes() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.productTypes);
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ProductTypeModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
   Future<ProductModel> createProduct({
     required String name,
-    required int length,
-    required int width,
+    int? productTypeId,
     required String quality,
     required int density,
     required String color,
@@ -105,8 +122,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     try {
       final formData = FormData.fromMap({
         'name': name,
-        'length': length,
-        'width': width,
+        if (productTypeId != null) 'product_type_id': productTypeId,
         'quality': quality,
         'density': density,
         'color': color,

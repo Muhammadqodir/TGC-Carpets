@@ -34,23 +34,26 @@ class _AddProductView extends StatefulWidget {
 class _AddProductViewState extends State<_AddProductView> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameCtrl = TextEditingController();
-  final _lengthCtrl = TextEditingController();
-  final _widthCtrl = TextEditingController();
+  final _nameCtrl    = TextEditingController();
   final _qualityCtrl = TextEditingController();
   final _densityCtrl = TextEditingController();
-  final _colorCtrl = TextEditingController();
-  final _edgeCtrl = TextEditingController();
+  final _colorCtrl   = TextEditingController();
+  final _edgeCtrl    = TextEditingController();
 
-  String _unit = 'piece';
-  String _status = 'active';
-  XFile? _pickedImage;
+  int?    _selectedProductTypeId;
+  String  _unit   = 'piece';
+  String  _status = 'active';
+  XFile?  _pickedImage;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<ProductFormBloc>().add(const ProductFormStarted());
+  }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _lengthCtrl.dispose();
-    _widthCtrl.dispose();
     _qualityCtrl.dispose();
     _densityCtrl.dispose();
     _colorCtrl.dispose();
@@ -63,16 +66,15 @@ class _AddProductViewState extends State<_AddProductView> {
 
     context.read<ProductFormBloc>().add(
           ProductFormSubmitted(
-            name: _nameCtrl.text.trim(),
-            length: _lengthCtrl.text.trim(),
-            width: _widthCtrl.text.trim(),
-            quality: _qualityCtrl.text.trim(),
-            density: _densityCtrl.text.trim(),
-            color: _colorCtrl.text.trim(),
-            edge: _edgeCtrl.text.trim().isEmpty ? null : _edgeCtrl.text.trim(),
-            unit: _unit,
-            status: _status,
-            imagePath: _pickedImage?.path,
+            name:            _nameCtrl.text.trim(),
+            productTypeId:   _selectedProductTypeId,
+            quality:         _qualityCtrl.text.trim(),
+            density:         _densityCtrl.text.trim(),
+            color:           _colorCtrl.text.trim(),
+            edge:            _edgeCtrl.text.trim().isEmpty ? null : _edgeCtrl.text.trim(),
+            unit:            _unit,
+            status:          _status,
+            imagePath:       _pickedImage?.path,
           ),
         );
   }
@@ -188,30 +190,34 @@ class _AddProductViewState extends State<_AddProductView> {
               const SizedBox(height: 20),
               _SectionHeader(title: 'O\'lchamlar va xususiyatlar'),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _lengthCtrl,
-                      label: 'Uzunlik (sm)',
-                      hint: '300',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: _requiredPositiveInt,
+              BlocBuilder<ProductFormBloc, ProductFormState>(
+                builder: (context, state) {
+                  if (state is ProductFormTypesLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final types = switch (state) {
+                    ProductFormReady s      => s.productTypes,
+                    ProductFormSubmitting s  => s.productTypes,
+                    ProductFormFailure s     => s.productTypes,
+                    _ => const [],
+                  };
+                  return DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(
+                      labelText: 'Mahsulot turi',
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Field(
-                      controller: _widthCtrl,
-                      label: 'Eni (sm)',
-                      hint: '200',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: _requiredPositiveInt,
-                    ),
-                  ),
-                ],
+                    value: _selectedProductTypeId,
+                    items: types
+                        .map(
+                          (t) => DropdownMenuItem<int>(
+                            value: t.id,
+                            child: Text(t.type),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedProductTypeId = v),
+                    hint: const Text('Tur tanlang (ixtiyoriy)'),
+                  );
+                },
               ),
               const SizedBox(height: 12),
               _Field(

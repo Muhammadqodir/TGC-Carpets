@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProductSizeController;
+use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
@@ -38,6 +40,12 @@ Route::prefix('v1')->group(function (): void {
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);
+
+        // Product types (read-only reference list)
+        Route::get('product-types', [ProductTypeController::class, 'index'])->name('product-types.index');
+
+        // Product sizes
+        Route::apiResource('product-sizes', ProductSizeController::class);
 
         // Clients
         Route::apiResource('clients', ClientController::class);

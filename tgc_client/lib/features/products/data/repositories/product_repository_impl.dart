@@ -3,6 +3,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/product_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/product_remote_datasource.dart';
 
@@ -17,6 +18,7 @@ class ProductRepositoryImpl implements ProductRepository {
     String? quality,
     String? color,
     String? status,
+    int? productTypeId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -26,6 +28,7 @@ class ProductRepositoryImpl implements ProductRepository {
         quality: quality,
         color: color,
         status: status,
+        productTypeId: productTypeId,
         page: page,
         perPage: perPage,
       );
@@ -62,10 +65,23 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<Either<Failure, List<ProductTypeEntity>>> getProductTypes() async {
+    try {
+      final types = await remoteDataSource.getProductTypes();
+      return Right(types);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
   Future<Either<Failure, ProductEntity>> createProduct({
     required String name,
-    required int length,
-    required int width,
+    int? productTypeId,
     required String quality,
     required int density,
     required String color,
@@ -77,8 +93,7 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       final product = await remoteDataSource.createProduct(
         name: name,
-        length: length,
-        width: width,
+        productTypeId: productTypeId,
         quality: quality,
         density: density,
         color: color,

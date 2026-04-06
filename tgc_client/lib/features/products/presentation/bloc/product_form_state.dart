@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/product_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
 
 abstract class ProductFormState extends Equatable {
   const ProductFormState();
@@ -12,8 +13,26 @@ class ProductFormInitial extends ProductFormState {
   const ProductFormInitial();
 }
 
+class ProductFormTypesLoading extends ProductFormState {
+  const ProductFormTypesLoading();
+}
+
+class ProductFormReady extends ProductFormState {
+  final List<ProductTypeEntity> productTypes;
+
+  const ProductFormReady(this.productTypes);
+
+  @override
+  List<Object?> get props => [productTypes];
+}
+
 class ProductFormSubmitting extends ProductFormState {
-  const ProductFormSubmitting();
+  final List<ProductTypeEntity> productTypes;
+
+  const ProductFormSubmitting(this.productTypes);
+
+  @override
+  List<Object?> get props => [productTypes];
 }
 
 class ProductFormSuccess extends ProductFormState {
@@ -27,9 +46,10 @@ class ProductFormSuccess extends ProductFormState {
 
 class ProductFormFailure extends ProductFormState {
   final String message;
+  final List<ProductTypeEntity> productTypes;
 
-  const ProductFormFailure(this.message);
+  const ProductFormFailure(this.message, {this.productTypes = const []});
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, productTypes];
 }
