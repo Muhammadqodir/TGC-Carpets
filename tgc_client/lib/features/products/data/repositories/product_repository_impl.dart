@@ -3,6 +3,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/product_entity.dart';
+import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -15,20 +16,20 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<Either<Failure, PaginatedResponse<ProductEntity>>> getProducts({
     String? search,
-    String? quality,
     String? color,
     String? status,
     int? productTypeId,
+    int? productQualityId,
     int page = 1,
     int perPage = 20,
   }) async {
     try {
       final result = await remoteDataSource.getProducts(
         search: search,
-        quality: quality,
         color: color,
         status: status,
         productTypeId: productTypeId,
+        productQualityId: productQualityId,
         page: page,
         perPage: perPage,
       );
@@ -79,11 +80,24 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<Either<Failure, List<ProductQualityEntity>>> getProductQualities() async {
+    try {
+      final qualities = await remoteDataSource.getProductQualities();
+      return Right(qualities);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
   Future<Either<Failure, ProductEntity>> createProduct({
     required String name,
     int? productTypeId,
-    required String quality,
-    required int density,
+    int? productQualityId,
     required String color,
     String? edge,
     required String unit,
@@ -94,8 +108,7 @@ class ProductRepositoryImpl implements ProductRepository {
       final product = await remoteDataSource.createProduct(
         name: name,
         productTypeId: productTypeId,
-        quality: quality,
-        density: density,
+        productQualityId: productQualityId,
         color: color,
         edge: edge,
         unit: unit,

@@ -79,7 +79,8 @@ class _ProductPickerTile extends StatelessWidget {
                   children: [
                     if (product.productType != null)
                       _chip(product.productType!.type, AppColors.textSecondary),
-                    _chip(product.quality, AppColors.primaryLight),
+                    if (product.productQuality != null)
+                      _chip(product.productQuality!.qualityName, AppColors.primaryLight),
                     _chip(product.color, AppColors.accent),
                   ],
                 ),

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,12 +34,11 @@ class _AddProductViewState extends State<_AddProductView> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameCtrl    = TextEditingController();
-  final _qualityCtrl = TextEditingController();
-  final _densityCtrl = TextEditingController();
   final _colorCtrl   = TextEditingController();
   final _edgeCtrl    = TextEditingController();
 
   int?    _selectedProductTypeId;
+  int?    _selectedProductQualityId;
   String  _unit   = 'piece';
   String  _status = 'active';
   XFile?  _pickedImage;
@@ -54,8 +52,6 @@ class _AddProductViewState extends State<_AddProductView> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _qualityCtrl.dispose();
-    _densityCtrl.dispose();
     _colorCtrl.dispose();
     _edgeCtrl.dispose();
     super.dispose();
@@ -66,15 +62,14 @@ class _AddProductViewState extends State<_AddProductView> {
 
     context.read<ProductFormBloc>().add(
           ProductFormSubmitted(
-            name:            _nameCtrl.text.trim(),
-            productTypeId:   _selectedProductTypeId,
-            quality:         _qualityCtrl.text.trim(),
-            density:         _densityCtrl.text.trim(),
-            color:           _colorCtrl.text.trim(),
-            edge:            _edgeCtrl.text.trim().isEmpty ? null : _edgeCtrl.text.trim(),
-            unit:            _unit,
-            status:          _status,
-            imagePath:       _pickedImage?.path,
+            name:              _nameCtrl.text.trim(),
+            productTypeId:     _selectedProductTypeId,
+            productQualityId:  _selectedProductQualityId,
+            color:             _colorCtrl.text.trim(),
+            edge:              _edgeCtrl.text.trim().isEmpty ? null : _edgeCtrl.text.trim(),
+            unit:              _unit,
+            status:            _status,
+            imagePath:         _pickedImage?.path,
           ),
         );
   }
@@ -220,22 +215,33 @@ class _AddProductViewState extends State<_AddProductView> {
                 },
               ),
               const SizedBox(height: 12),
-              _Field(
-                controller: _densityCtrl,
-                label: 'Zichlik',
-                hint: 'masalan: 800',
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: _requiredPositiveInt,
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(title: 'Gilam xususiyatlari'),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _qualityCtrl,
-                label: 'Sifat',
-                hint: 'masalan: premium, standart',
-                validator: _required,
+              BlocBuilder<ProductFormBloc, ProductFormState>(
+                builder: (context, state) {
+                  final qualities = switch (state) {
+                    ProductFormReady s      => s.productQualities,
+                    ProductFormSubmitting s  => s.productQualities,
+                    ProductFormFailure s     => s.productQualities,
+                    _ => const [],
+                  };
+                  return DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(
+                      labelText: 'Sifat',
+                    ),
+                    value: _selectedProductQualityId,
+                    items: qualities
+                        .map(
+                          (q) => DropdownMenuItem<int>(
+                            value: q.id,
+                            child: Text(q.density != null
+                                ? '${q.qualityName} (${q.density})'
+                                : q.qualityName),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedProductQualityId = v),
+                    hint: const Text('Sifat tanlang (ixtiyoriy)'),
+                  );
+                },
               ),
               const SizedBox(height: 12),
               _Field(
@@ -301,13 +307,6 @@ class _AddProductViewState extends State<_AddProductView> {
 
   String? _required(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Bu maydon to\'ldirilishi shart.' : null;
-
-  String? _requiredPositiveInt(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Bu maydon to\'ldirilishi shart.';
-    final parsed = int.tryParse(v.trim());
-    if (parsed == null || parsed <= 0) return 'Musbat son kiritilishi shart.';
-    return null;
-  }
 }
 
 class _SectionHeader extends StatelessWidget {

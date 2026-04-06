@@ -2,15 +2,16 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/product_entity.dart';
+import '../entities/product_quality_entity.dart';
 import '../entities/product_type_entity.dart';
 
 abstract class ProductRepository {
   Future<Either<Failure, PaginatedResponse<ProductEntity>>> getProducts({
     String? search,
-    String? quality,
     String? color,
     String? status,
     int? productTypeId,
+    int? productQualityId,
     int page = 1,
     int perPage = 20,
   });
@@ -19,11 +20,12 @@ abstract class ProductRepository {
 
   Future<Either<Failure, List<ProductTypeEntity>>> getProductTypes();
 
+  Future<Either<Failure, List<ProductQualityEntity>>> getProductQualities();
+
   Future<Either<Failure, ProductEntity>> createProduct({
     required String name,
     int? productTypeId,
-    required String quality,
-    required int density,
+    int? productQualityId,
     required String color,
     String? edge,
     required String unit,

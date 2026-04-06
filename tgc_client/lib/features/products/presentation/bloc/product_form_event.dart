@@ -14,8 +14,7 @@ class ProductFormStarted extends ProductFormEvent {
 class ProductFormSubmitted extends ProductFormEvent {
   final String name;
   final int? productTypeId;
-  final String quality;
-  final String density;
+  final int? productQualityId;
   final String color;
   final String? edge;
   final String unit;
@@ -25,8 +24,7 @@ class ProductFormSubmitted extends ProductFormEvent {
   const ProductFormSubmitted({
     required this.name,
     this.productTypeId,
-    required this.quality,
-    required this.density,
+    this.productQualityId,
     required this.color,
     this.edge,
     required this.unit,
@@ -38,8 +36,7 @@ class ProductFormSubmitted extends ProductFormEvent {
   List<Object?> get props => [
         name,
         productTypeId,
-        quality,
-        density,
+        productQualityId,
         color,
         edge,
         unit,

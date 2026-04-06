@@ -18,7 +18,7 @@ class ProductController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $products = Product::query()
-            ->with('productType')
+            ->with(['productType', 'productQuality'])
             ->select('products.*')
             ->selectSub($this->stockSubquery(), 'stock')
             ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
@@ -27,7 +27,7 @@ class ProductController extends Controller
             }))
             ->when($request->filled('sku_code'),       fn ($q) => $q->where('sku_code', 'like', '%'.$request->sku_code.'%'))
             ->when($request->filled('name'),           fn ($q) => $q->where('name',     'like', '%'.$request->name.'%'))
-            ->when($request->filled('quality'),        fn ($q) => $q->where('quality',  $request->quality))
+            ->when($request->filled('product_quality_id'), fn ($q) => $q->where('product_quality_id', $request->product_quality_id))
             ->when($request->filled('color'),          fn ($q) => $q->where('color',    $request->color))
             ->when($request->filled('status'),         fn ($q) => $q->where('status',   $request->status))
             ->when($request->filled('product_type_id'), fn ($q) => $q->where('product_type_id', $request->product_type_id))
@@ -53,7 +53,7 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        $product = Product::with('productType')
+        $product = Product::with(['productType', 'productQuality'])
             ->select('products.*')
             ->selectSub($this->stockSubquery(), 'stock')
             ->findOrFail($product->id);

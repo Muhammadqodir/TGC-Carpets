@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProductQualityController;
 use App\Http\Controllers\Api\V1\ProductSizeController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -43,6 +44,9 @@ Route::prefix('v1')->group(function (): void {
 
         // Product types (read-only reference list)
         Route::get('product-types', [ProductTypeController::class, 'index'])->name('product-types.index');
+
+        // Product qualities
+        Route::apiResource('product-qualities', ProductQualityController::class)->except(['show']);
 
         // Product sizes
         Route::apiResource('product-sizes', ProductSizeController::class);

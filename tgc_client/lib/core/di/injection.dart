@@ -24,6 +24,7 @@ import '../../features/products/data/repositories/product_repository_impl.dart';
 import '../../features/products/domain/repositories/product_repository.dart';
 import '../../features/products/domain/usecases/get_products_usecase.dart';
 import '../../features/products/domain/usecases/get_product_types_usecase.dart';
+import '../../features/products/domain/usecases/get_product_qualities_usecase.dart';
 import '../../features/products/domain/usecases/create_product_usecase.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 import '../../features/products/presentation/bloc/product_form_bloc.dart';
@@ -142,6 +143,7 @@ Future<void> initDependencies() async {
   // Use cases
   sl.registerLazySingleton(() => GetProductsUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => GetProductTypesUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => GetProductQualitiesUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => CreateProductUseCase(sl<ProductRepository>()));
   // BLoCs
   sl.registerFactory(
@@ -151,6 +153,7 @@ Future<void> initDependencies() async {
     () => ProductFormBloc(
       createProductUseCase: sl<CreateProductUseCase>(),
       getProductTypesUseCase: sl<GetProductTypesUseCase>(),
+      getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
     ),
   );
 

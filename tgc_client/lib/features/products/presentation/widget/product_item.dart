@@ -49,10 +49,11 @@ class ProductItem extends StatelessWidget {
                           label: product.productType!.type,
                           color: Colors.black87,
                         ),
-                      _Badge(
-                        label: product.quality,
-                        color: AppColors.primaryLight,
-                      ),
+                      if (product.productQuality != null)
+                        _Badge(
+                          label: product.productQuality!.qualityName,
+                          color: AppColors.primaryLight,
+                        ),
                       _Badge(label: product.color, color: AppColors.accent),
                     ],
                   ),

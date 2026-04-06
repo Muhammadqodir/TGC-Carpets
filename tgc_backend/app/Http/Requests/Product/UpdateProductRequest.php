@@ -20,9 +20,8 @@ class UpdateProductRequest extends FormRequest
         return [
             'name'            => ['sometimes', 'required', 'string', 'max:255'],
             'barcode'         => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')->ignore($productId)],
-            'product_type_id' => ['nullable', 'integer', 'exists:product_types,id'],
-            'quality'         => ['sometimes', 'required', 'string', 'max:100'],
-            'density'         => ['sometimes', 'required', 'integer', 'min:1'],
+            'product_type_id'    => ['nullable', 'integer', 'exists:product_types,id'],
+            'product_quality_id' => ['nullable', 'integer', 'exists:product_qualities,id'],
             'color'           => ['sometimes', 'required', 'string', 'max:100'],
             'edge'            => ['nullable', 'string', 'max:100'],
             'unit'            => ['sometimes', 'required', 'string', Rule::in(Product::UNITS)],

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'product_quality_entity.dart';
 import 'product_type_entity.dart';
 
 class ProductEntity extends Equatable {
@@ -9,8 +10,8 @@ class ProductEntity extends Equatable {
   final String? barcode;
   final int? productTypeId;
   final ProductTypeEntity? productType;
-  final String quality;
-  final int density;
+  final int? productQualityId;
+  final ProductQualityEntity? productQuality;
   final String color;
   final String? edge;
   final String unit;
@@ -28,8 +29,8 @@ class ProductEntity extends Equatable {
     this.barcode,
     this.productTypeId,
     this.productType,
-    required this.quality,
-    required this.density,
+    this.productQualityId,
+    this.productQuality,
     required this.color,
     this.edge,
     required this.unit,
@@ -51,8 +52,8 @@ class ProductEntity extends Equatable {
         barcode,
         productTypeId,
         productType,
-        quality,
-        density,
+        productQualityId,
+        productQuality,
         color,
         edge,
         unit,

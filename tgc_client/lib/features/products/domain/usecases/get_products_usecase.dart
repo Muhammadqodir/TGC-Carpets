@@ -11,17 +11,19 @@ class GetProductsUseCase {
 
   Future<Either<Failure, PaginatedResponse<ProductEntity>>> call({
     String? search,
-    String? quality,
     String? color,
     String? status,
+    int? productTypeId,
+    int? productQualityId,
     int page = 1,
     int perPage = 20,
   }) =>
       _repository.getProducts(
         search: search,
-        quality: quality,
         color: color,
         status: status,
+        productTypeId: productTypeId,
+        productQualityId: productQualityId,
         page: page,
         perPage: perPage,
       );

@@ -3,15 +3,16 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../models/product_model.dart';
+import '../models/product_quality_model.dart';
 import '../models/product_type_model.dart';
 
 abstract class ProductRemoteDataSource {
   Future<PaginatedResponse<ProductModel>> getProducts({
     String? search,
-    String? quality,
     String? color,
     String? status,
     int? productTypeId,
+    int? productQualityId,
     int page = 1,
     int perPage = 20,
   });
@@ -20,11 +21,12 @@ abstract class ProductRemoteDataSource {
 
   Future<List<ProductTypeModel>> getProductTypes();
 
+  Future<List<ProductQualityModel>> getProductQualities();
+
   Future<ProductModel> createProduct({
     required String name,
     int? productTypeId,
-    required String quality,
-    required int density,
+    int? productQualityId,
     required String color,
     String? edge,
     required String unit,
@@ -41,10 +43,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   @override
   Future<PaginatedResponse<ProductModel>> getProducts({
     String? search,
-    String? quality,
     String? color,
     String? status,
     int? productTypeId,
+    int? productQualityId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -53,10 +55,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         'page': page,
         'per_page': perPage,
         if (search != null && search.isNotEmpty) 'search': search,
-        if (quality != null && quality.isNotEmpty) 'quality': quality,
         if (color != null && color.isNotEmpty) 'color': color,
         if (status != null && status.isNotEmpty) 'status': status,
         if (productTypeId != null) 'product_type_id': productTypeId,
+        if (productQualityId != null) 'product_quality_id': productQualityId,
       };
 
       final response = await _dio.get(
@@ -108,11 +110,23 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
+  Future<List<ProductQualityModel>> getProductQualities() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.productQualities);
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ProductQualityModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
   Future<ProductModel> createProduct({
     required String name,
     int? productTypeId,
-    required String quality,
-    required int density,
+    int? productQualityId,
     required String color,
     String? edge,
     required String unit,
@@ -123,8 +137,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       final formData = FormData.fromMap({
         'name': name,
         if (productTypeId != null) 'product_type_id': productTypeId,
-        'quality': quality,
-        'density': density,
+        if (productQualityId != null) 'product_quality_id': productQualityId,
         'color': color,
         if (edge != null && edge.isNotEmpty) 'edge': edge,
         'unit': unit,

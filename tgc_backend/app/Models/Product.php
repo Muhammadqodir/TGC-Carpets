@@ -35,8 +35,7 @@ class Product extends Model
         'sku_code',
         'barcode',
         'product_type_id',
-        'quality',
-        'density',
+        'product_quality_id',
         'color',
         'edge',
         'unit',
@@ -47,9 +46,9 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'product_type_id' => 'integer',
-            'density'         => 'integer',
-            'deleted_at'      => 'datetime',
+            'product_type_id'    => 'integer',
+            'product_quality_id' => 'integer',
+            'deleted_at'         => 'datetime',
         ];
     }
 
@@ -77,6 +76,13 @@ class Product extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    // ── Relationships ─────────────────────────────────────────────────────────
+
+    public function productQuality(): BelongsTo
+    {
+        return $this->belongsTo(ProductQuality::class);
     }
 
     public function isArchived(): bool

@@ -1,4 +1,5 @@
 import '../../domain/entities/product_entity.dart';
+import 'product_quality_model.dart';
 import 'product_type_model.dart';
 
 class ProductModel extends ProductEntity {
@@ -10,8 +11,8 @@ class ProductModel extends ProductEntity {
     super.barcode,
     super.productTypeId,
     super.productType,
-    required super.quality,
-    required super.density,
+    super.productQualityId,
+    super.productQuality,
     required super.color,
     super.edge,
     required super.unit,
@@ -34,8 +35,12 @@ class ProductModel extends ProductEntity {
                 json['product_type'] as Map<String, dynamic>,
               )
             : null,
-        quality: json['quality'] as String,
-        density: json['density'] as int,
+        productQualityId: json['product_quality_id'] as int?,
+        productQuality: json['product_quality'] != null
+            ? ProductQualityModel.fromJson(
+                json['product_quality'] as Map<String, dynamic>,
+              )
+            : null,
         color: json['color'] as String,
         edge: json['edge'] as String?,
         unit: json['unit'] as String,
@@ -53,8 +58,7 @@ class ProductModel extends ProductEntity {
         'sku_code': skuCode,
         'barcode': barcode,
         'product_type_id': productTypeId,
-        'quality': quality,
-        'density': density,
+        'product_quality_id': productQualityId,
         'color': color,
         'edge': edge,
         'unit': unit,
