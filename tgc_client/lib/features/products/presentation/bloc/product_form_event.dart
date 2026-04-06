@@ -16,7 +16,6 @@ class ProductFormSubmitted extends ProductFormEvent {
   final int? productTypeId;
   final int? productQualityId;
   final String color;
-  final String? edge;
   final String unit;
   final String status;
   final String? imagePath;
@@ -26,7 +25,6 @@ class ProductFormSubmitted extends ProductFormEvent {
     this.productTypeId,
     this.productQualityId,
     required this.color,
-    this.edge,
     required this.unit,
     required this.status,
     this.imagePath,
@@ -38,7 +36,6 @@ class ProductFormSubmitted extends ProductFormEvent {
         productTypeId,
         productQualityId,
         color,
-        edge,
         unit,
         status,
         imagePath,

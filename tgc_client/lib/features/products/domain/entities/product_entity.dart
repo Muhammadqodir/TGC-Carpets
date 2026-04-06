@@ -7,13 +7,11 @@ class ProductEntity extends Equatable {
   final String uuid;
   final String name;
   final String? skuCode;
-  final String? barcode;
   final int? productTypeId;
   final ProductTypeEntity? productType;
   final int? productQualityId;
   final ProductQualityEntity? productQuality;
   final String color;
-  final String? edge;
   final String unit;
   final String status;
   final String? imageUrl;
@@ -26,13 +24,11 @@ class ProductEntity extends Equatable {
     required this.uuid,
     required this.name,
     this.skuCode,
-    this.barcode,
     this.productTypeId,
     this.productType,
     this.productQualityId,
     this.productQuality,
     required this.color,
-    this.edge,
     required this.unit,
     required this.status,
     this.imageUrl,
@@ -49,13 +45,11 @@ class ProductEntity extends Equatable {
         uuid,
         name,
         skuCode,
-        barcode,
         productTypeId,
         productType,
         productQualityId,
         productQuality,
         color,
-        edge,
         unit,
         status,
         imageUrl,

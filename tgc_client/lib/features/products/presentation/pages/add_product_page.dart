@@ -35,7 +35,6 @@ class _AddProductViewState extends State<_AddProductView> {
 
   final _nameCtrl    = TextEditingController();
   final _colorCtrl   = TextEditingController();
-  final _edgeCtrl    = TextEditingController();
 
   int?    _selectedProductTypeId;
   int?    _selectedProductQualityId;
@@ -53,7 +52,6 @@ class _AddProductViewState extends State<_AddProductView> {
   void dispose() {
     _nameCtrl.dispose();
     _colorCtrl.dispose();
-    _edgeCtrl.dispose();
     super.dispose();
   }
 
@@ -66,7 +64,6 @@ class _AddProductViewState extends State<_AddProductView> {
             productTypeId:     _selectedProductTypeId,
             productQualityId:  _selectedProductQualityId,
             color:             _colorCtrl.text.trim(),
-            edge:              _edgeCtrl.text.trim().isEmpty ? null : _edgeCtrl.text.trim(),
             unit:              _unit,
             status:            _status,
             imagePath:         _pickedImage?.path,
@@ -249,12 +246,6 @@ class _AddProductViewState extends State<_AddProductView> {
                 label: 'Rang',
                 hint: 'masalan: qizil, ko\'k',
                 validator: _required,
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _edgeCtrl,
-                label: 'Chegara turi (ixtiyoriy)',
-                hint: 'masalan: sacho\', tekis',
               ),
               const SizedBox(height: 20),
               _SectionHeader(title: 'Birlik va holat'),

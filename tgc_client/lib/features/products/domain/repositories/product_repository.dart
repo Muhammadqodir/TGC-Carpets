@@ -27,7 +27,6 @@ abstract class ProductRepository {
     int? productTypeId,
     int? productQualityId,
     required String color,
-    String? edge,
     required String unit,
     String status = 'active',
     String? imagePath,

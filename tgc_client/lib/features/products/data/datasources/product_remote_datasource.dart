@@ -28,7 +28,6 @@ abstract class ProductRemoteDataSource {
     int? productTypeId,
     int? productQualityId,
     required String color,
-    String? edge,
     required String unit,
     String status = 'active',
     String? imagePath,
@@ -128,7 +127,6 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     int? productTypeId,
     int? productQualityId,
     required String color,
-    String? edge,
     required String unit,
     String status = 'active',
     String? imagePath,
@@ -139,7 +137,6 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         if (productTypeId != null) 'product_type_id': productTypeId,
         if (productQualityId != null) 'product_quality_id': productQualityId,
         'color': color,
-        if (edge != null && edge.isNotEmpty) 'edge': edge,
         'unit': unit,
         'status': status,
         if (imagePath != null)

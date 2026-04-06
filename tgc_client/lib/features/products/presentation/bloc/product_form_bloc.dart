@@ -52,7 +52,6 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
       productTypeId: event.productTypeId,
       productQualityId: event.productQualityId,
       color: event.color,
-      edge: event.edge,
       unit: event.unit,
       status: event.status,
       imagePath: event.imagePath,

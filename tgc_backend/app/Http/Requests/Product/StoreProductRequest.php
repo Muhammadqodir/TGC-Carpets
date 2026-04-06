@@ -17,11 +17,9 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'name'            => ['required', 'string', 'max:255'],
-            'barcode'         => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')],
             'product_type_id'    => ['nullable', 'integer', 'exists:product_types,id'],
             'product_quality_id' => ['nullable', 'integer', 'exists:product_qualities,id'],
             'color'           => ['required', 'string', 'max:100'],
-            'edge'            => ['nullable', 'string', 'max:100'],
             'unit'            => ['required', 'string', Rule::in(Product::UNITS)],
             'status'          => ['nullable', 'string', Rule::in(Product::STATUSES)],
             'image'           => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
