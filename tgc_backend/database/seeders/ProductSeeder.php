@@ -7,7 +7,6 @@ use App\Models\ProductQuality;
 use App\Models\ProductType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
@@ -61,11 +60,7 @@ class ProductSeeder extends Seeder
                 $qualityId = $qualityCache[$qualityName];
             }
 
-            $sku = 'TGC-' . strtoupper(Str::slug($name, '-')) . '-' . strtoupper(Str::slug($color, '-'));
-            // Append type suffix to stay unique when same name+color spans multiple types
-            if ($typeId) {
-                $sku .= '-T' . $typeId;
-            }
+            $sku = Product::generateSku($name, $color, $qualityId, $typeId);
 
             Product::firstOrCreate(
                 [

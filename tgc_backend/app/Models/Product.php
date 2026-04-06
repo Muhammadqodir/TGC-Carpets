@@ -62,13 +62,30 @@ class Product extends Model
 
         static::created(function (Product $product): void {
             if (empty($product->sku_code)) {
-                $namePart  = strtoupper(Str::slug($product->name, '-'));
-                $colorPart = strtoupper(Str::slug($product->color, '-'));
                 $product->updateQuietly([
-                    'sku_code' => "TGC-{$namePart}-{$colorPart}",
+                    'sku_code' => static::generateSku(
+                        $product->name,
+                        $product->color,
+                        $product->product_quality_id,
+                        $product->product_type_id
+                    ),
                 ]);
             }
         });
+    }
+
+    public static function generateSku(string $name, string $color, ?int $qualityId, ?int $typeId): string
+    {
+        $sku = 'TGC-' . strtoupper(Str::slug($name, '-')) . '-' . strtoupper(Str::slug($color, '-'));
+
+        if ($qualityId) {
+            $sku .= '-Q' . $qualityId;
+        }
+        if ($typeId) {
+            $sku .= '-T' . $typeId;
+        }
+
+        return $sku;
     }
 
     // ── Status helpers ────────────────────────────────────────────────────────
