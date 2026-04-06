@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import '../../domain/entities/product_entity.dart';
@@ -63,7 +64,9 @@ class ProductItem extends StatelessWidget {
                       Expanded(
                         child: Text(
                           product.skuCode ?? '',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: AppColors.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -114,12 +117,20 @@ class _ProductThumbnail extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: imageUrl != null
-          ? Image.network(
-              imageUrl!,
+          ? CachedNetworkImage(
+              imageUrl: imageUrl!,
               width: 44,
               height: 60,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _placeholder(),
+              placeholder: (_, __) => Center(
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  padding: const EdgeInsets.all(4),
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              errorWidget: (_, __, ___) => _placeholder(),
             )
           : _placeholder(),
     );

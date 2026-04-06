@@ -388,7 +388,7 @@ class _ItemFormRow extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '${product.productType?.type ?? ''} • ${product.color} • ${product.quality}',
+                                        '${product.productType?.type ?? ''} • ${product.color}',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelSmall

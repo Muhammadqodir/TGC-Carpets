@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection.dart';
@@ -26,8 +27,7 @@ class ProductPickerBottomSheet {
         );
         return result.data;
       },
-      itemBuilder: (context, product) =>
-          _ProductPickerTile(product: product),
+      itemBuilder: (context, product) => _ProductPickerTile(product: product),
       emptyText: 'Mahsulot topilmadi.',
       errorText: 'Mahsulotlarni yuklashda xatolik.',
     );
@@ -49,12 +49,20 @@ class _ProductPickerTile extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: product.imageUrl != null
-                ? Image.network(
-                    product.imageUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: product.imageUrl!,
                     width: 44,
-                    height: 56,
+                    height: 60,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _placeholder(),
+                    placeholder: (_, __) => Center(
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        padding: const EdgeInsets.all(4),
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => _placeholder(),
                   )
                 : _placeholder(),
           ),
@@ -80,7 +88,8 @@ class _ProductPickerTile extends StatelessWidget {
                     if (product.productType != null)
                       _chip(product.productType!.type, AppColors.textSecondary),
                     if (product.productQuality != null)
-                      _chip(product.productQuality!.qualityName, AppColors.primaryLight),
+                      _chip(product.productQuality!.qualityName,
+                          AppColors.primaryLight),
                     _chip(product.color, AppColors.accent),
                   ],
                 ),
@@ -102,8 +111,9 @@ class _ProductPickerTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (product.stock! > 0 ? AppColors.success : AppColors.error)
-                    .withValues(alpha: 0.12),
+                color:
+                    (product.stock! > 0 ? AppColors.success : AppColors.error)
+                        .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -130,7 +140,8 @@ class _ProductPickerTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
+        style:
+            TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
       ),
     );
   }
