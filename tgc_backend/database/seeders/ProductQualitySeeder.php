@@ -10,10 +10,10 @@ class ProductQualitySeeder extends Seeder
     public function run(): void
     {
         $qualities = [
-            'ASL PODSHOX GILAM',
+            'ASL PODSHOX GILAMI',
             'ANFAU',
             'RONALDO',
-            'TOYOTA LEXUS',
+            'TOYOTTA LEXUS',
         ];
 
         foreach ($qualities as $name) {
