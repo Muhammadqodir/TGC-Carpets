@@ -76,7 +76,7 @@ class Product extends Model
 
     public static function generateSku(string $name, string $color, ?int $qualityId, ?int $typeId): string
     {
-        $sku = 'TGC-' . strtoupper(Str::slug($name, '-')) . '-' . strtoupper(Str::slug($color, '-'));
+        $sku = 'TGC-' . strtoupper(Str::slug($name, '_')) . '-' . strtoupper(Str::slug($color, '_'));
 
         if ($qualityId) {
             $sku .= '-Q' . $qualityId;
