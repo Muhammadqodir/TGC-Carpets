@@ -8,4 +8,7 @@ class AppConstants {
   static const Duration receiveTimeout = Duration(seconds: 30);
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
+
+  /// Minimum width at which the app switches to a desktop layout.
+  static const double desktopBreakpoint = 800.0;
 }

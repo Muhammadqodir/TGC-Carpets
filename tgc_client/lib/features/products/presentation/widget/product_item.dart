@@ -1,6 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/app_badge.dart';
+import 'package:tgc_client/core/widgets/app_status_chip.dart';
+import 'package:tgc_client/core/widgets/app_thumbnail.dart';
 import '../../domain/entities/product_entity.dart';
 
 class ProductItem extends StatelessWidget {
@@ -15,7 +17,11 @@ class ProductItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            _ProductThumbnail(imageUrl: product.imageUrl),
+            AppThumbnail(
+              imageUrl: product.imageUrl,
+              size: 50,
+              borderRadius: 6,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -32,7 +38,7 @@ class ProductItem extends StatelessWidget {
                         ),
                       ),
                       if (product.stock != null)
-                        _Badge(
+                        AppBadge(
                           label: '${product.stock} ta',
                           color: product.stock! > 0
                               ? AppColors.success
@@ -46,16 +52,17 @@ class ProductItem extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       if (product.productType != null)
-                        _Badge(
+                        AppBadge(
                           label: product.productType!.type,
                           color: Colors.black87,
                         ),
                       if (product.productQuality != null)
-                        _Badge(
+                        AppBadge(
                           label: product.productQuality!.qualityName,
                           color: AppColors.primaryLight,
                         ),
-                      _Badge(label: product.color, color: AppColors.accent),
+                      AppBadge(
+                          label: product.color, color: AppColors.accent),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -72,7 +79,12 @@ class ProductItem extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      _StatusChip(isActive: product.isActive),
+                      AppStatusChip(
+                        label: product.isActive ? 'Faol' : 'Arxivlangan',
+                        color: product.isActive
+                            ? AppColors.success
+                            : AppColors.textSecondary,
+                      ),
                     ],
                   ),
                 ],
@@ -80,90 +92,6 @@ class ProductItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, this.color = Colors.blue});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-      ),
-    );
-  }
-}
-
-class _ProductThumbnail extends StatelessWidget {
-  final String? imageUrl;
-
-  const _ProductThumbnail({this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: imageUrl != null
-          ? CachedNetworkImage(
-              imageUrl: imageUrl!,
-              width: 44,
-              height: 60,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Center(
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  padding: const EdgeInsets.all(4),
-                  child: const CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-              errorWidget: (_, __, ___) => _placeholder(),
-            )
-          : _placeholder(),
-    );
-  }
-
-  Widget _placeholder() => Container(
-        width: 44,
-        height: 60,
-        color: AppColors.background,
-        child: const Icon(Icons.image_not_supported_outlined,
-            size: 20, color: AppColors.textSecondary),
-      );
-}
-
-class _StatusChip extends StatelessWidget {
-  final bool isActive;
-
-  const _StatusChip({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: (isActive ? AppColors.success : AppColors.textSecondary)
-            .withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        isActive ? 'Faol' : 'Arxivlangan',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isActive ? AppColors.success : AppColors.textSecondary,
-            ),
       ),
     );
   }

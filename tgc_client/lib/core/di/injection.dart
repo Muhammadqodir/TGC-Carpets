@@ -26,6 +26,8 @@ import '../../features/products/domain/usecases/get_products_usecase.dart';
 import '../../features/products/domain/usecases/get_product_types_usecase.dart';
 import '../../features/products/domain/usecases/get_product_qualities_usecase.dart';
 import '../../features/products/domain/usecases/create_product_usecase.dart';
+import '../../features/products/domain/usecases/update_product_usecase.dart';
+import '../../features/products/domain/usecases/delete_product_usecase.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 import '../../features/products/presentation/bloc/product_form_bloc.dart';
 
@@ -145,13 +147,20 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetProductTypesUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => GetProductQualitiesUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => CreateProductUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => UpdateProductUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => DeleteProductUseCase(sl<ProductRepository>()));
   // BLoCs
   sl.registerFactory(
-    () => ProductsBloc(getProductsUseCase: sl<GetProductsUseCase>()),
+    () => ProductsBloc(
+      getProductsUseCase: sl<GetProductsUseCase>(),
+      updateProductUseCase: sl<UpdateProductUseCase>(),
+      deleteProductUseCase: sl<DeleteProductUseCase>(),
+    ),
   );
   sl.registerFactory(
     () => ProductFormBloc(
       createProductUseCase: sl<CreateProductUseCase>(),
+      updateProductUseCase: sl<UpdateProductUseCase>(),
       getProductTypesUseCase: sl<GetProductTypesUseCase>(),
       getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
     ),

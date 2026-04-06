@@ -31,7 +31,7 @@ class ProductController extends Controller
             ->when($request->filled('color'),          fn ($q) => $q->where('color',    $request->color))
             ->when($request->filled('status'),         fn ($q) => $q->where('status',   $request->status))
             ->when($request->filled('product_type_id'), fn ($q) => $q->where('product_type_id', $request->product_type_id))
-            ->latest()
+            ->orderByDesc('stock')
             ->paginate($request->integer('per_page', 20));
 
         return ProductResource::collection($products);

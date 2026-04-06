@@ -26,6 +26,7 @@ class AppTheme {
           elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
+        dialogTheme: const DialogThemeData(backgroundColor: AppColors.background),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppColors.surface,

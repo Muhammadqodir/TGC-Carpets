@@ -1,15 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
+import 'package:tgc_client/features/products/presentation/widget/product_form_body.dart';
 
 class AddProductPage extends StatelessWidget {
   const AddProductPage({super.key});
@@ -17,7 +14,7 @@ class AddProductPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<ProductFormBloc>(),
+      create: (_) => sl<ProductFormBloc>()..add(const ProductFormStarted()),
       child: const _AddProductView(),
     );
   }
@@ -31,106 +28,9 @@ class _AddProductView extends StatefulWidget {
 }
 
 class _AddProductViewState extends State<_AddProductView> {
-  final _formKey = GlobalKey<FormState>();
+  final _bodyKey = GlobalKey<ProductFormBodyState>();
 
-  final _nameCtrl    = TextEditingController();
-  final _colorCtrl   = TextEditingController();
-
-  int?    _selectedProductTypeId;
-  int?    _selectedProductQualityId;
-  String  _unit   = 'piece';
-  String  _status = 'active';
-  XFile?  _pickedImage;
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<ProductFormBloc>().add(const ProductFormStarted());
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _colorCtrl.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    context.read<ProductFormBloc>().add(
-          ProductFormSubmitted(
-            name:              _nameCtrl.text.trim(),
-            productTypeId:     _selectedProductTypeId,
-            productQualityId:  _selectedProductQualityId,
-            color:             _colorCtrl.text.trim(),
-            unit:              _unit,
-            status:            _status,
-            imagePath:         _pickedImage?.path,
-          ),
-        );
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
-    if (file != null) {
-      setState(() => _pickedImage = file);
-    }
-  }
-
-  void _showImageSourceSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedCamera01,
-                strokeWidth: 1.5,
-              ),
-              title: const Text('Rasm olish'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedImage01,
-                strokeWidth: 1.5,
-              ),
-              title: const Text('Galereyadан tanlash'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            if (_pickedImage != null)
-              ListTile(
-                leading:
-                    const Icon(Icons.delete_outline, color: AppColors.error),
-                title: const Text(
-                  'Rasmni o\'chirish',
-                  style: TextStyle(color: AppColors.error),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _pickedImage = null);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
+  void _submit() => _bodyKey.currentState?.submitToBloc();
 
   @override
   Widget build(BuildContext context) {
@@ -156,285 +56,40 @@ class _AddProductViewState extends State<_AddProductView> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mahsulot qo\'shish'),
+          titleSpacing: 0,
           leading: IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
           ),
         ),
-        body: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _ImagePickerWidget(
-                pickedImage: _pickedImage,
-                onTap: _showImageSourceSheet,
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(title: 'Asosiy ma\'lumotlar'),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _nameCtrl,
-                label: 'Nomi',
-                hint: 'masalan: Fors klassik',
-                validator: _required,
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(title: 'O\'lchamlar va xususiyatlar'),
-              const SizedBox(height: 12),
-              BlocBuilder<ProductFormBloc, ProductFormState>(
-                builder: (context, state) {
-                  if (state is ProductFormTypesLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final types = switch (state) {
-                    ProductFormReady s      => s.productTypes,
-                    ProductFormSubmitting s  => s.productTypes,
-                    ProductFormFailure s     => s.productTypes,
-                    _ => const [],
-                  };
-                  return DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(
-                      labelText: 'Mahsulot turi',
-                    ),
-                    value: _selectedProductTypeId,
-                    items: types
-                        .map(
-                          (t) => DropdownMenuItem<int>(
-                            value: t.id,
-                            child: Text(t.type),
+        body: ProductFormBody(
+          key: _bodyKey,
+          contentPadding: const EdgeInsets.all(16),
+          imagePickerHeight: 180,
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: BlocBuilder<ProductFormBloc, ProductFormState>(
+              builder: (context, state) {
+                final submitting = state is ProductFormSubmitting;
+                return FilledButton(
+                  onPressed: submitting ? null : _submit,
+                  child: submitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedProductTypeId = v),
-                    hint: const Text('Tur tanlang (ixtiyoriy)'),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              BlocBuilder<ProductFormBloc, ProductFormState>(
-                builder: (context, state) {
-                  final qualities = switch (state) {
-                    ProductFormReady s      => s.productQualities,
-                    ProductFormSubmitting s  => s.productQualities,
-                    ProductFormFailure s     => s.productQualities,
-                    _ => const [],
-                  };
-                  return DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(
-                      labelText: 'Sifat',
-                    ),
-                    value: _selectedProductQualityId,
-                    items: qualities
-                        .map(
-                          (q) => DropdownMenuItem<int>(
-                            value: q.id,
-                            child: Text(q.density != null
-                                ? '${q.qualityName} (${q.density})'
-                                : q.qualityName),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedProductQualityId = v),
-                    hint: const Text('Sifat tanlang (ixtiyoriy)'),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _colorCtrl,
-                label: 'Rang',
-                hint: 'masalan: qizil, ko\'k',
-                validator: _required,
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(title: 'Birlik va holat'),
-              const SizedBox(height: 8),
-              AppOptionSelector<String>(
-                label: 'Birlik',
-                options: const [
-                  (label: 'Dona', value: 'piece'),
-                  (label: 'm²', value: 'm2'),
-                ],
-                selected: _unit,
-                onChanged: (v) => setState(() => _unit = v),
-              ),
-              const SizedBox(height: 12),
-              AppOptionSelector<String>(
-                label: 'Holat',
-                options: const [
-                  (label: 'Faol', value: 'active'),
-                  (label: 'Arxivlangan', value: 'archived'),
-                ],
-                selected: _status,
-                onChanged: (v) => setState(() => _status = v),
-              ),
-              const SizedBox(height: 28),
-              BlocBuilder<ProductFormBloc, ProductFormState>(
-                builder: (context, state) {
-                  final submitting = state is ProductFormSubmitting;
-                  return FilledButton(
-                    onPressed: submitting ? null : _submit,
-                    child: submitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Saqlash'),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-            ],
+                      : const Text('Saqlash'),
+                );
+              },
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  String? _required(String? v) =>
-      (v == null || v.trim().isEmpty) ? 'Bu maydon to\'ldirilishi shart.' : null;
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
-          ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final String? hint;
-  final String? Function(String?)? validator;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-
-  const _Field({
-    required this.controller,
-    required this.label,
-    this.hint,
-    this.validator,
-    this.keyboardType,
-    this.inputFormatters,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
-    );
-  }
-}
-
-
-
-class _ImagePickerWidget extends StatelessWidget {
-  final XFile? pickedImage;
-  final VoidCallback onTap;
-
-  const _ImagePickerWidget({
-    required this.pickedImage,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 180,
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          border: Border.all(
-            color: pickedImage != null
-                ? AppColors.primaryLight
-                : AppColors.divider,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: pickedImage != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.file(
-                    File(pickedImage!.path),
-                    fit: BoxFit.cover,
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit, color: Colors.white, size: 14),
-                          SizedBox(width: 4),
-                          Text(
-                            'O\'zgartirish',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedImageUpload,
-                    strokeWidth: 1.5,
-                    color: AppColors.textSecondary,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Mahsulot rasmini qo\'shish uchun bosing',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'JPG, PNG, WEBP — max 4 MB',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                ],
-              ),
       ),
     );
   }

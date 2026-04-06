@@ -4,21 +4,25 @@ import '../../domain/entities/product_type_entity.dart';
 import '../../domain/usecases/create_product_usecase.dart';
 import '../../domain/usecases/get_product_qualities_usecase.dart';
 import '../../domain/usecases/get_product_types_usecase.dart';
+import '../../domain/usecases/update_product_usecase.dart';
 import 'product_form_event.dart';
 import 'product_form_state.dart';
 
 class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
   final CreateProductUseCase createProductUseCase;
+  final UpdateProductUseCase updateProductUseCase;
   final GetProductTypesUseCase getProductTypesUseCase;
   final GetProductQualitiesUseCase getProductQualitiesUseCase;
 
   ProductFormBloc({
     required this.createProductUseCase,
+    required this.updateProductUseCase,
     required this.getProductTypesUseCase,
     required this.getProductQualitiesUseCase,
   }) : super(const ProductFormInitial()) {
     on<ProductFormStarted>(_onStarted);
     on<ProductFormSubmitted>(_onSubmitted);
+    on<ProductFormUpdateSubmitted>(_onUpdateSubmitted);
   }
 
   Future<void> _onStarted(
@@ -81,5 +85,34 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
     if (s is ProductFormSubmitting) return s.productQualities;
     if (s is ProductFormFailure) return s.productQualities;
     return const [];
+  }
+
+  Future<void> _onUpdateSubmitted(
+    ProductFormUpdateSubmitted event,
+    Emitter<ProductFormState> emit,
+  ) async {
+    final currentTypes = _currentTypes();
+    final currentQualities = _currentQualities();
+    emit(ProductFormSubmitting(currentTypes, productQualities: currentQualities));
+
+    final result = await updateProductUseCase(
+      id: event.productId,
+      name: event.name,
+      productTypeId: event.productTypeId,
+      productQualityId: event.productQualityId,
+      color: event.color,
+      unit: event.unit,
+      status: event.status,
+      imagePath: event.imagePath,
+    );
+
+    result.fold(
+      (failure) => emit(ProductFormFailure(
+        failure.message,
+        productTypes: currentTypes,
+        productQualities: currentQualities,
+      )),
+      (product) => emit(ProductFormSuccess(product)),
+    );
   }
 }

@@ -31,4 +31,17 @@ abstract class ProductRepository {
     String status = 'active',
     String? imagePath,
   });
+
+  Future<Either<Failure, ProductEntity>> updateProduct({
+    required int id,
+    String? name,
+    int? productTypeId,
+    int? productQualityId,
+    String? color,
+    String? unit,
+    String? status,
+    String? imagePath,
+  });
+
+  Future<Either<Failure, void>> deleteProduct({required int id});
 }

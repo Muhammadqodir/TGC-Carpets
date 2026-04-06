@@ -122,4 +122,50 @@ class ProductRepositoryImpl implements ProductRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, ProductEntity>> updateProduct({
+    required int id,
+    String? name,
+    int? productTypeId,
+    int? productQualityId,
+    String? color,
+    String? unit,
+    String? status,
+    String? imagePath,
+  }) async {
+    try {
+      final product = await remoteDataSource.updateProduct(
+        id: id,
+        name: name,
+        productTypeId: productTypeId,
+        productQualityId: productQualityId,
+        color: color,
+        unit: unit,
+        status: status,
+        imagePath: imagePath,
+      );
+      return Right(product);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteProduct({required int id}) async {
+    try {
+      await remoteDataSource.deleteProduct(id: id);
+      return const Right(null);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

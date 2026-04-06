@@ -39,6 +39,29 @@ class ProductEntity extends Equatable {
 
   bool get isActive => status == 'active';
 
+  ProductEntity copyWith({
+    String? status,
+    String? imageUrl,
+    int? stock,
+  }) =>
+      ProductEntity(
+        id: id,
+        uuid: uuid,
+        name: name,
+        skuCode: skuCode,
+        productTypeId: productTypeId,
+        productType: productType,
+        productQualityId: productQualityId,
+        productQuality: productQuality,
+        color: color,
+        unit: unit,
+        status: status ?? this.status,
+        imageUrl: imageUrl ?? this.imageUrl,
+        stock: stock ?? this.stock,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   @override
   List<Object?> get props => [
         id,

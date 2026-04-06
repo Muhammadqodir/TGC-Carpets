@@ -32,6 +32,19 @@ abstract class ProductRemoteDataSource {
     String status = 'active',
     String? imagePath,
   });
+
+  Future<ProductModel> updateProduct({
+    required int id,
+    String? name,
+    int? productTypeId,
+    int? productQualityId,
+    String? color,
+    String? unit,
+    String? status,
+    String? imagePath,
+  });
+
+  Future<void> deleteProduct({required int id});
 }
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
@@ -76,7 +89,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         currentPage: meta['current_page'] as int,
         lastPage: meta['last_page'] as int,
         perPage: meta['per_page'] as int,
-        total: meta['total'] as int,
+        total: (meta['total'] as num?)?.toInt() ?? 0,
       );
     } on DioException catch (e) {
       _handleDioError(e);
@@ -154,6 +167,69 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       return ProductModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductModel> updateProduct({
+    required int id,
+    String? name,
+    int? productTypeId,
+    int? productQualityId,
+    String? color,
+    String? unit,
+    String? status,
+    String? imagePath,
+  }) async {
+    try {
+      if (imagePath != null) {
+        final formData = FormData.fromMap({
+          if (name != null) 'name': name,
+          if (productTypeId != null) 'product_type_id': productTypeId,
+          if (productQualityId != null) 'product_quality_id': productQualityId,
+          if (color != null) 'color': color,
+          if (unit != null) 'unit': unit,
+          if (status != null) 'status': status,
+          '_method': 'PUT',
+          'image': await MultipartFile.fromFile(
+            imagePath,
+            filename: imagePath.split('/').last,
+          ),
+        });
+        final response = await _dio.post(
+          ApiEndpoints.productById(id),
+          data: formData,
+        );
+        return ProductModel.fromJson(
+          (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+        );
+      } else {
+        final response = await _dio.put(
+          ApiEndpoints.productById(id),
+          data: {
+            if (name != null) 'name': name,
+            if (productTypeId != null) 'product_type_id': productTypeId,
+            if (productQualityId != null) 'product_quality_id': productQualityId,
+            if (color != null) 'color': color,
+            if (unit != null) 'unit': unit,
+            if (status != null) 'status': status,
+          },
+        );
+        return ProductModel.fromJson(
+          (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+        );
+      }
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteProduct({required int id}) async {
+    try {
+      await _dio.delete(ApiEndpoints.productById(id));
     } on DioException catch (e) {
       _handleDioError(e);
     }
