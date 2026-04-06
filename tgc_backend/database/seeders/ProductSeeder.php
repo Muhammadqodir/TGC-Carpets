@@ -7,6 +7,7 @@ use App\Models\ProductQuality;
 use App\Models\ProductType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
