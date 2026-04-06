@@ -61,6 +61,12 @@ class ProductSeeder extends Seeder
                 $qualityId = $qualityCache[$qualityName];
             }
 
+            $sku = 'TGC-' . strtoupper(Str::slug($name, '-')) . '-' . strtoupper(Str::slug($color, '-'));
+            // Append type suffix to stay unique when same name+color spans multiple types
+            if ($typeId) {
+                $sku .= '-T' . $typeId;
+            }
+
             Product::firstOrCreate(
                 [
                     'name'            => $name,
@@ -69,6 +75,7 @@ class ProductSeeder extends Seeder
                 ],
                 [
                     'uuid'               => (string) Str::uuid(),
+                    'sku_code'           => $sku,
                     'product_quality_id' => $qualityId,
                     'unit'               => 'piece',
                     'status'             => 'active',
