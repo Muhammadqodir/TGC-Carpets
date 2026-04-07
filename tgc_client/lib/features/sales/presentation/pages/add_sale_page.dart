@@ -8,6 +8,7 @@ import 'package:tgc_client/core/extensions/amount.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/widget/client_picker_bottom_sheet.dart';
+import 'package:tgc_client/features/products/domain/entities/product_color_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_picker_bottom_sheet.dart';
@@ -128,6 +129,8 @@ class _AddSaleViewState extends State<_AddSaleView> {
     final items = _items
         .map((row) => {
               'product_id': row.selectedProduct!.id,
+              if (row.selectedColor != null)
+                'product_color_id': row.selectedColor!.id,
               if (row.selectedSize != null)
                 'product_size_id': row.selectedSize!.id,
               'quantity': int.parse(row.quantityCtrl.text.trim()),
@@ -306,6 +309,7 @@ class _SaleItemRow {
   final int id = ++_counter;
 
   ProductEntity? selectedProduct;
+  ProductColorEntity? selectedColor;
   ProductSizeEntity? selectedSize;
   final quantityCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
@@ -378,9 +382,10 @@ class _SaleItemFormRow extends StatelessWidget {
             // Product picker
             InkWell(
               onTap: () async {
-                final picked = await ProductPickerBottomSheet.show(context);
-                if (picked != null) {
-                  row.selectedProduct = picked;
+                final result = await ProductPickerBottomSheet.show(context);
+                if (result != null) {
+                  row.selectedProduct = result.product;
+                  row.selectedColor = result.color;
                   row.selectedSize = null; // reset size when product changes
                   onChanged();
                 }
@@ -429,7 +434,12 @@ class _SaleItemFormRow extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  '${product.productType?.type ?? ''}',
+                                  [
+                                    if (product.productType?.type != null)
+                                      product.productType!.type,
+                                    if (row.selectedColor != null)
+                                      row.selectedColor!.colorName,
+                                  ].join(' · '),
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall

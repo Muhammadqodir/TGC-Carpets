@@ -7,6 +7,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/usecases/get_current_user_usecase.dart';
+import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/presentation/widget/product_picker_bottom_sheet.dart';
@@ -87,15 +88,38 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
       return;
     }
 
+    final hasUnpickedColor = _items.any((r) => r.selectedColor == null);
+    if (hasUnpickedColor) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Barcha qatorlardagi mahsulot rangini tanlang.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final hasUnpickedSize = _items.any(
+      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+    );
+    if (hasUnpickedSize) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Barcha qatorlardagi mahsulot o\'lchamini tanlang.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final previewItems = _items
         .map((row) => WarehouseItemPreviewRow(
               productId: row.selectedProduct!.id,
               productName: row.selectedProduct!.name,
               quality: row.selectedProduct!.productQuality?.qualityName,
               type: row.selectedProduct!.productType?.type,
-              color: row.selectedProduct!.productColors.isNotEmpty
-                  ? row.selectedProduct!.productColors.first.colorName
-                  : null,
+              color: row.selectedColor?.colorName,
+              productColorId: row.selectedColor?.id,
               productSizeId: row.selectedSize?.id,
               sizeLabel: row.selectedSize?.dimensions,
               sizeLength: row.selectedSize?.length,
@@ -227,6 +251,7 @@ class _ItemRow {
   final int id = ++_counter;
 
   ProductEntity? selectedProduct;
+  ProductColorEntity? selectedColor;
   ProductSizeEntity? selectedSize;
   final quantityCtrl = TextEditingController();
   final notesCtrl = TextEditingController();
@@ -297,10 +322,11 @@ class _ItemFormRow extends StatelessWidget {
                   child: // Product picker button
                       InkWell(
                     onTap: () async {
-                      final picked =
+                      final result =
                           await ProductPickerBottomSheet.show(context);
-                      if (picked != null) {
-                        row.selectedProduct = picked;
+                      if (result != null) {
+                        row.selectedProduct = result.product;
+                        row.selectedColor = result.color;
                         row.selectedSize = null; // reset size when product changes
                         onProductChanged();
                       }
@@ -355,7 +381,12 @@ class _ItemFormRow extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        product.productType?.type ?? '',
+                                        [
+                                          if (product.productType?.type != null)
+                                            product.productType!.type,
+                                          if (row.selectedColor != null)
+                                            row.selectedColor!.colorName,
+                                        ].join(' · '),
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelSmall

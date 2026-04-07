@@ -60,6 +60,8 @@ class _PreviewViewState extends State<_PreviewView> {
     final items = widget.args.items
         .map((row) => {
               'product_id': row.productId,
+              if (row.productColorId != null)
+                'product_color_id': row.productColorId,
               if (row.productSizeId != null)
                 'product_size_id': row.productSizeId,
               'quantity': row.quantity,

@@ -22,11 +22,12 @@ class StoreWarehouseDocumentRequest extends FormRequest
             'document_date'         => ['required', 'date'],
             'notes'                 => ['nullable', 'string'],
 
-            'items'                 => ['required', 'array', 'min:1'],
-            'items.*.product_id'    => ['required', 'integer', 'exists:products,id'],
-            'items.*.product_size_id' => ['nullable', 'integer', 'exists:product_sizes,id'],
-            'items.*.quantity'      => ['required', 'integer', 'min:1'],
-            'items.*.notes'         => ['nullable', 'string'],
+            'items'                       => ['required', 'array', 'min:1'],
+            'items.*.product_id'          => ['required', 'integer', 'exists:products,id'],
+            'items.*.product_color_id'    => ['required', 'integer', 'exists:product_colors,id'],
+            'items.*.product_size_id'     => ['required', 'integer', 'exists:product_sizes,id'],
+            'items.*.quantity'            => ['required', 'integer', 'min:1'],
+            'items.*.notes'               => ['nullable', 'string'],
         ];
     }
 }
