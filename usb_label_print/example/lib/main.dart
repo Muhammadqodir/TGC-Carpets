@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:usb_label_print/usb_label_print.dart';
+import 'package:usb_label_print_example/label.dart';
 
 void main() {
   runApp(const TgcPrinterExampleApp());
@@ -151,45 +152,8 @@ class _PrinterPageState extends State<PrinterPage> {
   Widget _buildLabel() {
     return LabelWidget(
       config: _labelConfig,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // QR code
-          SizedBox(
-            width: _labelConfig.heightPx * 0.75,
-            height: _labelConfig.heightPx * 0.75,
-            child: QrImageView(
-              data: _qrDataController.text.isEmpty
-                  ? 'empty'
-                  : _qrDataController.text,
-              version: QrVersions.auto,
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Text + logo
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.grid_view_rounded, size: 40, color: Colors.teal),
-                const SizedBox(height: 4),
-                Flexible(
-                  child: Text(
-                    _textController.text,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: PrintLabel(
+        config: _labelConfig,
       ),
     );
   }
@@ -222,7 +186,8 @@ class _PrinterPageState extends State<PrinterPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // -- Label text --
-          const Text('Label Text', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Label Text',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           TextField(
             controller: _textController,
@@ -250,14 +215,14 @@ class _PrinterPageState extends State<PrinterPage> {
           const SizedBox(height: 24),
 
           // -- Label size preset --
-          const Text('Label Size', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Label Size',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _selectedPreset,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             items: _presets.keys
                 .map((k) => DropdownMenuItem(value: k, child: Text(k)))
@@ -318,10 +283,11 @@ class _PrinterPageState extends State<PrinterPage> {
           ),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
-            onPressed:
-                _isLoading || _generatedPngPath == null || _selectedPrinter == null
-                    ? null
-                    : _printLabel,
+            onPressed: _isLoading ||
+                    _generatedPngPath == null ||
+                    _selectedPrinter == null
+                ? null
+                : _printLabel,
             icon: const Icon(Icons.print),
             label: const Text('Print'),
           ),
@@ -373,7 +339,6 @@ class _PrinterPageState extends State<PrinterPage> {
               child: _buildLabel(),
             ),
           ),
-
           if (_generatedPngPath != null) ...[
             const SizedBox(height: 32),
             const Text(

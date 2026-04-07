@@ -42,9 +42,18 @@ class WarehousePdfService {
     final boldFont = pw.Font.ttf(boldData.buffer.asByteData());
 
     final baseStyle = pw.TextStyle(font: font, fontSize: 11);
-    final boldStyle = pw.TextStyle(font: boldFont, fontSize: 11, fontWeight: pw.FontWeight.bold);
-    final titleStyle = pw.TextStyle(font: boldFont, fontSize: 16, fontWeight: pw.FontWeight.bold);
-    final subtitleStyle = pw.TextStyle(font: boldFont, fontSize: 13, fontWeight: pw.FontWeight.bold);
+    final boldStyle = pw.TextStyle(
+        font: boldFont, fontSize: 11, fontWeight: pw.FontWeight.bold);
+    final titleStyle = pw.TextStyle(
+        font: boldFont, fontSize: 16, fontWeight: pw.FontWeight.bold);
+    final subtitleStyle = pw.TextStyle(
+        font: boldFont, fontSize: 13, fontWeight: pw.FontWeight.bold);
+
+    final totalQty = items.fold<int>(0, (s, r) => s + r.quantity);
+    final sqmList =
+        items.map((r) => r.squareMeters).whereType<double>().toList();
+    final totalSqm =
+        sqmList.isEmpty ? null : sqmList.fold<double>(0.0, (a, b) => a + b);
 
     final pdf = pw.Document();
 
@@ -88,10 +97,14 @@ class WarehousePdfService {
             pw.Table(
               border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey600),
               columnWidths: {
-                0: const pw.FixedColumnWidth(30),
-                1: const pw.FlexColumnWidth(4),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FixedColumnWidth(60),
+                0: const pw.FixedColumnWidth(22),
+                1: const pw.FlexColumnWidth(1),
+                2: const pw.FlexColumnWidth(1),
+                3: const pw.FlexColumnWidth(1),
+                4: const pw.FlexColumnWidth(1),
+                5: const pw.FixedColumnWidth(70),
+                6: const pw.FixedColumnWidth(50),
+                7: const pw.FixedColumnWidth(75),
               },
               children: [
                 // Header row
@@ -100,8 +113,12 @@ class WarehousePdfService {
                   children: [
                     _cell('#', boldStyle),
                     _cell('Mahsulot', boldStyle),
+                    _cell('Sifat', boldStyle),
+                    _cell('Turi', boldStyle),
+                    _cell('Rangi', boldStyle),
                     _cell("O'lcham", boldStyle),
                     _cell('Miqdor', boldStyle),
+                    _cell('Miqdor(м²)', boldStyle),
                   ],
                 ),
                 // Data rows
@@ -109,48 +126,40 @@ class WarehousePdfService {
                   final i = e.key;
                   final item = e.value;
                   final bg = i.isOdd ? PdfColors.grey100 : PdfColors.white;
+                  final small = pw.TextStyle(font: font, fontSize: 9);
+                  final smallBold = pw.TextStyle(
+                      font: font, fontSize: 9, fontWeight: pw.FontWeight.bold);
                   return pw.TableRow(
                     decoration: pw.BoxDecoration(color: bg),
                     children: [
-                      _cell('${i + 1}', baseStyle),
+                      _cell('${i + 1}', small),
+                      _cell(item.productName, small),
+                      _cell(item.quality ?? '—', small),
+                      _cell(item.type ?? '—', small),
+                      _cell(item.color ?? '—', small),
+                      _cell(item.sizeLabel ?? '—', small),
+                      _cell('${item.quantity}', smallBold),
                       _cell(
-                        item.productDetails.isNotEmpty
-                            ? '${item.productName}\n${item.productDetails}'
-                            : item.productName,
-                        pw.TextStyle(font: font, fontSize: 10),
-                      ),
-                      _cell(item.sizeLabel ?? '-', baseStyle),
-                      _cell('${item.quantity}', baseStyle),
+                          item.squareMeters != null
+                              ? fmtSqM(item.squareMeters!)
+                              : '—',
+                          smallBold),
                     ],
                   );
                 }),
               ],
             ),
 
-            pw.SizedBox(height: 20),
-            pw.Divider(color: PdfColors.grey400),
-            pw.SizedBox(height: 8),
-
-            // ── Signature block ──────────────────────────────────────────
+            pw.SizedBox(height: 12),
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: pw.MainAxisAlignment.end,
               children: [
                 pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Qabul qildi:', style: baseStyle),
-                    pw.SizedBox(height: 24),
-                    pw.Container(width: 120, decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide()))),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('Mas\'ul shaxs:', style: baseStyle),
-                    pw.SizedBox(height: 4),
-                    pw.Text(username, style: boldStyle),
-                    pw.SizedBox(height: 4),
-                    pw.Container(width: 120, decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide()))),
+                    pw.Text('Jami: $totalQty dona', style: boldStyle),
+                    if (totalSqm != null)
+                      pw.Text('Jami: ${fmtSqM(totalSqm)}', style: boldStyle),
                   ],
                 ),
               ],
@@ -169,5 +178,6 @@ class WarehousePdfService {
       );
 
   String _fmt(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}  '
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }

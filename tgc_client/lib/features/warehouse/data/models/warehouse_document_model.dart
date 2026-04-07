@@ -14,6 +14,7 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
     super.clientId,
     super.clientShopName,
     required super.items,
+    super.pdfUrl,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -37,6 +38,7 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
       clientId: clientMap?['id'] as int?,
       clientShopName: clientMap?['shop_name'] as String?,
       items: itemsList,
+      pdfUrl: json['pdf_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -57,6 +59,7 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
             .cast<WarehouseDocumentItemModel>()
             .map((e) => e.toJson())
             .toList(),
+        'pdf_url': pdfUrl,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

@@ -14,6 +14,7 @@ class WarehouseDocumentEntity extends Equatable {
   final int? clientId;
   final String? clientShopName;
   final List<WarehouseDocumentItemEntity> items;
+  final String? pdfUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -29,6 +30,7 @@ class WarehouseDocumentEntity extends Equatable {
     this.clientId,
     this.clientShopName,
     required this.items,
+    this.pdfUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -53,6 +55,7 @@ class WarehouseDocumentEntity extends Equatable {
         clientId,
         clientShopName,
         items,
+        pdfUrl,
         createdAt,
         updatedAt,
       ];

@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../domain/entities/warehouse_document_entity.dart';
 import '../../domain/usecases/get_warehouse_documents_usecase.dart';
 import 'warehouse_docs_event.dart';
 import 'warehouse_docs_state.dart';
@@ -71,9 +72,11 @@ class WarehouseDocsBloc extends Bloc<WarehouseDocsEvent, WarehouseDocsState> {
       (paginated) {
         final current = state;
         final existing =
-            (!replace && current is WarehouseDocsLoaded) ? current.documents : [];
+            (!replace && current is WarehouseDocsLoaded) ? current.documents : <WarehouseDocumentEntity>[];
+        final merged = <WarehouseDocumentEntity>[...existing, ...paginated.data]
+          ..sort((a, b) => b.documentDate.compareTo(a.documentDate));
         emit(WarehouseDocsLoaded(
-          documents: [...existing, ...paginated.data],
+          documents: merged,
           hasNextPage: paginated.hasNextPage,
           currentPage: paginated.currentPage,
           activeTypeFilter: _activeTypeFilter,

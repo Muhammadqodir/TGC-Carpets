@@ -40,6 +40,10 @@ dependencies:
   connectivity_plus: ^6.1.1
   hugeicons: ^1.1.6
 
+  #Label printing
+  usb_label_print:
+    path: ../usb_label_print
+
   # Image picking
   image_picker: ^1.1.2
   rename_app: ^1.6.5
@@ -49,6 +53,8 @@ dependencies:
   pdf: ^3.12.0
   printing: ^5.14.3
   path_provider: ^2.1.5
+  barcode_widget: ^2.0.4
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

@@ -33,7 +33,6 @@ class _AddWarehouseDocumentView extends StatefulWidget {
 class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
   final _formKey = GlobalKey<FormState>();
 
-  DateTime _selectedDate = DateTime.now();
   final _notesCtrl = TextEditingController();
   final List<_ItemRow> _items = [];
   String _username = '';
@@ -74,29 +73,6 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
-            dialogBackgroundColor: AppColors.background,
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
-  }
-
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -115,12 +91,13 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
         .map((row) => WarehouseItemPreviewRow(
               productId: row.selectedProduct!.id,
               productName: row.selectedProduct!.name,
-              productDetails:
-                  '${row.selectedProduct!.productType?.type ?? ''} • ${row.selectedProduct!.color}'
-                      .trim()
-                      .replaceAll(RegExp(r'^\s*•\s*|\s*•\s*$'), ''),
+              quality: row.selectedProduct!.productQuality?.qualityName,
+              type: row.selectedProduct!.productType?.type,
+              color: row.selectedProduct!.color,
               productSizeId: row.selectedSize?.id,
               sizeLabel: row.selectedSize?.dimensions,
+              sizeLength: row.selectedSize?.length,
+              sizeWidth: row.selectedSize?.width,
               quantity: int.parse(row.quantityCtrl.text.trim()),
               itemNotes: row.notesCtrl.text.trim().isEmpty
                   ? null
@@ -130,7 +107,7 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
 
     final args = WarehouseDocumentPreviewArgs(
       type: 'in',
-      documentDate: _selectedDate,
+      documentDate: DateTime.now(),
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       username: _username.isEmpty ? 'Noma\'lum' : _username,
       items: previewItems,
@@ -168,13 +145,6 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
                     // ── Header info ──────────────────────────────────────
                     const _SectionHeader(title: 'Hujjat ma\'lumotlari'),
                     const SizedBox(height: 12),
-
-                    // Date picker
-                    _DatePickerField(
-                      date: _selectedDate,
-                      onTap: _pickDate,
-                    ),
-                    const SizedBox(height: 14),
 
                     // Notes
                     TextFormField(
@@ -532,41 +502,4 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _DatePickerField extends StatelessWidget {
-  final DateTime date;
-  final VoidCallback onTap;
 
-  const _DatePickerField({required this.date, required this.onTap});
-
-  String get _formatted =>
-      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.divider),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today_outlined,
-                size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 10),
-            Text(
-              _formatted,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const Spacer(),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 18, color: AppColors.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-}

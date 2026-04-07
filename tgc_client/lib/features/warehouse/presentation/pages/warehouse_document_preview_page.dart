@@ -1,8 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-
+import 'package:tgc_client/core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/datasources/warehouse_remote_datasource.dart';
@@ -58,7 +60,8 @@ class _PreviewViewState extends State<_PreviewView> {
     final items = widget.args.items
         .map((row) => {
               'product_id': row.productId,
-              if (row.productSizeId != null) 'product_size_id': row.productSizeId,
+              if (row.productSizeId != null)
+                'product_size_id': row.productSizeId,
               'quantity': row.quantity,
               if (row.itemNotes != null && row.itemNotes!.isNotEmpty)
                 'notes': row.itemNotes,
@@ -77,6 +80,7 @@ class _PreviewViewState extends State<_PreviewView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopPlatform = Platform.isMacOS || Platform.isWindows;
     return BlocListener<WarehouseFormBloc, WarehouseFormState>(
       listener: (context, state) async {
         if (state is WarehouseFormSubmitting) {
@@ -128,55 +132,62 @@ class _PreviewViewState extends State<_PreviewView> {
             onPressed: _isProcessing ? null : () => context.pop(),
           ),
         ),
-        body: Stack(
-          children: [
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-                child: _DocumentCard(
-                  args: widget.args,
-                  formattedDateTime: _formattedDateTime,
-                  formattedDate: _formattedDate,
-                ),
-              ),
-            ),
-            // ── Submit button ──────────────────────────────────────────
-            Positioned(
-              bottom: 12,
-              left: 12,
-              right: 12,
-              child: SafeArea(
-                top: false,
-                child: FilledButton(
-                  onPressed: _isProcessing ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
+        body: SizedBox(
+          height: double.infinity,
+          child: Stack(
+            children: [
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+                  child: _DocumentCard(
+                    args: widget.args,
+                    formattedDateTime: _formattedDateTime,
+                    formattedDate: _formattedDate,
                   ),
-                  child: _isProcessing
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(_processingLabel,
-                                style: const TextStyle(color: Colors.white)),
-                          ],
-                        )
-                      : const Text('Tasdiqlash va saqlash'),
                 ),
               ),
-            ),
-            // ── Processing overlay ─────────────────────────────────────
-            if (_isProcessing)
-              const ModalBarrier(dismissible: false, color: Colors.transparent),
-          ],
+              // ── Submit button ──────────────────────────────────────────
+              Positioned(
+                bottom: 12,
+                left: 12,
+                right: 12,
+                child: SafeArea(
+                  top: false,
+                  child: Expanded(
+                    child: FilledButton(
+                      onPressed: _isProcessing ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      child: _isProcessing
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(_processingLabel,
+                                    style:
+                                        const TextStyle(color: Colors.white)),
+                              ],
+                            )
+                          : const Text('Tasdiqlash va saqlash'),
+                    ),
+                  ),
+                ),
+              ),
+              // ── Processing overlay ─────────────────────────────────────
+              if (_isProcessing)
+                const ModalBarrier(
+                    dismissible: false, color: Colors.transparent),
+            ],
+          ),
         ),
       ),
     );
@@ -199,6 +210,11 @@ class _DocumentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final totalQty = args.items.fold(0, (sum, r) => sum + r.quantity);
+    final sqmValues =
+        args.items.map((r) => r.squareMeters).whereType<double>().toList();
+    final totalSqm =
+        sqmValues.isEmpty ? null : sqmValues.fold<double>(0.0, (a, b) => a + b);
 
     return Container(
       decoration: BoxDecoration(
@@ -215,43 +231,6 @@ class _DocumentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Document header ──────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'TGC CARPETS',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: Colors.white60,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'OMBORGA KIRIM HUJJATI',
-                  textAlign: TextAlign.center,
-                  style: textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '№ —',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -273,6 +252,7 @@ class _DocumentCard extends StatelessWidget {
                         icon: HugeIcons.strokeRoundedCalendar01,
                         label: 'Sana va vaqt',
                         value: formattedDateTime,
+                        alignment: Alignment.centerRight,
                       ),
                     ),
                   ],
@@ -284,6 +264,7 @@ class _DocumentCard extends StatelessWidget {
                     icon: HugeIcons.strokeRoundedNote,
                     label: 'Izoh',
                     value: args.notes!,
+                    alignment: Alignment.centerLeft,
                   ),
                 ],
 
@@ -291,21 +272,35 @@ class _DocumentCard extends StatelessWidget {
                 const Divider(height: 1),
                 const SizedBox(height: 12),
 
-                // ── Table header ──────────────────────────────────────
-                _TableHeader(textTheme: textTheme),
-                const Divider(height: 1),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    bool isDesktop =
+                        constraints.maxWidth >= AppConstants.desktopBreakpoint;
 
-                // ── Table rows ────────────────────────────────────────
-                ...args.items.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final row = entry.value;
-                  return _TableRow(
-                    index: i,
-                    row: row,
-                    isEven: i.isEven,
-                    textTheme: textTheme,
-                  );
-                }),
+                    return Column(
+                      children: [
+                        _TableHeader(
+                          textTheme: textTheme,
+                          isDesktop: isDesktop,
+                        ),
+                        const Divider(height: 1),
+
+                        // ── Table rows ────────────────────────────────────────
+                        ...args.items.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final row = entry.value;
+                          return _TableRow(
+                            index: i,
+                            row: row,
+                            isEven: i.isEven,
+                            textTheme: textTheme,
+                            isDesktop: isDesktop,
+                          );
+                        }),
+                      ],
+                    );
+                  },
+                ),
 
                 const Divider(height: 1),
                 const SizedBox(height: 16),
@@ -313,36 +308,26 @@ class _DocumentCard extends StatelessWidget {
                 // ── Totals ────────────────────────────────────────────
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Text(
-                    'Jami: ${args.items.fold(0, (sum, r) => sum + r.quantity)} dona',
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Jami: $totalQty dona',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (totalSqm != null)
+                        Text(
+                          'Jami: ${fmtSqM(totalSqm)}',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Signature lines ───────────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SignatureLine(
-                        label: 'Topshirdi',
-                        name: args.username,
-                        textTheme: textTheme,
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _SignatureLine(
-                        label: 'Qabul qildi',
-                        name: '',
-                        textTheme: textTheme,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -358,7 +343,8 @@ class _DocumentCard extends StatelessWidget {
             ),
             child: Text(
               'Hujjat yaratilish sanasi: $formattedDate',
-              style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+              style: textTheme.labelSmall
+                  ?.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
           ),
@@ -374,23 +360,35 @@ class _MetaItem extends StatelessWidget {
   final List<List<dynamic>> icon;
   final String label;
   final String value;
-
+  final Alignment alignment;
   const _MetaItem({
     required this.icon,
     required this.label,
     required this.value,
+    this.alignment = Alignment.centerLeft,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: alignment == Alignment.centerLeft
+          ? MainAxisAlignment.start
+          : MainAxisAlignment.end,
       children: [
-        HugeIcon(icon: icon, size: 16, color: AppColors.textSecondary, strokeWidth: 1.5),
+        if (alignment == Alignment.centerLeft)
+          HugeIcon(
+            icon: icon,
+            size: 16,
+            color: AppColors.textSecondary,
+            strokeWidth: 1.5,
+          ),
         const SizedBox(width: 6),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: alignment == Alignment.centerLeft
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.end,
             children: [
               Text(
                 label,
@@ -398,7 +396,6 @@ class _MetaItem extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
               ),
-              const SizedBox(height: 2),
               Text(
                 value,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -408,6 +405,14 @@ class _MetaItem extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: 6),
+        if (alignment == Alignment.centerRight)
+          HugeIcon(
+            icon: icon,
+            size: 16,
+            color: AppColors.textSecondary,
+            strokeWidth: 1.5,
+          ),
       ],
     );
   }
@@ -415,8 +420,9 @@ class _MetaItem extends StatelessWidget {
 
 class _TableHeader extends StatelessWidget {
   final TextTheme textTheme;
+  final bool isDesktop;
 
-  const _TableHeader({required this.textTheme});
+  const _TableHeader({required this.textTheme, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -425,34 +431,50 @@ class _TableHeader extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 28,
-            child: Text('#',
-                style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            width: 24,
+            child: _hCell('#', textTheme),
           ),
           Expanded(
-            flex: 4,
-            child: Text('Mahsulot',
-                style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            flex: 3,
+            child: _hCell('Mahsulot', textTheme),
+          ),
+          if (isDesktop) ...[
+            Expanded(
+              flex: 2,
+              child: _hCell('Sifat', textTheme),
+            ),
+            Expanded(
+              flex: 2,
+              child: _hCell('Turi', textTheme),
+            ),
+            Expanded(
+              flex: 2,
+              child: _hCell('Rangi', textTheme),
+            ),
+          ],
+          SizedBox(
+            width: 70,
+            child: _hCell("O'lcham", textTheme),
           ),
           SizedBox(
-            width: 72,
-            child: Text("O'lcham",
-                style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            width: 60,
+            child: _hCell('Miqdor', textTheme, align: TextAlign.end),
           ),
           SizedBox(
-            width: 52,
-            child: Text('Miqdor',
-                textAlign: TextAlign.end,
-                style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            width: 80,
+            child: _hCell('Miqdor (м²)', textTheme, align: TextAlign.end),
           ),
         ],
       ),
     );
   }
+
+  Widget _hCell(String text, TextTheme t,
+          {TextAlign align = TextAlign.start}) =>
+      Text(text,
+          textAlign: align,
+          style: t.labelSmall?.copyWith(
+              color: AppColors.textSecondary, fontWeight: FontWeight.w600));
 }
 
 class _TableRow extends StatelessWidget {
@@ -460,104 +482,107 @@ class _TableRow extends StatelessWidget {
   final WarehouseItemPreviewRow row;
   final bool isEven;
   final TextTheme textTheme;
+  final bool isDesktop;
 
   const _TableRow({
     required this.index,
     required this.row,
     required this.isEven,
     required this.textTheme,
+    this.isDesktop = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: isEven ? Colors.transparent : const Color(0xFFF9FAFB),
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 28,
+            width: 24,
             child: Text('${index + 1}.',
-                style:
-                    textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                style: textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary)),
           ),
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(row.productName,
-                    style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500)),
-                if (row.productDetails.isNotEmpty)
-                  Text(row.productDetails,
-                      style: textTheme.labelSmall
-                          ?.copyWith(color: AppColors.textSecondary)),
-              ],
+          !isDesktop
+              ? Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.productName,
+                        style: textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        '${row.quality ?? '—'} | ${row.type ?? '—'} | ${row.color ?? '—'}',
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              : Expanded(
+                  flex: 3,
+                  child: Text(
+                    row.productName,
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+          if (isDesktop) ...[
+            Expanded(
+              flex: 2,
+              child: Text(row.quality ?? '—',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
             ),
-          ),
+            Expanded(
+              flex: 2,
+              child: Text(row.type ?? '—',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(row.color ?? '—',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ),
+          ],
           SizedBox(
-            width: 72,
+            width: 70,
             child: Text(
               row.sizeLabel ?? '—',
               style: row.sizeLabel != null
-                  ? textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)
-                  : textTheme.bodyMedium
+                  ? textTheme.bodySmall?.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w600)
+                  : textTheme.bodySmall
                       ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           SizedBox(
-            width: 52,
+            width: 60,
             child: Text(
               '${row.quantity}',
               textAlign: TextAlign.end,
-              style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          SizedBox(
+            width: 80,
+            child: Text(
+              row.squareMeters != null ? fmtSqM(row.squareMeters!) : '—',
+              textAlign: TextAlign.end,
+              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SignatureLine extends StatelessWidget {
-  final String label;
-  final String name;
-  final TextTheme textTheme;
-
-  const _SignatureLine({
-    required this.label,
-    required this.name,
-    required this.textTheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style:
-                textTheme.labelSmall?.copyWith(color: AppColors.textSecondary)),
-        if (name.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(name,
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-        ],
-        const SizedBox(height: 8),
-        const Divider(
-          height: 1,
-          thickness: 1,
-          color: AppColors.textPrimary,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Imzo',
-          style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
     );
   }
 }
