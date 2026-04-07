@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Color;
 use App\Models\Product;
+use App\Models\ProductColor;
 use App\Models\ProductQuality;
 use App\Models\ProductType;
 use Illuminate\Database\Seeder;
@@ -30,16 +32,19 @@ class ProductSeeder extends Seeder
         // Cache lookups to avoid N+1 queries
         $typeCache    = [];
         $qualityCache = [];
-        $count        = 0;
+        $colorCache   = [];
+        $productCache = []; // key: "name|typeId|qualityId"
+        $productColors = 0;
+        $products      = 0;
 
         foreach ($items as $item) {
             $typeName    = $item['type'] ?? null;
             $qualityName = $item['quality'] ?? null;
             $name        = trim($item['name'] ?? '');
-            $color       = trim($item['color'] ?? '');
+            $colorName   = trim($item['color'] ?? '');
             $image       = $item['image'] ?? null;
 
-            if ($name === '' || $color === '') {
+            if ($name === '' || $colorName === '') {
                 continue;
             }
 
@@ -61,27 +66,45 @@ class ProductSeeder extends Seeder
                 $qualityId = $qualityCache[$qualityName];
             }
 
-            $sku = Product::generateSku($name, $color, $qualityId, $typeId);
+            // Resolve Color
+            if (! isset($colorCache[$colorName])) {
+                $colorCache[$colorName] = Color::firstOrCreate(['name' => $colorName])->id;
+            }
+            $colorId = $colorCache[$colorName];
 
-            Product::firstOrCreate(
+            // Resolve Product (unique by name + type + quality)
+            $productKey = "{$name}|{$typeId}|{$qualityId}";
+            if (! isset($productCache[$productKey])) {
+                $product = Product::firstOrCreate(
+                    [
+                        'name'            => $name,
+                        'product_type_id' => $typeId,
+                        'product_quality_id' => $qualityId,
+                    ],
+                    [
+                        'uuid'   => (string) Str::uuid(),
+                        'unit'   => 'piece',
+                        'status' => 'active',
+                    ]
+                );
+                $productCache[$productKey] = $product->id;
+                $products++;
+            }
+            $productId = $productCache[$productKey];
+
+            // Create ProductColor (unique per product + color)
+            ProductColor::firstOrCreate(
                 [
-                    'name'            => $name,
-                    'color'           => $color,
-                    'product_type_id' => $typeId,
+                    'product_id' => $productId,
+                    'color_id'   => $colorId,
                 ],
                 [
-                    'uuid'               => (string) Str::uuid(),
-                    'sku_code'           => $sku,
-                    'product_quality_id' => $qualityId,
-                    'unit'               => 'piece',
-                    'status'             => 'active',
-                    'image'              => $image,
+                    'image' => $image,
                 ]
             );
-
-            $count++;
+            $productColors++;
         }
 
-        $this->command->info("Seeded {$count} products from products.json.");
+        $this->command->info("Seeded {$products} products, {$productColors} product-colors from products.json.");
     }
 }

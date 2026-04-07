@@ -9,80 +9,53 @@ class PrintLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double fontSize = config.heightPx * 0.08;
+    double fontSize = config.heightPx * 0.12;
     return Container(
       width: config.widthMm,
       height: config.heightMm,
       child: Stack(
         children: [
           Positioned(
-            top: config.heightPx * 0.02,
-            left: config.widthPx * 0.40,
-            child: Image.asset(
-              'assets/label_logo.png',
-              height: config.heightPx * 0.15,
-            ),
-          ),
-          Positioned(
-            top: config.heightPx * 0.20,
-            left: config.widthPx * 0.40,
-            right: config.widthPx * 0.10,
+            top: config.heightPx * 0.01,
+            left: config.widthPx * 0.02,
+            right: config.widthPx * 0.02,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Model: 8546',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    height: 1.1,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
+                _SpecText(
+                  fontSize: fontSize,
+                  label: "Model",
+                  value: "8546",
                 ),
-                Text(
-                  'Rang: Moviy',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    height: 1.1,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
+                SizedBox(height: config.heightPx * 0.015),
+                _SpecText(
+                  fontSize: fontSize,
+                  label: "Size",
+                  value: "250x350",
                 ),
-                Text(
-                  'Sifat: Ronaldo',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    height: 1.1,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
+                SizedBox(height: config.heightPx * 0.015),
+                _SpecText(
+                  fontSize: fontSize,
+                  label: "Quality",
+                  value: "Ronaldo",
                 ),
-                Text(
-                  'Hajm: 250x350',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    height: 1.1,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                  ),
+                SizedBox(height: config.heightPx * 0.015),
+                _SpecText(
+                  fontSize: fontSize,
+                  label: "Color",
+                  value: "Blue",
                 ),
               ],
             ),
           ),
           Positioned(
-            top: config.heightPx * 0.02,
-            left: config.widthPx * 0.02,
-            right: config.widthPx * 0.40,
-            bottom: config.heightPx * 0.40,
+            top: config.heightPx * 0.01,
+            right: config.widthPx * 0.02,
             child: QrImageView(
               data: 'https://erp.tgc-carpets.uz/p/12645',
               version: QrVersions.auto,
               padding: EdgeInsets.zero,
-              size: config.widthPx * 0.38,
+              size: config.widthPx * 0.18,
             ),
           ),
           Positioned(
@@ -94,7 +67,7 @@ class PrintLabel extends StatelessWidget {
               drawText: true,
               textPadding: config.heightPx * 0.02,
               style: TextStyle(
-                fontSize: fontSize,
+                fontSize: config.heightPx * 0.05,
                 fontWeight: FontWeight.bold,
               ),
               data: '4565-Q1-350x450',
@@ -103,6 +76,60 @@ class PrintLabel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SpecText extends StatelessWidget {
+  const _SpecText({
+    super.key,
+    required this.fontSize,
+    required this.label,
+    required this.value,
+  });
+  final double fontSize;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: 91,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              height: 1.1,
+              fontSize: fontSize * 0.7,
+            ),
+          ),
+        ),
+        Text(
+          ":",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            height: 1.1,
+            fontSize: fontSize * 0.7,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              height: 1,
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

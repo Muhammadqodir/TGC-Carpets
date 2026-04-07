@@ -16,15 +16,23 @@ class StockMovementResource extends JsonResource
             'quantity'                => $this->quantity,
             'movement_date'           => $this->movement_date?->toISOString(),
             'notes'                   => $this->notes,
-            'product'                 => $this->whenLoaded('product', fn () => [
-                'id'       => $this->product->id,
-                'name'     => $this->product->name,
-                'sku_code' => $this->product->sku_code,
+            'variant'                 => $this->whenLoaded('variant', fn () => [
+                'id'            => $this->variant->id,
+                'barcode_value' => $this->variant->barcode_value,
+                'sku_code'      => $this->variant->sku_code,
             ]),
-            'product_size'            => $this->whenLoaded('productSize', fn () => $this->productSize ? [
-                'id'     => $this->productSize->id,
-                'length' => $this->productSize->length,
-                'width'  => $this->productSize->width,
+            'product'                 => $this->whenLoaded('variant', fn () => $this->variant->productColor?->product ? [
+                'id'   => $this->variant->productColor->product->id,
+                'name' => $this->variant->productColor->product->name,
+            ] : null),
+            'color'                   => $this->whenLoaded('variant', fn () => $this->variant->productColor?->color ? [
+                'id'   => $this->variant->productColor->color->id,
+                'name' => $this->variant->productColor->color->name,
+            ] : null),
+            'product_size'            => $this->whenLoaded('variant', fn () => $this->variant->productSize ? [
+                'id'     => $this->variant->productSize->id,
+                'length' => $this->variant->productSize->length,
+                'width'  => $this->variant->productSize->width,
             ] : null),
             'warehouse_document_id'   => $this->warehouse_document_id,
             'sale_id'                 => $this->sale_id,

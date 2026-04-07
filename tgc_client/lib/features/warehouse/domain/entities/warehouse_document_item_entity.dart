@@ -10,6 +10,8 @@ class WarehouseDocumentItemEntity extends Equatable {
   final String? productSizeLabel;
   final int quantity;
   final String? notes;
+  final int? variantId;
+  final String? barcodeValue;
 
   const WarehouseDocumentItemEntity({
     required this.id,
@@ -21,6 +23,8 @@ class WarehouseDocumentItemEntity extends Equatable {
     this.productSizeLabel,
     required this.quantity,
     this.notes,
+    this.variantId,
+    this.barcodeValue,
   });
 
   String? get unitLabel => switch (productUnit) {
@@ -40,5 +44,7 @@ class WarehouseDocumentItemEntity extends Equatable {
         productSizeLabel,
         quantity,
         notes,
+        variantId,
+        barcodeValue,
       ];
 }

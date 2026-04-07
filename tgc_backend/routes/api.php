@@ -2,12 +2,15 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
+use App\Http\Controllers\Api\V1\ColorController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\ProductColorController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductQualityController;
 use App\Http\Controllers\Api\V1\ProductSizeController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
+use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
@@ -51,6 +54,13 @@ Route::prefix('v1')->group(function (): void {
         // Product sizes
         Route::apiResource('product-sizes', ProductSizeController::class);
 
+        // Colors (reference list)
+        Route::get('colors', [ColorController::class, 'index'])->name('colors.index');
+        Route::post('colors', [ColorController::class, 'store'])->name('colors.store');
+
+        // Product colors (color+image per product)
+        Route::apiResource('product-colors', ProductColorController::class)->except(['show']);
+
         // Clients
         Route::apiResource('clients', ClientController::class);
 
@@ -80,6 +90,10 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/',         [StockController::class, 'index'])->name('index');
             Route::get('movements', [StockController::class, 'movements'])->name('movements');
         });
+
+        // Product variants (barcode lookup)
+        Route::get('product-variants', [ProductVariantController::class, 'index'])->name('product-variants.index');
+        Route::get('product-variants/barcode/{barcode}', [ProductVariantController::class, 'findByBarcode'])->name('product-variants.by-barcode');
 
     });
 

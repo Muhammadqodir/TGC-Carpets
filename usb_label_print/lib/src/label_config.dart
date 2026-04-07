@@ -36,6 +36,9 @@ class LabelConfig {
   /// Common preset: 80mm x 50mm at 203 DPI
   static const preset80x50 = LabelConfig(widthMm: 80, heightMm: 50);
 
+  /// Common preset: 60mm x 60mm at 203 DPI
+  static const preset60x60 = LabelConfig(widthMm: 60, heightMm: 60);
+
   @override
   String toString() =>
       'LabelConfig(${widthMm}x${heightMm}mm @ ${dpi}dpi = ${widthPx}x${heightPx}px)';

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\WarehouseDocument;
 use App\Models\WarehouseDocumentItem;
@@ -13,22 +13,24 @@ use Illuminate\Validation\ValidationException;
 
 class WarehouseDocumentService
 {
+    public function __construct(
+        private readonly ProductVariantService $variantService,
+    ) {}
+
     /**
      * Create a warehouse document with items and stock movements inside a single transaction.
      * Supports idempotent creation via external_uuid.
      */
     public function create(array $data, int $userId): WarehouseDocument
     {
-        // Idempotent: return existing document if external_uuid is already stored
         if (! empty($data['external_uuid'])) {
             $existing = WarehouseDocument::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['user', 'client', 'items.product', 'photos']);
+                return $existing->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
             }
         }
 
         return DB::transaction(function () use ($data, $userId): WarehouseDocument {
-            // Validate stock availability for outgoing documents before any writes
             if ($data['type'] === WarehouseDocument::TYPE_OUT) {
                 $this->assertSufficientStock($data['items']);
             }
@@ -44,13 +46,12 @@ class WarehouseDocumentService
 
             $this->syncItems($document, $data['items'], $userId);
 
-            return $document->load(['user', 'client', 'items.product', 'photos']);
+            return $document->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
 
     /**
      * Update header fields and optionally replace all items.
-     * If items are supplied the old items and associated movements are replaced.
      */
     public function update(WarehouseDocument $document, array $data, int $userId): WarehouseDocument
     {
@@ -69,14 +70,13 @@ class WarehouseDocumentService
                     $this->assertSufficientStock($data['items']);
                 }
 
-                // Reverse old movements then delete old items
                 $this->reverseMovements($document, $userId);
                 $document->items()->delete();
 
                 $this->syncItems($document->fresh(), $data['items'], $userId);
             }
 
-            return $document->fresh()->load(['user', 'client', 'items.product', 'photos']);
+            return $document->fresh()->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
 
@@ -116,46 +116,34 @@ class WarehouseDocumentService
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Create document items and associated stock movements.
-     */
     private function syncItems(WarehouseDocument $document, array $items, int $userId): void
     {
         foreach ($items as $itemData) {
+            $variant = $this->variantService->findOrCreate(
+                $itemData['product_color_id'],
+                $itemData['product_size_id'] ?? null,
+            );
+
             $document->items()->create([
-                'product_id'      => $itemData['product_id'],
-                'product_size_id' => $itemData['product_size_id'] ?? null,
-                'quantity'        => $itemData['quantity'],
-                'notes'           => $itemData['notes'] ?? null,
+                'product_variant_id' => $variant->id,
+                'quantity'           => $itemData['quantity'],
+                'notes'              => $itemData['notes'] ?? null,
             ]);
 
-            $this->createMovement($document, $itemData, $userId);
+            StockMovement::create([
+                'product_variant_id'    => $variant->id,
+                'warehouse_document_id' => $document->id,
+                'sale_id'               => null,
+                'client_id'             => $document->client_id,
+                'user_id'               => $userId,
+                'movement_type'         => $document->type,
+                'quantity'              => $itemData['quantity'],
+                'movement_date'         => $document->document_date,
+                'notes'                 => $document->notes,
+            ]);
         }
     }
 
-    /**
-     * Write a stock_movement row for a single document item.
-     */
-    private function createMovement(WarehouseDocument $document, array $itemData, int $userId): void
-    {
-        StockMovement::create([
-            'product_id'             => $itemData['product_id'],
-            'product_size_id'        => $itemData['product_size_id'] ?? null,
-            'warehouse_document_id'  => $document->id,
-            'sale_id'                => null,
-            'client_id'              => $document->client_id,
-            'user_id'                => $userId,
-            'movement_type'          => $document->type,
-            'quantity'               => $itemData['quantity'],
-            'movement_date'          => $document->document_date,
-            'notes'                  => $document->notes,
-        ]);
-    }
-
-    /**
-     * Reverse all movements for a document by creating compensating entries.
-     * We write compensating rows rather than deleting to preserve audit history.
-     */
     private function reverseMovements(WarehouseDocument $document, int $userId): void
     {
         $reverseType = match ($document->type) {
@@ -167,8 +155,7 @@ class WarehouseDocumentService
 
         foreach ($document->items as $item) {
             StockMovement::create([
-                'product_id'            => $item->product_id,
-                'product_size_id'       => $item->product_size_id,
+                'product_variant_id'    => $item->product_variant_id,
                 'warehouse_document_id' => $document->id,
                 'sale_id'               => null,
                 'client_id'             => $document->client_id,
@@ -181,22 +168,32 @@ class WarehouseDocumentService
         }
     }
 
-    /**
-     * Throw a validation exception if any product lacks sufficient stock.
-     */
     private function assertSufficientStock(array $items): void
     {
         $errors = [];
 
         foreach ($items as $index => $itemData) {
-            $product      = Product::findOrFail($itemData['product_id']);
-            $sizeId       = $itemData['product_size_id'] ?? null;
-            $currentStock = $this->getStock($product->id, $sizeId);
+            $productColorId = $itemData['product_color_id'];
+            $sizeId         = $itemData['product_size_id'] ?? null;
+
+            $variant = ProductVariant::where('product_color_id', $productColorId)
+                ->when(
+                    $sizeId !== null,
+                    fn ($q) => $q->where('product_size_id', $sizeId),
+                    fn ($q) => $q->whereNull('product_size_id'),
+                )
+                ->first();
+
+            $currentStock = $variant ? $this->getStock($variant->id) : 0;
 
             if ($currentStock < $itemData['quantity']) {
-                $sizeLabel = $sizeId ? " (size #{$sizeId})" : '';
+                $pc = \App\Models\ProductColor::with('product', 'color')->find($productColorId);
+                $productName = $pc?->product?->name ?? "Product color #{$productColorId}";
+                $colorName   = $pc?->color?->name   ?? '';
+                $sizeLabel   = $sizeId ? " (size #{$sizeId})" : '';
+
                 $errors["items.{$index}.quantity"] = [
-                    "Insufficient stock for product '{$product->name}'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
+                    "Insufficient stock for '{$productName} ({$colorName})'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
                 ];
             }
         }
@@ -206,16 +203,17 @@ class WarehouseDocumentService
         }
     }
 
-    /**
-     * Calculate current stock for a product (and optionally a specific size) from movement history.
-     */
-    private function getStock(int $productId, ?int $sizeId = null): int
+    private function getStock(int $variantId): int
     {
-        $base = StockMovement::where('product_id', $productId)
-            ->when($sizeId !== null, fn ($q) => $q->where('product_size_id', $sizeId));
+        $base = StockMovement::where('product_variant_id', $variantId);
 
-        $in  = (clone $base)->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])->sum('quantity');
-        $out = (clone $base)->where('movement_type', WarehouseDocument::TYPE_OUT)->sum('quantity');
+        $in  = (clone $base)
+            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->sum('quantity');
+
+        $out = (clone $base)
+            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->sum('quantity');
 
         return (int) ($in - $out);
     }
@@ -227,3 +225,4 @@ class WarehouseDocumentService
         }
     }
 }
+

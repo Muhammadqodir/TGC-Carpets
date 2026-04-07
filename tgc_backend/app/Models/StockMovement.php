@@ -25,8 +25,7 @@ class StockMovement extends Model
 
     protected $fillable = [
         'uuid',
-        'product_id',
-        'product_size_id',
+        'product_variant_id',
         'warehouse_document_id',
         'sale_id',
         'client_id',
@@ -40,9 +39,9 @@ class StockMovement extends Model
     protected function casts(): array
     {
         return [
-            'quantity'        => 'integer',
-            'movement_date'   => 'datetime',
-            'product_size_id' => 'integer',
+            'quantity'           => 'integer',
+            'movement_date'      => 'datetime',
+            'product_variant_id' => 'integer',
         ];
     }
 
@@ -77,9 +76,9 @@ class StockMovement extends Model
 
     // ── Relationships ─────────────────────────────────────────────────────────
 
-    public function product(): BelongsTo
+    public function variant(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 
     public function warehouseDocument(): BelongsTo
@@ -100,10 +99,5 @@ class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function productSize(): BelongsTo
-    {
-        return $this->belongsTo(ProductSize::class);
     }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 import 'package:usb_label_print_example/label.dart';
+import 'package:usb_label_print_example/label6060.dart';
 
 void main() {
   runApp(const TgcPrinterExampleApp());
@@ -55,6 +56,7 @@ class _PrinterPageState extends State<PrinterPage> {
     '58 x 30 mm': LabelConfig.preset58x30,
     '40 x 30 mm': LabelConfig.preset40x30,
     '80 x 50 mm': LabelConfig.preset80x50,
+    '60 x 60 mm': LabelConfig.preset60x60,
   };
   String _selectedPreset = '58 x 40 mm';
 

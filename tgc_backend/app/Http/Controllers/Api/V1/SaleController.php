@@ -18,7 +18,7 @@ class SaleController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $sales = Sale::with(['client', 'user', 'items.product', 'items.productSize'])
+        $sales = Sale::with(['client', 'user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize'])
             ->when($request->filled('client_id'),      fn ($q) => $q->where('client_id', $request->client_id))
             ->when($request->filled('user_id'),        fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'),      fn ($q) => $q->whereDate('sale_date', '>=', $request->date_from))
@@ -40,7 +40,7 @@ class SaleController extends Controller
 
     public function show(Sale $sale): JsonResponse
     {
-        $sale->load(['client', 'user', 'items.product', 'items.productSize']);
+        $sale->load(['client', 'user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
 
         return response()->json(['data' => new SaleResource($sale)]);
     }

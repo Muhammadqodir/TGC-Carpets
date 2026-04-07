@@ -6,8 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 
-// ProductTypeResource lives in the same namespace — no extra import needed
-
 class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -16,15 +14,19 @@ class ProductResource extends JsonResource
             'id'              => $this->id,
             'uuid'            => $this->uuid,
             'name'            => $this->name,
-            'sku_code'        => $this->sku_code,
             'product_type_id'    => $this->product_type_id,
             'product_type'       => new ProductTypeResource($this->whenLoaded('productType')),
             'product_quality_id' => $this->product_quality_id,
             'product_quality'    => new ProductQualityResource($this->whenLoaded('productQuality')),
-            'color'           => $this->color,
             'unit'            => $this->unit,
-            'status'          => $this->status,
-            'image_url'       => $this->image ? Storage::disk('public')->url($this->image) : null,
+            'status'          => $this->status,            'product_colors'  => $this->whenLoaded('productColors', fn () => $this->productColors->map(fn ($pc) => [
+                'id'        => $pc->id,
+                'color'     => [
+                    'id'   => $pc->color->id,
+                    'name' => $pc->color->name,
+                ],
+                'image_url' => $pc->image ? Storage::disk('public')->url($pc->image) : null,
+            ])),
             'stock'           => (int) ($this->stock ?? 0),
             'created_at'      => $this->created_at?->toISOString(),
             'updated_at'      => $this->updated_at?->toISOString(),

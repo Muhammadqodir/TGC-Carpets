@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -32,13 +33,10 @@ class Product extends Model
     protected $fillable = [
         'uuid',
         'name',
-        'sku_code',
         'product_type_id',
         'product_quality_id',
-        'color',
         'unit',
         'status',
-        'image',
     ];
 
     protected function casts(): array
@@ -60,32 +58,6 @@ class Product extends Model
             }
         });
 
-        static::created(function (Product $product): void {
-            if (empty($product->sku_code)) {
-                $product->updateQuietly([
-                    'sku_code' => static::generateSku(
-                        $product->name,
-                        $product->color,
-                        $product->product_quality_id,
-                        $product->product_type_id
-                    ),
-                ]);
-            }
-        });
-    }
-
-    public static function generateSku(string $name, string $color, ?int $qualityId, ?int $typeId): string
-    {
-        $sku = 'TGC-' . strtoupper(Str::slug($name, '_')) . '-' . strtoupper(Str::slug($color, '_'));
-
-        if ($qualityId) {
-            $sku .= '-Q' . $qualityId;
-        }
-        if ($typeId) {
-            $sku .= '-T' . $typeId;
-        }
-
-        return $sku;
     }
 
     // ── Status helpers ────────────────────────────────────────────────────────
@@ -95,13 +67,6 @@ class Product extends Model
         return $this->status === self::STATUS_ACTIVE;
     }
 
-    // ── Relationships ─────────────────────────────────────────────────────────
-
-    public function productQuality(): BelongsTo
-    {
-        return $this->belongsTo(ProductQuality::class);
-    }
-
     public function isArchived(): bool
     {
         return $this->status === self::STATUS_ARCHIVED;
@@ -109,23 +74,42 @@ class Product extends Model
 
     // ── Relationships ─────────────────────────────────────────────────────────
 
+    public function productQuality(): BelongsTo
+    {
+        return $this->belongsTo(ProductQuality::class);
+    }
+
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
     }
 
-    public function warehouseDocumentItems(): HasMany
+    public function productColors(): HasMany
     {
-        return $this->hasMany(WarehouseDocumentItem::class);
+        return $this->hasMany(ProductColor::class);
     }
 
-    public function stockMovements(): HasMany
+    public function variants(): HasManyThrough
     {
-        return $this->hasMany(StockMovement::class);
+        return $this->hasManyThrough(
+            ProductVariant::class,
+            ProductColor::class,
+            'product_id',
+            'product_color_id',
+        );
     }
 
-    public function saleItems(): HasMany
+    public function stockMovements(): HasManyThrough
     {
-        return $this->hasMany(SaleItem::class);
+        // Two-level through: Product → ProductColor → ProductVariant → StockMovement
+        // Laravel's hasManyThrough only supports one intermediate table,
+        // so we use a raw subquery for aggregation where needed.
+        // For the relationship, go through product_colors to product_variants.
+        return $this->hasManyThrough(
+            ProductVariant::class,
+            ProductColor::class,
+            'product_id',
+            'product_color_id',
+        );
     }
 }

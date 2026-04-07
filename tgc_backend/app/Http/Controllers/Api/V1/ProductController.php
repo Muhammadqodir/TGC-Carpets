@@ -11,26 +11,20 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
         $products = Product::query()
-            ->with(['productType', 'productQuality'])
+            ->with(['productType', 'productQuality', 'productColors.color'])
             ->select('products.*')
             ->selectSub($this->stockSubquery(), 'stock')
-            ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
-                $sub->where('name',     'like', '%'.$request->search.'%')
-                    ->orWhere('sku_code', 'like', '%'.$request->search.'%');
-            }))
-            ->when($request->filled('sku_code'),       fn ($q) => $q->where('sku_code', 'like', '%'.$request->sku_code.'%'))
-            ->when($request->filled('name'),           fn ($q) => $q->where('name',     'like', '%'.$request->name.'%'))
+            ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->search.'%'))
+            ->when($request->filled('name'),               fn ($q) => $q->where('name',     'like', '%'.$request->name.'%'))
             ->when($request->filled('product_quality_id'), fn ($q) => $q->where('product_quality_id', $request->product_quality_id))
-            ->when($request->filled('color'),          fn ($q) => $q->where('color',    $request->color))
-            ->when($request->filled('status'),         fn ($q) => $q->where('status',   $request->status))
-            ->when($request->filled('product_type_id'), fn ($q) => $q->where('product_type_id', $request->product_type_id))
+            ->when($request->filled('status'),             fn ($q) => $q->where('status',   $request->status))
+            ->when($request->filled('product_type_id'),    fn ($q) => $q->where('product_type_id', $request->product_type_id))
             ->orderByDesc('stock')
             ->paginate($request->integer('per_page', 20));
 
@@ -39,13 +33,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $data = collect($request->validated())->except('image')->toArray();
-
-        if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('products', 'public');
-        }
-
-        $product = Product::create($data);
+        $product = Product::create($request->validated());
         $product->refresh();
 
         return response()->json(['data' => new ProductResource($product)], 201);
@@ -53,7 +41,7 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        $product = Product::with(['productType', 'productQuality'])
+        $product = Product::with(['productType', 'productQuality', 'productColors.color'])
             ->select('products.*')
             ->selectSub($this->stockSubquery(), 'stock')
             ->findOrFail($product->id);
@@ -64,22 +52,15 @@ class ProductController extends Controller
     private function stockSubquery(): \Illuminate\Database\Query\Builder
     {
         return DB::table('stock_movements')
+            ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
+            ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
             ->selectRaw('COALESCE(SUM(CASE WHEN movement_type IN ("in", "return") THEN quantity ELSE -quantity END), 0)')
-            ->whereColumn('stock_movements.product_id', 'products.id');
+            ->whereColumn('product_colors.product_id', 'products.id');
     }
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $data = collect($request->validated())->except('image')->toArray();
-
-        if ($request->hasFile('image')) {
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
-            }
-            $data['image'] = $request->file('image')->store('products', 'public');
-        }
-
-        $product->update($data);
+        $product->update($request->validated());
 
         return response()->json(['data' => new ProductResource($product)]);
     }

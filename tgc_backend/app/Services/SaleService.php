@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockMovement;
@@ -12,17 +12,20 @@ use Illuminate\Validation\ValidationException;
 
 class SaleService
 {
+    public function __construct(
+        private readonly ProductVariantService $variantService,
+    ) {}
+
     /**
      * Create a sale with items and corresponding outgoing stock movements.
      * Supports idempotent creation via external_uuid.
      */
     public function create(array $data, int $userId): Sale
     {
-        // Idempotent: return existing sale if external_uuid already stored
         if (! empty($data['external_uuid'])) {
             $existing = Sale::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['client', 'user', 'items.product']);
+                return $existing->load(['client', 'user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
             }
         }
 
@@ -42,7 +45,7 @@ class SaleService
 
             $this->syncItems($sale, $data['items'], $userId);
 
-            return $sale->load(['client', 'user', 'items.product']);
+            return $sale->load(['client', 'user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
         });
     }
 
@@ -71,7 +74,7 @@ class SaleService
                 $this->syncItems($sale->fresh(), $itemsToPersist, $userId);
             }
 
-            return $sale->fresh()->load(['client', 'user', 'items.product']);
+            return $sale->fresh()->load(['client', 'user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
         });
     }
 
@@ -100,26 +103,27 @@ class SaleService
         ]);
 
         foreach ($items as $itemData) {
+            $variant  = $this->variantService->findOrCreate(
+                $itemData['product_color_id'],
+                $itemData['product_size_id'] ?? null,
+            );
             $subtotal = round((float) $itemData['price'] * $itemData['quantity'], 2);
 
             $sale->items()->create([
-                'product_id'      => $itemData['product_id'],
-                'product_size_id' => $itemData['product_size_id'] ?? null,
-                'quantity'        => $itemData['quantity'],
-                'price'           => $itemData['price'],
-                'subtotal'        => $subtotal,
+                'product_variant_id' => $variant->id,
+                'quantity'           => $itemData['quantity'],
+                'price'              => $itemData['price'],
+                'subtotal'           => $subtotal,
             ]);
 
             $doc->items()->create([
-                'product_id'      => $itemData['product_id'],
-                'product_size_id' => $itemData['product_size_id'] ?? null,
-                'quantity'        => $itemData['quantity'],
-                'notes'           => "Sale #{$sale->id}",
+                'product_variant_id' => $variant->id,
+                'quantity'           => $itemData['quantity'],
+                'notes'              => "Sale #{$sale->id}",
             ]);
 
             StockMovement::create([
-                'product_id'            => $itemData['product_id'],
-                'product_size_id'       => $itemData['product_size_id'] ?? null,
+                'product_variant_id'    => $variant->id,
                 'warehouse_document_id' => $doc->id,
                 'sale_id'               => $sale->id,
                 'client_id'             => $sale->client_id,
@@ -144,15 +148,13 @@ class SaleService
 
         foreach ($sale->items as $item) {
             $doc->items()->create([
-                'product_id'      => $item->product_id,
-                'product_size_id' => $item->product_size_id,
-                'quantity'        => $item->quantity,
-                'notes'           => "Reversal of Sale #{$sale->id}",
+                'product_variant_id' => $item->product_variant_id,
+                'quantity'           => $item->quantity,
+                'notes'              => "Reversal of Sale #{$sale->id}",
             ]);
 
             StockMovement::create([
-                'product_id'            => $item->product_id,
-                'product_size_id'       => $item->product_size_id,
+                'product_variant_id'    => $item->product_variant_id,
                 'warehouse_document_id' => $doc->id,
                 'sale_id'               => $sale->id,
                 'client_id'             => $sale->client_id,
@@ -170,14 +172,27 @@ class SaleService
         $errors = [];
 
         foreach ($items as $index => $itemData) {
-            $product      = Product::findOrFail($itemData['product_id']);
-            $sizeId       = $itemData['product_size_id'] ?? null;
-            $currentStock = $this->getStock($product->id, $sizeId);
+            $productColorId = $itemData['product_color_id'];
+            $sizeId         = $itemData['product_size_id'] ?? null;
+
+            $variant = ProductVariant::where('product_color_id', $productColorId)
+                ->when(
+                    $sizeId !== null,
+                    fn ($q) => $q->where('product_size_id', $sizeId),
+                    fn ($q) => $q->whereNull('product_size_id'),
+                )
+                ->first();
+
+            $currentStock = $variant ? $this->getStock($variant->id) : 0;
 
             if ($currentStock < $itemData['quantity']) {
-                $sizeLabel = $sizeId ? " (size #{$sizeId})" : '';
+                $pc = \App\Models\ProductColor::with('product', 'color')->find($productColorId);
+                $productName = $pc?->product?->name ?? "Product color #{$productColorId}";
+                $colorName   = $pc?->color?->name   ?? '';
+                $sizeLabel   = $sizeId ? " (size #{$sizeId})" : '';
+
                 $errors["items.{$index}.quantity"] = [
-                    "Insufficient stock for product '{$product->name}'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
+                    "Insufficient stock for '{$productName} ({$colorName})'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
                 ];
             }
         }
@@ -195,14 +210,19 @@ class SaleService
         ));
     }
 
-    private function getStock(int $productId, ?int $sizeId = null): int
+    private function getStock(int $variantId): int
     {
-        $base = StockMovement::where('product_id', $productId)
-            ->when($sizeId !== null, fn ($q) => $q->where('product_size_id', $sizeId));
+        $base = StockMovement::where('product_variant_id', $variantId);
 
-        $in  = (clone $base)->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])->sum('quantity');
-        $out = (clone $base)->where('movement_type', WarehouseDocument::TYPE_OUT)->sum('quantity');
+        $in  = (clone $base)
+            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->sum('quantity');
+
+        $out = (clone $base)
+            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->sum('quantity');
 
         return (int) ($in - $out);
     }
 }
+
