@@ -115,26 +115,25 @@ return new class extends Migration
         // ── 4. Drop old columns ───────────────────────────────────────────────
 
         Schema::table('warehouse_document_items', function (Blueprint $table) {
-            // Drop composite index added by previous migration if it exists
-            $this->dropIndexIfExists($table, 'warehouse_document_items_product_size_id_index');
             $table->dropForeign(['product_size_id']);
             $table->dropForeign(['product_id']);
+            $this->dropIndexIfExists($table, 'warehouse_document_items_product_size_id_index');
             $table->dropColumn(['product_id', 'product_size_id']);
         });
 
         Schema::table('sale_items', function (Blueprint $table) {
-            $this->dropIndexIfExists($table, 'sale_items_product_size_id_index');
             $table->dropForeign(['product_size_id']);
             $table->dropForeign(['product_id']);
+            $this->dropIndexIfExists($table, 'sale_items_product_size_id_index');
             $table->dropColumn(['product_id', 'product_size_id']);
         });
 
         Schema::table('stock_movements', function (Blueprint $table) {
+            $table->dropForeign(['product_size_id']);
+            $table->dropForeign(['product_id']);
             $this->dropIndexIfExists($table, 'stock_movements_product_id_product_size_id_movement_type_index');
             $this->dropIndexIfExists($table, 'stock_movements_product_id_movement_date_index');
             $this->dropIndexIfExists($table, 'stock_movements_product_id_movement_type_index');
-            $table->dropForeign(['product_size_id']);
-            $table->dropForeign(['product_id']);
             $table->dropColumn(['product_id', 'product_size_id']);
         });
 
