@@ -1,28 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/domain/usecases/get_current_user_usecase.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../products/presentation/widget/product_size_picker_sheet.dart';
-import '../bloc/warehouse_form_bloc.dart';
-import '../bloc/warehouse_form_event.dart';
-import '../bloc/warehouse_form_state.dart';
+import 'warehouse_document_preview_args.dart';
 
 class AddWarehouseDocumentPage extends StatelessWidget {
   const AddWarehouseDocumentPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<WarehouseFormBloc>(),
-      child: const _AddWarehouseDocumentView(),
-    );
+    return const _AddWarehouseDocumentView();
   }
 }
 
@@ -40,11 +36,23 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
   DateTime _selectedDate = DateTime.now();
   final _notesCtrl = TextEditingController();
   final List<_ItemRow> _items = [];
+  String _username = '';
 
   @override
   void initState() {
     super.initState();
     _addItem();
+    _loadUsername();
+  }
+
+  Future<void> _loadUsername() async {
+    final result = await sl<GetCurrentUserUseCase>()();
+    result.fold(
+      (_) {},
+      (user) {
+        if (mounted) setState(() => _username = user.name);
+      },
+    );
   }
 
   void _addItem() => setState(() => _items.add(_ItemRow()));
@@ -103,53 +111,42 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
       return;
     }
 
-    final items = _items
-        .map((row) => {
-              'product_id': row.selectedProduct!.id,
-              if (row.selectedSize != null)
-                'product_size_id': row.selectedSize!.id,
-              'quantity': int.parse(row.quantityCtrl.text.trim()),
-              if (row.notesCtrl.text.trim().isNotEmpty)
-                'notes': row.notesCtrl.text.trim(),
-            })
+    final previewItems = _items
+        .map((row) => WarehouseItemPreviewRow(
+              productId: row.selectedProduct!.id,
+              productName: row.selectedProduct!.name,
+              productDetails:
+                  '${row.selectedProduct!.productType?.type ?? ''} • ${row.selectedProduct!.color}'
+                      .trim()
+                      .replaceAll(RegExp(r'^\s*•\s*|\s*•\s*$'), ''),
+              productSizeId: row.selectedSize?.id,
+              sizeLabel: row.selectedSize?.dimensions,
+              quantity: int.parse(row.quantityCtrl.text.trim()),
+              itemNotes: row.notesCtrl.text.trim().isEmpty
+                  ? null
+                  : row.notesCtrl.text.trim(),
+            ))
         .toList();
 
-    final dateStr =
-        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    final args = WarehouseDocumentPreviewArgs(
+      type: 'in',
+      documentDate: _selectedDate,
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      username: _username.isEmpty ? 'Noma\'lum' : _username,
+      items: previewItems,
+    );
 
-    context.read<WarehouseFormBloc>().add(
-          WarehouseFormSubmitted(
-            type: 'in',
-            documentDate: dateStr,
-            items: items,
-            notes:
-                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-          ),
-        );
+    context.pushNamed(
+      AppRoutes.warehouseDocumentPreviewName,
+      extra: args,
+    ).then((result) {
+      if (result == true && mounted) context.pop(true);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<WarehouseFormBloc, WarehouseFormState>(
-      listener: (context, state) {
-        if (state is WarehouseFormSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kirim hujjati muvaffaqiyatli yaratildi!'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-          context.pop(true);
-        } else if (state is WarehouseFormFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-      },
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: const Text('Kirim hujjati'),
           leading: IconButton(
@@ -229,32 +226,24 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
               right: 12,
               child: SafeArea(
                 top: false,
-                child: BlocBuilder<WarehouseFormBloc, WarehouseFormState>(
-                  builder: (context, state) {
-                    final isLoading = state is WarehouseFormSubmitting;
-                    return FilledButton(
-                      onPressed: isLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Saqlash'),
-                    );
-                  },
+                child: FilledButton(
+                  onPressed: _submit,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Ko'rib chiqish"),
+                      SizedBox(width: 6),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
-      ),
     );
   }
 }

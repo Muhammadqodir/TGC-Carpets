@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
@@ -25,6 +27,8 @@ abstract class WarehouseRemoteDataSource {
     String? notes,
     String? externalUuid,
   });
+
+  Future<void> uploadPdfBytes(int docId, Uint8List pdfBytes);
 }
 
 class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
@@ -114,6 +118,22 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
       return WarehouseDocumentModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> uploadPdfBytes(int docId, Uint8List pdfBytes) async {
+    try {
+      final formData = FormData.fromMap({
+        'pdf': MultipartFile.fromBytes(
+          pdfBytes,
+          filename: 'doc_$docId.pdf',
+          contentType: DioMediaType('application', 'pdf'),
+        ),
+      });
+      await _dio.post(ApiEndpoints.warehouseDocumentPdf(docId), data: formData);
     } on DioException catch (e) {
       _handleDioError(e);
     }

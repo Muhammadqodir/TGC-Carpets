@@ -61,6 +61,27 @@ class WarehouseDocumentController extends Controller
         return response()->json(['message' => 'Document deleted and stock movements reversed.']);
     }
 
+    // ── PDF ───────────────────────────────────────────────────────────────────
+
+    public function uploadPdf(Request $request, WarehouseDocument $warehouseDocument): JsonResponse
+    {
+        $request->validate([
+            'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+        ]);
+
+        $path = $request->file('pdf')->storeAs(
+            'warehouse-documents/pdfs',
+            "doc_{$warehouseDocument->id}_{$warehouseDocument->uuid}.pdf",
+            'public'
+        );
+
+        $warehouseDocument->update(['pdf_path' => $path]);
+
+        return response()->json([
+            'pdf_url' => asset('storage/' . $path),
+        ]);
+    }
+
     // ── Photos ────────────────────────────────────────────────────────────────
 
     public function uploadPhoto(Request $request, WarehouseDocument $warehouseDocument): JsonResponse

@@ -60,6 +60,10 @@ Route::prefix('v1')->group(function (): void {
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);
         Route::post(
+            'warehouse-documents/{warehouseDocument}/pdf',
+            [WarehouseDocumentController::class, 'uploadPdf']
+        )->name('warehouse-documents.pdf.store');
+        Route::post(
             'warehouse-documents/{warehouseDocument}/photos',
             [WarehouseDocumentController::class, 'uploadPhoto']
         )->name('warehouse-documents.photos.store');

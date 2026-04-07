@@ -24,6 +24,7 @@ class WarehouseDocumentResource extends JsonResource
                 'id'        => $this->client->id,
                 'shop_name' => $this->client->shop_name,
             ] : null),
+            'pdf_url'       => $this->pdf_path ? asset('storage/' . $this->pdf_path) : null,
             'items'         => WarehouseDocumentItemResource::collection($this->whenLoaded('items')),
             'photos'        => WarehouseDocumentPhotoResource::collection($this->whenLoaded('photos')),
             'created_at'    => $this->created_at?->toISOString(),

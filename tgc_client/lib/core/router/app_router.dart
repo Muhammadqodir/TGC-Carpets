@@ -8,6 +8,8 @@ import '../../features/clients/presentation/pages/clients_page.dart';
 import '../../features/clients/presentation/pages/add_client_page.dart';
 import '../../features/warehouse/presentation/pages/warehouse_page.dart';
 import '../../features/warehouse/presentation/pages/add_warehouse_document_page.dart';
+import '../../features/warehouse/presentation/pages/warehouse_document_preview_page.dart';
+import '../../features/warehouse/presentation/pages/warehouse_document_preview_args.dart';
 import '../../features/sales/presentation/pages/sales_page.dart';
 import '../../features/sales/presentation/pages/add_sale_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
@@ -68,6 +70,14 @@ class AppRouter {
             path: AppRoutes.addWarehouseDocument,
             name: AppRoutes.addWarehouseDocumentName,
             builder: (context, state) => const AddWarehouseDocumentPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.warehouseDocumentPreview,
+            name: AppRoutes.warehouseDocumentPreviewName,
+            builder: (context, state) {
+              final args = state.extra as WarehouseDocumentPreviewArgs;
+              return WarehouseDocumentPreviewPage(args: args);
+            },
           ),
           GoRoute(
             path: AppRoutes.sales,

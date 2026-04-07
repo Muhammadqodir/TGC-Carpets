@@ -20,6 +20,7 @@ class ApiEndpoints {
   // Warehouse Documents
   static const String warehouseDocuments = '/warehouse-documents';
   static String warehouseDocumentById(int id) => '/warehouse-documents/$id';
+  static String warehouseDocumentPdf(int id) => '/warehouse-documents/$id/pdf';
 
   // Stock
   static const String stock = '/stock';

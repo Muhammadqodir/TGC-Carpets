@@ -32,6 +32,7 @@ class WarehouseDocument extends Model
         'user_id',
         'document_date',
         'notes',
+        'pdf_path',
     ];
 
     protected function casts(): array
