@@ -12,13 +12,18 @@ class ProductItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final firstImageUrl = product.productColors
+        .where((pc) => pc.imageUrl != null)
+        .map((pc) => pc.imageUrl)
+        .firstOrNull;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             AppThumbnail(
-              imageUrl: product.imageUrl,
+              imageUrl: firstImageUrl,
               size: 50,
               borderRadius: 6,
             ),
@@ -27,24 +32,11 @@ class ProductItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          product.name,
-                          style: Theme.of(context).textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (product.stock != null)
-                        AppBadge(
-                          label: '${product.stock} ta',
-                          color: product.stock! > 0
-                              ? AppColors.success
-                              : AppColors.error,
-                        ),
-                    ],
+                  Text(
+                    product.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Wrap(
@@ -61,31 +53,20 @@ class ProductItem extends StatelessWidget {
                           label: product.productQuality!.qualityName,
                           color: AppColors.primaryLight,
                         ),
-                      AppBadge(
-                          label: product.color, color: AppColors.accent),
+                      ...product.productColors.take(3).map(
+                            (pc) => AppBadge(
+                              label: pc.colorName,
+                              color: AppColors.accent,
+                            ),
+                          ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          product.skuCode ?? '',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      AppStatusChip(
-                        label: product.isActive ? 'Faol' : 'Arxivlangan',
-                        color: product.isActive
-                            ? AppColors.success
-                            : AppColors.textSecondary,
-                      ),
-                    ],
+                  AppStatusChip(
+                    label: product.isActive ? 'Faol' : 'Arxivlangan',
+                    color: product.isActive
+                        ? AppColors.success
+                        : AppColors.textSecondary,
                   ),
                 ],
               ),

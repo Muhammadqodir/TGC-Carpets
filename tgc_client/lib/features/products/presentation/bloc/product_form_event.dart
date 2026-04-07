@@ -15,19 +15,15 @@ class ProductFormSubmitted extends ProductFormEvent {
   final String name;
   final int? productTypeId;
   final int? productQualityId;
-  final String color;
   final String unit;
   final String status;
-  final String? imagePath;
 
   const ProductFormSubmitted({
     required this.name,
     this.productTypeId,
     this.productQualityId,
-    required this.color,
     required this.unit,
     required this.status,
-    this.imagePath,
   });
 
   @override
@@ -35,10 +31,8 @@ class ProductFormSubmitted extends ProductFormEvent {
         name,
         productTypeId,
         productQualityId,
-        color,
         unit,
         status,
-        imagePath,
       ];
 }
 
@@ -47,20 +41,16 @@ class ProductFormUpdateSubmitted extends ProductFormEvent {
   final String name;
   final int? productTypeId;
   final int? productQualityId;
-  final String color;
   final String unit;
   final String status;
-  final String? imagePath;
 
   const ProductFormUpdateSubmitted({
     required this.productId,
     required this.name,
     this.productTypeId,
     this.productQualityId,
-    required this.color,
     required this.unit,
     required this.status,
-    this.imagePath,
   });
 
   @override
@@ -69,9 +59,7 @@ class ProductFormUpdateSubmitted extends ProductFormEvent {
         name,
         productTypeId,
         productQualityId,
-        color,
         unit,
         status,
-        imagePath,
       ];
 }

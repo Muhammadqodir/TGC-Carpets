@@ -17,7 +17,7 @@ class ProductPickerBottomSheet {
     return SearchPickerBottomSheet.show<ProductEntity>(
       context,
       title: 'Mahsulot tanlash',
-      searchHint: 'Nom, rang yoki SKU...',
+      searchHint: 'Nom yoki tur...',
       onSearch: (query) async {
         final datasource = sl<ProductRemoteDataSource>();
         final result = await datasource.getProducts(
@@ -41,6 +41,11 @@ class _ProductPickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final firstImageUrl = product.productColors
+        .where((pc) => pc.imageUrl != null)
+        .map((pc) => pc.imageUrl)
+        .firstOrNull;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -48,9 +53,9 @@ class _ProductPickerTile extends StatelessWidget {
           // Product image / placeholder
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: product.imageUrl != null
+            child: firstImageUrl != null
                 ? CachedNetworkImage(
-                    imageUrl: product.imageUrl!,
+                    imageUrl: firstImageUrl,
                     width: 44,
                     height: 60,
                     fit: BoxFit.cover,
@@ -90,42 +95,14 @@ class _ProductPickerTile extends StatelessWidget {
                     if (product.productQuality != null)
                       _chip(product.productQuality!.qualityName,
                           AppColors.primaryLight),
-                    _chip(product.color, AppColors.accent),
+                    ...product.productColors.take(3).map(
+                          (pc) => _chip(pc.colorName, AppColors.accent),
+                        ),
                   ],
                 ),
-                if (product.skuCode != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      product.skuCode!,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ),
               ],
             ),
           ),
-          // Stock badge
-          if (product.stock != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    (product.stock! > 0 ? AppColors.success : AppColors.error)
-                        .withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${product.stock}',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: product.stock! > 0
-                          ? AppColors.success
-                          : AppColors.error,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
         ],
       ),
     );

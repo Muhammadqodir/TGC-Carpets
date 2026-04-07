@@ -17,6 +17,7 @@ class ProductDataTable extends StatelessWidget {
     required this.onEdit,
     required this.onArchiveToggle,
     required this.onDelete,
+    required this.onAddColor,
     this.pendingProductId,
   });
 
@@ -26,17 +27,15 @@ class ProductDataTable extends StatelessWidget {
   final void Function(ProductEntity) onEdit;
   final void Function(ProductEntity) onArchiveToggle;
   final void Function(ProductEntity) onDelete;
+  final void Function(ProductEntity) onAddColor;
   final int? pendingProductId;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 48),
-    AppTableColumn(label: 'Rasm', fixedWidth: 64),
     AppTableColumn(label: 'Nomi', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'SKU', flex: 3, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Turi', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Sifat', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Rang', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Omborda', flex: 1, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Turi', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Ranglar', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Holat', flex: 1, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Amallar', fixedWidth: 120),
   ];
@@ -56,7 +55,7 @@ class ProductDataTable extends StatelessWidget {
   Widget _buildCell(BuildContext context, ProductEntity product, int colIndex) {
     final isPending = pendingProductId == product.id;
     switch (colIndex) {
-      case 0: // index
+      case 0: // ID
         return Text(
           product.id.toString(),
           style: Theme.of(context)
@@ -64,9 +63,7 @@ class ProductDataTable extends StatelessWidget {
               .bodySmall
               ?.copyWith(color: AppColors.textSecondary),
         );
-      case 1: // thumbnail
-        return AppThumbnail(imageUrl: product.imageUrl, size: 40);
-      case 2: // name
+      case 1: // name
         return Text(
           product.name,
           style: Theme.of(context)
@@ -75,43 +72,27 @@ class ProductDataTable extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w500),
           overflow: TextOverflow.ellipsis,
         );
-      case 3: // sku
-        return Text(
-          product.skuCode ?? '—',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontFamily: 'monospace',
-              ),
-          overflow: TextOverflow.ellipsis,
-        );
-      case 4: // type
-        return product.productType != null
-            ? AppBadge(label: product.productType!.type, color: Colors.black87)
-            : const Text('—');
-      case 5: // quality
+      case 2: // quality
         return product.productQuality != null
             ? AppBadge(
                 label: product.productQuality!.qualityName,
                 color: AppColors.primaryLight)
             : const Text('—');
-      case 6: // color
-        return AppBadge(label: product.color, color: AppColors.accent);
-      case 7: // stock
-        final stock = product.stock;
-        return Text(
-          stock != null ? '${stock > 0 ? stock : 'Yoq'}' : '—',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: stock != null
-                    ? (stock > 0 ? AppColors.success : AppColors.error)
-                    : AppColors.textSecondary,
-              ),
+      case 3: // type
+        return product.productType != null
+            ? AppBadge(label: product.productType!.type, color: Colors.black87)
+            : const Text('—');
+      case 4: // colors strip + add button
+        return _ColorsCell(
+          product: product,
+          onAddColor: () => onAddColor(product),
         );
-      case 8: // status
+      case 5: // status
         return AppStatusChip(
           label: product.isActive ? 'Faol' : 'Arxivlangan',
           color: product.isActive ? AppColors.success : AppColors.textSecondary,
         );
-      case 9: // actions
+      case 6: // actions
         if (isPending) {
           return const Center(
             child: SizedBox(
@@ -169,6 +150,75 @@ class ProductDataTable extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
+  }
+}
+
+/// Displays a horizontal strip of color thumbnails with an add-color button.
+class _ColorsCell extends StatelessWidget {
+  const _ColorsCell({required this.product, required this.onAddColor});
+
+  final ProductEntity product;
+  final VoidCallback onAddColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ...product.productColors.take(5).map(
+              (pc) => Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Tooltip(
+                  message: pc.colorName,
+                  child: AppThumbnail(imageUrl: pc.imageUrl, size: 32),
+                ),
+              ),
+            ),
+        if (product.productColors.length > 5)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Center(
+                child: Text(
+                  '+${product.productColors.length - 5}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ),
+            ),
+          ),
+        Tooltip(
+          message: 'Rang qo\'shish',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onAddColor,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Icon(
+                Icons.add,
+                size: 16,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

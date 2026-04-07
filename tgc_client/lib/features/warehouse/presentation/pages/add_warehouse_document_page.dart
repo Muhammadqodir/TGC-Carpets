@@ -93,7 +93,9 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
               productName: row.selectedProduct!.name,
               quality: row.selectedProduct!.productQuality?.qualityName,
               type: row.selectedProduct!.productType?.type,
-              color: row.selectedProduct!.color,
+              color: row.selectedProduct!.productColors.isNotEmpty
+                  ? row.selectedProduct!.productColors.first.colorName
+                  : null,
               productSizeId: row.selectedSize?.id,
               sizeLabel: row.selectedSize?.dimensions,
               sizeLength: row.selectedSize?.length,
@@ -353,7 +355,7 @@ class _ItemFormRow extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '${product.productType?.type ?? ''} • ${product.color}',
+                                        product.productType?.type ?? '',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelSmall

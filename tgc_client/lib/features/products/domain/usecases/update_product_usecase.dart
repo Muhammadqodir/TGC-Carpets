@@ -13,19 +13,15 @@ class UpdateProductUseCase {
     String? name,
     int? productTypeId,
     int? productQualityId,
-    String? color,
     String? unit,
     String? status,
-    String? imagePath,
   }) =>
       _repository.updateProduct(
         id: id,
         name: name,
         productTypeId: productTypeId,
         productQualityId: productQualityId,
-        color: color,
         unit: unit,
         status: status,
-        imagePath: imagePath,
       );
 }

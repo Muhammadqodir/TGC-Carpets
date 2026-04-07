@@ -1,8 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
@@ -28,12 +25,10 @@ class ProductFormBody extends StatefulWidget {
   const ProductFormBody({
     super.key,
     this.contentPadding = const EdgeInsets.all(16),
-    this.imagePickerHeight = 180,
     this.initialProduct,
   });
 
   final EdgeInsetsGeometry contentPadding;
-  final double imagePickerHeight;
 
   /// When provided the form pre-fills its fields for editing.
   final ProductEntity? initialProduct;
@@ -46,13 +41,11 @@ class ProductFormBodyState extends State<ProductFormBody> {
   final _formKey = GlobalKey<FormState>();
 
   final nameCtrl = TextEditingController();
-  final colorCtrl = TextEditingController();
 
   int? selectedTypeId;
   int? selectedQualityId;
   String unit = 'piece';
   String status = 'active';
-  XFile? pickedImage;
 
   @override
   void initState() {
@@ -60,7 +53,6 @@ class ProductFormBodyState extends State<ProductFormBody> {
     final p = widget.initialProduct;
     if (p != null) {
       nameCtrl.text = p.name;
-      colorCtrl.text = p.color;
       selectedTypeId = p.productTypeId;
       selectedQualityId = p.productQualityId;
       unit = p.unit;
@@ -71,7 +63,6 @@ class ProductFormBodyState extends State<ProductFormBody> {
   @override
   void dispose() {
     nameCtrl.dispose();
-    colorCtrl.dispose();
     super.dispose();
   }
 
@@ -87,10 +78,8 @@ class ProductFormBodyState extends State<ProductFormBody> {
               name: nameCtrl.text.trim(),
               productTypeId: selectedTypeId,
               productQualityId: selectedQualityId,
-              color: colorCtrl.text.trim(),
               unit: unit,
               status: status,
-              imagePath: pickedImage?.path,
             ),
           );
     } else {
@@ -99,74 +88,12 @@ class ProductFormBodyState extends State<ProductFormBody> {
               name: nameCtrl.text.trim(),
               productTypeId: selectedTypeId,
               productQualityId: selectedQualityId,
-              color: colorCtrl.text.trim(),
               unit: unit,
               status: status,
-              imagePath: pickedImage?.path,
             ),
           );
     }
     return true;
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    final file = await ImagePicker().pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
-    if (file != null) setState(() => pickedImage = file);
-  }
-
-  void showImageSourceSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedCamera01,
-                strokeWidth: 1.5,
-              ),
-              title: const Text('Rasm olish'),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedImage01,
-                strokeWidth: 1.5,
-              ),
-              title: const Text('Galereyadаn tanlash'),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            if (pickedImage != null)
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.error,
-                ),
-                title: const Text(
-                  'Rasmni o\'chirish',
-                  style: TextStyle(color: AppColors.error),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetCtx);
-                  setState(() => pickedImage = null);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -176,14 +103,6 @@ class ProductFormBodyState extends State<ProductFormBody> {
       child: ListView(
         padding: widget.contentPadding,
         children: [
-          // Image picker
-          _ProductImagePicker(
-            pickedImage: pickedImage,
-            height: widget.imagePickerHeight,
-            onTap: showImageSourceSheet,
-          ),
-          const SizedBox(height: 20),
-
           // Section: basic info
           _FormSectionHeader(title: 'Asosiy ma\'lumotlar'),
           const SizedBox(height: 12),
@@ -251,13 +170,6 @@ class ProductFormBodyState extends State<ProductFormBody> {
                 ],
               );
             },
-          ),
-          const SizedBox(height: 12),
-          _FormField(
-            controller: colorCtrl,
-            label: 'Rang',
-            hint: 'masalan: qizil, ko\'k',
-            validator: _required,
           ),
           const SizedBox(height: 20),
 
@@ -336,95 +248,4 @@ class _FormField extends StatelessWidget {
       decoration: InputDecoration(labelText: label, hintText: hint),
     );
   }
-}
-
-/// Image picker tile for the product form.
-class _ProductImagePicker extends StatelessWidget {
-  const _ProductImagePicker({
-    required this.pickedImage,
-    required this.onTap,
-    required this.height,
-  });
-
-  final XFile? pickedImage;
-  final VoidCallback onTap;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          border: Border.all(
-            color: pickedImage != null
-                ? AppColors.primaryLight
-                : AppColors.divider,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: pickedImage != null ? _preview() : _placeholder(context),
-      ),
-    );
-  }
-
-  Widget _preview() => Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(File(pickedImage!.path), fit: BoxFit.cover),
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.edit, color: Colors.white, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    'O\'zgartirish',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-
-  Widget _placeholder(BuildContext context) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const HugeIcon(
-            icon: HugeIcons.strokeRoundedImageUpload,
-            strokeWidth: 1.5,
-            color: AppColors.textSecondary,
-            size: 40,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Mahsulot rasmini qo\'shish uchun bosing',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'JPG, PNG, WEBP — max 4 MB',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-        ],
-      );
 }

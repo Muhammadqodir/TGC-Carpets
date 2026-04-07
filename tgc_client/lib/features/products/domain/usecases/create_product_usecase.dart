@@ -12,18 +12,14 @@ class CreateProductUseCase {
     required String name,
     int? productTypeId,
     int? productQualityId,
-    required String color,
     required String unit,
     String status = 'active',
-    String? imagePath,
   }) =>
       _repository.createProduct(
         name: name,
         productTypeId: productTypeId,
         productQualityId: productQualityId,
-        color: color,
         unit: unit,
         status: status,
-        imagePath: imagePath,
       );
 }

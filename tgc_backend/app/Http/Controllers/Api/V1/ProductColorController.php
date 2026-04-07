@@ -46,7 +46,7 @@ class ProductColorController extends Controller
         $validated = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'color_id'   => ['required', 'integer', 'exists:colors,id'],
-            'image'      => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'image'      => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
         $data = collect($validated)->except('image')->toArray();

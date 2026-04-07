@@ -107,7 +107,6 @@ class _AddProductDialogContentState
                 child: ProductFormBody(
                   key: _bodyKey,
                   contentPadding: const EdgeInsets.all(20),
-                  imagePickerHeight: 150,
                   initialProduct: widget.product,
                 ),
               ),

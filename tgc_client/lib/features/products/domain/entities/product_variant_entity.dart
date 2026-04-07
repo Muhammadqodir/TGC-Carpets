@@ -3,9 +3,11 @@ import 'package:equatable/equatable.dart';
 class ProductVariantEntity extends Equatable {
   final int id;
   final String? barcodeValue;
-  final int productId;
+  final String? skuCode;
+  final int productColorId;
+  final int? productId;
   final String? productName;
-  final String? productSkuCode;
+  final String? colorName;
   final String? productUnit;
   final int? productSizeId;
   final int? sizeLength;
@@ -14,9 +16,11 @@ class ProductVariantEntity extends Equatable {
   const ProductVariantEntity({
     required this.id,
     this.barcodeValue,
-    required this.productId,
+    this.skuCode,
+    required this.productColorId,
+    this.productId,
     this.productName,
-    this.productSkuCode,
+    this.colorName,
     this.productUnit,
     this.productSizeId,
     this.sizeLength,
@@ -27,12 +31,14 @@ class ProductVariantEntity extends Equatable {
   String? get sizeDimensions =>
       sizeLength != null && sizeWidth != null ? '${sizeLength}x$sizeWidth' : null;
 
-  /// Full label combining product name and size, e.g. "Carpet Pro 200x300".
+  /// Full label combining product name, color, and size, e.g. "Carpet Pro (krem) 200x300".
   String get label {
     final size = sizeDimensions;
-    return size != null ? '$productName $size' : (productName ?? '#$id');
+    final color = colorName != null ? ' ($colorName)' : '';
+    final sizeStr = size != null ? ' $size' : '';
+    return '${productName ?? '#$id'}$color$sizeStr';
   }
 
   @override
-  List<Object?> get props => [id, barcodeValue, productId, productSizeId];
+  List<Object?> get props => [id, barcodeValue, skuCode, productColorId, productSizeId];
 }

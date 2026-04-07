@@ -18,14 +18,12 @@ class ProductController extends Controller
     {
         $products = Product::query()
             ->with(['productType', 'productQuality', 'productColors.color'])
-            ->select('products.*')
-            ->selectSub($this->stockSubquery(), 'stock')
             ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->search.'%'))
             ->when($request->filled('name'),               fn ($q) => $q->where('name',     'like', '%'.$request->name.'%'))
             ->when($request->filled('product_quality_id'), fn ($q) => $q->where('product_quality_id', $request->product_quality_id))
             ->when($request->filled('status'),             fn ($q) => $q->where('status',   $request->status))
             ->when($request->filled('product_type_id'),    fn ($q) => $q->where('product_type_id', $request->product_type_id))
-            ->orderByDesc('stock')
+            ->latest()
             ->paginate($request->integer('per_page', 20));
 
         return ProductResource::collection($products);

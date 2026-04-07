@@ -1,4 +1,5 @@
 import '../../domain/entities/product_entity.dart';
+import 'product_color_model.dart';
 import 'product_quality_model.dart';
 import 'product_type_model.dart';
 
@@ -7,16 +8,13 @@ class ProductModel extends ProductEntity {
     required super.id,
     required super.uuid,
     required super.name,
-    super.skuCode,
     super.productTypeId,
     super.productType,
     super.productQualityId,
     super.productQuality,
-    required super.color,
     required super.unit,
     required super.status,
-    super.imageUrl,
-    super.stock,
+    super.productColors = const [],
     required super.createdAt,
     required super.updatedAt,
   });
@@ -25,7 +23,6 @@ class ProductModel extends ProductEntity {
         id: json['id'] as int,
         uuid: json['uuid'] as String,
         name: json['name'] as String,
-        skuCode: json['sku_code'] as String?,
         productTypeId: json['product_type_id'] as int?,
         productType: json['product_type'] != null
             ? ProductTypeModel.fromJson(
@@ -38,11 +35,11 @@ class ProductModel extends ProductEntity {
                 json['product_quality'] as Map<String, dynamic>,
               )
             : null,
-        color: json['color'] as String,
         unit: json['unit'] as String,
         status: json['status'] as String,
-        imageUrl: json['image_url'] as String?,
-        stock: json['stock'] as int?,
+        productColors: (json['product_colors'] as List<dynamic>? ?? [])
+            .map((e) => ProductColorModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
       );
@@ -51,14 +48,10 @@ class ProductModel extends ProductEntity {
         'id': id,
         'uuid': uuid,
         'name': name,
-        'sku_code': skuCode,
         'product_type_id': productTypeId,
         'product_quality_id': productQualityId,
-        'color': color,
         'unit': unit,
         'status': status,
-        'image_url': imageUrl,
-        'stock': stock,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

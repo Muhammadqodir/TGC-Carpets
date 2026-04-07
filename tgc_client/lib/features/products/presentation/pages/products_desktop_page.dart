@@ -12,6 +12,7 @@ import 'package:tgc_client/features/products/presentation/bloc/products_bloc.dar
 import 'package:tgc_client/features/products/presentation/bloc/products_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_state.dart';
 import 'package:tgc_client/features/products/presentation/widget/add_product_modal.dart';
+import 'package:tgc_client/features/products/presentation/widget/add_product_color_modal.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_filter_bar.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_table.dart';
 
@@ -213,6 +214,13 @@ class _DesktopViewState extends State<_DesktopView> {
                         .read<ProductsBloc>()
                         .add(ProductArchiveToggleRequested(p)),
                     onDelete: (p) => _showDeleteConfirm(context, p),
+                    onAddColor: (p) => AddProductColorModal.show(
+                      context,
+                      product: p,
+                      onColorAdded: () => context
+                          .read<ProductsBloc>()
+                          .add(const ProductsRefreshRequested()),
+                    ),
                   );
                 }
 

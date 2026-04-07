@@ -10,12 +10,14 @@
 
 1. [Authentication](#1-authentication)
 2. [Products](#2-products)
-3. [Clients](#3-clients)
-4. [Warehouse Documents](#4-warehouse-documents)
-5. [Sales](#5-sales)
-6. [Stock](#6-stock)
-7. [Common Patterns](#7-common-patterns)
-8. [Error Responses](#8-error-responses)
+3. [Colors](#3-colors)
+4. [Product Colors](#4-product-colors)
+5. [Clients](#5-clients)
+6. [Warehouse Documents](#6-warehouse-documents)
+7. [Sales](#7-sales)
+8. [Stock](#8-stock)
+9. [Common Patterns](#9-common-patterns)
+10. [Error Responses](#10-error-responses)
 
 ---
 
@@ -124,25 +126,29 @@ All endpoints require authentication.
 
 ### Product Object
 
-| Field       | Type            | Description                                |
-|-------------|-----------------|--------------------------------------------|
-| `id`        | integer         | Internal ID                                |
-| `uuid`      | string (UUID)   | Stable public identifier                   |
-| `name`      | string          | Product name                               |
-| `sku_code`  | string          | Unique SKU (e.g. `TGC-001`)                |
-| `barcode`   | string / null   | Optional barcode                           |
-| `length`    | integer         | Carpet length in cm                        |
-| `width`     | integer         | Carpet width in cm                         |
-| `quality`   | string          | Quality grade (e.g. `premium`, `standard`) |
-| `density`   | integer         | Density value                              |
-| `color`     | string          | Color label                                |
-| `edge`      | string          | Edge finish type                           |
-| `unit`      | string          | `piece` or `m2`                            |
-| `status`    | string          | `active` or `archived`                     |
-| `image_url` | string / null   | Public URL to product image                |
-| `stock`     | integer / null  | Current stock level (when loaded)          |
-| `created_at`| ISO 8601        |                                            |
-| `updated_at`| ISO 8601        |                                            |
+| Field                | Type            | Description                                          |
+|----------------------|-----------------|------------------------------------------------------|
+| `id`                 | integer         | Internal ID                                          |
+| `uuid`               | string (UUID)   | Stable public identifier                             |
+| `name`               | string          | Product name                                         |
+| `product_type_id`    | integer / null  | FK to product types                                  |
+| `product_type`       | object / null   | `{ id, name }` — loaded relation                    |
+| `product_quality_id` | integer / null  | FK to product qualities                              |
+| `product_quality`    | object / null   | `{ id, name }` — loaded relation                    |
+| `unit`               | string          | Unit of measure (e.g. `piece`, `m2`)                 |
+| `status`             | string          | `active` or `archived`                               |
+| `product_colors`     | array           | Color+image entries (see Product Color Object below) |
+| `stock`              | integer         | Calculated stock — **only in `GET /products/{id}`**  |
+| `created_at`         | ISO 8601        |                                                      |
+| `updated_at`         | ISO 8601        |                                                      |
+
+**Product Color Object** (inside `product_colors`):
+
+| Field       | Type          | Description                            |
+|-------------|---------------|----------------------------------------|
+| `id`        | integer       | Product-color entry ID                 |
+| `color`     | object        | `{ id, name }` — color reference       |
+| `image_url` | string / null | Public URL of the color-specific image |
 
 ---
 
@@ -153,18 +159,19 @@ GET /products
 Authorization: Bearer <token>
 ```
 
+> `stock` is **not** calculated on the list endpoint for performance. Use `GET /products/{id}` to get the stock for a single product.
+
 **Query Parameters**
 
-| Parameter  | Type    | Description                              |
-|------------|---------|------------------------------------------|
-| `search`   | string  | Full-text search on `name` and `sku_code`|
-| `sku_code` | string  | Partial match on SKU                     |
-| `name`     | string  | Partial match on name                    |
-| `quality`  | string  | Exact match on quality                   |
-| `color`    | string  | Exact match on color                     |
-| `status`   | string  | `active` or `archived`                   |
-| `per_page` | integer | Results per page (default: `20`)         |
-| `page`     | integer | Page number (default: `1`)               |
+| Parameter            | Type    | Description                              |
+|----------------------|---------|------------------------------------------|
+| `search`             | string  | Partial match on `name`                  |
+| `name`               | string  | Partial match on name                    |
+| `product_type_id`    | integer | Filter by product type                   |
+| `product_quality_id` | integer | Filter by product quality                |
+| `status`             | string  | `active` or `archived`                   |
+| `per_page`           | integer | Results per page (default: `20`)         |
+| `page`               | integer | Page number (default: `1`)               |
 
 **Response `200 OK`**
 
@@ -175,18 +182,20 @@ Authorization: Bearer <token>
       "id": 1,
       "uuid": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Persian Classic",
-      "sku_code": "TGC-001",
-      "barcode": "1234567890123",
-      "length": 300,
-      "width": 200,
-      "quality": "premium",
-      "density": 800,
-      "color": "red",
-      "edge": "fringed",
+      "product_type_id": 2,
+      "product_type": { "id": 2, "name": "Runner" },
+      "product_quality_id": 1,
+      "product_quality": { "id": 1, "name": "Premium" },
       "unit": "piece",
       "status": "active",
-      "image_url": "https://<host>/storage/products/abc.jpg",
-      "stock": null,
+      "product_colors": [
+        {
+          "id": 5,
+          "color": { "id": 3, "name": "Red" },
+          "image_url": "https://<host>/storage/products/abc.jpg"
+        }
+      ],
+      "stock": 0,
       "created_at": "2025-01-15T08:00:00.000000Z",
       "updated_at": "2025-01-15T08:00:00.000000Z"
     }
@@ -208,25 +217,20 @@ Authorization: Bearer <token>
 ```
 POST /products
 Authorization: Bearer <token>
-Content-Type: multipart/form-data
+Content-Type: application/json
 ```
 
 **Request Body**
 
-| Field     | Type    | Required | Validation                              |
-|-----------|---------|----------|-----------------------------------------|
-| `name`    | string  | Yes      | max:255                                 |
-| `sku_code`| string  | Yes      | max:100, unique                         |
-| `barcode` | string  | No       | max:100, unique                         |
-| `length`  | integer | Yes      | min:1                                   |
-| `width`   | integer | Yes      | min:1                                   |
-| `quality` | string  | Yes      | max:100                                 |
-| `density` | integer | Yes      | min:1                                   |
-| `color`   | string  | Yes      | max:100                                 |
-| `edge`    | string  | Yes      | max:100                                 |
-| `unit`    | string  | Yes      | `piece` or `m2`                         |
-| `status`  | string  | No       | `active` or `archived` (default: `active`) |
-| `image`   | file    | No       | jpg, jpeg, png, webp — max 4 MB         |
+| Field                | Type    | Required | Validation                                    |
+|----------------------|---------|----------|-----------------------------------------------|
+| `name`               | string  | Yes      | max:255                                       |
+| `product_type_id`    | integer | No       | must exist in `product_types`                 |
+| `product_quality_id` | integer | No       | must exist in `product_qualities`             |
+| `unit`               | string  | Yes      | e.g. `piece`, `m2`                            |
+| `status`             | string  | No       | `active` or `archived` (default: `active`)    |
+
+> Colors and images are managed separately via the **Product Colors** endpoints.
 
 **Response `201 Created`**
 
@@ -245,11 +249,13 @@ GET /products/{id}
 Authorization: Bearer <token>
 ```
 
+> This endpoint calculates and returns the live `stock` value for the product.
+
 **Response `200 OK`**
 
 ```json
 {
-  "data": { /* Product Object */ }
+  "data": { /* Product Object with stock calculated */ }
 }
 ```
 
@@ -266,12 +272,10 @@ Authorization: Bearer <token>
 Partial updates supported — only send the fields you want to change.
 
 ```
-POST /products/{id}?_method=PUT
+PUT /products/{id}
 Authorization: Bearer <token>
-Content-Type: multipart/form-data
+Content-Type: application/json
 ```
-
-> Use `POST` with `_method=PUT` when uploading a file. For JSON-only updates, `PUT /products/{id}` also works.
 
 **Request Body** — Same fields as Create; all are optional (`sometimes|required`).
 
@@ -302,7 +306,179 @@ Authorization: Bearer <token>
 
 ---
 
-## 3. Clients
+## 3. Colors
+
+All endpoints require authentication.
+
+### Color Object
+
+| Field  | Type    | Description  |
+|--------|---------|--------------|
+| `id`   | integer | Internal ID  |
+| `name` | string  | Color name   |
+
+---
+
+### 3.1 List Colors
+
+```
+GET /colors
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+
+| Parameter | Type   | Description           |
+|-----------|--------|-----------------------|
+| `search`  | string | Partial match on name |
+
+**Response `200 OK`**
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "Red" },
+    { "id": 2, "name": "Blue" }
+  ]
+}
+```
+
+---
+
+### 3.2 Create Color
+
+```
+POST /colors
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body**
+
+| Field  | Type   | Required | Validation           |
+|--------|--------|----------|----------------------|
+| `name` | string | Yes      | max:100, unique      |
+
+**Response `201 Created`**
+
+```json
+{
+  "data": { "id": 3, "name": "Green" }
+}
+```
+
+---
+
+## 4. Product Colors
+
+A Product Color entry links a product to a color and optionally attaches a color-specific product image. All endpoints require authentication.
+
+### Product Color Object
+
+| Field        | Type          | Description                             |
+|--------------|---------------|-----------------------------------------|
+| `id`         | integer       | Internal ID                             |
+| `product`    | object        | `{ id, name }` — parent product         |
+| `color`      | object        | `{ id, name }` — associated color       |
+| `image_url`  | string / null | Public URL of the color-specific image  |
+| `created_at` | ISO 8601      |                                         |
+
+---
+
+### 4.1 List Product Colors
+
+```
+GET /product-colors
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+
+| Parameter    | Type    | Description              |
+|--------------|---------|--------------------------|
+| `product_id` | integer | Filter by product        |
+| `color_id`   | integer | Filter by color          |
+| `per_page`   | integer | Default: `50`            |
+| `page`       | integer | Default: `1`             |
+
+**Response `200 OK`** — Paginated list of Product Color Objects.
+
+---
+
+### 4.2 Create Product Color
+
+```
+POST /product-colors
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+**Request Body**
+
+| Field        | Type    | Required | Validation                              |
+|--------------|---------|----------|-----------------------------------------|
+| `product_id` | integer | Yes      | must exist in `products`                |
+| `color_id`   | integer | Yes      | must exist in `colors`                  |
+| `image`      | file    | Yes      | jpg, jpeg, png, webp — max 4 MB         |
+
+**Response `201 Created`**
+
+```json
+{
+  "data": {
+    "id": 5,
+    "product": { "id": 1, "name": "Persian Classic" },
+    "color": { "id": 3, "name": "Red" },
+    "image_url": "https://<host>/storage/products/abc.jpg"
+  }
+}
+```
+
+---
+
+### 4.3 Update Product Color
+
+Replace the color or image on an existing product-color entry.
+
+```
+POST /product-colors/{id}?_method=PUT
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+**Request Body**
+
+| Field      | Type    | Required | Validation                              |
+|------------|---------|----------|-----------------------------------------|
+| `color_id` | integer | No       | must exist in `colors`                  |
+| `image`    | file    | No       | jpg, jpeg, png, webp — max 4 MB         |
+
+**Response `200 OK`**
+
+```json
+{
+  "data": { /* updated Product Color Object */ }
+}
+```
+
+---
+
+### 4.4 Delete Product Color
+
+```
+DELETE /product-colors/{id}
+Authorization: Bearer <token>
+```
+
+**Response `200 OK`**
+
+```json
+{ "message": "Product color deleted." }
+```
+
+---
+
+## 5. Clients
 
 All endpoints require authentication.
 
@@ -323,7 +499,7 @@ All endpoints require authentication.
 
 ---
 
-### 3.1 List Clients
+### 5.1 List Clients
 
 ```
 GET /clients
@@ -345,7 +521,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 3.2 Create Client
+### 5.2 Create Client
 
 Idempotent — if `external_uuid` is supplied and a matching record already exists, that record is returned (`200`) instead of creating a duplicate.
 
@@ -377,7 +553,7 @@ Content-Type: application/json
 
 ---
 
-### 3.3 Get Client
+### 5.3 Get Client
 
 ```
 GET /clients/{id}
@@ -394,7 +570,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 3.4 Update Client
+### 5.4 Update Client
 
 ```
 PUT /clients/{id}
@@ -414,7 +590,7 @@ All fields optional. Same constraints as Create.
 
 ---
 
-### 3.5 Delete Client
+### 5.5 Delete Client
 
 ```
 DELETE /clients/{id}
@@ -429,7 +605,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 4. Warehouse Documents
+## 6. Warehouse Documents
 
 A Warehouse Document records a stock movement event (goods in, goods out, return, or adjustment) together with line items. All endpoints require authentication.
 
@@ -478,7 +654,7 @@ A Warehouse Document records a stock movement event (goods in, goods out, return
 
 ---
 
-### 4.1 List Warehouse Documents
+### 6.1 List Warehouse Documents
 
 ```
 GET /warehouse-documents
@@ -501,7 +677,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 4.2 Create Warehouse Document
+### 6.2 Create Warehouse Document
 
 Idempotent — if `external_uuid` already exists, the existing document is returned (`200`).
 
@@ -547,7 +723,7 @@ Content-Type: application/json
 
 ---
 
-### 4.3 Get Warehouse Document
+### 6.3 Get Warehouse Document
 
 ```
 GET /warehouse-documents/{id}
@@ -564,7 +740,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 4.4 Update Warehouse Document
+### 6.4 Update Warehouse Document
 
 Supplying `items` replaces all existing line items and recalculates stock movements.
 
@@ -597,7 +773,7 @@ Content-Type: application/json
 
 ---
 
-### 4.5 Delete Warehouse Document
+### 6.5 Delete Warehouse Document
 
 Deletes the document and **reverses** all associated stock movements.
 
@@ -614,7 +790,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 4.6 Upload Photo
+### 6.6 Upload Photo
 
 Attach a photo to an existing warehouse document.
 
@@ -644,7 +820,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 4.7 Delete Photo
+### 6.7 Delete Photo
 
 ```
 DELETE /warehouse-documents/{id}/photos/{photoId}
@@ -659,7 +835,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 5. Sales
+## 7. Sales
 
 A Sale records goods sold to a client, automatically creates `out` stock movements for each line item. All endpoints require authentication.
 
@@ -700,7 +876,7 @@ A Sale records goods sold to a client, automatically creates `out` stock movemen
 
 ---
 
-### 5.1 List Sales
+### 7.1 List Sales
 
 ```
 GET /sales
@@ -723,7 +899,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 5.2 Create Sale
+### 7.2 Create Sale
 
 Idempotent — if `external_uuid` already exists, the existing sale is returned (`200`). Creating a sale automatically generates `out` stock movements.
 
@@ -769,7 +945,7 @@ Content-Type: application/json
 
 ---
 
-### 5.3 Get Sale
+### 7.3 Get Sale
 
 ```
 GET /sales/{id}
@@ -786,7 +962,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 5.4 Update Sale
+### 7.4 Update Sale
 
 Supplying `items` replaces all line items and recalculates stock movements.
 
@@ -819,7 +995,7 @@ Content-Type: application/json
 
 ---
 
-### 5.5 Delete Sale
+### 7.5 Delete Sale
 
 Deletes the sale and **reverses** all associated stock movements.
 
@@ -836,11 +1012,11 @@ Authorization: Bearer <token>
 
 ---
 
-## 6. Stock
+## 8. Stock
 
 Read-only endpoints available to all authenticated roles.
 
-### 6.1 Current Stock Levels
+### 8.1 Current Stock Levels
 
 Returns the live calculated stock per product.
 
@@ -891,7 +1067,7 @@ Authorization: Bearer <token>
 
 ---
 
-### 6.2 Stock Movement History
+### 8.2 Stock Movement History
 
 Paginated, filterable audit log of every stock movement record.
 
@@ -934,7 +1110,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 7. Common Patterns
+## 9. Common Patterns
 
 ### Pagination
 
@@ -970,7 +1146,7 @@ Products are soft-deleted (archived) on `DELETE`. They remain in the database an
 
 ---
 
-## 8. Error Responses
+## 10. Error Responses
 
 ### 401 Unauthenticated
 
@@ -1010,4 +1186,4 @@ Products are soft-deleted (archived) on `DELETE`. They remain in the database an
 
 ---
 
-*Generated for TGC Carpets ERP — Backend v1 · Laravel Sanctum Auth · March 2026*
+*Generated for TGC Carpets ERP — Backend v1 · Laravel Sanctum Auth · April 2026*

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'product_color_entity.dart';
 import 'product_quality_entity.dart';
 import 'product_type_entity.dart';
 
@@ -6,16 +7,13 @@ class ProductEntity extends Equatable {
   final int id;
   final String uuid;
   final String name;
-  final String? skuCode;
   final int? productTypeId;
   final ProductTypeEntity? productType;
   final int? productQualityId;
   final ProductQualityEntity? productQuality;
-  final String color;
   final String unit;
   final String status;
-  final String? imageUrl;
-  final int? stock;
+  final List<ProductColorEntity> productColors;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,16 +21,13 @@ class ProductEntity extends Equatable {
     required this.id,
     required this.uuid,
     required this.name,
-    this.skuCode,
     this.productTypeId,
     this.productType,
     this.productQualityId,
     this.productQuality,
-    required this.color,
     required this.unit,
     required this.status,
-    this.imageUrl,
-    this.stock,
+    this.productColors = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -41,23 +36,19 @@ class ProductEntity extends Equatable {
 
   ProductEntity copyWith({
     String? status,
-    String? imageUrl,
-    int? stock,
+    List<ProductColorEntity>? productColors,
   }) =>
       ProductEntity(
         id: id,
         uuid: uuid,
         name: name,
-        skuCode: skuCode,
         productTypeId: productTypeId,
         productType: productType,
         productQualityId: productQualityId,
         productQuality: productQuality,
-        color: color,
         unit: unit,
         status: status ?? this.status,
-        imageUrl: imageUrl ?? this.imageUrl,
-        stock: stock ?? this.stock,
+        productColors: productColors ?? this.productColors,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -67,16 +58,13 @@ class ProductEntity extends Equatable {
         id,
         uuid,
         name,
-        skuCode,
         productTypeId,
         productType,
         productQualityId,
         productQuality,
-        color,
         unit,
         status,
-        imageUrl,
-        stock,
+        productColors,
         createdAt,
         updatedAt,
       ];

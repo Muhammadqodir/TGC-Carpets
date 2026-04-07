@@ -65,7 +65,6 @@ class _AddProductViewState extends State<_AddProductView> {
         body: ProductFormBody(
           key: _bodyKey,
           contentPadding: const EdgeInsets.all(16),
-          imagePickerHeight: 180,
         ),
         bottomNavigationBar: SafeArea(
           child: Padding(

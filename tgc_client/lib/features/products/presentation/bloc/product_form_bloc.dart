@@ -55,10 +55,8 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
       name: event.name,
       productTypeId: event.productTypeId,
       productQualityId: event.productQualityId,
-      color: event.color,
       unit: event.unit,
       status: event.status,
-      imagePath: event.imagePath,
     );
 
     result.fold(
@@ -100,10 +98,8 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
       name: event.name,
       productTypeId: event.productTypeId,
       productQualityId: event.productQualityId,
-      color: event.color,
       unit: event.unit,
       status: event.status,
-      imagePath: event.imagePath,
     );
 
     result.fold(

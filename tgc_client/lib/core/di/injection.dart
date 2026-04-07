@@ -29,8 +29,12 @@ import '../../features/products/domain/usecases/get_product_sizes_usecase.dart';
 import '../../features/products/domain/usecases/create_product_usecase.dart';
 import '../../features/products/domain/usecases/update_product_usecase.dart';
 import '../../features/products/domain/usecases/delete_product_usecase.dart';
+import '../../features/products/domain/usecases/create_product_color_usecase.dart';
+import '../../features/products/domain/usecases/delete_product_color_usecase.dart';
+import '../../features/products/domain/usecases/get_colors_usecase.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 import '../../features/products/presentation/bloc/product_form_bloc.dart';
+import '../../features/products/presentation/bloc/product_color_form_bloc.dart';
 
 // Clients feature
 import '../../features/clients/data/datasources/client_remote_datasource.dart';
@@ -153,6 +157,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => CreateProductUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => UpdateProductUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => DeleteProductUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => CreateProductColorUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => DeleteProductColorUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(() => GetColorsUseCase(sl<ProductRepository>()));
   // BLoCs
   sl.registerFactory(
     () => ProductsBloc(
@@ -167,6 +174,12 @@ Future<void> initDependencies() async {
       updateProductUseCase: sl<UpdateProductUseCase>(),
       getProductTypesUseCase: sl<GetProductTypesUseCase>(),
       getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
+    ),
+  );
+  sl.registerFactory(
+    () => ProductColorFormBloc(
+      getColorsUseCase: sl<GetColorsUseCase>(),
+      createProductColorUseCase: sl<CreateProductColorUseCase>(),
     ),
   );
 
