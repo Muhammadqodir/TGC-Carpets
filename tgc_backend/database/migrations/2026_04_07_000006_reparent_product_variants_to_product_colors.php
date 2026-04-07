@@ -45,8 +45,8 @@ return new class extends Migration
 
         // 4. Drop old product_id FK + column, add new FK
         Schema::table('product_variants', function (Blueprint $table) {
-            $table->dropIndex('variants_product_size_idx');
             $table->dropForeign(['product_id']);
+            $table->dropIndex('variants_product_size_idx');
             $table->dropColumn('product_id');
 
             $table->foreign('product_color_id')
