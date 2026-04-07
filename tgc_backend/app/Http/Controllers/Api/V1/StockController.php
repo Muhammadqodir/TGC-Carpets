@@ -80,7 +80,7 @@ class StockController extends Controller
      */
     public function movements(Request $request): AnonymousResourceCollection
     {
-        $movements = StockMovement::with(['product', 'client', 'user'])
+        $movements = StockMovement::with(['product', 'productSize', 'client', 'user'])
             ->when($request->filled('product_id'),    fn ($q) => $q->where('product_id', $request->product_id))
             ->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
             ->when($request->filled('client_id'),     fn ($q) => $q->where('client_id', $request->client_id))

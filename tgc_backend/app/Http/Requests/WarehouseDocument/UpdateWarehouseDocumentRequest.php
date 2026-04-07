@@ -22,10 +22,11 @@ class UpdateWarehouseDocumentRequest extends FormRequest
             'notes'              => ['nullable', 'string'],
 
             // Updating items replaces them entirely
-            'items'                 => ['sometimes', 'required', 'array', 'min:1'],
-            'items.*.product_id'    => ['required_with:items', 'integer', 'exists:products,id'],
-            'items.*.quantity'      => ['required_with:items', 'integer', 'min:1'],
-            'items.*.notes'         => ['nullable', 'string'],
+            'items'                    => ['sometimes', 'required', 'array', 'min:1'],
+            'items.*.product_id'       => ['required_with:items', 'integer', 'exists:products,id'],
+            'items.*.product_size_id'  => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.quantity'         => ['required_with:items', 'integer', 'min:1'],
+            'items.*.notes'            => ['nullable', 'string'],
         ];
     }
 }

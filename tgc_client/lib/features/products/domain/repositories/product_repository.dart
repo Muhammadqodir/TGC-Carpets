@@ -3,6 +3,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/product_entity.dart';
 import '../entities/product_quality_entity.dart';
+import '../entities/product_size_entity.dart';
 import '../entities/product_type_entity.dart';
 
 abstract class ProductRepository {
@@ -21,6 +22,8 @@ abstract class ProductRepository {
   Future<Either<Failure, List<ProductTypeEntity>>> getProductTypes();
 
   Future<Either<Failure, List<ProductQualityEntity>>> getProductQualities();
+
+  Future<Either<Failure, List<ProductSizeEntity>>> getProductSizes({int? productTypeId});
 
   Future<Either<Failure, ProductEntity>> createProduct({
     required String name,

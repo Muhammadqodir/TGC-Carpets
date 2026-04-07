@@ -13,6 +13,7 @@ class SaleItem extends Model
     protected $fillable = [
         'sale_id',
         'product_id',
+        'product_size_id',
         'quantity',
         'price',
         'subtotal',
@@ -21,9 +22,10 @@ class SaleItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
-            'price'    => 'decimal:2',
-            'subtotal' => 'decimal:2',
+            'quantity'        => 'integer',
+            'price'           => 'decimal:2',
+            'subtotal'        => 'decimal:2',
+            'product_size_id' => 'integer',
         ];
     }
 
@@ -37,5 +39,10 @@ class SaleItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productSize(): BelongsTo
+    {
+        return $this->belongsTo(ProductSize::class);
     }
 }

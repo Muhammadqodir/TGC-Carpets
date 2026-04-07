@@ -6,6 +6,8 @@ class SaleItemEntity extends Equatable {
   final String productName;
   final String? productSkuCode;
   final String productUnit;
+  final int? productSizeId;
+  final String? productSizeLabel;
   final int quantity;
   final double price;
   final double subtotal;
@@ -16,6 +18,8 @@ class SaleItemEntity extends Equatable {
     required this.productName,
     this.productSkuCode,
     required this.productUnit,
+    this.productSizeId,
+    this.productSizeLabel,
     required this.quantity,
     required this.price,
     required this.subtotal,
@@ -28,6 +32,8 @@ class SaleItemEntity extends Equatable {
         productName,
         productSkuCode,
         productUnit,
+        productSizeId,
+        productSizeLabel,
         quantity,
         price,
         subtotal,

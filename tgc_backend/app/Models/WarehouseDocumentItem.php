@@ -13,6 +13,7 @@ class WarehouseDocumentItem extends Model
     protected $fillable = [
         'warehouse_document_id',
         'product_id',
+        'product_size_id',
         'quantity',
         'notes',
     ];
@@ -20,7 +21,8 @@ class WarehouseDocumentItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
+            'quantity'        => 'integer',
+            'product_size_id' => 'integer',
         ];
     }
 
@@ -34,5 +36,10 @@ class WarehouseDocumentItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productSize(): BelongsTo
+    {
+        return $this->belongsTo(ProductSize::class);
     }
 }

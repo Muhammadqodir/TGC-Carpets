@@ -21,6 +21,7 @@ class UpdateSaleRequest extends FormRequest
             // Supplying items replaces all existing items
             'items'               => ['sometimes', 'required', 'array', 'min:1'],
             'items.*.product_id'  => ['required_with:items', 'integer', 'exists:products,id'],
+            'items.*.product_size_id' => ['nullable', 'integer', 'exists:product_sizes,id'],
             'items.*.quantity'    => ['required_with:items', 'integer', 'min:1'],
             'items.*.price'       => ['required_with:items', 'numeric', 'min:0'],
         ];

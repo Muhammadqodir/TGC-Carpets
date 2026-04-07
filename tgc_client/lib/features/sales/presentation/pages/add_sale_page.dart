@@ -9,7 +9,9 @@ import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/widget/client_picker_bottom_sheet.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
+import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_picker_bottom_sheet.dart';
+import 'package:tgc_client/features/products/presentation/widget/product_size_picker_sheet.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_bloc.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_event.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_state.dart';
@@ -126,6 +128,8 @@ class _AddSaleViewState extends State<_AddSaleView> {
     final items = _items
         .map((row) => {
               'product_id': row.selectedProduct!.id,
+              if (row.selectedSize != null)
+                'product_size_id': row.selectedSize!.id,
               'quantity': int.parse(row.quantityCtrl.text.trim()),
               'price': double.parse(row.priceCtrl.text.trim()),
             })
@@ -302,6 +306,7 @@ class _SaleItemRow {
   final int id = ++_counter;
 
   ProductEntity? selectedProduct;
+  ProductSizeEntity? selectedSize;
   final quantityCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
 
@@ -376,6 +381,7 @@ class _SaleItemFormRow extends StatelessWidget {
                 final picked = await ProductPickerBottomSheet.show(context);
                 if (picked != null) {
                   row.selectedProduct = picked;
+                  row.selectedSize = null; // reset size when product changes
                   onChanged();
                 }
               },
@@ -441,6 +447,15 @@ class _SaleItemFormRow extends StatelessWidget {
                       ),
               ),
             ),
+            // Size picker — shown when the product has a known type
+            if (product != null && product.productTypeId != null) ...[
+              const SizedBox(height: 8),
+              _SaleSizePicker(
+                row: row,
+                productTypeId: product.productTypeId!,
+                onChanged: onChanged,
+              ),
+            ],
             const SizedBox(height: 8),
 
             // Quantity + Price
@@ -502,6 +517,78 @@ class _SaleItemFormRow extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Sale-specific inline size picker ────────────────────────────────────────
+
+class _SaleSizePicker extends StatelessWidget {
+  final _SaleItemRow row;
+  final int productTypeId;
+  final VoidCallback onChanged;
+
+  const _SaleSizePicker({
+    required this.row,
+    required this.productTypeId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = row.selectedSize;
+    return InkWell(
+      onTap: () async {
+        final picked = await ProductSizePickerSheet.show(
+          context,
+          productTypeId: productTypeId,
+        );
+        if (picked != null) {
+          row.selectedSize = picked;
+          onChanged();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: size == null ? AppColors.divider : AppColors.primary,
+            width: size == null ? 1 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color:
+              size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.straighten_rounded,
+              size: 16,
+              color:
+                  size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                size == null ? 'O\'lcham tanlash' : size.dimensions,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: size == null
+                          ? AppColors.textSecondary
+                          : AppColors.primary,
+                      fontWeight: size != null ? FontWeight.w600 : null,
+                    ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              color:
+                  size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
           ],
         ),
       ),

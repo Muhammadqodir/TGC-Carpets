@@ -123,9 +123,10 @@ class WarehouseDocumentService
     {
         foreach ($items as $itemData) {
             $document->items()->create([
-                'product_id' => $itemData['product_id'],
-                'quantity'   => $itemData['quantity'],
-                'notes'      => $itemData['notes'] ?? null,
+                'product_id'      => $itemData['product_id'],
+                'product_size_id' => $itemData['product_size_id'] ?? null,
+                'quantity'        => $itemData['quantity'],
+                'notes'           => $itemData['notes'] ?? null,
             ]);
 
             $this->createMovement($document, $itemData, $userId);
@@ -139,6 +140,7 @@ class WarehouseDocumentService
     {
         StockMovement::create([
             'product_id'             => $itemData['product_id'],
+            'product_size_id'        => $itemData['product_size_id'] ?? null,
             'warehouse_document_id'  => $document->id,
             'sale_id'                => null,
             'client_id'              => $document->client_id,
@@ -166,6 +168,7 @@ class WarehouseDocumentService
         foreach ($document->items as $item) {
             StockMovement::create([
                 'product_id'            => $item->product_id,
+                'product_size_id'       => $item->product_size_id,
                 'warehouse_document_id' => $document->id,
                 'sale_id'               => null,
                 'client_id'             => $document->client_id,
@@ -187,11 +190,13 @@ class WarehouseDocumentService
 
         foreach ($items as $index => $itemData) {
             $product      = Product::findOrFail($itemData['product_id']);
-            $currentStock = $this->getStock($product->id);
+            $sizeId       = $itemData['product_size_id'] ?? null;
+            $currentStock = $this->getStock($product->id, $sizeId);
 
             if ($currentStock < $itemData['quantity']) {
+                $sizeLabel = $sizeId ? " (size #{$sizeId})" : '';
                 $errors["items.{$index}.quantity"] = [
-                    "Insufficient stock for product '{$product->name}'. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
+                    "Insufficient stock for product '{$product->name}'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
                 ];
             }
         }
@@ -202,17 +207,15 @@ class WarehouseDocumentService
     }
 
     /**
-     * Calculate current stock for a product from movement history.
+     * Calculate current stock for a product (and optionally a specific size) from movement history.
      */
-    private function getStock(int $productId): int
+    private function getStock(int $productId, ?int $sizeId = null): int
     {
-        $in = StockMovement::where('product_id', $productId)
-            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
-            ->sum('quantity');
+        $base = StockMovement::where('product_id', $productId)
+            ->when($sizeId !== null, fn ($q) => $q->where('product_size_id', $sizeId));
 
-        $out = StockMovement::where('product_id', $productId)
-            ->where('movement_type', WarehouseDocument::TYPE_OUT)
-            ->sum('quantity');
+        $in  = (clone $base)->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])->sum('quantity');
+        $out = (clone $base)->where('movement_type', WarehouseDocument::TYPE_OUT)->sum('quantity');
 
         return (int) ($in - $out);
     }

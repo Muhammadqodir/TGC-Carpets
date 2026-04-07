@@ -103,20 +103,23 @@ class SaleService
             $subtotal = round((float) $itemData['price'] * $itemData['quantity'], 2);
 
             $sale->items()->create([
-                'product_id' => $itemData['product_id'],
-                'quantity'   => $itemData['quantity'],
-                'price'      => $itemData['price'],
-                'subtotal'   => $subtotal,
+                'product_id'      => $itemData['product_id'],
+                'product_size_id' => $itemData['product_size_id'] ?? null,
+                'quantity'        => $itemData['quantity'],
+                'price'           => $itemData['price'],
+                'subtotal'        => $subtotal,
             ]);
 
             $doc->items()->create([
-                'product_id' => $itemData['product_id'],
-                'quantity'   => $itemData['quantity'],
-                'notes'      => "Sale #{$sale->id}",
+                'product_id'      => $itemData['product_id'],
+                'product_size_id' => $itemData['product_size_id'] ?? null,
+                'quantity'        => $itemData['quantity'],
+                'notes'           => "Sale #{$sale->id}",
             ]);
 
             StockMovement::create([
                 'product_id'            => $itemData['product_id'],
+                'product_size_id'       => $itemData['product_size_id'] ?? null,
                 'warehouse_document_id' => $doc->id,
                 'sale_id'               => $sale->id,
                 'client_id'             => $sale->client_id,
@@ -141,13 +144,15 @@ class SaleService
 
         foreach ($sale->items as $item) {
             $doc->items()->create([
-                'product_id' => $item->product_id,
-                'quantity'   => $item->quantity,
-                'notes'      => "Reversal of Sale #{$sale->id}",
+                'product_id'      => $item->product_id,
+                'product_size_id' => $item->product_size_id,
+                'quantity'        => $item->quantity,
+                'notes'           => "Reversal of Sale #{$sale->id}",
             ]);
 
             StockMovement::create([
                 'product_id'            => $item->product_id,
+                'product_size_id'       => $item->product_size_id,
                 'warehouse_document_id' => $doc->id,
                 'sale_id'               => $sale->id,
                 'client_id'             => $sale->client_id,
@@ -166,11 +171,13 @@ class SaleService
 
         foreach ($items as $index => $itemData) {
             $product      = Product::findOrFail($itemData['product_id']);
-            $currentStock = $this->getStock($product->id);
+            $sizeId       = $itemData['product_size_id'] ?? null;
+            $currentStock = $this->getStock($product->id, $sizeId);
 
             if ($currentStock < $itemData['quantity']) {
+                $sizeLabel = $sizeId ? " (size #{$sizeId})" : '';
                 $errors["items.{$index}.quantity"] = [
-                    "Insufficient stock for product '{$product->name}'. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
+                    "Insufficient stock for product '{$product->name}'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",
                 ];
             }
         }
@@ -188,15 +195,13 @@ class SaleService
         ));
     }
 
-    private function getStock(int $productId): int
+    private function getStock(int $productId, ?int $sizeId = null): int
     {
-        $in = StockMovement::where('product_id', $productId)
-            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
-            ->sum('quantity');
+        $base = StockMovement::where('product_id', $productId)
+            ->when($sizeId !== null, fn ($q) => $q->where('product_size_id', $sizeId));
 
-        $out = StockMovement::where('product_id', $productId)
-            ->where('movement_type', WarehouseDocument::TYPE_OUT)
-            ->sum('quantity');
+        $in  = (clone $base)->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])->sum('quantity');
+        $out = (clone $base)->where('movement_type', WarehouseDocument::TYPE_OUT)->sum('quantity');
 
         return (int) ($in - $out);
     }

@@ -7,7 +7,9 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../products/domain/entities/product_entity.dart';
+import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/presentation/widget/product_picker_bottom_sheet.dart';
+import '../../../products/presentation/widget/product_size_picker_sheet.dart';
 import '../bloc/warehouse_form_bloc.dart';
 import '../bloc/warehouse_form_event.dart';
 import '../bloc/warehouse_form_state.dart';
@@ -104,6 +106,8 @@ class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
     final items = _items
         .map((row) => {
               'product_id': row.selectedProduct!.id,
+              if (row.selectedSize != null)
+                'product_size_id': row.selectedSize!.id,
               'quantity': int.parse(row.quantityCtrl.text.trim()),
               if (row.notesCtrl.text.trim().isNotEmpty)
                 'notes': row.notesCtrl.text.trim(),
@@ -262,6 +266,7 @@ class _ItemRow {
   final int id = ++_counter;
 
   ProductEntity? selectedProduct;
+  ProductSizeEntity? selectedSize;
   final quantityCtrl = TextEditingController();
   final notesCtrl = TextEditingController();
 
@@ -335,6 +340,7 @@ class _ItemFormRow extends StatelessWidget {
                           await ProductPickerBottomSheet.show(context);
                       if (picked != null) {
                         row.selectedProduct = picked;
+                        row.selectedSize = null; // reset size when product changes
                         onProductChanged();
                       }
                     },
@@ -424,8 +430,9 @@ class _ItemFormRow extends StatelessWidget {
                         return 'Miqdorni kiriting';
                       }
                       final qty = int.tryParse(value);
-                      if (qty == null || qty < 1)
+                      if (qty == null || qty < 1) {
                         return 'Kamida 1 bo\'lishi kerak';
+                      }
                       return null;
                     },
                   ),
@@ -433,16 +440,83 @@ class _ItemFormRow extends StatelessWidget {
               ],
             ),
 
-            // const SizedBox(height: 8),
+            // Size picker — shown only when product with a type is selected
+            if (product != null && product.productTypeId != null) ...[
+              const SizedBox(height: 8),
+              _SizePicker(
+                row: row,
+                productTypeId: product.productTypeId!,
+                onChanged: onProductChanged,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // // Notes per item
-            // TextFormField(
-            //   controller: row.notesCtrl,
-            //   decoration: const InputDecoration(
-            //     labelText: 'Izoh (ixtiyoriy)',
-            //     isDense: true,
-            //   ),
-            // ),
+/// Inline size chip selector within an item row.
+class _SizePicker extends StatelessWidget {
+  final _ItemRow row;
+  final int productTypeId;
+  final VoidCallback onChanged;
+
+  const _SizePicker({
+    required this.row,
+    required this.productTypeId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = row.selectedSize;
+    return InkWell(
+      onTap: () async {
+        final picked = await ProductSizePickerSheet.show(
+          context,
+          productTypeId: productTypeId,
+        );
+        if (picked != null) {
+          row.selectedSize = picked;
+          onChanged();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: size == null ? AppColors.divider : AppColors.primary,
+            width: size == null ? 1 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.straighten_rounded,
+              size: 16,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                size == null ? 'O\'lcham tanlash' : size.dimensions,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: size == null
+                          ? AppColors.textSecondary
+                          : AppColors.primary,
+                      fontWeight: size != null ? FontWeight.w600 : null,
+                    ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
           ],
         ),
       ),

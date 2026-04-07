@@ -26,6 +26,7 @@ class StockMovement extends Model
     protected $fillable = [
         'uuid',
         'product_id',
+        'product_size_id',
         'warehouse_document_id',
         'sale_id',
         'client_id',
@@ -39,8 +40,9 @@ class StockMovement extends Model
     protected function casts(): array
     {
         return [
-            'quantity'      => 'integer',
-            'movement_date' => 'datetime',
+            'quantity'        => 'integer',
+            'movement_date'   => 'datetime',
+            'product_size_id' => 'integer',
         ];
     }
 
@@ -98,5 +100,10 @@ class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function productSize(): BelongsTo
+    {
+        return $this->belongsTo(ProductSize::class);
     }
 }
