@@ -23,6 +23,7 @@ class PrinterService {
     required String filePath,
     required String printerName,
     LabelConfig config = LabelConfig.preset58x40,
+    int copies = 1,
   }) async {
     // Validate the file exists
     final file = File(filePath);
@@ -31,9 +32,9 @@ class PrinterService {
     }
 
     if (Platform.isMacOS) {
-      return _printMacOS(filePath, printerName, config);
+      return _printMacOS(filePath, printerName, config, copies);
     } else if (Platform.isWindows) {
-      return _printWindows(filePath, printerName, config);
+      return _printWindows(filePath, printerName, config, copies);
     }
 
     return false;
@@ -49,18 +50,19 @@ class PrinterService {
   ///
   /// This prints silently without any dialog.
   Future<bool> _printMacOS(
-      String filePath, String printerName, LabelConfig config) async {
+      String filePath, String printerName, LabelConfig config, int copies) async {
     try {
       // Build the custom media size string: "Custom.58x40mm"
       final mediaSize =
           'Custom.${config.widthMm.toStringAsFixed(0)}x${config.heightMm.toStringAsFixed(0)}mm';
 
       final result = await Process.run('lp', [
-        '-d', printerName, // destination printer
-        '-o', 'media=$mediaSize', // exact label size
-        '-o', 'fit-to-page', // scale image to fit label
+        '-d', printerName,              // destination printer
+        '-o', 'media=$mediaSize',       // exact label size
+        '-o', 'fit-to-page',            // scale image to fit label
         '-o', 'orientation-requested=3', // portrait orientation
-        filePath, // file to print
+        '-n', copies.clamp(1, 9999).toString(), // number of copies
+        filePath,                       // file to print
       ]);
 
       if (result.exitCode == 0) {
@@ -85,7 +87,7 @@ class PrinterService {
   /// to the printer's native format. Works with all printers that have a
   /// Windows driver installed. No PowerShell, no process spawning.
   Future<bool> _printWindows(
-      String filePath, String printerName, LabelConfig config) async {
+      String filePath, String printerName, LabelConfig config, int copies) async {
     try {
       _win32 ??= Win32Printer();
 
@@ -93,6 +95,7 @@ class PrinterService {
         printerName: printerName,
         filePath: filePath,
         docName: 'Label ${config.widthMm.toStringAsFixed(0)}x${config.heightMm.toStringAsFixed(0)}mm',
+        copies: copies.clamp(1, 9999),
       );
     } catch (e) {
       // ignore: avoid_print

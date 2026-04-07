@@ -28,6 +28,9 @@ class AppRoutes {
   static const String warehouseDocumentPreview = '/warehouse/preview';
   static const String warehouseDocumentPreviewName = 'warehouseDocumentPreview';
 
+  static const String printLabels     = '/warehouse/print-labels';
+  static const String printLabelsName = 'printLabels';
+
   static const String sales = '/sales';
   static const String salesName = 'sales';
 

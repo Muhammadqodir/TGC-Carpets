@@ -3,75 +3,134 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
+/// A fully parameterised label widget that renders at [config.widthPx] ×
+/// [config.heightPx] logical pixels — the exact dimensions required by the
+/// thermal printer.
+///
+/// For screen preview, wrap this with [FittedBox] inside a sized container:
+/// ```dart
+/// SizedBox(
+///   width: displayWidth,
+///   height: displayWidth / (config.widthPx / config.heightPx),
+///   child: FittedBox(
+///     fit: BoxFit.contain,
+///     child: RepaintBoundary(key: _captureKey, child: PrintLabel(...)),
+///   ),
+/// )
+/// ```
+/// [RepaintBoundary.toImage(pixelRatio: 1.0)] will capture the label at full
+/// print resolution regardless of the FittedBox scale factor.
 class PrintLabel extends StatelessWidget {
-  const PrintLabel({super.key, required this.config});
+  const PrintLabel({
+    super.key,
+    required this.config,
+    required this.barcodeValue,
+    required this.qrData,
+    this.productName,
+    this.quality,
+    this.type,
+    this.color,
+    this.sizeLabel,
+  });
+
   final LabelConfig config;
+
+  /// Human-readable product name / model shown in the spec section.
+  final String? productName;
+
+  /// Quality tier label (e.g. "Ronaldo").
+  final String? quality;
+
+  /// Product type label.
+  final String? type;
+
+  /// Colour name.
+  final String? color;
+
+  /// Formatted size string (e.g. "200x300").
+  final String? sizeLabel;
+
+  /// Value encoded into the Code-128 barcode (e.g. "TGC-VAR-00000042").
+  final String barcodeValue;
+
+  /// Data encoded into the QR code — format recommended: "<docId>/<variantId>".
+  final String qrData;
 
   @override
   Widget build(BuildContext context) {
-    double fontSize = config.heightPx * 0.12;
+    final w = config.widthPx.toDouble();
+    final h = config.heightPx.toDouble();
+    final pad = w * 0.015;
+    final specFontSize = h * 0.11;
+    final qrSize = w * 0.22;
+
     return Container(
-      width: config.widthMm,
-      height: config.heightMm,
-      child: Stack(
+      width: w,
+      height: h,
+      color: Colors.white,
+      padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Positioned(
-            top: config.heightPx * 0.01,
-            left: config.widthPx * 0.02,
-            right: config.widthPx * 0.02,
-            child: Column(
+          // ── Specs + QR ────────────────────────────────────────────────
+          Expanded(
+            flex: 56,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _SpecText(
-                  fontSize: fontSize,
-                  label: "Model",
-                  value: "8546",
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SpecRow(
+                        label: 'Model',
+                        value: productName ?? '—',
+                        fontSize: specFontSize,
+                      ),
+                      _SpecRow(
+                        label: 'Size',
+                        value: sizeLabel ?? '—',
+                        fontSize: specFontSize,
+                      ),
+                      _SpecRow(
+                        label: 'Quality',
+                        value: quality ?? '—',
+                        fontSize: specFontSize,
+                      ),
+                      _SpecRow(
+                        label: 'Color',
+                        value: color ?? '—',
+                        fontSize: specFontSize,
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(height: config.heightPx * 0.015),
-                _SpecText(
-                  fontSize: fontSize,
-                  label: "Size",
-                  value: "250x350",
-                ),
-                SizedBox(height: config.heightPx * 0.015),
-                _SpecText(
-                  fontSize: fontSize,
-                  label: "Quality",
-                  value: "Ronaldo",
-                ),
-                SizedBox(height: config.heightPx * 0.015),
-                _SpecText(
-                  fontSize: fontSize,
-                  label: "Color",
-                  value: "Blue",
+                SizedBox(width: pad),
+                QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  padding: EdgeInsets.zero,
+                  size: qrSize,
                 ),
               ],
             ),
           ),
-          Positioned(
-            top: config.heightPx * 0.01,
-            right: config.widthPx * 0.02,
-            child: QrImageView(
-              data: 'wharehouse_document_id_here/product_variant_id_here',
-              version: QrVersions.auto,
-              padding: EdgeInsets.zero,
-              size: config.widthPx * 0.18,
-            ),
-          ),
-          Positioned(
-            bottom: config.heightPx * 0.02,
-            left: config.widthPx * 0.02,
-            right: config.widthPx * 0.02,
+
+          SizedBox(height: pad * 0.4),
+
+          // ── Barcode ───────────────────────────────────────────────────
+          Expanded(
+            flex: 40,
             child: BarcodeWidget(
-              height: config.heightPx * 0.35,
+              data: barcodeValue,
+              barcode: Barcode.code128(),
               drawText: true,
-              textPadding: config.heightPx * 0.02,
+              textPadding: h * 0.018,
               style: TextStyle(
-                fontSize: config.heightPx * 0.05,
+                fontSize: h * 0.055,
                 fontWeight: FontWeight.bold,
               ),
-              data: 'barcode here',
-              barcode: Barcode.code128(),
             ),
           ),
         ],
@@ -80,56 +139,62 @@ class PrintLabel extends StatelessWidget {
   }
 }
 
-class _SpecText extends StatelessWidget {
-  const _SpecText({
-    super.key,
-    required this.fontSize,
+// ── Internal spec row ─────────────────────────────────────────────────────────
+
+class _SpecRow extends StatelessWidget {
+  const _SpecRow({
     required this.label,
     required this.value,
+    required this.fontSize,
   });
-  final double fontSize;
+
   final String label;
   final String value;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        SizedBox(
-          width: 91,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: EdgeInsets.only(bottom: fontSize * 0.26),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          SizedBox(
+            width: 79,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                fontSize: fontSize * 0.65,
+                height: 1.1,
+              ),
+            ),
+          ),
+          Text(
+            ':',
             style: TextStyle(
+              fontSize: fontSize * 0.78,
               height: 1.1,
-              fontSize: fontSize * 0.7,
+            ), // gap between label and value
+          ),
+          SizedBox(width: 5), // extra gap for readability
+          Expanded(
+            child: Text(
+              value.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: fontSize,
+                height: 1,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
           ),
-        ),
-        Text(
-          ":",
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            height: 1.1,
-            fontSize: fontSize * 0.7,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              height: 1,
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

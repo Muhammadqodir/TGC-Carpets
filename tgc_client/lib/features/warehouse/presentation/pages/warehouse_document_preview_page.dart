@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +7,12 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/datasources/warehouse_remote_datasource.dart';
 import '../../data/services/warehouse_pdf_service.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../domain/entities/warehouse_document_entity.dart';
 import '../bloc/warehouse_form_bloc.dart';
 import '../bloc/warehouse_form_event.dart';
 import '../bloc/warehouse_form_state.dart';
+import 'print_labels_args.dart';
 import 'warehouse_document_preview_args.dart';
 
 class WarehouseDocumentPreviewPage extends StatelessWidget {
@@ -80,9 +81,52 @@ class _PreviewViewState extends State<_PreviewView> {
         );
   }
 
+  /// Merges the API-returned [document] items with the preview args rows to
+  /// produce [PrintLabelItem] list. Preview rows supply quality/color/type
+  /// display labels which are not stored on the document item entity.
+  PrintLabelsArgs _buildPrintLabelsArgs(WarehouseDocumentEntity document) {
+    // Mutable copy so we can consume rows one-by-one to avoid double-matching
+    // when a product appears twice with different colours but the same size.
+    final previewRows = List<WarehouseItemPreviewRow>.from(widget.args.items);
+
+    final labelItems = document.items.map((docItem) {
+      final matchIdx = previewRows.indexWhere(
+        (r) =>
+            r.productId == docItem.productId &&
+            r.productSizeId == docItem.productSizeId,
+      );
+
+      WarehouseItemPreviewRow? preview;
+      if (matchIdx >= 0) {
+        preview = previewRows[matchIdx];
+        previewRows.removeAt(matchIdx);
+      }
+
+      final fallbackBarcode =
+          'TGC-VAR-${(docItem.variantId ?? docItem.id).toString().padLeft(8, '0')}';
+
+      return PrintLabelItem(
+        productName: docItem.productName,
+        quality: preview?.quality,
+        type: preview?.type,
+        color: preview?.color,
+        sizeLabel: docItem.productSizeLabel ?? preview?.sizeLabel,
+        barcodeValue: docItem.barcodeValue?.isNotEmpty == true
+            ? docItem.barcodeValue!
+            : fallbackBarcode,
+        qrData: '${document.id}/${docItem.variantId ?? docItem.id}',
+        quantity: docItem.quantity,
+      );
+    }).toList();
+
+    return PrintLabelsArgs(
+      documentId: document.id,
+      items: labelItems,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDesktopPlatform = Platform.isMacOS || Platform.isWindows;
     return BlocListener<WarehouseFormBloc, WarehouseFormState>(
       listener: (context, state) async {
         if (state is WarehouseFormSubmitting) {
@@ -105,13 +149,11 @@ class _PreviewViewState extends State<_PreviewView> {
             // PDF upload failure is non-fatal; document is already created.
           }
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kirim hujjati muvaffaqiyatli yaratildi!'),
-              backgroundColor: AppColors.success,
-            ),
+          final printArgs = _buildPrintLabelsArgs(state.document);
+          context.pushReplacement(
+            AppRoutes.printLabels,
+            extra: printArgs,
           );
-          context.pop(true);
         } else if (state is WarehouseFormFailure) {
           setState(() => _isProcessing = false);
           ScaffoldMessenger.of(context).showSnackBar(

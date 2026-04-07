@@ -382,7 +382,9 @@ class Win32Printer {
     required String printerName,
     required String filePath,
     String docName = 'Label',
+    int copies = 1,
   }) {
+    if (copies < 1) copies = 1;
     // -- 1. Initialize GDI+ --
     final pToken = calloc<IntPtr>();
     final pStartupInput = calloc<GdiplusStartupInput>();
@@ -466,55 +468,50 @@ class Win32Printer {
       return false;
     }
 
-    // -- 5. Start page --
-    if (_startPage(hdc) <= 0) {
-      _endDoc(hdc);
-      _deleteDC(hdc);
-      _gdipDisposeImage(hImage);
-      _gdipShutdown(gdipToken);
-      calloc.free(pToken);
-      return false;
+    // -- 5. Pre-calculate destination rect (shared across all copies) --
+    int destX = 0, destY = 0, destW = pageWidth, destH = pageHeight;
+    if (imgWidth > 0 && imgHeight > 0) {
+      final scaleX = pageWidth / imgWidth;
+      final scaleY = pageHeight / imgHeight;
+      final scale = scaleX < scaleY ? scaleX : scaleY;
+      destW = (imgWidth * scale).round();
+      destH = (imgHeight * scale).round();
+      destX = (pageWidth - destW) ~/ 2;
+      destY = (pageHeight - destH) ~/ 2;
     }
 
-    // -- 6. Create GDI+ Graphics from printerDC and draw image --
-    final ppGraphics = calloc<Pointer<Void>>();
-    status = _gdipCreateFromHDC(hdc, ppGraphics);
-
+    // -- 6. Print one page per copy inside the same document --
     bool success = false;
-    if (status == 0) {
-      final hGraphics = ppGraphics.value;
+    for (int copy = 0; copy < copies; copy++) {
+      if (_startPage(hdc) <= 0) break;
 
-      // Set page unit to pixels so coordinates match GetDeviceCaps values.
-      // Default is UnitDisplay (1/100 inch for printers), which causes
-      // the image to be drawn ~2x too large (only top-left visible).
-      _gdipSetPageUnit(hGraphics, UNIT_PIXEL);
+      final ppGraphics = calloc<Pointer<Void>>();
+      status = _gdipCreateFromHDC(hdc, ppGraphics);
 
-      // Set high quality interpolation for crisp output
-      _gdipSetInterpolationMode(hGraphics, INTERPOLATION_HIGH_QUALITY_BICUBIC);
+      if (status == 0) {
+        final hGraphics = ppGraphics.value;
 
-      // Calculate aspect-ratio-preserving fit within the printable area
-      int destX = 0, destY = 0, destW = pageWidth, destH = pageHeight;
-      if (imgWidth > 0 && imgHeight > 0) {
-        final scaleX = pageWidth / imgWidth;
-        final scaleY = pageHeight / imgHeight;
-        final scale = scaleX < scaleY ? scaleX : scaleY;
-        destW = (imgWidth * scale).round();
-        destH = (imgHeight * scale).round();
-        destX = (pageWidth - destW) ~/ 2;
-        destY = (pageHeight - destH) ~/ 2;
+        // Set page unit to pixels so coordinates match GetDeviceCaps values.
+        _gdipSetPageUnit(hGraphics, UNIT_PIXEL);
+
+        // Set high quality interpolation for crisp output.
+        _gdipSetInterpolationMode(hGraphics, INTERPOLATION_HIGH_QUALITY_BICUBIC);
+
+        // Draw image scaled to fit, centered on the page.
+        status = _gdipDrawImageRectI(
+            hGraphics, hImage, destX, destY, destW, destH);
+        success = (status == 0);
+
+        _gdipDeleteGraphics(hGraphics);
       }
+      calloc.free(ppGraphics);
 
-      // Draw image scaled to fit, centered on the page
-      status = _gdipDrawImageRectI(
-          hGraphics, hImage, destX, destY, destW, destH);
-      success = (status == 0);
+      _endPage(hdc);
 
-      _gdipDeleteGraphics(hGraphics);
+      if (!success) break;
     }
-    calloc.free(ppGraphics);
 
-    // -- 7. End page + document --
-    _endPage(hdc);
+    // -- 7. End document --
     _endDoc(hdc);
 
     // -- 8. Cleanup --
