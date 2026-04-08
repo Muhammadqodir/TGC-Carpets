@@ -7,6 +7,7 @@ import '../entities/warehouse_document_entity.dart';
 abstract class WarehouseRepository {
   Future<Either<Failure, PaginatedResponse<WarehouseDocumentEntity>>> getDocuments({
     String? type,
+    int? userId,
     String? dateFrom,
     String? dateTo,
     int? clientId,

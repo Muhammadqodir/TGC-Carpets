@@ -12,6 +12,7 @@ class GetWarehouseDocumentsUseCase {
 
   Future<Either<Failure, PaginatedResponse<WarehouseDocumentEntity>>> call({
     String? type,
+    int? userId,
     String? dateFrom,
     String? dateTo,
     int? clientId,
@@ -20,6 +21,7 @@ class GetWarehouseDocumentsUseCase {
   }) =>
       _repository.getDocuments(
         type: type,
+        userId: userId,
         dateFrom: dateFrom,
         dateTo: dateTo,
         clientId: clientId,

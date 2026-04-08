@@ -6,7 +6,7 @@ import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/products/presentation/pages/add_product_page.dart';
 import '../../features/clients/presentation/pages/clients_page.dart';
 import '../../features/clients/presentation/pages/add_client_page.dart';
-import '../../features/warehouse/presentation/pages/warehouse_page.dart';
+import '../../features/warehouse/presentation/pages/warehouse_documents_page.dart';
 import '../../features/warehouse/presentation/pages/add_warehouse_document_page.dart';
 import '../../features/warehouse/presentation/pages/warehouse_document_preview_page.dart';
 import '../../features/warehouse/presentation/pages/args/warehouse_document_preview_args.dart';
@@ -66,7 +66,7 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.warehouse,
             name: AppRoutes.warehouseName,
-            builder: (context, state) => const WarehousePage(),
+            builder: (context, state) => const WarehouseDocumentsPage(),
           ),
           GoRoute(
             path: AppRoutes.addWarehouseDocument,

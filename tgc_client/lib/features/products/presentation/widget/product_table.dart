@@ -60,7 +60,7 @@ class ProductDataTable extends StatelessWidget {
           product.id.toString(),
           style: Theme.of(context)
               .textTheme
-              .bodySmall
+              .bodyMedium
               ?.copyWith(color: AppColors.textSecondary),
         );
       case 1: // name

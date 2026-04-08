@@ -16,6 +16,7 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
   Future<Either<Failure, PaginatedResponse<WarehouseDocumentEntity>>>
       getDocuments({
     String? type,
+    int? userId,
     String? dateFrom,
     String? dateTo,
     int? clientId,
@@ -25,6 +26,7 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
     try {
       final result = await remoteDataSource.getDocuments(
         type: type,
+        userId: userId,
         dateFrom: dateFrom,
         dateTo: dateTo,
         clientId: clientId,

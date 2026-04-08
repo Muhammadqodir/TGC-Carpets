@@ -8,6 +8,7 @@ import '../models/warehouse_document_model.dart';
 abstract class WarehouseRemoteDataSource {
   Future<PaginatedResponse<WarehouseDocumentModel>> getDocuments({
     String? type,
+    int? userId,
     String? dateFrom,
     String? dateTo,
     int? clientId,
@@ -35,6 +36,7 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
   @override
   Future<PaginatedResponse<WarehouseDocumentModel>> getDocuments({
     String? type,
+    int? userId,
     String? dateFrom,
     String? dateTo,
     int? clientId,
@@ -46,6 +48,7 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
         'page': page,
         'per_page': perPage,
         if (type != null && type.isNotEmpty) 'type': type,
+        if (userId != null) 'user_id': userId,
         if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
         if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
         if (clientId != null) 'client_id': clientId,

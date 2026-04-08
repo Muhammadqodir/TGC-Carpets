@@ -119,12 +119,13 @@ class WarehousePdfService
 
             $size = $variant->productSize;
             $sizeLabel = $size ? "{$size->length}x{$size->width}" : '—';
+            $squareMeters = $size ? "{($size->length * $size->width)}" : '—';
 
             $sqm = null;
             if ($size && $size->length && $size->width) {
                 $sqm = ($size->length * $size->width * $item->quantity) / 10000.0;
             }
-            $sqmFormatted = $sqm !== null ? $this->formatSqm($sqm) : '—';
+            $sqmFormatted = $sqm !== null ? $sqm : '—';
 
             $bgColor = ($index % 2 === 0) ? '#ffffff' : '#f3f4f6';
             $num = $index + 1;
@@ -136,6 +137,7 @@ class WarehousePdfService
                     <td style=\"padding: 6px; font-size: 9px;\">{$quality}</td>
                     <td style=\"padding: 6px; font-size: 9px;\">{$type}</td>
                     <td style=\"padding: 6px; font-size: 9px;\">{$color}</td>
+                    <td style=\"padding: 6px; font-size: 9px;\">{$sizeLabel}</td>
                     <td style=\"padding: 6px; font-size: 9px;\">{$sizeLabel}</td>
                     <td style=\"padding: 6px; font-size: 9px; font-weight: bold;\">{$item->quantity}</td>
                     <td style=\"padding: 6px; font-size: 9px; font-weight: bold;\">{$sqmFormatted}</td>
@@ -149,6 +151,7 @@ class WarehousePdfService
             $saleDate = date('d.m.Y  H:i', strtotime($saleInfo['sale_date']));
             $saleTotal = number_format($saleInfo['total_amount'], 2, '.', ' ');
             $clientName = $saleInfo['client']['shop_name'] ?? 'N/A';
+            $clientRegion = $saleInfo['client']['region'] ?? 'N/A';
             $clientPhone = $saleInfo['client']['phone'] ?? '';
             $clientContact = $saleInfo['client']['contact_person'] ?? '';
 
@@ -166,32 +169,7 @@ class WarehousePdfService
                         </tr>
                         <tr>
                             <td style=\"padding: 3px 0;\">Mijoz:</td>
-                            <td style=\"padding: 3px 0;\">{$clientName}</td>
-                        </tr>
-            ";
-
-            if ($clientContact) {
-                $saleSection .= "
-                        <tr>
-                            <td style=\"padding: 3px 0;\">Aloqa shaxsi:</td>
-                            <td style=\"padding: 3px 0;\">{$clientContact}</td>
-                        </tr>
-                ";
-            }
-
-            if ($clientPhone) {
-                $saleSection .= "
-                        <tr>
-                            <td style=\"padding: 3px 0;\">Telefon:</td>
-                            <td style=\"padding: 3px 0;\">{$clientPhone}</td>
-                        </tr>
-                ";
-            }
-
-            $saleSection .= "
-                        <tr>
-                            <td style=\"padding: 3px 0;\">Umumiy summa:</td>
-                            <td style=\"padding: 3px 0; font-weight: bold; font-size: 12px; color: #059669;\">{$saleTotal} so'm</td>
+                            <td style=\"padding: 3px 0;\">{$clientContact}/{$clientRegion}</td>
                         </tr>
                     </table>
                 </div>
@@ -205,11 +183,17 @@ class WarehousePdfService
             <head>
                 <meta charset=\"UTF-8\">
                 <style>
+                    @font-face {
+                        font-family: 'Onest';
+                        src: url('" . resource_path('fonts/Onest-Light.ttf') . "') format('truetype');
+                        font-weight: normal;
+                        font-style: normal;
+                    }
                     body {
-                        font-family: sans-serif;
+                        font-family: 'Onest', sans-serif;
                         font-size: 11px;
                         margin: 0;
-                        padding: 48px;
+                        padding: 0;
                     }
                     .title {
                         font-size: 16px;
@@ -294,8 +278,9 @@ class WarehousePdfService
                             <th>Turi</th>
                             <th>Rangi</th>
                             <th>O'lcham</th>
+                            <th>m²</th>
                             <th style=\"width: 60px;\">Miqdor</th>
-                            <th style=\"width: 85px;\">Miqdor(м²)</th>
+                            <th style=\"width: 85px;\">Umumiy(m²)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -342,9 +327,9 @@ class WarehousePdfService
     private function formatSqm(float $value): string
     {
         if ($value == (int) $value) {
-            return (int) $value . ' м²';
+            return (int) $value . ' m²';
         }
 
-        return number_format($value, 2, '.', '') . ' м²';
+        return number_format($value, 2, '.', '') . ' m²';
     }
 }
