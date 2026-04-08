@@ -185,7 +185,7 @@ class WarehousePdfService
                 <style>
                     @font-face {
                         font-family: 'Onest';
-                        src: url('" . public_path('fonts/Onest-Light.ttf') . "') format('truetype');
+                        src: url('file://" . public_path('fonts/Onest-Light.ttf') . "') format('truetype');
                         font-weight: normal;
                         font-style: normal;
                     }
