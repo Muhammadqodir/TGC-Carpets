@@ -37,7 +37,7 @@ class WarehousePdfService
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('isPhpEnabled', true)
-            ->setOption('isRemoteEnabled', false)
+            ->setOption('isRemoteEnabled', true)
             ->setOption('compress', 1);
 
         $filename = "doc_{$document->id}_{$document->uuid}.pdf";
