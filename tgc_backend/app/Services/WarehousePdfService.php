@@ -37,7 +37,7 @@ class WarehousePdfService
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('isPhpEnabled', true)
-            ->setOption('isRemoteEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->setOption('compress', 1);
 
         $filename = "doc_{$document->id}_{$document->uuid}.pdf";
@@ -183,14 +183,8 @@ class WarehousePdfService
             <head>
                 <meta charset=\"UTF-8\">
                 <style>
-                    @font-face {
-                        font-family: 'Onest';
-                        src: url('file://" . public_path('fonts/Onest-Light.ttf') . "') format('truetype');
-                        font-weight: normal;
-                        font-style: normal;
-                    }
                     body {
-                        font-family: 'Onest', sans-serif;
+                        font-family: sans-serif;
                         font-size: 11px;
                         margin: 0;
                         padding: 0;
