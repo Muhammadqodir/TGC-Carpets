@@ -4,10 +4,10 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/widgets/count_input.dart';
+import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
-import '../warehouse_document_preview_args.dart';
+import '../args/warehouse_document_preview_args.dart';
 import '../../widget/warehouse_document_form_controller.dart';
 import '../../widget/warehouse_item_row.dart';
 
@@ -33,20 +33,20 @@ class _AddWarehouseDocumentMobilePageState
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final items = widget.controller.items;
+    final ctrl = widget.controller;
+    final filledItems = ctrl.filledItems;
 
-    final hasUnpickedProduct = items.any((r) => r.selectedProduct == null);
-    if (hasUnpickedProduct) {
+    if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulotni tanlang.'),
+          content: Text('Kamida bitta mahsulot qo\'shing.'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    final hasUnpickedColor = items.any((r) => r.selectedColor == null);
+    final hasUnpickedColor = filledItems.any((r) => r.selectedColor == null);
     if (hasUnpickedColor) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -57,7 +57,7 @@ class _AddWarehouseDocumentMobilePageState
       return;
     }
 
-    final hasUnpickedSize = items.any(
+    final hasUnpickedSize = filledItems.any(
       (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
     );
     if (hasUnpickedSize) {
@@ -70,8 +70,7 @@ class _AddWarehouseDocumentMobilePageState
       return;
     }
 
-    final ctrl = widget.controller;
-    final previewItems = items
+    final previewItems = filledItems
         .map((row) => WarehouseItemPreviewRow(
               productId: row.selectedProduct!.id,
               productName: row.selectedProduct!.name,
@@ -104,7 +103,7 @@ class _AddWarehouseDocumentMobilePageState
       AppRoutes.warehouseDocumentPreviewName,
       extra: args,
     ).then((result) {
-      if (result == true && mounted) context.pop(true);
+      if (result != null && mounted) context.pop(result);
     });
   }
 
@@ -159,17 +158,13 @@ class _AddWarehouseDocumentMobilePageState
                         return _MobileItemFormRow(
                           key: ValueKey(row.id),
                           row: row,
+                          allItems: ctrl.items,
                           index: index,
                           onRemove: () => ctrl.removeItem(index),
-                          canRemove: ctrl.items.length > 1,
+                          canRemove: row.selectedProduct != null,
                           onProductChanged: ctrl.notifyChanged,
                         );
                       }),
-                      TextButton.icon(
-                        onPressed: ctrl.addItem,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Qo\'shish'),
-                      ),
 
                       const SizedBox(height: 64),
                     ],
@@ -210,6 +205,7 @@ class _AddWarehouseDocumentMobilePageState
 
 class _MobileItemFormRow extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final int index;
   final VoidCallback onRemove;
   final bool canRemove;
@@ -218,6 +214,7 @@ class _MobileItemFormRow extends StatelessWidget {
   const _MobileItemFormRow({
     super.key,
     required this.row,
+    required this.allItems,
     required this.index,
     required this.onRemove,
     required this.canRemove,
@@ -265,6 +262,7 @@ class _MobileItemFormRow extends StatelessWidget {
                 Expanded(
                   child: _MobileProductPickerButton(
                     row: row,
+                    allItems: allItems,
                     onChanged: onProductChanged,
                   ),
                 ),
@@ -274,6 +272,8 @@ class _MobileItemFormRow extends StatelessWidget {
                   child: CountInput(
                     controller: row.quantityCtrl,
                     validator: (v) {
+                      // Skip validation for empty rows
+                      if (row.selectedProduct == null) return null;
                       if (v == null || v.trim().isEmpty) {
                         return 'Miqdorni kiriting';
                       }
@@ -290,6 +290,7 @@ class _MobileItemFormRow extends StatelessWidget {
               const SizedBox(height: 8),
               _MobileSizePicker(
                 row: row,
+                allItems: allItems,
                 productTypeId: product.productTypeId!,
                 onChanged: onProductChanged,
               ),
@@ -303,10 +304,12 @@ class _MobileItemFormRow extends StatelessWidget {
 
 class _MobileProductPickerButton extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final VoidCallback onChanged;
 
   const _MobileProductPickerButton({
     required this.row,
+    required this.allItems,
     required this.onChanged,
   });
 
@@ -317,6 +320,26 @@ class _MobileProductPickerButton extends StatelessWidget {
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
         if (result != null) {
+          if (result.product.productTypeId == null) {
+            final isDuplicate = allItems.any(
+              (r) =>
+                  r.id != row.id &&
+                  r.selectedProduct?.id == result.product.id &&
+                  r.selectedColor?.id == result.color?.id,
+            );
+            if (isDuplicate) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+              return;
+            }
+          }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
           row.selectedSize = null;
@@ -394,11 +417,13 @@ class _MobileProductPickerButton extends StatelessWidget {
 
 class _MobileSizePicker extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final int productTypeId;
   final VoidCallback onChanged;
 
   const _MobileSizePicker({
     required this.row,
+    required this.allItems,
     required this.productTypeId,
     required this.onChanged,
   });
@@ -413,6 +438,25 @@ class _MobileSizePicker extends StatelessWidget {
           productTypeId: productTypeId,
         );
         if (picked != null) {
+          final isDuplicate = allItems.any(
+            (r) =>
+                r.id != row.id &&
+                r.selectedProduct?.id == row.selectedProduct?.id &&
+                r.selectedColor?.id == row.selectedColor?.id &&
+                r.selectedSize?.id == picked.id,
+          );
+          if (isDuplicate) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
           row.selectedSize = picked;
           onChanged();
         }

@@ -17,27 +17,55 @@ class WarehouseDocumentFormController extends ChangeNotifier {
 
   WarehouseDocumentFormController() {
     notesCtrl.addListener(_onChange);
+    _ensureEmptyRowAtEnd();
   }
 
   // ── Item mutations ──────────────────────────────────────────────────────
 
-  void addItem() {
+  void _addItem() {
     final row = WarehouseItemRow();
     _hookRow(row);
     items.add(row);
-    notifyListeners();
   }
 
   void removeItem(int index) {
-    if (items.length == 1) return;
     _unhookRow(items[index]);
     items[index].dispose();
     items.removeAt(index);
+    _ensureEmptyRowAtEnd();
     notifyListeners();
   }
 
   /// Called after directly mutating a row's product / color / size fields.
-  void notifyChanged() => notifyListeners();
+  void notifyChanged() {
+    _ensureEmptyRowAtEnd();
+    notifyListeners();
+  }
+
+  /// Ensures there's always at least one empty row at the end for data entry.
+  void _ensureEmptyRowAtEnd() {
+    // Remove trailing empty rows if more than one
+    while (items.length > 1 && _isRowEmpty(items.last)) {
+      final lastRow = items.removeLast();
+      _unhookRow(lastRow);
+      lastRow.dispose();
+    }
+
+    // Add an empty row if none exists or the last row is filled
+    if (items.isEmpty || !_isRowEmpty(items.last)) {
+      _addItem();
+    }
+  }
+
+  /// Checks if a row is empty (no product selected).
+  bool _isRowEmpty(WarehouseItemRow row) {
+    return row.selectedProduct == null;
+  }
+
+  /// Returns only the filled rows (with product selected).
+  List<WarehouseItemRow> get filledItems {
+    return items.where((row) => !_isRowEmpty(row)).toList();
+  }
 
   // ── Bulk restore (used by DraftService) ─────────────────────────────────
 
@@ -62,6 +90,7 @@ class WarehouseDocumentFormController extends ChangeNotifier {
       _hookRow(row);
       items.add(row);
     }
+    _ensureEmptyRowAtEnd();
     notifyListeners();
   }
 

@@ -131,8 +131,8 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => LoginUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LogoutUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl<AuthRepository>()));
-  // BLoC
-  sl.registerFactory(
+  // BLoC — singleton so state is shared across the app (avoids redundant network calls)
+  sl.registerLazySingleton(
     () => AuthBloc(
       loginUseCase: sl<LoginUseCase>(),
       logoutUseCase: sl<LogoutUseCase>(),

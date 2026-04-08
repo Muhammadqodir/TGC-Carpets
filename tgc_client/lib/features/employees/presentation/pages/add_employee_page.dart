@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_option_selector.dart';
+import 'package:tgc_client/core/ui/widgets/app_option_selector.dart';
 import '../bloc/employee_form_bloc.dart';
 import '../bloc/employee_form_event.dart';
 import '../bloc/employee_form_state.dart';

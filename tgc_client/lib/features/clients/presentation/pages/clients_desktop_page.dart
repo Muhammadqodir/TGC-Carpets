@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
+import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
@@ -141,7 +142,19 @@ class _ClientsDesktopPageState extends State<ClientsDesktopPage> {
                             .read<ClientsBloc>()
                             .add(const ClientsRefreshRequested()),
                       ),
-                      onDelete: (c) => _showDeleteConfirm(context, c),
+                      onDelete: (c) async {
+                        final confirmed = await ConfirmDialog.show(
+                          context: context,
+                          title: 'O\'chirishni tasdiqlang',
+                          content:
+                              '"${c.shopName}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.',
+                        );
+                        if (confirmed && context.mounted) {
+                          context
+                              .read<ClientsBloc>()
+                              .add(ClientDeleteRequested(c.id));
+                        }
+                      },
                     );
                   }
 
@@ -223,31 +236,6 @@ class _ClientsDesktopPageState extends State<ClientsDesktopPage> {
       case ClientActionIdle():
         break;
     }
-  }
-
-  void _showDeleteConfirm(BuildContext context, ClientEntity client) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('O\'chirishni tasdiqlang'),
-        content: Text(
-            '"${client.shopName}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.read<ClientsBloc>().add(ClientDeleteRequested(client.id));
-            },
-            child: const Text('O\'chirish'),
-          ),
-        ],
-      ),
-    );
   }
 }
 

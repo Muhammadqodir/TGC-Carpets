@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
@@ -10,7 +12,6 @@ import '../bloc/warehouse_docs_bloc.dart';
 import '../bloc/warehouse_docs_event.dart';
 import '../bloc/warehouse_docs_state.dart';
 import '../widget/warehouse_document_card.dart';
-import 'warehouse_pdf_viewer_page.dart';
 
 class WarehousePage extends StatelessWidget {
   const WarehousePage({super.key});
@@ -150,8 +151,8 @@ class _WarehouseViewState extends State<_WarehouseView> {
                           document: state.documents[index],
                           onTap: state.documents[index].pdfUrl != null
                               ? () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => WarehousePdfViewerPage(
+                                    CupertinoPageRoute(
+                                      builder: (_) => PdfViewerPage(
                                         pdfUrl: state.documents[index].pdfUrl!,
                                         title:
                                             'Hujjat №${state.documents[index].id}',

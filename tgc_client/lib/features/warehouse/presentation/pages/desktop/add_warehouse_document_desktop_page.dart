@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:tgc_client/core/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/widgets/count_input.dart';
-import '../../../../../core/widgets/app_thumbnail.dart';
+import '../../../../../core/ui/widgets/count_input.dart';
+import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
-import '../warehouse_document_preview_args.dart';
+import '../args/warehouse_document_preview_args.dart';
 import '../../widget/warehouse_document_form_controller.dart';
 import '../../widget/warehouse_item_row.dart';
 
@@ -36,20 +36,20 @@ class _AddWarehouseDocumentDesktopPageState
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final items = widget.controller.items;
+    final ctrl = widget.controller;
+    final filledItems = ctrl.filledItems;
 
-    final hasUnpickedProduct = items.any((r) => r.selectedProduct == null);
-    if (hasUnpickedProduct) {
+    if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulotni tanlang.'),
+          content: Text('Kamida bitta mahsulot qo\'shing.'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    final hasUnpickedColor = items.any((r) => r.selectedColor == null);
+    final hasUnpickedColor = filledItems.any((r) => r.selectedColor == null);
     if (hasUnpickedColor) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -60,7 +60,7 @@ class _AddWarehouseDocumentDesktopPageState
       return;
     }
 
-    final hasUnpickedSize = items.any(
+    final hasUnpickedSize = filledItems.any(
       (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
     );
     if (hasUnpickedSize) {
@@ -73,8 +73,7 @@ class _AddWarehouseDocumentDesktopPageState
       return;
     }
 
-    final ctrl = widget.controller;
-    final previewItems = items
+    final previewItems = filledItems
         .map((row) => WarehouseItemPreviewRow(
               productId: row.selectedProduct!.id,
               productName: row.selectedProduct!.name,
@@ -109,7 +108,7 @@ class _AddWarehouseDocumentDesktopPageState
       extra: args,
     )
         .then((result) {
-      if (result == true && mounted) context.pop(true);
+      if (result != null && mounted) context.pop(result);
     });
   }
 
@@ -148,22 +147,12 @@ class _AddWarehouseDocumentDesktopPageState
                 // ── Items header label ─────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Mahsulotlar',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      TextButton.icon(
-                        onPressed: ctrl.addItem,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Qo\'shish'),
-                      ),
-                    ],
+                  child: Text(
+                    'Mahsulotlar',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ),
 
@@ -183,8 +172,9 @@ class _AddWarehouseDocumentDesktopPageState
                       return _DesktopItemTableRow(
                         key: ValueKey(row.id),
                         row: row,
+                        allItems: ctrl.items,
                         index: index,
-                        canRemove: ctrl.items.length > 1,
+                        canRemove: row.selectedProduct != null,
                         onRemove: () => ctrl.removeItem(index),
                         onChanged: ctrl.notifyChanged,
                       );
@@ -298,6 +288,7 @@ class _HeaderCell extends StatelessWidget {
 
 class _DesktopItemTableRow extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final int index;
   final bool canRemove;
   final VoidCallback onRemove;
@@ -306,6 +297,7 @@ class _DesktopItemTableRow extends StatelessWidget {
   const _DesktopItemTableRow({
     super.key,
     required this.row,
+    required this.allItems,
     required this.index,
     required this.canRemove,
     required this.onRemove,
@@ -342,6 +334,7 @@ class _DesktopItemTableRow extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: _DesktopProductPickerCell(
                 row: row,
+                allItems: allItems,
                 onChanged: onChanged,
               ),
             ),
@@ -427,6 +420,7 @@ class _DesktopItemTableRow extends StatelessWidget {
               child: product != null && product.productTypeId != null
                   ? _DesktopSizePickerCell(
                       row: row,
+                      allItems: allItems,
                       productTypeId: product.productTypeId!,
                       onChanged: onChanged,
                     )
@@ -447,6 +441,8 @@ class _DesktopItemTableRow extends StatelessWidget {
                 controller: row.quantityCtrl,
                 dense: true,
                 validator: (v) {
+                  // Skip validation for empty rows
+                  if (product == null) return null;
                   if (v == null || v.trim().isEmpty) return 'Kiriting';
                   if ((int.tryParse(v) ?? 0) < 1) return '≥ 1';
                   return null;
@@ -497,10 +493,12 @@ class _DesktopItemTableRow extends StatelessWidget {
 
 class _DesktopProductPickerCell extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final VoidCallback onChanged;
 
   const _DesktopProductPickerCell({
     required this.row,
+    required this.allItems,
     required this.onChanged,
   });
 
@@ -511,6 +509,26 @@ class _DesktopProductPickerCell extends StatelessWidget {
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
         if (result != null) {
+          if (result.product.productTypeId == null) {
+            final isDuplicate = allItems.any(
+              (r) =>
+                  r.id != row.id &&
+                  r.selectedProduct?.id == result.product.id &&
+                  r.selectedColor?.id == result.color?.id,
+            );
+            if (isDuplicate) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+              return;
+            }
+          }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
           row.selectedSize = null;
@@ -569,11 +587,13 @@ class _DesktopProductPickerCell extends StatelessWidget {
 
 class _DesktopSizePickerCell extends StatelessWidget {
   final WarehouseItemRow row;
+  final List<WarehouseItemRow> allItems;
   final int productTypeId;
   final VoidCallback onChanged;
 
   const _DesktopSizePickerCell({
     required this.row,
+    required this.allItems,
     required this.productTypeId,
     required this.onChanged,
   });
@@ -588,6 +608,25 @@ class _DesktopSizePickerCell extends StatelessWidget {
           productTypeId: productTypeId,
         );
         if (picked != null) {
+          final isDuplicate = allItems.any(
+            (r) =>
+                r.id != row.id &&
+                r.selectedProduct?.id == row.selectedProduct?.id &&
+                r.selectedColor?.id == row.selectedColor?.id &&
+                r.selectedSize?.id == picked.id,
+          );
+          if (isDuplicate) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
           row.selectedSize = picked;
           onChanged();
         }

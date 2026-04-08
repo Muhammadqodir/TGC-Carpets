@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
+import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
@@ -215,7 +216,19 @@ class _DesktopViewState extends State<_DesktopView> {
                       onArchiveToggle: (p) => context
                           .read<ProductsBloc>()
                           .add(ProductArchiveToggleRequested(p)),
-                      onDelete: (p) => _showDeleteConfirm(context, p),
+                      onDelete: (p) async {
+                        final confirmed = await ConfirmDialog.show(
+                          context: context,
+                          title: 'O\'chirishni tasdiqlang',
+                          content:
+                              '"${p.name}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.',
+                        );
+                        if (confirmed && context.mounted) {
+                          context
+                              .read<ProductsBloc>()
+                              .add(ProductDeleteRequested(p.id));
+                        }
+                      },
                       onAddColor: (p) => AddProductColorModal.show(
                         context,
                         product: p,
@@ -302,33 +315,6 @@ class _DesktopViewState extends State<_DesktopView> {
       case ProductActionIdle():
         break;
     }
-  }
-
-  void _showDeleteConfirm(BuildContext context, ProductEntity product) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('O\'chirishni tasdiqlang'),
-        content: Text(
-            '"${product.name}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context
-                  .read<ProductsBloc>()
-                  .add(ProductDeleteRequested(product.id));
-            },
-            child: const Text('O\'chirish'),
-          ),
-        ],
-      ),
-    );
   }
 
   List<ProductTypeEntity> _typesFromFormState(ProductFormState s) =>

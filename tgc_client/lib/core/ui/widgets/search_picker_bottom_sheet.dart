@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../../theme/app_colors.dart';
 
 /// A generic, reusable bottom sheet that provides debounced search + a
 /// scrollable list of results. Pops with the selected item.

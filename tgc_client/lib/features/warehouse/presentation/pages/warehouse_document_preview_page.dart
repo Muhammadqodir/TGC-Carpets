@@ -5,13 +5,12 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/router/app_routes.dart';
 import '../../domain/entities/warehouse_document_entity.dart';
 import '../bloc/warehouse_form_bloc.dart';
 import '../bloc/warehouse_form_event.dart';
 import '../bloc/warehouse_form_state.dart';
-import 'print_labels_args.dart';
-import 'warehouse_document_preview_args.dart';
+import 'args/print_labels_args.dart';
+import 'args/warehouse_document_preview_args.dart';
 
 class WarehouseDocumentPreviewPage extends StatelessWidget {
   final WarehouseDocumentPreviewArgs args;
@@ -53,8 +52,11 @@ class _PreviewViewState extends State<_PreviewView> {
   }
 
   void _submit() {
+    final now = DateTime.now();
+    final d = widget.args.documentDate;
     final dateStr =
-        '${widget.args.documentDate.year}-${widget.args.documentDate.month.toString().padLeft(2, '0')}-${widget.args.documentDate.day.toString().padLeft(2, '0')}';
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
     final items = widget.args.items
         .map((row) => {
@@ -135,10 +137,7 @@ class _PreviewViewState extends State<_PreviewView> {
         } else if (state is WarehouseFormSuccess) {
           if (!context.mounted) return;
           final printArgs = _buildPrintLabelsArgs(state.document);
-          context.pushReplacement(
-            AppRoutes.printLabels,
-            extra: printArgs,
-          );
+          context.pop(printArgs);
         } else if (state is WarehouseFormFailure) {
           setState(() => _isProcessing = false);
           ScaffoldMessenger.of(context).showSnackBar(

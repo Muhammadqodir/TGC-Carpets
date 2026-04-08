@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_badge.dart';
-import 'package:tgc_client/core/widgets/app_status_chip.dart';
-import 'package:tgc_client/core/widgets/app_thumbnail.dart';
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
+import 'package:tgc_client/core/ui/widgets/app_status_chip.dart';
+import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import '../../domain/entities/product_entity.dart';
 
 class ProductItem extends StatelessWidget {

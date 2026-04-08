@@ -4,8 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/range_date_picker.dart';
-import 'package:tgc_client/core/widgets/static_grid.dart';
+import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
+import 'package:tgc_client/core/ui/widgets/range_date_picker.dart';
+import 'package:tgc_client/core/ui/widgets/static_grid.dart';
 import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_state.dart';
@@ -23,7 +24,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => sl<AuthBloc>()..add(AuthCheckRequested())),
+        BlocProvider.value(value: sl<AuthBloc>()..add(AuthCheckRequested())),
         BlocProvider(
           create: (_) => sl<DashboardBloc>()
             ..add(DashboardStatsRequested(
@@ -63,24 +64,14 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.background,
-        title: const Text('Chiqish'),
-        content: const Text('Paneldan chiqishni xohlaysizmi?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Chiqish'),
-          ),
-        ],
-      ),
+      title: 'Chiqish',
+      content: 'Paneldan chiqishni xohlaysizmi?',
+      confirmText: 'Chiqish',
+      cancelText: 'Bekor qilish',
     );
+
     if (confirmed == true && context.mounted) {
       context.read<AuthBloc>().add(AuthLogoutRequested());
     }
@@ -242,7 +233,8 @@ class _DashboardViewState extends State<_DashboardView> {
                             SizedBox(height: 12),
                             Card(
                               child: InkWell(
-                                onTap: () => context.pushNamed(AppRoutes.settingsName),
+                                onTap: () =>
+                                    context.pushNamed(AppRoutes.settingsName),
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
                                   padding: EdgeInsets.symmetric(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_badge.dart';
-import 'package:tgc_client/core/widgets/app_data_table.dart';
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
+import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 
 /// Client-specific data table that wraps the generic [AppDataTable].

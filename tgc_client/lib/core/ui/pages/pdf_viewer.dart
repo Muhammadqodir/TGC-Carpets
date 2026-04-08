@@ -9,11 +9,11 @@ import 'package:printing/printing.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 
-class WarehousePdfViewerPage extends StatelessWidget {
+class PdfViewerPage extends StatelessWidget {
   final String pdfUrl;
   final String title;
 
-  const WarehousePdfViewerPage({
+  const PdfViewerPage({
     super.key,
     required this.pdfUrl,
     required this.title,

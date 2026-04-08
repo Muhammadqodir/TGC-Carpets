@@ -1,14 +1,15 @@
-import 'package:dartz/dartz.dart' hide State;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/error/failures.dart';
-import '../../../auth/domain/entities/user_entity.dart';
-import '../../../auth/domain/usecases/get_current_user_usecase.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/warehouse_document_draft_service.dart';
 import '../widget/warehouse_document_form_controller.dart';
+import 'args/print_labels_args.dart';
 import 'desktop/add_warehouse_document_desktop_page.dart';
 import 'mobile/add_warehouse_document_mobile_page.dart';
 
@@ -46,27 +47,17 @@ class _AddWarehouseDocumentPageState extends State<AddWarehouseDocumentPage> {
   }
 
   Future<void> _init() async {
-    // Load draft + username in parallel
+    // Read username synchronously from the already-authenticated AuthBloc state
+    final authState = sl<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      _ctrl.username = authState.user.name;
+    }
+
+    // Restore draft from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     _draft = WarehouseDocumentDraftService(prefs);
-
-    final results = await Future.wait([
-      _draft.restore(_ctrl),
-      sl<GetCurrentUserUseCase>()(),
-    ]);
-
-    // If no draft was restored, seed one empty row.
-    final draftRestored = results[0] as bool;
-    if (!draftRestored) _ctrl.addItem();
-
-    // Apply username
-    final userResult = results[1] as Either<Failure, UserEntity>;
-    userResult.fold(
-      (_) {},
-      (user) {
-        if (mounted) _ctrl.username = user.name;
-      },
-    );
+    await _draft.restore(_ctrl);
+    // Controller auto-initializes with an empty row
 
     if (mounted) setState(() => _ready = true);
   }
@@ -91,14 +82,21 @@ class _AddWarehouseDocumentPageState extends State<AddWarehouseDocumentPage> {
       );
     }
 
-    return PopScope<bool>(
+    return PopScope<PrintLabelsArgs?>(
       // Always allow the pop; we just react to the result.
       canPop: true,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) return;
-        if (result == true) {
+        if (result != null) {
           // Successful submit → wipe draft
           _draft.clear();
+          // Navigate to print labels page
+          if (context.mounted) {
+            context.push(
+              AppRoutes.printLabels,
+              extra: result,
+            );
+          }
         }
         // Any other exit → draft is already auto-saved; nothing extra needed.
       },

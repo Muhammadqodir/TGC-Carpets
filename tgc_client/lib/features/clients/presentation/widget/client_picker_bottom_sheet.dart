@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/search_picker_bottom_sheet.dart';
+import '../../../../core/ui/widgets/search_picker_bottom_sheet.dart';
 import '../../data/datasources/client_remote_datasource.dart';
 import '../../domain/entities/client_entity.dart';
 

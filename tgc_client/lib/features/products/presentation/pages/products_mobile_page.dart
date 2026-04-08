@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/router/app_routes.dart';
-import 'package:tgc_client/core/widgets/appbar_search.dart';
+import 'package:tgc_client/core/ui/widgets/appbar_search.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_state.dart';

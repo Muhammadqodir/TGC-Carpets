@@ -13,7 +13,7 @@ import 'package:tgc_client/features/products/domain/entities/product_entity.dart
 import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_picker_bottom_sheet.dart';
 import 'package:tgc_client/features/products/presentation/widget/product_size_picker_sheet.dart';
-import 'package:tgc_client/core/widgets/count_input.dart';
+import 'package:tgc_client/core/ui/widgets/count_input.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_bloc.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_event.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sale_form_state.dart';

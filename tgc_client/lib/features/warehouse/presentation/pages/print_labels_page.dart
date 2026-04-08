@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../widget/print_label.dart';
-import 'print_labels_args.dart';
+import 'args/print_labels_args.dart';
 
 class PrintLabelsPage extends StatefulWidget {
   final PrintLabelsArgs args;
@@ -221,27 +222,15 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
   bool get _isPrintingPlatform => Platform.isMacOS || Platform.isWindows;
 
   void _closePage() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.background,
-        title: const Text('Yopish'),
-        content: const Text(
-          'Barcha yorliqlarni chop etib bo‘linganmi?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Xa, tayyor!'),
-          ),
-        ],
-      ),
+      title: 'Yopish',
+      content: 'Barcha yorliqlarni chop etib bo‘linganmi?',
+      confirmText: 'Xa, tayyor!',
+      cancelText: 'Bekor qilish',
     );
-    if (confirmed == true && context.mounted) {
+
+    if (confirmed && context.mounted) {
       context.pop(true);
     }
   }

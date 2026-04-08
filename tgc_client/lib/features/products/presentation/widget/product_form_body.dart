@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/core/widgets/app_option_selector.dart';
+import 'package:tgc_client/core/ui/widgets/app_option_selector.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
