@@ -36,7 +36,9 @@ class WarehousePdfService
         $pdf = Pdf::loadHTML($html)
             ->setPaper('a4', 'portrait')
             ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', false);
+            ->setOption('isPhpEnabled', true)
+            ->setOption('isRemoteEnabled', false)
+            ->setOption('compress', 1);
 
         $filename = "doc_{$document->id}_{$document->uuid}.pdf";
         $path = "warehouse-documents/pdfs/{$filename}";
@@ -204,7 +206,7 @@ class WarehousePdfService
                 <meta charset=\"UTF-8\">
                 <style>
                     body {
-                        font-family: DejaVu Sans, sans-serif;
+                        font-family: sans-serif;
                         font-size: 11px;
                         margin: 0;
                         padding: 48px;
