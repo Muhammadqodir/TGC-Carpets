@@ -15,6 +15,7 @@ class WarehouseDocumentService
 {
     public function __construct(
         private readonly ProductVariantService $variantService,
+        private readonly WarehousePdfService $pdfService,
     ) {}
 
     /**
@@ -46,6 +47,10 @@ class WarehouseDocumentService
 
             $this->syncItems($document, $data['items'], $userId);
 
+            // Generate and store PDF
+            $pdfPath = $this->pdfService->generatePdf($document);
+            $document->update(['pdf_path' => $pdfPath]);
+
             return $document->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
@@ -76,7 +81,12 @@ class WarehouseDocumentService
                 $this->syncItems($document->fresh(), $data['items'], $userId);
             }
 
-            return $document->fresh()->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            // Regenerate PDF
+            $freshDocument = $document->fresh();
+            $pdfPath = $this->pdfService->generatePdf($freshDocument);
+            $freshDocument->update(['pdf_path' => $pdfPath]);
+
+            return $freshDocument->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
 

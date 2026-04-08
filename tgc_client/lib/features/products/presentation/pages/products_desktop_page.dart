@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
@@ -95,148 +96,158 @@ class _DesktopViewState extends State<_DesktopView> {
           curr.actionStatus != prev.actionStatus,
       listener: _onActionStatus,
       child: Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mahsulotlar'),
-        titleSpacing: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => AddProductModal.show(
-              context,
-              onProductAdded: () => context
-                  .read<ProductsBloc>()
-                  .add(const ProductsRefreshRequested()),
-            ),
-            icon: Icon(Icons.add),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Mahsulotlar'),
+          titleSpacing: 0,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
           ),
-          SizedBox(width: 12),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ---- Filter bar (uses ProductFormBloc for options) ----
-          BlocBuilder<ProductFormBloc, ProductFormState>(
-            builder: (context, formState) {
-              final types = _typesFromFormState(formState);
-              final qualities = _qualitiesFromFormState(formState);
-              return ProductFilterBar(
-                searchController: _searchController,
-                onSearchChanged: (v) {
-                  context.read<ProductsBloc>().add(ProductsSearchChanged(v));
-                },
-                productTypes: types,
-                productQualities: qualities,
-                selectedTypeId: _selectedTypeId,
-                selectedQualityId: _selectedQualityId,
-                selectedStatus: _selectedStatus,
-                onTypeChanged: (v) => _applyFilters(
-                  typeId: v,
-                  qualityId: _selectedQualityId,
-                  status: _selectedStatus,
-                ),
-                onQualityChanged: (v) => _applyFilters(
-                  typeId: _selectedTypeId,
-                  qualityId: v,
-                  status: _selectedStatus,
-                ),
-                onStatusChanged: (v) => _applyFilters(
-                  typeId: _selectedTypeId,
-                  qualityId: _selectedQualityId,
-                  status: v,
-                ),
-                onRefresh: () => context
+          actions: [
+            IconButton(
+              onPressed: () => AddProductModal.show(
+                context,
+                onProductAdded: () => context
                     .read<ProductsBloc>()
                     .add(const ProductsRefreshRequested()),
-              );
-            },
-          ),
-          const Divider(height: 1, color: AppColors.divider),
+              ),
+              icon: Icon(Icons.add),
+            ),
+            SizedBox(width: 12),
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ---- Filter bar (uses ProductFormBloc for options) ----
+            BlocBuilder<ProductFormBloc, ProductFormState>(
+              builder: (context, formState) {
+                final types = _typesFromFormState(formState);
+                final qualities = _qualitiesFromFormState(formState);
+                return ProductFilterBar(
+                  searchController: _searchController,
+                  onSearchChanged: (v) {
+                    context.read<ProductsBloc>().add(ProductsSearchChanged(v));
+                  },
+                  productTypes: types,
+                  productQualities: qualities,
+                  selectedTypeId: _selectedTypeId,
+                  selectedQualityId: _selectedQualityId,
+                  selectedStatus: _selectedStatus,
+                  onTypeChanged: (v) => _applyFilters(
+                    typeId: v,
+                    qualityId: _selectedQualityId,
+                    status: _selectedStatus,
+                  ),
+                  onQualityChanged: (v) => _applyFilters(
+                    typeId: _selectedTypeId,
+                    qualityId: v,
+                    status: _selectedStatus,
+                  ),
+                  onStatusChanged: (v) => _applyFilters(
+                    typeId: _selectedTypeId,
+                    qualityId: _selectedQualityId,
+                    status: v,
+                  ),
+                  onRefresh: () => context
+                      .read<ProductsBloc>()
+                      .add(const ProductsRefreshRequested()),
+                );
+              },
+            ),
+            const Divider(height: 1, color: AppColors.divider),
 
-          // ---- Table / states ----
-          Expanded(
-            child: BlocBuilder<ProductsBloc, ProductsState>(
-              builder: (context, state) {
-                if (state is ProductsLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            // ---- Table / states ----
+            Expanded(
+              child: BlocBuilder<ProductsBloc, ProductsState>(
+                builder: (context, state) {
+                  if (state is ProductsLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (state is ProductsError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(state.message, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: () => context
+                  if (state is ProductsError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(state.message, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () => context
+                                .read<ProductsBloc>()
+                                .add(const ProductsRefreshRequested()),
+                            child: const Text('Qayta urinish'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (state is ProductsLoaded) {
+                    if (state.products.isEmpty) {
+                      return _EmptyState(
+                        onAddProduct: () => AddProductModal.show(
+                          context,
+                          onProductAdded: () => context
                               .read<ProductsBloc>()
                               .add(const ProductsRefreshRequested()),
-                          child: const Text('Qayta urinish'),
                         ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                if (state is ProductsLoaded) {
-                  if (state.products.isEmpty) {
-                    return _EmptyState(
-                      onAddProduct: () => AddProductModal.show(
+                    return ProductDataTable(
+                      products: state.products,
+                      isLoadingMore: state.isLoadingMore,
+                      scrollController: _scrollController,
+                      pendingProductId:
+                          state.actionStatus is ProductActionPending
+                              ? (state.actionStatus as ProductActionPending)
+                                  .productId
+                              : null,
+                      onEdit: (p) => AddProductModal.show(
                         context,
+                        product: p,
                         onProductAdded: () => context
+                            .read<ProductsBloc>()
+                            .add(const ProductsRefreshRequested()),
+                      ),
+                      onArchiveToggle: (p) => context
+                          .read<ProductsBloc>()
+                          .add(ProductArchiveToggleRequested(p)),
+                      onDelete: (p) => _showDeleteConfirm(context, p),
+                      onAddColor: (p) => AddProductColorModal.show(
+                        context,
+                        product: p,
+                        onColorAdded: () => context
                             .read<ProductsBloc>()
                             .add(const ProductsRefreshRequested()),
                       ),
                     );
                   }
 
-                  return ProductDataTable(
-                    products: state.products,
-                    isLoadingMore: state.isLoadingMore,
-                    scrollController: _scrollController,
-                    pendingProductId: state.actionStatus
-                            is ProductActionPending
-                        ? (state.actionStatus as ProductActionPending).productId
-                        : null,
-                    onEdit: (p) => AddProductModal.show(
-                      context,
-                      product: p,
-                      onProductAdded: () => context
-                          .read<ProductsBloc>()
-                          .add(const ProductsRefreshRequested()),
-                    ),
-                    onArchiveToggle: (p) => context
-                        .read<ProductsBloc>()
-                        .add(ProductArchiveToggleRequested(p)),
-                    onDelete: (p) => _showDeleteConfirm(context, p),
-                    onAddColor: (p) => AddProductColorModal.show(
-                      context,
-                      product: p,
-                      onColorAdded: () => context
-                          .read<ProductsBloc>()
-                          .add(const ProductsRefreshRequested()),
-                    ),
-                  );
-                }
-
-                return const SizedBox.shrink();
-              },
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
-          BlocBuilder<ProductsBloc, ProductsState>(
-            builder: (context, state) => _DesktopStatusBar(
-              loaded: state is ProductsLoaded ? state.products.length : null,
-              total: state is ProductsLoaded ? state.total : null,
-            ),
-          ),
-        ],
-      ),
+            const Divider(height: 1, color: AppColors.divider),
+            BlocBuilder<ProductsBloc, ProductsState>(builder: (context, state) {
+              final loaded =
+                  state is ProductsLoaded ? state.products.length : null;
+              final total = state is ProductsLoaded ? state.total : null;
+              return DesktopStatusBar(
+                child: Text(
+                  loaded != null && total != null
+                      ? '$loaded / $total ta mahsulot ko\'rsatilmoqda'
+                      : '',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -298,7 +309,8 @@ class _DesktopViewState extends State<_DesktopView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('O\'chirishni tasdiqlang'),
-        content: Text('"${product.name}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.'),
+        content: Text(
+            '"${product.name}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -334,31 +346,6 @@ class _DesktopViewState extends State<_DesktopView> {
         ProductFormFailure r => r.productQualities,
         _ => const [],
       };
-}
-
-class _DesktopStatusBar extends StatelessWidget {
-  const _DesktopStatusBar({required this.loaded, required this.total});
-
-  final int? loaded;
-  final int? total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 32,
-      color: AppColors.primary.withValues(alpha: 0.04),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.centerLeft,
-      child: Text(
-        loaded != null && total != null
-            ? '$loaded / $total ta mahsulot ko\'rsatilmoqda'
-            : '',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-      ),
-    );
-  }
 }
 
 class _EmptyState extends StatelessWidget {

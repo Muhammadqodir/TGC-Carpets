@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
@@ -74,91 +75,100 @@ class _ClientsDesktopPageState extends State<ClientsDesktopPage> {
             const SizedBox(width: 12),
           ],
         ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ---- Filter bar ----
-          _ClientFilterBar(
-            searchController: _searchController,
-            onSearchChanged: (v) =>
-                context.read<ClientsBloc>().add(ClientsSearchChanged(v)),
-            onRefresh: () => context
-                .read<ClientsBloc>()
-                .add(const ClientsRefreshRequested()),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ---- Filter bar ----
+            _ClientFilterBar(
+              searchController: _searchController,
+              onSearchChanged: (v) =>
+                  context.read<ClientsBloc>().add(ClientsSearchChanged(v)),
+              onRefresh: () => context
+                  .read<ClientsBloc>()
+                  .add(const ClientsRefreshRequested()),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
 
-          // ---- Table / states ----
-          Expanded(
-            child: BlocBuilder<ClientsBloc, ClientsState>(
-              builder: (context, state) {
-                if (state is ClientsLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            // ---- Table / states ----
+            Expanded(
+              child: BlocBuilder<ClientsBloc, ClientsState>(
+                builder: (context, state) {
+                  if (state is ClientsLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (state is ClientsError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(state.message, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: () => context
-                              .read<ClientsBloc>()
-                              .add(const ClientsRefreshRequested()),
-                          child: const Text('Qayta urinish'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (state is ClientsLoaded) {
-                  if (state.clients.isEmpty) {
-                    return _EmptyState(
-                      onAdd: () => AddClientModal.show(
-                        context,
-                        onClientAdded: () => context
-                            .read<ClientsBloc>()
-                            .add(const ClientsRefreshRequested()),
+                  if (state is ClientsError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(state.message, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () => context
+                                .read<ClientsBloc>()
+                                .add(const ClientsRefreshRequested()),
+                            child: const Text('Qayta urinish'),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  return ClientDataTable(
-                    clients: state.clients,
-                    isLoadingMore: state.isLoadingMore,
-                    scrollController: _scrollController,
-                    pendingClientId: state.actionStatus is ClientActionPending
-                        ? (state.actionStatus as ClientActionPending).clientId
-                        : null,
-                    onEdit: (c) => AddClientModal.show(
-                      context,
-                      client: c,
-                      onClientAdded: () => context
-                          .read<ClientsBloc>()
-                          .add(const ClientsRefreshRequested()),
-                    ),
-                    onDelete: (c) => _showDeleteConfirm(context, c),
-                  );
-                }
+                  if (state is ClientsLoaded) {
+                    if (state.clients.isEmpty) {
+                      return _EmptyState(
+                        onAdd: () => AddClientModal.show(
+                          context,
+                          onClientAdded: () => context
+                              .read<ClientsBloc>()
+                              .add(const ClientsRefreshRequested()),
+                        ),
+                      );
+                    }
 
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
+                    return ClientDataTable(
+                      clients: state.clients,
+                      isLoadingMore: state.isLoadingMore,
+                      scrollController: _scrollController,
+                      pendingClientId: state.actionStatus is ClientActionPending
+                          ? (state.actionStatus as ClientActionPending).clientId
+                          : null,
+                      onEdit: (c) => AddClientModal.show(
+                        context,
+                        client: c,
+                        onClientAdded: () => context
+                            .read<ClientsBloc>()
+                            .add(const ClientsRefreshRequested()),
+                      ),
+                      onDelete: (c) => _showDeleteConfirm(context, c),
+                    );
+                  }
 
-          // ---- Status bar ----
-          BlocBuilder<ClientsBloc, ClientsState>(
-            builder: (context, state) => _DesktopStatusBar(
-              loaded: state is ClientsLoaded ? state.clients.length : null,
-              total: state is ClientsLoaded ? state.total : null,
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+            const Divider(height: 1, color: AppColors.divider),
+
+            // ---- Status bar ----
+            BlocBuilder<ClientsBloc, ClientsState>(builder: (context, state) {
+              final loaded =
+                  state is ClientsLoaded ? state.clients.length : null;
+              final total = state is ClientsLoaded ? state.total : null;
+              return DesktopStatusBar(
+                child: Text(
+                  loaded != null && total != null
+                      ? '$loaded / $total ta mijoz ko\'rsatilmoqda'
+                      : '',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -231,9 +241,7 @@ class _ClientsDesktopPageState extends State<ClientsDesktopPage> {
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               Navigator.of(ctx).pop();
-              context
-                  .read<ClientsBloc>()
-                  .add(ClientDeleteRequested(client.id));
+              context.read<ClientsBloc>().add(ClientDeleteRequested(client.id));
             },
             child: const Text('O\'chirish'),
           ),
@@ -299,35 +307,6 @@ class _ClientFilterBar extends StatelessWidget {
             onPressed: onRefresh,
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Status bar
-// ---------------------------------------------------------------------------
-
-class _DesktopStatusBar extends StatelessWidget {
-  const _DesktopStatusBar({required this.loaded, required this.total});
-
-  final int? loaded;
-  final int? total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 32,
-      color: AppColors.primary.withValues(alpha: 0.04),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.centerLeft,
-      child: Text(
-        loaded != null && total != null
-            ? '$loaded / $total ta mijoz ko\'rsatilmoqda'
-            : '',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
       ),
     );
   }

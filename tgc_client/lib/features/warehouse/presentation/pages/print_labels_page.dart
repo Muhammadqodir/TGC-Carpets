@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
-import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../widget/print_label.dart';
 import 'print_labels_args.dart';
@@ -38,6 +38,11 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
 
   /// Current position being processed during bulk print (1-based, for UI).
   int _bulkProgress = 0;
+
+  // ── Share state ────────────────────────────────────────────────────────────────
+  int? _sharingIndex;
+  bool _isBulkSharing = false;
+  int _shareProgress = 0;
 
   // ── Capture keys ─────────────────────────────────────────────────────────────
   /// One GlobalKey per label — attached to the RepaintBoundary for PNG capture.
@@ -92,6 +97,60 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
       }
     } finally {
       if (mounted) setState(() => _printingIndex = null);
+    }
+  }
+
+  // ── Single-label share ────────────────────────────────────────────────────────
+
+  Future<void> _shareSingle(int index) async {
+    setState(() => _sharingIndex = index);
+    try {
+      final path = await _renderLabel(index);
+      if (path != null) {
+        final item = widget.args.items[index];
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(path, mimeType: 'image/png')],
+            text: item.productName,
+          ),
+        );
+        _deleteTempFile(path);
+      }
+    } finally {
+      if (mounted) setState(() => _sharingIndex = null);
+    }
+  }
+
+  // ── Bulk share ────────────────────────────────────────────────────────────────
+
+  Future<void> _bulkShare() async {
+    setState(() {
+      _isBulkSharing = true;
+      _shareProgress = 0;
+    });
+    try {
+      final files = <XFile>[];
+      for (int i = 0; i < widget.args.items.length; i++) {
+        if (!mounted) break;
+        setState(() => _shareProgress = i + 1);
+        final path = await _renderLabel(i);
+        if (path != null) files.add(XFile(path, mimeType: 'image/png'));
+      }
+      if (files.isNotEmpty && mounted) {
+        await SharePlus.instance.share(
+          ShareParams(files: files),
+        );
+        for (final f in files) {
+          _deleteTempFile(f.path);
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBulkSharing = false;
+          _shareProgress = 0;
+        });
+      }
     }
   }
 
@@ -155,6 +214,11 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
   }
 
   bool get _isAnyPrinting => _isBulkPrinting || _printingIndex != null;
+  bool get _isAnySharing => _isBulkSharing || _sharingIndex != null;
+  bool get _isBusy => _isAnyPrinting || _isAnySharing;
+
+  /// True on platforms where silent USB/CUPS printing is supported.
+  bool get _isPrintingPlatform => Platform.isMacOS || Platform.isWindows;
 
   void _closePage() async {
     final confirmed = await showDialog<bool>(
@@ -178,15 +242,14 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
       ),
     );
     if (confirmed == true && context.mounted) {
-      context.go(AppRoutes.warehouse);
+      context.pop(true);
     }
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final totalQty = widget.args.items.fold(0, (s, i) => s + i.quantity);
+    final isPrint = _isPrintingPlatform;
 
     return Scaffold(
       backgroundColor: const Color(0xFFE8ECEF),
@@ -201,45 +264,78 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
           onPressed: _closePage,
         ),
       ),
-      // ── Bottom: bulk print ──────────────────────────────────────────────────
+      // ── Bottom bar ───────────────────────────────────────────────────────────
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _isAnyPrinting ? null : _bulkPrint,
-                  icon: _isBulkPrinting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+              if (_isPrintingPlatform) ...[
+                Expanded(
+                  child: isPrint
+                      ? FilledButton.icon(
+                          onPressed: _isBusy ? null : _bulkPrint,
+                          icon: _isBulkPrinting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const HugeIcon(
+                                  icon: HugeIcons.strokeRoundedPrinter,
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                  size: 20,
+                                ),
+                          label: Text(
+                            _isBulkPrinting
+                                ? 'Chop etilmoqda... ($_bulkProgress / ${widget.args.items.length})'
+                                : 'Barchasini chop etish  ($totalQty dona)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
                           ),
                         )
-                      : const HugeIcon(
-                          icon: HugeIcons.strokeRoundedPrinter,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                          size: 20,
+                      : FilledButton.icon(
+                          onPressed: _isBusy ? null : _bulkShare,
+                          icon: _isBulkSharing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const HugeIcon(
+                                  icon: HugeIcons.strokeRoundedShare01,
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                  size: 20,
+                                ),
+                          label: Text(
+                            _isBulkSharing
+                                ? 'Ulashilmoqda... ($_shareProgress / ${widget.args.items.length})'
+                                : 'Barchasini ulashish',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                          ),
                         ),
-                  label: Text(
-                    _isBulkPrinting
-                        ? 'Chop etilmoqda... ($_bulkProgress / ${widget.args.items.length})'
-                        : 'Barchasini chop etish  ($totalQty dona)',
-                  ),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
                 ),
-              ),
-              SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _closePage,
-                  label: Text('Tayyor!'),
+                  label: const Text('Tayyor!'),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                   ),
@@ -251,14 +347,15 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
       ),
       body: Column(
         children: [
-          // ── Printer selector ─────────────────────────────────────────────
-          _PrinterSelector(
-            printers: _printers,
-            selected: _selectedPrinter,
-            isLoading: _isLoadingPrinters,
-            onChanged: (v) => setState(() => _selectedPrinter = v),
-            onRefresh: _loadPrinters,
-          ),
+          // ── Printer selector (print platforms only) ──────────────────────
+          if (isPrint)
+            _PrinterSelector(
+              printers: _printers,
+              selected: _selectedPrinter,
+              isLoading: _isLoadingPrinters,
+              onChanged: (v) => setState(() => _selectedPrinter = v),
+              onRefresh: _loadPrinters,
+            ),
           // ── Label grid ────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
@@ -266,8 +363,8 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final crossAxisCount =
-                      (constraints.maxWidth / 290).floor().clamp(2, 6);
-                  final spacing = 12.0;
+                      (constraints.maxWidth / 290).floor().clamp(1, 6);
+                  const spacing = 12.0;
                   final cardWidth =
                       (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
                           crossAxisCount;
@@ -285,9 +382,12 @@ class _PrintLabelsPageState extends State<PrintLabelsPage> {
                           config: _config,
                           labelAspect: _labelAspect,
                           repaintKey: _repaintKeys[i],
+                          isPrintMode: isPrint,
                           isPrinting: _printingIndex == i,
-                          isBulkPrinting: _isBulkPrinting,
+                          isSharing: _sharingIndex == i,
+                          isBusy: _isBusy,
                           onPrint: () => _printSingle(i),
+                          onShare: () => _shareSingle(i),
                         ),
                       ),
                     ),
@@ -398,9 +498,12 @@ class _LabelCard extends StatelessWidget {
     required this.config,
     required this.labelAspect,
     required this.repaintKey,
+    required this.isPrintMode,
     required this.isPrinting,
-    required this.isBulkPrinting,
+    required this.isSharing,
+    required this.isBusy,
     required this.onPrint,
+    required this.onShare,
   });
 
   final int index;
@@ -409,18 +512,23 @@ class _LabelCard extends StatelessWidget {
   final double labelAspect;
   final GlobalKey repaintKey;
 
-  /// True while this specific label is being printed individually.
-  final bool isPrinting;
+  /// True on macOS / Windows — show print button, otherwise show share.
+  final bool isPrintMode;
 
-  /// True while the bulk print job is running.
-  final bool isBulkPrinting;
+  final bool isPrinting;
+  final bool isSharing;
+
+  /// True when any print or share operation is running (disables actions).
+  final bool isBusy;
 
   final VoidCallback onPrint;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final canPrint = !isPrinting && !isBulkPrinting;
+    final isActive = isPrintMode ? isPrinting : isSharing;
+    final canAct = !isBusy;
 
     return Card(
       elevation: 2,
@@ -467,7 +575,6 @@ class _LabelCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Item info ─────────────────────────────────────────────────
                       Text(
                         '${index + 1}. ${item.productName}',
                         style: textTheme.bodySmall
@@ -491,10 +598,10 @@ class _LabelCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(6),
-                    onTap: canPrint ? onPrint : null,
+                    onTap: canAct ? (isPrintMode ? onPrint : onShare) : null,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: isPrinting
+                      child: isActive
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -503,15 +610,17 @@ class _LabelCard extends StatelessWidget {
                                 color: Colors.white,
                               ),
                             )
-                          : const HugeIcon(
-                              icon: HugeIcons.strokeRoundedPrinter,
+                          : HugeIcon(
+                              icon: isPrintMode
+                                  ? HugeIcons.strokeRoundedPrinter
+                                  : HugeIcons.strokeRoundedShare01,
                               size: 16,
                               color: Colors.white,
                               strokeWidth: 2,
                             ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ],

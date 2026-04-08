@@ -5,8 +5,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../data/datasources/warehouse_remote_datasource.dart';
-import '../../data/services/warehouse_pdf_service.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../domain/entities/warehouse_document_entity.dart';
 import '../bloc/warehouse_form_bloc.dart';
@@ -135,19 +133,6 @@ class _PreviewViewState extends State<_PreviewView> {
             _processingLabel = 'Saqlanmoqda...';
           });
         } else if (state is WarehouseFormSuccess) {
-          setState(() => _processingLabel = 'PDF tayyorlanmoqda...');
-          try {
-            await WarehousePdfService(sl<WarehouseRemoteDataSource>())
-                .generateAndUpload(
-              docId: state.document.id,
-              username: widget.args.username,
-              documentDate: widget.args.documentDate,
-              notes: widget.args.notes,
-              items: widget.args.items,
-            );
-          } catch (_) {
-            // PDF upload failure is non-fatal; document is already created.
-          }
           if (!context.mounted) return;
           final printArgs = _buildPrintLabelsArgs(state.document);
           context.pushReplacement(
@@ -436,12 +421,18 @@ class _MetaItem extends StatelessWidget {
             children: [
               Text(
                 label,
+                textAlign: alignment == Alignment.centerLeft
+                    ? TextAlign.start
+                    : TextAlign.end,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
               ),
               Text(
                 value,
+                textAlign: alignment == Alignment.centerLeft
+                    ? TextAlign.start
+                    : TextAlign.end,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

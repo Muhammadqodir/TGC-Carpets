@@ -1,538 +1,116 @@
+import 'package:dartz/dartz.dart' hide State;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/error/failures.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/domain/usecases/get_current_user_usecase.dart';
-import '../../../products/domain/entities/product_color_entity.dart';
-import '../../../products/domain/entities/product_entity.dart';
-import '../../../products/domain/entities/product_size_entity.dart';
-import '../../../products/presentation/widget/product_picker_bottom_sheet.dart';
-import '../../../products/presentation/widget/product_size_picker_sheet.dart';
-import 'warehouse_document_preview_args.dart';
+import '../../data/services/warehouse_document_draft_service.dart';
+import '../widget/warehouse_document_form_controller.dart';
+import 'desktop/add_warehouse_document_desktop_page.dart';
+import 'mobile/add_warehouse_document_mobile_page.dart';
 
-class AddWarehouseDocumentPage extends StatelessWidget {
+/// Adaptive entry point for the "add warehouse document" flow.
+///
+/// Responsibilities:
+///   • Owns the [WarehouseDocumentFormController] so state survives
+///     mobile ↔ desktop layout switches on resize.
+///   • Loads the username once and stores it in the controller.
+///   • Auto-saves a draft via [WarehouseDocumentDraftService] after
+///     every controller change.
+///   • Restores any existing draft on startup.
+///   • Clears the draft only when the page is popped with `result == true`
+///     (successful submission).  Every other exit (back button, swipe) keeps
+///     the draft so the user can resume.
+class AddWarehouseDocumentPage extends StatefulWidget {
   const AddWarehouseDocumentPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const _AddWarehouseDocumentView();
-  }
+  State<AddWarehouseDocumentPage> createState() =>
+      _AddWarehouseDocumentPageState();
 }
 
-class _AddWarehouseDocumentView extends StatefulWidget {
-  const _AddWarehouseDocumentView();
-
-  @override
-  State<_AddWarehouseDocumentView> createState() =>
-      _AddWarehouseDocumentViewState();
-}
-
-class _AddWarehouseDocumentViewState extends State<_AddWarehouseDocumentView> {
-  final _formKey = GlobalKey<FormState>();
-
-  final _notesCtrl = TextEditingController();
-  final List<_ItemRow> _items = [];
-  String _username = '';
+class _AddWarehouseDocumentPageState extends State<AddWarehouseDocumentPage> {
+  late final WarehouseDocumentFormController _ctrl;
+  late final WarehouseDocumentDraftService _draft;
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _addItem();
-    _loadUsername();
+    _ctrl = WarehouseDocumentFormController();
+    _ctrl.addListener(_onControllerChanged);
+    _init();
   }
 
-  Future<void> _loadUsername() async {
-    final result = await sl<GetCurrentUserUseCase>()();
-    result.fold(
+  Future<void> _init() async {
+    // Load draft + username in parallel
+    final prefs = await SharedPreferences.getInstance();
+    _draft = WarehouseDocumentDraftService(prefs);
+
+    final results = await Future.wait([
+      _draft.restore(_ctrl),
+      sl<GetCurrentUserUseCase>()(),
+    ]);
+
+    // If no draft was restored, seed one empty row.
+    final draftRestored = results[0] as bool;
+    if (!draftRestored) _ctrl.addItem();
+
+    // Apply username
+    final userResult = results[1] as Either<Failure, UserEntity>;
+    userResult.fold(
       (_) {},
       (user) {
-        if (mounted) setState(() => _username = user.name);
+        if (mounted) _ctrl.username = user.name;
       },
     );
+
+    if (mounted) setState(() => _ready = true);
   }
 
-  void _addItem() => setState(() => _items.add(_ItemRow()));
-
-  void _removeItem(int index) {
-    if (_items.length == 1) return;
-    setState(() {
-      _items[index].dispose();
-      _items.removeAt(index);
-    });
+  void _onControllerChanged() {
+    // Auto-save on every change (fire-and-forget; SharedPreferences is fast)
+    if (_ready) _draft.save(_ctrl);
   }
 
   @override
   void dispose() {
-    _notesCtrl.dispose();
-    for (final item in _items) {
-      item.dispose();
-    }
+    _ctrl.removeListener(_onControllerChanged);
+    _ctrl.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final hasUnpickedProduct = _items.any((r) => r.selectedProduct == null);
-    if (hasUnpickedProduct) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulotni tanlang.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    final hasUnpickedColor = _items.any((r) => r.selectedColor == null);
-    if (hasUnpickedColor) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulot rangini tanlang.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    final hasUnpickedSize = _items.any(
-      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
-    );
-    if (hasUnpickedSize) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulot o\'lchamini tanlang.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    final previewItems = _items
-        .map((row) => WarehouseItemPreviewRow(
-              productId: row.selectedProduct!.id,
-              productName: row.selectedProduct!.name,
-              quality: row.selectedProduct!.productQuality?.qualityName,
-              type: row.selectedProduct!.productType?.type,
-              color: row.selectedColor?.colorName,
-              productColorId: row.selectedColor?.id,
-              productSizeId: row.selectedSize?.id,
-              sizeLabel: row.selectedSize?.dimensions,
-              sizeLength: row.selectedSize?.length,
-              sizeWidth: row.selectedSize?.width,
-              quantity: int.parse(row.quantityCtrl.text.trim()),
-              itemNotes: row.notesCtrl.text.trim().isEmpty
-                  ? null
-                  : row.notesCtrl.text.trim(),
-            ))
-        .toList();
-
-    final args = WarehouseDocumentPreviewArgs(
-      type: 'in',
-      documentDate: DateTime.now(),
-      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      username: _username.isEmpty ? 'Noma\'lum' : _username,
-      items: previewItems,
-    );
-
-    context.pushNamed(
-      AppRoutes.warehouseDocumentPreviewName,
-      extra: args,
-    ).then((result) {
-      if (result == true && mounted) context.pop(true);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text('Kirim hujjati'),
-          leading: IconButton(
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedArrowLeft01,
-              strokeWidth: 2,
-            ),
-            onPressed: () => context.pop(),
-          ),
-        ),
-        body: Stack(
-          children: [
-            SafeArea(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // ── Header info ──────────────────────────────────────
-                    const _SectionHeader(title: 'Hujjat ma\'lumotlari'),
-                    const SizedBox(height: 12),
+    if (!_ready) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-                    // Notes
-                    TextFormField(
-                      controller: _notesCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Izoh (ixtiyoriy)',
-                        hintText: 'Qo\'shimcha ma\'lumot...',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Items ────────────────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const _SectionHeader(title: 'Mahsulotlar'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    ..._items.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final row = entry.value;
-                      return _ItemFormRow(
-                        key: ValueKey(row.id),
-                        row: row,
-                        index: index,
-                        onRemove: () => _removeItem(index),
-                        canRemove: _items.length > 1,
-                        onProductChanged: () => setState(() {}),
-                      );
-                    }),
-                    TextButton.icon(
-                      onPressed: _addItem,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Qo\'shish'),
-                    ),
-
-                    const SizedBox(height: 64),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 12,
-              left: 12,
-              right: 12,
-              child: SafeArea(
-                top: false,
-                child: FilledButton(
-                  onPressed: _submit,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Ko'rib chiqish"),
-                      SizedBox(width: 6),
-                      Icon(Icons.arrow_forward_rounded, size: 18),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-    );
-  }
-}
-
-// ── Domain model for each item row ──────────────────────────────────────────
-
-class _ItemRow {
-  static int _counter = 0;
-  final int id = ++_counter;
-
-  ProductEntity? selectedProduct;
-  ProductColorEntity? selectedColor;
-  ProductSizeEntity? selectedSize;
-  final quantityCtrl = TextEditingController();
-  final notesCtrl = TextEditingController();
-
-  void dispose() {
-    quantityCtrl.dispose();
-    notesCtrl.dispose();
-  }
-}
-
-// ── Item form row widget ─────────────────────────────────────────────────────
-
-class _ItemFormRow extends StatelessWidget {
-  final _ItemRow row;
-  final int index;
-  final VoidCallback onRemove;
-  final bool canRemove;
-  final VoidCallback onProductChanged;
-
-  const _ItemFormRow({
-    super.key,
-    required this.row,
-    required this.index,
-    required this.onRemove,
-    required this.canRemove,
-    required this.onProductChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final product = row.selectedProduct;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Row header
-            Row(
-              children: [
-                Text('${index + 1}-mahsulot',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                const Spacer(),
-                if (canRemove) ...[
-                  InkWell(
-                    onTap: onRemove,
-                    child: Padding(
-                      padding: EdgeInsets.all(4),
-                      child: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedCancelCircle,
-                        size: 18,
-                        strokeWidth: 2.5,
-                        color: AppColors.error,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                ]
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            Row(
-              children: [
-                Expanded(
-                  child: // Product picker button
-                      InkWell(
-                    onTap: () async {
-                      final result =
-                          await ProductPickerBottomSheet.show(context);
-                      if (result != null) {
-                        row.selectedProduct = result.product;
-                        row.selectedColor = result.color;
-                        row.selectedSize = null; // reset size when product changes
-                        onProductChanged();
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      height: 42,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 0),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: product == null
-                              ? AppColors.divider
-                              : AppColors.primary,
-                          width: product == null ? 1 : 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        color: product != null
-                            ? AppColors.primary.withValues(alpha: 0.05)
-                            : null,
-                      ),
-                      child: product == null
-                          ? Row(
-                              children: [
-                                const Icon(Icons.search_rounded,
-                                    size: 18, color: AppColors.textSecondary),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Mahsulot tanlash',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                          color: AppColors.textSecondary),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        product.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        [
-                                          if (product.productType?.type != null)
-                                            product.productType!.type,
-                                          if (row.selectedColor != null)
-                                            row.selectedColor!.colorName,
-                                        ].join(' · '),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(
-                                                color: AppColors.textSecondary),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const HugeIcon(
-                                    icon: HugeIcons.strokeRoundedReplace,
-                                    size: 18,
-                                    color: AppColors.primary),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Quantity
-                SizedBox(
-                  width: 100,
-                  child: TextFormField(
-                    controller: row.quantityCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Miqdor *',
-                      isDense: true,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Miqdorni kiriting';
-                      }
-                      final qty = int.tryParse(value);
-                      if (qty == null || qty < 1) {
-                        return 'Kamida 1 bo\'lishi kerak';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            // Size picker — shown only when product with a type is selected
-            if (product != null && product.productTypeId != null) ...[
-              const SizedBox(height: 8),
-              _SizePicker(
-                row: row,
-                productTypeId: product.productTypeId!,
-                onChanged: onProductChanged,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Inline size chip selector within an item row.
-class _SizePicker extends StatelessWidget {
-  final _ItemRow row;
-  final int productTypeId;
-  final VoidCallback onChanged;
-
-  const _SizePicker({
-    required this.row,
-    required this.productTypeId,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    return InkWell(
-      onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
-          context,
-          productTypeId: productTypeId,
-        );
-        if (picked != null) {
-          row.selectedSize = picked;
-          onChanged();
+    return PopScope<bool>(
+      // Always allow the pop; we just react to the result.
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) return;
+        if (result == true) {
+          // Successful submit → wipe draft
+          _draft.clear();
         }
+        // Any other exit → draft is already auto-saved; nothing extra needed.
       },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: size == null ? AppColors.divider : AppColors.primary,
-            width: size == null ? 1 : 1.5,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.straighten_rounded,
-              size: 16,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                size == null ? 'O\'lcham tanlash' : size.dimensions,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: size == null
-                          ? AppColors.textSecondary
-                          : AppColors.primary,
-                      fontWeight: size != null ? FontWeight.w600 : null,
-                    ),
-              ),
-            ),
-            Icon(
-              Icons.arrow_drop_down_rounded,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
-            ),
-          ],
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= AppConstants.desktopBreakpoint) {
+            return AddWarehouseDocumentDesktopPage(controller: _ctrl);
+          }
+          return AddWarehouseDocumentMobilePage(controller: _ctrl);
+        },
       ),
     );
   }
 }
-
-// ── Reusable sub-widgets ─────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
-          ),
-    );
-  }
-}
-
 
