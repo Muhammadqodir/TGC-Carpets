@@ -13,8 +13,8 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->string('external_uuid')->nullable()->unique();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
-            $table->foreignId('client_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'delivered'])->default('pending');
+            $table->foreignId('client_id')->constrained()->restrictOnDelete();
+            $table->enum('status', ['pending', 'on_production', 'done', 'canceled'])->default('pending');
             $table->date('order_date');
             $table->text('notes')->nullable();
             $table->timestamps();

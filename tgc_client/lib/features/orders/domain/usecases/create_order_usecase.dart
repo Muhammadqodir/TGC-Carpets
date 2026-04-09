@@ -12,8 +12,7 @@ class CreateOrderUseCase {
   Future<Either<Failure, OrderEntity>> call({
     required String orderDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
-    String status = 'pending',
+    required int clientId,
     String? notes,
     String? externalUuid,
   }) =>
@@ -21,7 +20,6 @@ class CreateOrderUseCase {
         orderDate: orderDate,
         items: items,
         clientId: clientId,
-        status: status,
         notes: notes,
         externalUuid: externalUuid,
       );

@@ -211,6 +211,12 @@ class _DashboardViewState extends State<_DashboardView> {
                                       .pushNamed(AppRoutes.warehouseName),
                                 ),
                                 _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedAddToList,
+                                  label: 'Buyurtmalar',
+                                  onTap: () => context
+                                      .pushNamed(AppRoutes.ordersName),
+                                ),
+                                _DashboardCard(
                                   icon: HugeIcons.strokeRoundedAgreement02,
                                   label: 'Savdo',
                                   onTap: () =>

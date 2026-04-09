@@ -15,7 +15,7 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id'       => ['nullable', 'integer', 'exists:clients,id'],
+            'client_id'       => ['required', 'integer', 'exists:clients,id'],
             'status'          => ['sometimes', 'string', 'in:' . implode(',', Order::STATUSES)],
             'order_date'      => ['required', 'date'],
             'notes'           => ['nullable', 'string', 'max:1000'],

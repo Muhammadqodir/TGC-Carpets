@@ -12,16 +12,16 @@ class Order extends Model
 {
     use HasFactory;
 
-    const STATUS_PENDING   = 'pending';
-    const STATUS_CONFIRMED = 'confirmed';
-    const STATUS_CANCELLED = 'cancelled';
-    const STATUS_DELIVERED = 'delivered';
+    const STATUS_PENDING       = 'pending';
+    const STATUS_ON_PRODUCTION  = 'on_production';
+    const STATUS_DONE           = 'done';
+    const STATUS_CANCELED       = 'canceled';
 
     const STATUSES = [
         self::STATUS_PENDING,
-        self::STATUS_CONFIRMED,
-        self::STATUS_CANCELLED,
-        self::STATUS_DELIVERED,
+        self::STATUS_ON_PRODUCTION,
+        self::STATUS_DONE,
+        self::STATUS_CANCELED,
     ];
 
     protected $fillable = [

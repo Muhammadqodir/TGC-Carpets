@@ -22,7 +22,6 @@ class OrderFormBloc extends Bloc<OrderFormEvent, OrderFormState> {
       orderDate: event.orderDate,
       items: event.items,
       clientId: event.clientId,
-      status: event.status,
       notes: event.notes,
       externalUuid: event.externalUuid,
     );

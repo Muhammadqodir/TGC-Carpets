@@ -22,8 +22,7 @@ abstract class OrderRemoteDataSource {
   Future<OrderModel> createOrder({
     required String orderDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
-    String status = 'pending',
+    required int clientId,
     String? notes,
     String? externalUuid,
   });
@@ -105,8 +104,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   Future<OrderModel> createOrder({
     required String orderDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
-    String status = 'pending',
+    required int clientId,
     String? notes,
     String? externalUuid,
   }) async {
@@ -114,10 +112,9 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       final response = await _dio.post(
         ApiEndpoints.orders,
         data: {
-          'order_date':    orderDate,
-          'items':         items,
-          'status':        status,
-          if (clientId != null) 'client_id': clientId,
+          'order_date': orderDate,
+          'items':      items,
+          'client_id':  clientId,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
           if (externalUuid != null) 'external_uuid': externalUuid,
         },

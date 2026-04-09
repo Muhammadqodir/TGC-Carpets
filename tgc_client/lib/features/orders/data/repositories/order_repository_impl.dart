@@ -68,8 +68,7 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<Either<Failure, OrderEntity>> createOrder({
     required String orderDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
-    String status = 'pending',
+    required int clientId,
     String? notes,
     String? externalUuid,
   }) async {
@@ -78,7 +77,6 @@ class OrderRepositoryImpl implements OrderRepository {
         orderDate: orderDate,
         items: items,
         clientId: clientId,
-        status: status,
         notes: notes,
         externalUuid: externalUuid,
       );

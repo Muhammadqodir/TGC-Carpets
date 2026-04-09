@@ -4,18 +4,23 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
+import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
+import '../../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
 import '../../bloc/order_form_state.dart';
+import '../../widget/order_form_controller.dart';
 import '../../widget/order_item_row.dart';
 
 /// Mobile variant of the "add order" form.
+/// All item-list state lives in [controller], owned by [AddOrderPage].
 class AddOrderMobilePage extends StatefulWidget {
-  const AddOrderMobilePage({super.key});
+  const AddOrderMobilePage({super.key, required this.controller});
+
+  final OrderFormController controller;
 
   @override
   State<AddOrderMobilePage> createState() => _AddOrderMobilePageState();
@@ -23,69 +28,9 @@ class AddOrderMobilePage extends StatefulWidget {
 
 class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _notesCtrl = TextEditingController();
 
   ClientEntity? _selectedClient;
   DateTime _orderDate = DateTime.now();
-  String _status = 'pending';
-  final List<OrderItemRow> _rows = [OrderItemRow()];
-
-  static const _statuses = [
-    (label: 'Kutilmoqda', value: 'pending'),
-    (label: 'Tasdiqlangan', value: 'confirmed'),
-    (label: 'Bekor qilindi', value: 'cancelled'),
-    (label: 'Yetkazildi', value: 'delivered'),
-  ];
-
-  @override
-  void dispose() {
-    _notesCtrl.dispose();
-    for (final r in _rows) {
-      r.dispose();
-    }
-    super.dispose();
-  }
-
-  void _addRow() {
-    setState(() => _rows.add(OrderItemRow()));
-  }
-
-  void _removeRow(OrderItemRow row) {
-    if (_rows.length == 1) return;
-    setState(() {
-      row.dispose();
-      _rows.remove(row);
-    });
-  }
-
-  Future<void> _pickProduct(OrderItemRow row) async {
-    final result = await ProductPickerBottomSheet.show(context);
-    if (result == null) return;
-
-    setState(() {
-      row.selectedProduct = result.product;
-      row.selectedColor = result.color;
-      row.selectedSize = null;
-    });
-
-    // Auto-pick size if product has a type
-    if (result.product.productTypeId != null && context.mounted) {
-      final size = await ProductSizePickerSheet.show(
-        context,
-        productTypeId: result.product.productTypeId!,
-      );
-      if (size != null && mounted) {
-        setState(() => row.selectedSize = size);
-      }
-    }
-  }
-
-  Future<void> _pickClient() async {
-    final client = await ClientPickerBottomSheet.show(context);
-    if (client != null && mounted) {
-      setState(() => _selectedClient = client);
-    }
-  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -94,16 +39,31 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null && mounted) {
-      setState(() => _orderDate = picked);
-    }
+    if (picked != null && mounted) setState(() => _orderDate = picked);
+  }
+
+  Future<void> _pickClient() async {
+    final client = await ClientPickerBottomSheet.show(context);
+    if (client != null && mounted) setState(() => _selectedClient = client);
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final filledRows = _rows.where((r) => r.isFilled).toList();
-    if (filledRows.isEmpty) {
+    if (_selectedClient == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mijozni tanlash shart.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final ctrl = widget.controller;
+    final filledItems = ctrl.filledItems;
+
+    if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Kamida bitta mahsulot qo\'shing.'),
@@ -113,7 +73,20 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
       return;
     }
 
-    final items = filledRows
+    final hasUnpickedSize = filledItems.any(
+      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+    );
+    if (hasUnpickedSize) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Barcha qatorlardagi mahsulot o\'lchamini tanlang.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final items = filledItems
         .map((r) => {
               'product_color_id': r.selectedColor!.id,
               if (r.selectedSize != null) 'product_size_id': r.selectedSize!.id,
@@ -127,9 +100,10 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
     context.read<OrderFormBloc>().add(OrderFormSubmitted(
           orderDate: dateStr,
           items: items,
-          clientId: _selectedClient?.id,
-          status: _status,
-          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+          clientId: _selectedClient!.id,
+          notes: ctrl.notesCtrl.text.trim().isEmpty
+              ? null
+              : ctrl.notesCtrl.text.trim(),
         ));
   }
 
@@ -154,270 +128,507 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
           );
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Yangi buyurtma'),
-          titleSpacing: 0,
-          leading: IconButton(
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedArrowLeft01,
-              strokeWidth: 2,
-            ),
-            onPressed: () => context.pop(),
-          ),
-          actions: [
-            BlocBuilder<OrderFormBloc, OrderFormState>(
-              builder: (context, state) {
-                if (state is OrderFormSubmitting) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                }
-                return TextButton(
-                  onPressed: _submit,
-                  child: const Text('Saqlash'),
-                );
-              },
-            ),
-          ],
-        ),
-        body: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // ── Date ─────────────────────────────────────────────────────
-              _SectionLabel(label: 'Sana'),
-              InkWell(
-                onTap: _pickDate,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.divider),
-                    borderRadius: BorderRadius.circular(8),
-                    color: AppColors.surface,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 10),
-                      Text(
-                        '${_orderDate.day.toString().padLeft(2, '0')}.${_orderDate.month.toString().padLeft(2, '0')}.${_orderDate.year}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+      child: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) {
+          final ctrl = widget.controller;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Yangi buyurtma'),
+              titleSpacing: 0,
+              leading: IconButton(
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedArrowLeft01,
+                  strokeWidth: 2,
                 ),
+                onPressed: () => context.pop(),
               ),
-              const SizedBox(height: 16),
+            ),
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        const _SectionHeader(title: 'Buyurtma ma\'lumotlari'),
+                        const SizedBox(height: 12),
 
-              // ── Status ───────────────────────────────────────────────────
-              _SectionLabel(label: 'Holat'),
-              DropdownButtonFormField<String>(
-                value: _status,
-                decoration: const InputDecoration(
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
-                items: _statuses
-                    .map((s) =>
-                        DropdownMenuItem(value: s.value, child: Text(s.label)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _status = v);
-                },
-              ),
-              const SizedBox(height: 16),
+                        // Date
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.divider),
+                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.surface,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_outlined,
+                                    size: 18, color: AppColors.primary),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '${_orderDate.day.toString().padLeft(2, '0')}.${_orderDate.month.toString().padLeft(2, '0')}.${_orderDate.year}',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
 
-              // ── Client ───────────────────────────────────────────────────
-              _SectionLabel(label: 'Mijoz (ixtiyoriy)'),
-              InkWell(
-                onTap: _pickClient,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.divider),
-                    borderRadius: BorderRadius.circular(8),
-                    color: AppColors.surface,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.store_outlined,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _selectedClient?.shopName ?? 'Mijoz tanlash...',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        // Client (required)
+                        InkWell(
+                          onTap: _pickClient,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(
                                 color: _selectedClient == null
-                                    ? AppColors.textSecondary
-                                    : null,
+                                    ? AppColors.divider
+                                    : AppColors.primary,
+                                width: _selectedClient == null ? 1.0 : 1.5,
                               ),
+                              borderRadius: BorderRadius.circular(8),
+                              color: _selectedClient != null
+                                  ? AppColors.primary.withValues(alpha: 0.05)
+                                  : AppColors.surface,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.store_outlined,
+                                  size: 18,
+                                  color: _selectedClient == null
+                                      ? AppColors.textSecondary
+                                      : AppColors.primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _selectedClient?.shopName ??
+                                        'Mijoz tanlash...',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: _selectedClient == null
+                                              ? AppColors.textSecondary
+                                              : null,
+                                        ),
+                                  ),
+                                ),
+                                if (_selectedClient != null)
+                                  GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _selectedClient = null),
+                                    child: const Icon(Icons.close,
+                                        size: 18,
+                                        color: AppColors.textSecondary),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      if (_selectedClient != null)
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedClient = null),
-                          child: const Icon(Icons.close,
-                              size: 18, color: AppColors.textSecondary),
+                        const SizedBox(height: 12),
+
+                        // Notes
+                        TextFormField(
+                          controller: ctrl.notesCtrl,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Izoh (ixtiyoriy)',
+                            hintText: 'Qo\'shimcha ma\'lumot...',
+                            alignLabelWithHint: true,
+                          ),
                         ),
-                    ],
+                        const SizedBox(height: 24),
+
+                        // Items
+                        const _SectionHeader(title: 'Mahsulotlar'),
+                        const SizedBox(height: 8),
+
+                        ...ctrl.items.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final row = entry.value;
+                          return _MobileItemFormRow(
+                            key: ValueKey(row.id),
+                            row: row,
+                            allItems: ctrl.items,
+                            index: index,
+                            onRemove: () => ctrl.removeItem(index),
+                            canRemove: row.selectedProduct != null,
+                            onProductChanged: ctrl.notifyChanged,
+                          );
+                        }),
+
+                        const SizedBox(height: 80),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
 
-              // ── Items ─────────────────────────────────────────────────────
-              _SectionLabel(label: 'Mahsulotlar'),
-              ...List.generate(_rows.length, (i) {
-                final row = _rows[i];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _OrderItemRowWidget(
-                    row: row,
-                    onPickProduct: () => _pickProduct(row),
-                    onRemove: _rows.length > 1 ? () => _removeRow(row) : null,
-                    onQuantityChanged: () => setState(() {}),
+                // Submit button
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  right: 12,
+                  child: SafeArea(
+                    top: false,
+                    child: BlocBuilder<OrderFormBloc, OrderFormState>(
+                      builder: (context, state) {
+                        if (state is OrderFormSubmitting) {
+                          return FilledButton(
+                            onPressed: null,
+                            style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50)),
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        return FilledButton(
+                          onPressed: _submit,
+                          style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50)),
+                          child: const Text('Saqlash'),
+                        );
+                      },
+                    ),
                   ),
-                );
-              }),
-              TextButton.icon(
-                onPressed: _addRow,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Qator qo\'shish'),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Notes ────────────────────────────────────────────────────
-              _SectionLabel(label: 'Izoh (ixtiyoriy)'),
-              TextFormField(
-                controller: _notesCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Qo\'shimcha ma\'lumot...',
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
+// ── Section header ────────────────────────────────────────────────────────────
 
-  const _SectionLabel({required this.label});
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
     );
   }
 }
 
-class _OrderItemRowWidget extends StatelessWidget {
-  final OrderItemRow row;
-  final VoidCallback onPickProduct;
-  final VoidCallback? onRemove;
-  final VoidCallback onQuantityChanged;
+// ── Mobile item form row ──────────────────────────────────────────────────────
 
-  const _OrderItemRowWidget({
+class _MobileItemFormRow extends StatelessWidget {
+  final OrderItemRow row;
+  final List<OrderItemRow> allItems;
+  final int index;
+  final VoidCallback onRemove;
+  final bool canRemove;
+  final VoidCallback onProductChanged;
+
+  const _MobileItemFormRow({
+    super.key,
     required this.row,
-    required this.onPickProduct,
+    required this.allItems,
+    required this.index,
     required this.onRemove,
-    required this.onQuantityChanged,
+    required this.canRemove,
+    required this.onProductChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: onPickProduct,
-                  child: Text(
-                    row.label,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: row.isFilled
-                              ? AppColors.textPrimary
-                              : AppColors.primary,
-                          decoration:
-                              row.isFilled ? null : TextDecoration.underline,
-                        ),
-                  ),
-                ),
-              ),
-              if (onRemove != null)
-                GestureDetector(
-                  onTap: onRemove,
-                  child: const Icon(Icons.close,
-                      size: 18, color: AppColors.textSecondary),
-                ),
-            ],
-          ),
-          if (row.isFilled) ...[
-            const SizedBox(height: 10),
+    final product = row.selectedProduct;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                Text(
-                  'Miqdor: ',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                Text('${index + 1}-mahsulot',
+                    style: Theme.of(context).textTheme.bodyMedium),
+                const Spacer(),
+                if (canRemove) ...[
+                  InkWell(
+                    onTap: onRemove,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: HugeIcon(
+                        icon: HugeIcons.strokeRoundedCancelCircle,
+                        size: 18,
+                        strokeWidth: 2.5,
+                        color: AppColors.error,
                       ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: TextFormField(
-                    controller: row.quantityCtrl,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     ),
-                    onChanged: (_) => onQuantityChanged(),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _ProductPickerButton(
+                    row: row,
+                    allItems: allItems,
+                    onChanged: onProductChanged,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 120,
+                  child: CountInput(
+                    controller: row.quantityCtrl,
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Kerak';
-                      final n = int.tryParse(v);
-                      if (n == null || n < 1) return '≥1';
+                      if (row.selectedProduct == null) return null;
+                      if (v == null || v.trim().isEmpty) return 'Miqdorni kiriting';
+                      final qty = int.tryParse(v);
+                      if (qty == null || qty < 1) return 'Kamida 1';
                       return null;
                     },
                   ),
                 ),
               ],
             ),
+
+            if (product != null && product.productTypeId != null) ...[
+              const SizedBox(height: 8),
+              _SizePicker(
+                row: row,
+                allItems: allItems,
+                productTypeId: product.productTypeId!,
+                onChanged: onProductChanged,
+              ),
+            ],
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Product picker button ─────────────────────────────────────────────────────
+
+class _ProductPickerButton extends StatelessWidget {
+  final OrderItemRow row;
+  final List<OrderItemRow> allItems;
+  final VoidCallback onChanged;
+
+  const _ProductPickerButton({
+    required this.row,
+    required this.allItems,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final product = row.selectedProduct;
+    return InkWell(
+      onTap: () async {
+        final result = await ProductPickerBottomSheet.show(context);
+        if (result != null) {
+          if (result.product.productTypeId == null) {
+            final isDuplicate = allItems.any(
+              (r) =>
+                  r.id != row.id &&
+                  r.selectedProduct?.id == result.product.id &&
+                  r.selectedColor?.id == result.color?.id,
+            );
+            if (isDuplicate) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+          row.selectedProduct = result.product;
+          row.selectedColor = result.color;
+          row.selectedSize = null;
+          onChanged();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: product == null ? AppColors.divider : AppColors.primary,
+            width: product == null ? 1 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: product != null
+              ? AppColors.primary.withValues(alpha: 0.05)
+              : null,
+        ),
+        child: product == null
+            ? Row(
+                children: [
+                  const Icon(Icons.search_rounded,
+                      size: 18, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mahsulot tanlash',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          product.name,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            if (product.productType?.type != null)
+                              product.productType!.type,
+                            if (row.selectedColor != null)
+                              row.selectedColor!.colorName,
+                          ].join(' · '),
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const HugeIcon(
+                    icon: HugeIcons.strokeRoundedReplace,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+// ── Size picker ───────────────────────────────────────────────────────────────
+
+class _SizePicker extends StatelessWidget {
+  final OrderItemRow row;
+  final List<OrderItemRow> allItems;
+  final int productTypeId;
+  final VoidCallback onChanged;
+
+  const _SizePicker({
+    required this.row,
+    required this.allItems,
+    required this.productTypeId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = row.selectedSize;
+    return InkWell(
+      onTap: () async {
+        final picked = await ProductSizePickerSheet.show(
+          context,
+          productTypeId: productTypeId,
+        );
+        if (picked != null) {
+          final isDuplicate = allItems.any(
+            (r) =>
+                r.id != row.id &&
+                r.selectedProduct?.id == row.selectedProduct?.id &&
+                r.selectedColor?.id == row.selectedColor?.id &&
+                r.selectedSize?.id == picked.id,
+          );
+          if (isDuplicate) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
+          row.selectedSize = picked;
+          onChanged();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: size == null ? AppColors.divider : AppColors.primary,
+            width: size == null ? 1 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.straighten_rounded,
+              size: 16,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                size == null ? 'O\'lcham tanlash' : size.dimensions,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: size == null
+                          ? AppColors.textSecondary
+                          : AppColors.primary,
+                      fontWeight: size != null ? FontWeight.w600 : null,
+                    ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
+            ),
+          ],
+        ),
       ),
     );
   }

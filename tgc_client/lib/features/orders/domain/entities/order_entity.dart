@@ -11,7 +11,7 @@ class OrderEntity extends Equatable {
   final int? clientId;
   final String? clientShopName;
   final String? clientPhone;
-  final String status; // 'pending' | 'confirmed' | 'cancelled' | 'delivered'
+  final String status; // 'pending' | 'on_production' | 'done' | 'canceled'
   final DateTime orderDate;
   final String? notes;
   final List<OrderItemEntity> items;
@@ -36,11 +36,11 @@ class OrderEntity extends Equatable {
   });
 
   String get statusLabel => switch (status) {
-        'pending'   => 'Kutilmoqda',
-        'confirmed' => 'Tasdiqlangan',
-        'cancelled' => 'Bekor qilindi',
-        'delivered' => 'Yetkazildi',
-        _           => status,
+        'pending'       => 'Kutilmoqda',
+        'on_production' => 'Ishlab chiqarilmoqda',
+        'done'          => 'Bajarildi',
+        'canceled'      => 'Bekor qilindi',
+        _               => status,
       };
 
   @override

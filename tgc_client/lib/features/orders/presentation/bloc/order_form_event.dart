@@ -10,20 +10,18 @@ abstract class OrderFormEvent extends Equatable {
 class OrderFormSubmitted extends OrderFormEvent {
   final String orderDate;
   final List<Map<String, dynamic>> items;
-  final int? clientId;
-  final String status;
+  final int clientId;
   final String? notes;
   final String? externalUuid;
 
   const OrderFormSubmitted({
     required this.orderDate,
     required this.items,
-    this.clientId,
-    this.status = 'pending',
+    required this.clientId,
     this.notes,
     this.externalUuid,
   });
 
   @override
-  List<Object?> get props => [orderDate, items, clientId, status, notes, externalUuid];
+  List<Object?> get props => [orderDate, items, clientId, notes, externalUuid];
 }

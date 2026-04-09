@@ -133,11 +133,11 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'pending'   => ('Kutilmoqda', AppColors.warning),
-      'confirmed' => ('Tasdiqlangan', AppColors.primaryLight),
-      'cancelled' => ('Bekor qilindi', AppColors.error),
-      'delivered' => ('Yetkazildi', AppColors.success),
-      _           => (status, AppColors.textSecondary),
+      'pending'       => ('Kutilmoqda', AppColors.warning),
+      'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
+      'done'          => ('Bajarildi', AppColors.success),
+      'canceled'      => ('Bekor qilindi', AppColors.error),
+      _               => (status, AppColors.textSecondary),
     };
 
     return Container(
