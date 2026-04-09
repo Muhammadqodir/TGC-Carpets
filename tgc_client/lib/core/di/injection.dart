@@ -79,6 +79,16 @@ import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/change_password_usecase.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 
+// Orders feature
+import '../../features/orders/data/datasources/order_remote_datasource.dart';
+import '../../features/orders/data/repositories/order_repository_impl.dart';
+import '../../features/orders/domain/repositories/order_repository.dart';
+import '../../features/orders/domain/usecases/get_orders_usecase.dart';
+import '../../features/orders/domain/usecases/create_order_usecase.dart';
+import '../../features/orders/domain/usecases/update_order_usecase.dart';
+import '../../features/orders/presentation/bloc/orders_bloc.dart';
+import '../../features/orders/presentation/bloc/order_form_bloc.dart';
+
 // Employees
 import '../../features/employees/data/datasources/employee_remote_datasource.dart';
 import '../../features/employees/data/repositories/employee_repository_impl.dart';
@@ -245,6 +255,23 @@ Future<void> initDependencies() async {
     () => WarehouseFormBloc(
       createWarehouseDocumentUseCase: sl<CreateWarehouseDocumentUseCase>(),
     ),
+  );
+
+  // ─── Orders Feature ────────────────────────────────────────────────────────
+  sl.registerLazySingleton<OrderRemoteDataSource>(
+    () => OrderRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<OrderRepository>(
+    () => OrderRepositoryImpl(remoteDataSource: sl<OrderRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetOrdersUseCase(sl<OrderRepository>()));
+  sl.registerLazySingleton(() => CreateOrderUseCase(sl<OrderRepository>()));
+  sl.registerLazySingleton(() => UpdateOrderUseCase(sl<OrderRepository>()));
+  sl.registerFactory(
+    () => OrdersBloc(getOrdersUseCase: sl<GetOrdersUseCase>()),
+  );
+  sl.registerFactory(
+    () => OrderFormBloc(createOrderUseCase: sl<CreateOrderUseCase>()),
   );
 
   // Employees

@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Requests\Order;
+
+use App\Models\Order;
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreOrderRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'client_id'       => ['nullable', 'integer', 'exists:clients,id'],
+            'status'          => ['sometimes', 'string', 'in:' . implode(',', Order::STATUSES)],
+            'order_date'      => ['required', 'date'],
+            'notes'           => ['nullable', 'string', 'max:1000'],
+            'external_uuid'   => ['nullable', 'string', 'max:255'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_color_id'  => ['required', 'integer', 'exists:product_colors,id'],
+            'items.*.product_size_id'   => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.quantity'          => ['required', 'integer', 'min:1'],
+        ];
+    }
+}

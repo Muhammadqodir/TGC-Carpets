@@ -44,4 +44,10 @@ class AppRoutes {
 
   static const String settings     = '/settings';
   static const String settingsName = 'settings';
+
+  static const String orders     = '/orders';
+  static const String ordersName = 'orders';
+
+  static const String addOrder     = '/orders/add';
+  static const String addOrderName = 'addOrder';
 }

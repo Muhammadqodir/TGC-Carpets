@@ -36,6 +36,10 @@ class ApiEndpoints {
   static const String employees = '/employees';
   static String employeeById(int id) => '/employees/$id';
 
+  // Orders
+  static const String orders = '/orders';
+  static String orderById(int id) => '/orders/$id';
+
   // Dashboard
   static const String dashboardStats = '/dashboard/stats';
 

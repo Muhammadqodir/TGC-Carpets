@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\ColorController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductColorController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductQualityController;
@@ -90,6 +91,9 @@ Route::prefix('v1')->group(function (): void {
         // Product variants (barcode lookup)
         Route::get('product-variants', [ProductVariantController::class, 'index'])->name('product-variants.index');
         Route::get('product-variants/barcode/{barcode}', [ProductVariantController::class, 'findByBarcode'])->name('product-variants.by-barcode');
+
+        // Orders
+        Route::apiResource('orders', OrderController::class);
 
     });
 

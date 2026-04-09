@@ -17,6 +17,8 @@ import '../../features/sales/presentation/pages/add_sale_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/employees/presentation/pages/add_employee_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/orders/presentation/pages/orders_page.dart';
+import '../../features/orders/presentation/pages/add_order_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -105,6 +107,16 @@ class AppRouter {
             path: AppRoutes.settings,
             name: AppRoutes.settingsName,
             builder: (context, state) => const SettingsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.orders,
+            name: AppRoutes.ordersName,
+            builder: (context, state) => const OrdersPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addOrder,
+            name: AppRoutes.addOrderName,
+            builder: (context, state) => const AddOrderPage(),
           ),
         ],
       ),
