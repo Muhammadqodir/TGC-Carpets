@@ -5,10 +5,12 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../domain/entities/order_entity.dart';
 import '../../bloc/orders_bloc.dart';
 import '../../bloc/orders_event.dart';
 import '../../bloc/orders_state.dart';
 import '../../widget/order_card.dart';
+import '../args/order_detail_args.dart';
 
 class OrdersMobilePage extends StatefulWidget {
   const OrdersMobilePage({super.key});
@@ -30,6 +32,23 @@ class _OrdersMobilePageState extends State<OrdersMobilePage> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       context.read<OrdersBloc>().add(const OrdersNextPageRequested());
+    }
+  }
+
+  Future<void> _navigateToDetail(OrderEntity order) async {
+    await context.pushNamed(
+      AppRoutes.orderDetailName,
+      extra: OrderDetailArgs(order: order),
+    );
+  }
+
+  Future<void> _navigateToEdit(OrderEntity order) async {
+    final updated = await context.pushNamed(
+      AppRoutes.editOrderName,
+      extra: order,
+    );
+    if (updated == true && mounted) {
+      context.read<OrdersBloc>().add(const OrdersRefreshRequested());
     }
   }
 
@@ -123,7 +142,11 @@ class _OrdersMobilePageState extends State<OrdersMobilePage> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
-                  return OrderCard(order: state.orders[index]);
+                  return OrderCard(
+                    order: state.orders[index],
+                    onTap: () => _navigateToDetail(state.orders[index]),
+                    onEdit: () => _navigateToEdit(state.orders[index]),
+                  );
                 },
               ),
             );

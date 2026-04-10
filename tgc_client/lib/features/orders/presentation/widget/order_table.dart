@@ -11,21 +11,27 @@ class OrderTable extends StatelessWidget {
     required this.isLoadingMore,
     required this.scrollController,
     this.onDelete,
+    this.onViewDetail,
+    this.onEdit,
   });
 
   final List<OrderEntity> orders;
   final bool isLoadingMore;
   final ScrollController scrollController;
   final void Function(OrderEntity)? onDelete;
+  final void Function(OrderEntity)? onViewDetail;
+  final void Function(OrderEntity)? onEdit;
 
   static const _columns = <AppTableColumn>[
-    AppTableColumn(label: 'ID',      fixedWidth: 68, alignment: Alignment.center),
-    AppTableColumn(label: 'Sana',    flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Holati',  flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Xodim',   flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mijoz',   flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mahsulotlar', flex: 1,   alignment: Alignment.center),
-    AppTableColumn(label: '',        fixedWidth: 52,  alignment: Alignment.center),
+    AppTableColumn(label: 'ID',         fixedWidth: 68, alignment: Alignment.center),
+    AppTableColumn(label: 'Sana',       flex: 2,        alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Holati',     flex: 2,        alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Xodim',      flex: 2,        alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Mijoz',      flex: 2,        alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Mahsulotlar',flex: 1,        alignment: Alignment.center),
+    AppTableColumn(label: 'Jami dona',  flex: 1,        alignment: Alignment.center),
+    AppTableColumn(label: 'Jami m²',    flex: 1,        alignment: Alignment.center),
+    AppTableColumn(label: '',           fixedWidth: 100, alignment: Alignment.center),
   ];
 
   @override
@@ -110,13 +116,57 @@ class OrderTable extends StatelessWidget {
 
       case 6:
         return Center(
-          child: onDelete != null
-              ? IconButton(
+          child: Text(
+            '${order.totalQuantity}',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        );
+
+      case 7:
+        return Center(
+          child: Text(
+            '${order.totalSqm.toStringAsFixed(2)} m²',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        );
+
+      case 8:
+        return Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onViewDetail != null)
+                IconButton(
+                  icon: const Icon(Icons.visibility_outlined,
+                      size: 18, color: AppColors.primaryLight),
+                  onPressed: () => onViewDetail!(order),
+                  tooltip: 'Tafsilotlar',
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                ),
+              if (order.status == 'pending' && onEdit != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 18, color: AppColors.warning),
+                  onPressed: () => onEdit!(order),
+                  tooltip: 'Tahrirlash',
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+              if (onDelete != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
                   icon: const Icon(Icons.delete_outline,
                       size: 18, color: AppColors.error),
                   onPressed: () => onDelete!(order),
-                )
-              : const SizedBox.shrink(),
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ],
+          ),
         );
 
       default:

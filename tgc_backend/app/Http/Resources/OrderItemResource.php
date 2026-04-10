@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class OrderItemResource extends JsonResource
 {
@@ -18,15 +19,25 @@ class OrderItemResource extends JsonResource
                 'sku_code'      => $this->variant->sku_code,
                 'product_color' => $this->variant->relationLoaded('productColor') && $this->variant->productColor
                     ? [
-                        'id'    => $this->variant->productColor->id,
+                        'id'        => $this->variant->productColor->id,
+                        'image_url' => $this->variant->productColor->image
+                            ? Storage::disk('public')->url($this->variant->productColor->image)
+                            : null,
                         'color' => $this->variant->productColor->relationLoaded('color') && $this->variant->productColor->color
                             ? ['id' => $this->variant->productColor->color->id, 'name' => $this->variant->productColor->color->name]
                             : null,
                         'product' => $this->variant->productColor->relationLoaded('product') && $this->variant->productColor->product
                             ? [
-                                'id'   => $this->variant->productColor->product->id,
-                                'name' => $this->variant->productColor->product->name,
-                                'unit' => $this->variant->productColor->product->unit,
+                                'id'              => $this->variant->productColor->product->id,
+                                'name'            => $this->variant->productColor->product->name,
+                                'unit'            => $this->variant->productColor->product->unit,
+                                'product_type_id' => $this->variant->productColor->product->product_type_id,
+                                'product_type'    => $this->variant->productColor->product->relationLoaded('productType') && $this->variant->productColor->product->productType
+                                    ? [
+                                        'id'   => $this->variant->productColor->product->productType->id,
+                                        'type' => $this->variant->productColor->product->productType->type,
+                                      ]
+                                    : null,
                             ]
                             : null,
                     ]

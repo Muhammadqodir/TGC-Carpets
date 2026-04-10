@@ -20,7 +20,7 @@ class OrderService
         if (! empty($data['external_uuid'])) {
             $existing = Order::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
+                return $existing->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.color', 'items.variant.productSize']);
             }
         }
 
@@ -36,7 +36,7 @@ class OrderService
 
             $this->syncItems($order, $data['items']);
 
-            return $order->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
+            return $order->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.color', 'items.variant.productSize']);
         });
     }
 
@@ -58,7 +58,7 @@ class OrderService
                 $this->syncItems($order, $data['items']);
             }
 
-            return $order->fresh()->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize']);
+            return $order->fresh()->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.color', 'items.variant.productSize']);
         });
     }
 

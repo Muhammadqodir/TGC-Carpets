@@ -4,7 +4,6 @@ import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
-import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';

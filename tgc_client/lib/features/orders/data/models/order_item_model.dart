@@ -9,10 +9,14 @@ class OrderItemModel extends OrderItemEntity {
     required super.productId,
     required super.productName,
     super.colorName,
+    super.colorImageUrl,
     super.sizeLength,
     super.sizeWidth,
     super.productUnit,
     required super.quantity,
+    required super.productColorId,
+    super.productSizeId,
+    super.productTypeId,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
@@ -23,17 +27,21 @@ class OrderItemModel extends OrderItemEntity {
     final sizeMap        = variantMap?['product_size']   as Map<String, dynamic>?;
 
     return OrderItemModel(
-      id:            json['id'] as int,
-      variantId:     variantMap?['id'] as int? ?? 0,
-      variantSku:    variantMap?['sku_code'] as String?,
+      id:             json['id'] as int,
+      variantId:      variantMap?['id'] as int? ?? 0,
+      variantSku:     variantMap?['sku_code'] as String?,
       variantBarcode: variantMap?['barcode_value'] as String?,
-      productId:     productMap?['id'] as int?,
-      productName:   productMap?['name'] as String? ?? '',
-      colorName:     colorInfoMap?['name'] as String?,
-      sizeLength:    sizeMap?['length'] as int?,
-      sizeWidth:     sizeMap?['width']  as int?,
-      productUnit:   productMap?['unit'] as String?,
-      quantity:      json['quantity'] as int,
+      productId:      productMap?['id'] as int?,
+      productName:    productMap?['name'] as String? ?? '',
+      colorName:      colorInfoMap?['name'] as String?,
+      colorImageUrl:  colorMap?['image_url'] as String?,
+      sizeLength:     sizeMap?['length'] as int?,
+      sizeWidth:      sizeMap?['width']  as int?,
+      productUnit:    productMap?['unit'] as String?,
+      quantity:       json['quantity'] as int,
+      productColorId: colorMap?['id'] as int? ?? 0,
+      productSizeId:  sizeMap?['id'] as int?,
+      productTypeId:  productMap?['product_type_id'] as int?,
     );
   }
 

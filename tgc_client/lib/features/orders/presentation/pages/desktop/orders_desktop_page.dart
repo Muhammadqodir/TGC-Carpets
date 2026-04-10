@@ -4,10 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../clients/domain/entities/client_entity.dart';
+import '../../../domain/entities/order_entity.dart';
 import '../../bloc/orders_bloc.dart';
 import '../../bloc/orders_event.dart';
 import '../../bloc/orders_state.dart';
+import '../../widget/order_filter_bar.dart';
 import '../../widget/order_table.dart';
+import '../args/order_detail_args.dart';
 
 class OrdersDesktopPage extends StatefulWidget {
   const OrdersDesktopPage({super.key});
@@ -18,15 +22,10 @@ class OrdersDesktopPage extends StatefulWidget {
 
 class _OrdersDesktopPageState extends State<OrdersDesktopPage> {
   final _scrollController = ScrollController();
-  String? _selectedStatus;
 
-  static const _statusFilters = [
-    (label: 'Barchasi', value: null),
-    (label: 'Kutilmoqda', value: 'pending'),
-    (label: 'Ishlab chiqarilmoqda', value: 'on_production'),
-    (label: 'Bajarildi', value: 'done'),
-    (label: 'Bekor qilindi', value: 'canceled'),
-  ];
+  String? _selectedStatus;
+  ClientEntity? _selectedClient;
+  DateTimeRange? _selectedDateRange;
 
   @override
   void initState() {
@@ -38,6 +37,42 @@ class _OrdersDesktopPageState extends State<OrdersDesktopPage> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       context.read<OrdersBloc>().add(const OrdersNextPageRequested());
+    }
+  }
+
+  void _applyFilters({
+    String? status,
+    ClientEntity? client,
+    DateTimeRange? dateRange,
+  }) {
+    setState(() {
+      _selectedStatus = status;
+      _selectedClient = client;
+      _selectedDateRange = dateRange;
+    });
+    context.read<OrdersBloc>().add(
+          OrdersFiltersChanged(
+            status: status,
+            clientId: client?.id,
+            dateRange: dateRange,
+          ),
+        );
+  }
+
+  Future<void> _navigateToDetail(OrderEntity order) async {
+    await context.pushNamed(
+      AppRoutes.orderDetailName,
+      extra: OrderDetailArgs(order: order),
+    );
+  }
+
+  Future<void> _navigateToEdit(OrderEntity order) async {
+    final updated = await context.pushNamed(
+      AppRoutes.editOrderName,
+      extra: order,
+    );
+    if (updated == true && mounted) {
+      context.read<OrdersBloc>().add(const OrdersRefreshRequested());
     }
   }
 
@@ -76,35 +111,30 @@ class _OrdersDesktopPageState extends State<OrdersDesktopPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Status filter bar
-          Container(
-            color: AppColors.surface,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Wrap(
-              spacing: 8,
-              children: _statusFilters.map((f) {
-                final isActive = _selectedStatus == f.value;
-                return FilterChip(
-                  selectedColor: Colors.white,
-                  backgroundColor: AppColors.primary,
-                  label: Text(
-                    f.label,
-                    style: TextStyle(
-                      color: isActive ? AppColors.primary : Colors.white,
-                    ),
-                  ),
-                  selected: isActive,
-                  onSelected: (_) {
-                    setState(() => _selectedStatus = f.value);
-                    context.read<OrdersBloc>().add(
-                          OrdersStatusFilterChanged(f.value),
-                        );
-                  },
-                );
-              }).toList(),
+          // Filter bar
+          OrderFilterBar(
+            selectedStatus: _selectedStatus,
+            selectedClient: _selectedClient,
+            selectedDateRange: _selectedDateRange,
+            onStatusChanged: (v) => _applyFilters(
+              status: v,
+              client: _selectedClient,
+              dateRange: _selectedDateRange,
             ),
+            onClientChanged: (v) => _applyFilters(
+              status: _selectedStatus,
+              client: v,
+              dateRange: _selectedDateRange,
+            ),
+            onDateRangeChanged: (v) => _applyFilters(
+              status: _selectedStatus,
+              client: _selectedClient,
+              dateRange: v,
+            ),
+            onRefresh: () =>
+                context.read<OrdersBloc>().add(const OrdersRefreshRequested()),
           ),
+          const Divider(height: 1, color: AppColors.divider),
           Expanded(
             child: BlocBuilder<OrdersBloc, OrdersState>(
               builder: (context, state) {
@@ -137,6 +167,8 @@ class _OrdersDesktopPageState extends State<OrdersDesktopPage> {
                     orders: state.orders,
                     isLoadingMore: state.isLoadingMore,
                     scrollController: _scrollController,
+                    onViewDetail: _navigateToDetail,
+                    onEdit: _navigateToEdit,
                   );
                 }
                 return const SizedBox.shrink();

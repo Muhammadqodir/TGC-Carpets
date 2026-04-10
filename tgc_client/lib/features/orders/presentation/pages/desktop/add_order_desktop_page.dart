@@ -4,23 +4,32 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
 import '../../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
+import '../../../domain/entities/order_entity.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
 import '../../bloc/order_form_state.dart';
 import '../../widget/order_form_controller.dart';
 import '../../widget/order_item_row.dart';
 
-/// Desktop variant of the "add order" form.
-/// All item-list state lives in [controller], owned by [AddOrderPage].
+/// Desktop variant of the "add/edit order" form.
+/// When [initialOrder] is provided the form operates in edit mode.
 class AddOrderDesktopPage extends StatefulWidget {
-  const AddOrderDesktopPage({super.key, required this.controller});
+  const AddOrderDesktopPage({
+    super.key,
+    required this.controller,
+    this.initialOrder,
+  });
 
   final OrderFormController controller;
+
+  /// When non-null the form is in edit mode and pre-fills from this order.
+  final OrderEntity? initialOrder;
 
   @override
   State<AddOrderDesktopPage> createState() => _AddOrderDesktopPageState();
@@ -29,8 +38,26 @@ class AddOrderDesktopPage extends StatefulWidget {
 class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
   final _formKey = GlobalKey<FormState>();
 
-  ClientEntity? _selectedClient;
-  DateTime _orderDate = DateTime.now();
+  /// Newly picked client. In edit mode the original client is used as fallback.
+  ClientEntity? _newClient;
+  late DateTime _orderDate;
+
+  bool get _isEditMode => widget.initialOrder != null;
+  int? get _effectiveClientId => _newClient?.id ?? widget.initialOrder?.clientId;
+  String get _clientDisplay =>
+      _newClient?.shopName ??
+      widget.initialOrder?.clientShopName ??
+      'Mijoz tanlash...';
+  bool get _hasClient => _effectiveClientId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderDate = widget.initialOrder?.orderDate ?? DateTime.now();
+    if (widget.initialOrder != null) {
+      widget.controller.notesCtrl.text = widget.initialOrder!.notes ?? '';
+    }
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -44,13 +71,13 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
 
   Future<void> _pickClient() async {
     final client = await ClientPickerBottomSheet.show(context);
-    if (client != null && mounted) setState(() => _selectedClient = client);
+    if (client != null && mounted) setState(() => _newClient = client);
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedClient == null) {
+    if (!_hasClient) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Mijozni tanlash shart.'),
@@ -61,12 +88,16 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
     }
 
     final ctrl = widget.controller;
-    final filledItems = ctrl.filledItems;
+    final dateStr =
+        '${_orderDate.year}-${_orderDate.month.toString().padLeft(2, '0')}-${_orderDate.day.toString().padLeft(2, '0')}';
+    final notes =
+        ctrl.notesCtrl.text.trim().isEmpty ? null : ctrl.notesCtrl.text.trim();
 
+    final filledItems = ctrl.filledItems;
     if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kamida bitta mahsulot qo\'shing.'),
+          content: Text("Kamida bitta mahsulot bo'lishi shart."),
           backgroundColor: AppColors.error,
         ),
       );
@@ -79,7 +110,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulot o\'lchamini tanlang.'),
+          content: Text("Barcha qatorlardagi mahsulot o'lchamini tanlang."),
           backgroundColor: AppColors.error,
         ),
       );
@@ -88,24 +119,34 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
 
     final items = filledItems
         .map((r) => {
-              'product_color_id': r.selectedColor!.id,
-              if (r.selectedSize != null) 'product_size_id': r.selectedSize!.id,
+              'product_color_id': r.selectedColor?.id ?? r.prefilledColorId!,
+              if (r.selectedSize != null ||
+                  (r.selectedProduct == null && r.prefilledSizeId != null))
+                'product_size_id': r.selectedSize?.id ?? r.prefilledSizeId,
               'quantity': int.tryParse(r.quantityCtrl.text.trim()) ?? 1,
             })
         .toList();
 
-    final dateStr =
-        '${_orderDate.year}-${_orderDate.month.toString().padLeft(2, '0')}-${_orderDate.day.toString().padLeft(2, '0')}';
-
-    context.read<OrderFormBloc>().add(OrderFormSubmitted(
-          orderDate: dateStr,
-          items: items,
-          clientId: _selectedClient!.id,
-          notes: ctrl.notesCtrl.text.trim().isEmpty
-              ? null
-              : ctrl.notesCtrl.text.trim(),
-        ));
+    if (_isEditMode) {
+      context.read<OrderFormBloc>().add(OrderFormUpdateSubmitted(
+            orderId: widget.initialOrder!.id,
+            orderDate: dateStr,
+            items: items,
+            clientId: _effectiveClientId!,
+            notes: notes,
+          ));
+    } else {
+      context.read<OrderFormBloc>().add(OrderFormSubmitted(
+            orderDate: dateStr,
+            items: items,
+            clientId: _effectiveClientId!,
+            notes: notes,
+          ));
+    }
   }
+
+  String get _formattedDate =>
+      '${_orderDate.day.toString().padLeft(2, '0')}.${_orderDate.month.toString().padLeft(2, '0')}.${_orderDate.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -113,8 +154,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
       listener: (context, state) {
         if (state is OrderFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Buyurtma saqlandi.'),
+            SnackBar(
+              content: Text(_isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -135,11 +176,16 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
           return Scaffold(
             backgroundColor: AppColors.background,
             appBar: AppBar(
-              title: const Text('Yangi buyurtma'),
+              title: Text(_isEditMode
+                  ? '#${widget.initialOrder!.id} Tahrirlash'
+                  : 'Yangi buyurtma'),
               titleSpacing: 0,
               leading: IconButton(
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedArrowLeft01,
+                  strokeWidth: 2,
+                ),
                 onPressed: () => context.pop(),
-                icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
               ),
               actions: [
                 BlocBuilder<OrderFormBloc, OrderFormState>(
@@ -167,94 +213,98 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
             ),
             body: Form(
               key: _formKey,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Left panel: header fields ─────────────────────────
-                  SizedBox(
-                    width: 320,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Date
-                          _FieldLabel(label: 'Sana'),
-                          InkWell(
-                            onTap: _pickDate,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 14),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.divider),
-                                borderRadius: BorderRadius.circular(8),
-                                color: AppColors.surface,
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_outlined,
-                                      size: 18, color: AppColors.primary),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    '${_orderDate.day.toString().padLeft(2, '0')}.${_orderDate.month.toString().padLeft(2, '0')}.${_orderDate.year}',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
+                  // ── Top info bar: date + client ────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(
+                          bottom: BorderSide(color: AppColors.divider)),
+                    ),
+                    child: Row(
+                      children: [
+                        // Date picker
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 40,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.divider),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.calendar_today_outlined,
+                                    size: 16, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formattedDate,
+                                  style:
+                                      Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 16),
+                        ),
+                        const SizedBox(width: 12),
 
-                          // Client (required)
-                          _FieldLabel(label: 'Mijoz'),
-                          InkWell(
+                        // Client picker (expands to fill remaining space)
+                        Expanded(
+                          child: InkWell(
                             onTap: _pickClient,
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
+                              height: 40,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 14),
+                                  horizontal: 12),
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: _selectedClient == null
+                                  color: !_hasClient
                                       ? AppColors.divider
                                       : AppColors.primary,
-                                  width: _selectedClient == null ? 1.0 : 1.5,
+                                  width: !_hasClient ? 1.0 : 1.5,
                                 ),
                                 borderRadius: BorderRadius.circular(8),
-                                color: _selectedClient != null
-                                    ? AppColors.primary.withValues(alpha: 0.05)
-                                    : AppColors.surface,
+                                color: _hasClient
+                                    ? AppColors.primary
+                                        .withValues(alpha: 0.05)
+                                    : null,
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.store_outlined,
-                                    size: 18,
-                                    color: _selectedClient == null
+                                    size: 16,
+                                    color: !_hasClient
                                         ? AppColors.textSecondary
                                         : AppColors.primary,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      _selectedClient?.shopName ??
-                                          'Mijoz tanlash...',
+                                      _clientDisplay,
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium
                                           ?.copyWith(
-                                            color: _selectedClient == null
+                                            color: !_hasClient
                                                 ? AppColors.textSecondary
                                                 : null,
                                           ),
                                     ),
                                   ),
-                                  if (_selectedClient != null)
+                                  if (_newClient != null)
                                     GestureDetector(
                                       onTap: () => setState(
-                                          () => _selectedClient = null),
+                                          () => _newClient = null),
                                       child: const Icon(Icons.close,
                                           size: 18,
                                           color: AppColors.textSecondary),
@@ -263,82 +313,114 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-
-                          // Notes
-                          _FieldLabel(label: 'Izoh (ixtiyoriy)'),
-                          TextFormField(
-                            controller: ctrl.notesCtrl,
-                            maxLines: 4,
-                            decoration: const InputDecoration(
-                              hintText: 'Qo\'shimcha ma\'lumot...',
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  // ── Divider ───────────────────────────────────────────
-                  const VerticalDivider(width: 1),
+                  // ── Items section label ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+                    child: Text(
+                      'Mahsulotlar',
+                      style:
+                          Theme.of(context).textTheme.titleSmall?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                    ),
+                  ),
 
-                  // ── Right panel: items ────────────────────────────────
+                  // ── Table header ───────────────────────────────────────────
+                  const _DesktopTableHeader(),
+                  const Divider(height: 1, color: AppColors.divider),
+
+                  // ── Table rows ─────────────────────────────────────────────
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Table header
-                        Container(
-                          color: AppColors.surface,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          child: const Row(
-                            children: [
-                              Expanded(
-                                flex: 4,
-                                child: Text('Mahsulot',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12)),
-                              ),
-                              SizedBox(
-                                width: 140,
-                                child: Text('Miqdor',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12)),
-                              ),
-                              SizedBox(width: 40),
-                            ],
-                          ),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: ctrl.items.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.divider),
+                      itemBuilder: (context, index) {
+                        final row = ctrl.items[index];
+                        return _DesktopItemTableRow(
+                          key: ValueKey(row.id),
+                          row: row,
+                          allItems: ctrl.items,
+                          index: index,
+                          onRemove: () => ctrl.removeItem(index),
+                          onChanged: ctrl.notifyChanged,
+                        );
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1, color: AppColors.divider),
+
+                  // ── Totals summary ─────────────────────────────────────────
+                  Builder(builder: (context) {
+                    final filled = ctrl.filledItems;
+                    final totalQty = filled.fold(
+                      0,
+                      (sum, r) =>
+                          sum + (int.tryParse(r.quantityCtrl.text) ?? 1),
+                    );
+                    final totalSqm = filled.fold(0.0, (sum, r) {
+                      final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
+                      if (r.selectedSize != null) {
+                        return sum +
+                            r.selectedSize!.length *
+                                r.selectedSize!.width *
+                                qty /
+                                10000.0;
+                      }
+                      if (r.prefilledSizeLength != null &&
+                          r.prefilledSizeWidth != null) {
+                        return sum +
+                            r.prefilledSizeLength! *
+                                r.prefilledSizeWidth! *
+                                qty /
+                                10000.0;
+                      }
+                      return sum;
+                    });
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 10),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border(
+                          bottom: BorderSide(color: AppColors.divider),
                         ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 8),
-                            itemCount: ctrl.items.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final row = ctrl.items[index];
-                              return _DesktopItemRow(
-                                key: ValueKey(row.id),
-                                row: row,
-                                allItems: ctrl.items,
-                                index: index,
-                                onRemove: () => ctrl.removeItem(index),
-                                onProductChanged: ctrl.notifyChanged,
-                              );
-                            },
+                      ),
+                      child: Row(
+                        children: [
+                          _TotalChip(
+                            label: 'Jami dona',
+                            value: '$totalQty',
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 16),
+                          _TotalChip(
+                            label: 'Jami m²',
+                            value: totalSqm.toStringAsFixed(2),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  // ── Notes at bottom ────────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    child: TextFormField(
+                      controller: ctrl.notesCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: "Izoh (ixtiyoriy)",
+                        hintText: "Qo'shimcha ma'lumot...",
+                        alignLabelWithHint: true,
+                      ),
                     ),
                   ),
                 ],
@@ -351,133 +433,246 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
   }
 }
 
-// ── Field label ───────────────────────────────────────────────────────────────
+// ── Desktop table header ──────────────────────────────────────────────────────
 
-class _FieldLabel extends StatelessWidget {
-  final String label;
-
-  const _FieldLabel({required this.label});
+class _DesktopTableHeader extends StatelessWidget {
+  const _DesktopTableHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
-// ── Desktop item row ──────────────────────────────────────────────────────────
-
-class _DesktopItemRow extends StatelessWidget {
-  final OrderItemRow row;
-  final List<OrderItemRow> allItems;
-  final int index;
-  final VoidCallback onRemove;
-  final VoidCallback onProductChanged;
-
-  const _DesktopItemRow({
-    super.key,
-    required this.row,
-    required this.allItems,
-    required this.index,
-    required this.onRemove,
-    required this.onProductChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final product = row.selectedProduct;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      child: Row(
         children: [
-          Row(
-            children: [
-              // Product picker
-              Expanded(
-                flex: 4,
-                child: _DesktopProductPickerButton(
-                  row: row,
-                  allItems: allItems,
-                  onChanged: onProductChanged,
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Quantity
-              SizedBox(
-                width: 140,
-                child: CountInput(
-                  controller: row.quantityCtrl,
-                  dense: true,
-                  validator: (v) {
-                    if (row.selectedProduct == null) return null;
-                    if (v == null || v.trim().isEmpty) return 'Miqdorni kiriting';
-                    final qty = int.tryParse(v);
-                    if (qty == null || qty < 1) return 'Kamida 1';
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 4),
-
-              // Remove button
-              SizedBox(
-                width: 36,
-                child: row.selectedProduct != null
-                    ? IconButton(
-                        icon: const HugeIcon(
-                          icon: HugeIcons.strokeRoundedCancelCircle,
-                          size: 18,
-                          strokeWidth: 2.5,
-                          color: AppColors.error,
-                        ),
-                        onPressed: onRemove,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-
-          // Size picker row (below, when product has a type)
-          if (product != null && product.productTypeId != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: _DesktopSizePicker(
-                    row: row,
-                    allItems: allItems,
-                    productTypeId: product.productTypeId!,
-                    onChanged: onProductChanged,
-                  ),
-                ),
-                const SizedBox(width: 12 + 140 + 4 + 36),
-              ],
-            ),
-          ],
+          _HeaderCell(label: '#', fixedWidth: 40),
+          _HeaderCell(label: 'Mahsulot', flex: 3),
+          _HeaderCell(label: 'Rang', flex: 2),
+          _HeaderCell(label: "O'lcham", flex: 2),
+          _HeaderCell(label: 'Miqdor', fixedWidth: 150),
+          const SizedBox(width: 40),
         ],
       ),
     );
   }
 }
 
-// ── Desktop product picker button ─────────────────────────────────────────────
+class _HeaderCell extends StatelessWidget {
+  final String label;
+  final int? flex;
+  final double? fixedWidth;
 
-class _DesktopProductPickerButton extends StatelessWidget {
+  const _HeaderCell({required this.label, this.flex, this.fixedWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Text(
+      label,
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+    );
+    if (fixedWidth != null) {
+      return SizedBox(width: fixedWidth, child: child);
+    }
+    return Expanded(flex: flex ?? 1, child: child);
+  }
+}
+
+// ── Desktop item table row ────────────────────────────────────────────────────
+
+class _DesktopItemTableRow extends StatelessWidget {
+  final OrderItemRow row;
+  final List<OrderItemRow> allItems;
+  final int index;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  const _DesktopItemTableRow({
+    super.key,
+    required this.row,
+    required this.allItems,
+    required this.index,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final product = row.selectedProduct;
+    final isEven = index.isEven;
+
+    return Container(
+      color: isEven ? null : AppColors.surface.withValues(alpha: 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // # index
+          SizedBox(
+            width: 40,
+            child: Text(
+              '${index + 1}',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+
+          // Product picker
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _DesktopProductPickerCell(
+                row: row,
+                allItems: allItems,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+
+          // Color column — entity first, prefill as fallback
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: row.selectedColor != null
+                  ? Row(
+                      children: [
+                        AppThumbnail(
+                          imageUrl: row.selectedColor!.imageUrl,
+                          size: 24,
+                          borderRadius: 4,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            row.selectedColor!.colorName,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    )
+                  : row.prefilledColorName != null
+                      ? Row(
+                          children: [
+                            AppThumbnail(
+                              imageUrl: row.prefilledColorImageUrl,
+                              size: 24,
+                              borderRadius: 4,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                row.prefilledColorName!,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          '—',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+            ),
+          ),
+
+          // Size column — entity picker when product is loaded, prefill text otherwise
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: product != null && product.productTypeId != null
+                  ? _DesktopSizePickerCell(
+                      row: row,
+                      allItems: allItems,
+                      productTypeId: product.productTypeId!,
+                      onChanged: onChanged,
+                    )
+                  : row.prefilledProductTypeId != null
+                      ? _DesktopSizePickerCell(
+                          row: row,
+                          allItems: allItems,
+                          productTypeId: row.prefilledProductTypeId!,
+                          onChanged: onChanged,
+                        )
+                      : row.prefilledSizeDimensions != null
+                      ? Text(
+                          row.prefilledSizeDimensions!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        )
+                      : Text(
+                          '—',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+            ),
+          ),
+
+          // Quantity
+          SizedBox(
+            width: 150,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: CountInput(
+                controller: row.quantityCtrl,
+                dense: true,
+                validator: (v) {
+                  if (!row.isFilled) return null;
+                  if (v == null || v.trim().isEmpty) return 'Kiriting';
+                  if ((int.tryParse(v) ?? 0) < 1) return '≥ 1';
+                  return null;
+                },
+              ),
+            ),
+          ),
+
+          // Remove action
+          SizedBox(
+            width: 40,
+            child: row.isFilled
+                ? IconButton(
+                    onPressed: onRemove,
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedCancelCircle,
+                      size: 18,
+                      strokeWidth: 2.5,
+                      color: AppColors.error,
+                    ),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Desktop product picker cell ───────────────────────────────────────────────
+
+class _DesktopProductPickerCell extends StatelessWidget {
   final OrderItemRow row;
   final List<OrderItemRow> allItems;
   final VoidCallback onChanged;
 
-  const _DesktopProductPickerButton({
+  const _DesktopProductPickerCell({
     required this.row,
     required this.allItems,
     required this.onChanged,
@@ -486,6 +681,8 @@ class _DesktopProductPickerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final product = row.selectedProduct;
+    final isPrefilled = product == null && row.prefilledColorId != null;
+    final displayName = product?.name ?? row.prefilledProductName;
     return InkWell(
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
@@ -501,8 +698,8 @@ class _DesktopProductPickerButton extends StatelessWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content:
-                        Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                    content: Text(
+                        "Bu mahsulot varianti allaqachon qo'shilgan."),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -516,84 +713,68 @@ class _DesktopProductPickerButton extends StatelessWidget {
           onChanged();
         }
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        height: 40,
+        height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: product == null ? AppColors.divider : AppColors.primary,
-            width: product == null ? 1 : 1.5,
+            color: (product == null && !isPrefilled)
+                ? AppColors.divider
+                : AppColors.primary,
+            width: (product == null && !isPrefilled) ? 1 : 1.5,
           ),
-          borderRadius: BorderRadius.circular(8),
-          color: product != null
+          borderRadius: BorderRadius.circular(6),
+          color: (product != null || isPrefilled)
               ? AppColors.primary.withValues(alpha: 0.05)
               : null,
         ),
-        child: product == null
-            ? Row(
-                children: [
-                  const Icon(Icons.search_rounded,
-                      size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Mahsulot tanlash',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          product.name,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          [
-                            if (product.productType?.type != null)
-                              product.productType!.type,
-                            if (row.selectedColor != null)
-                              row.selectedColor!.colorName,
-                          ].join(' · '),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
+        child: Row(
+          children: [
+            Icon(
+              displayName == null
+                  ? Icons.search_rounded
+                  : Icons.inventory_2_outlined,
+              size: 14,
+              color: displayName == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                displayName ?? 'Mahsulot tanlash',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: displayName == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
                     ),
-                  ),
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedReplace,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            if (displayName != null)
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedReplace,
+                size: 14,
+                color: AppColors.primary,
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Desktop size picker ───────────────────────────────────────────────────────
+// ── Desktop size picker cell ──────────────────────────────────────────────────
 
-class _DesktopSizePicker extends StatelessWidget {
+class _DesktopSizePickerCell extends StatelessWidget {
   final OrderItemRow row;
   final List<OrderItemRow> allItems;
   final int productTypeId;
   final VoidCallback onChanged;
 
-  const _DesktopSizePicker({
+  const _DesktopSizePickerCell({
     required this.row,
     required this.allItems,
     required this.productTypeId,
@@ -603,6 +784,7 @@ class _DesktopSizePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = row.selectedSize;
+    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
     return InkWell(
       onTap: () async {
         final picked = await ProductSizePickerSheet.show(
@@ -622,7 +804,7 @@ class _DesktopSizePicker extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content:
-                      Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                      Text("Bu mahsulot varianti allaqachon qo'shilgan."),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -633,48 +815,80 @@ class _DesktopSizePicker extends StatelessWidget {
           onChanged();
         }
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: size == null ? AppColors.divider : AppColors.primary,
-            width: size == null ? 1 : 1.5,
+            color: displayDimensions == null ? AppColors.divider : AppColors.primary,
+            width: displayDimensions == null ? 1 : 1.5,
           ),
-          borderRadius: BorderRadius.circular(8),
-          color: size != null
+          borderRadius: BorderRadius.circular(6),
+          color: displayDimensions != null
               ? AppColors.primary.withValues(alpha: 0.05)
               : null,
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.straighten_rounded,
               size: 14,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null ? AppColors.textSecondary : AppColors.primary,
             ),
             const SizedBox(width: 6),
-            Text(
-              size == null ? 'O\'lcham tanlash' : size.dimensions,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: size == null
-                        ? AppColors.textSecondary
-                        : AppColors.primary,
-                    fontWeight: size != null ? FontWeight.w600 : null,
-                    fontSize: 13,
-                  ),
+            Expanded(
+              child: Text(
+                displayDimensions ?? "O'lcham",
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: displayDimensions == null
+                          ? AppColors.textSecondary
+                          : AppColors.primary,
+                      fontWeight: displayDimensions != null ? FontWeight.w600 : null,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const SizedBox(width: 4),
             Icon(
               Icons.arrow_drop_down_rounded,
               size: 18,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null ? AppColors.textSecondary : AppColors.primary,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Total chip ─────────────────────────────────────────────────────────────────
+
+class _TotalChip extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TotalChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label: ',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
     );
   }
 }

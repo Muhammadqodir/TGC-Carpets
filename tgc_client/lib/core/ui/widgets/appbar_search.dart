@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:tgc_client/core/theme/app_colors.dart';
 
 class AppBarSearch extends StatefulWidget implements PreferredSizeWidget {
   const AppBarSearch({

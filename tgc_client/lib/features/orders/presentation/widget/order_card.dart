@@ -7,12 +7,14 @@ class OrderCard extends StatelessWidget {
   final OrderEntity order;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const OrderCard({
     super.key,
     required this.order,
     this.onTap,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -38,6 +40,17 @@ class OrderCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   _StatusBadge(status: order.status),
                   const Spacer(),
+                  if (order.status == 'pending' && onEdit != null)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 18, color: AppColors.primaryLight),
+                      onPressed: onEdit,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Tahrirlash',
+                    ),
+                  if (order.status == 'pending' && onEdit != null)
+                    const SizedBox(width: 4),
                   if (onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete_outline,
@@ -112,6 +125,17 @@ class OrderCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                   ),
+                  const Spacer(),
+                  // "View details" hint
+                  Text(
+                    'Ko\'proq',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.primaryLight,
+                          decoration: TextDecoration.underline,
+                        ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      size: 14, color: AppColors.primaryLight),
                 ],
               ),
             ],

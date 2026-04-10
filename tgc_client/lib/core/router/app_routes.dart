@@ -50,4 +50,10 @@ class AppRoutes {
 
   static const String addOrder     = '/orders/add';
   static const String addOrderName = 'addOrder';
+
+  static const String orderDetail     = '/orders/detail';
+  static const String orderDetailName = 'orderDetail';
+
+  static const String editOrder     = '/orders/edit';
+  static const String editOrderName = 'editOrder';
 }

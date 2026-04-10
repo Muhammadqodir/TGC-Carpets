@@ -271,7 +271,10 @@ Future<void> initDependencies() async {
     () => OrdersBloc(getOrdersUseCase: sl<GetOrdersUseCase>()),
   );
   sl.registerFactory(
-    () => OrderFormBloc(createOrderUseCase: sl<CreateOrderUseCase>()),
+    () => OrderFormBloc(
+      createOrderUseCase: sl<CreateOrderUseCase>(),
+      updateOrderUseCase: sl<UpdateOrderUseCase>(),
+    ),
   );
 
   // Employees

@@ -4,7 +4,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
-import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';

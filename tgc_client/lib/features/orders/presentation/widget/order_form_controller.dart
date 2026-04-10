@@ -14,8 +14,13 @@ class OrderFormController extends ChangeNotifier {
   final List<OrderItemRow> items = [];
   final TextEditingController notesCtrl = TextEditingController();
 
-  OrderFormController() {
+  /// [initialRows] allows pre-populating the list (edit mode).
+  OrderFormController({List<OrderItemRow> initialRows = const []}) {
     notesCtrl.addListener(notifyListeners);
+    for (final row in initialRows) {
+      row.quantityCtrl.addListener(notifyListeners);
+      items.add(row);
+    }
     _ensureEmptyRowAtEnd();
   }
 
@@ -56,7 +61,9 @@ class OrderFormController extends ChangeNotifier {
     }
   }
 
-  bool _isRowEmpty(OrderItemRow row) => row.selectedProduct == null;
+  /// A row is "empty" (sentinel) when it has neither entity data nor prefilled IDs.
+  bool _isRowEmpty(OrderItemRow row) =>
+      row.selectedProduct == null && row.prefilledColorId == null;
 
   /// Rows that have a product selected (excludes the sentinel empty row).
   List<OrderItemRow> get filledItems =>

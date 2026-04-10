@@ -4,23 +4,33 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
 import '../../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
+import '../../../domain/entities/order_entity.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
 import '../../bloc/order_form_state.dart';
 import '../../widget/order_form_controller.dart';
 import '../../widget/order_item_row.dart';
 
-/// Mobile variant of the "add order" form.
-/// All item-list state lives in [controller], owned by [AddOrderPage].
+/// Mobile variant of the "add/edit order" form.
+/// All item-list state lives in [controller], owned by [AddOrderPage]/[EditOrderPage].
+/// When [initialOrder] is provided the form operates in edit mode.
 class AddOrderMobilePage extends StatefulWidget {
-  const AddOrderMobilePage({super.key, required this.controller});
+  const AddOrderMobilePage({
+    super.key,
+    required this.controller,
+    this.initialOrder,
+  });
 
   final OrderFormController controller;
+
+  /// When non-null the form is in edit mode and pre-fills from this order.
+  final OrderEntity? initialOrder;
 
   @override
   State<AddOrderMobilePage> createState() => _AddOrderMobilePageState();
@@ -29,8 +39,26 @@ class AddOrderMobilePage extends StatefulWidget {
 class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
   final _formKey = GlobalKey<FormState>();
 
-  ClientEntity? _selectedClient;
-  DateTime _orderDate = DateTime.now();
+  /// Newly picked client. In edit mode the original client is used as fallback.
+  ClientEntity? _newClient;
+  late DateTime _orderDate;
+
+  bool get _isEditMode => widget.initialOrder != null;
+  int? get _effectiveClientId => _newClient?.id ?? widget.initialOrder?.clientId;
+  String get _clientDisplay =>
+      _newClient?.shopName ??
+      widget.initialOrder?.clientShopName ??
+      'Mijoz tanlash...';
+  bool get _hasClient => _effectiveClientId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderDate = widget.initialOrder?.orderDate ?? DateTime.now();
+    if (widget.initialOrder != null) {
+      widget.controller.notesCtrl.text = widget.initialOrder!.notes ?? '';
+    }
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -44,13 +72,13 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
 
   Future<void> _pickClient() async {
     final client = await ClientPickerBottomSheet.show(context);
-    if (client != null && mounted) setState(() => _selectedClient = client);
+    if (client != null && mounted) setState(() => _newClient = client);
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedClient == null) {
+    if (!_hasClient) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Mijozni tanlash shart.'),
@@ -61,18 +89,23 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
     }
 
     final ctrl = widget.controller;
-    final filledItems = ctrl.filledItems;
+    final dateStr =
+        '${_orderDate.year}-${_orderDate.month.toString().padLeft(2, '0')}-${_orderDate.day.toString().padLeft(2, '0')}';
+    final notes =
+        ctrl.notesCtrl.text.trim().isEmpty ? null : ctrl.notesCtrl.text.trim();
 
+    final filledItems = ctrl.filledItems;
     if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kamida bitta mahsulot qo\'shing.'),
+          content: Text('Kamida bitta mahsulot bo\'lishi shart.'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
+    // Only rows where the user has just picked a new entity need a size check.
     final hasUnpickedSize = filledItems.any(
       (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
     );
@@ -88,23 +121,32 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
 
     final items = filledItems
         .map((r) => {
-              'product_color_id': r.selectedColor!.id,
-              if (r.selectedSize != null) 'product_size_id': r.selectedSize!.id,
+              'product_color_id': r.selectedColor?.id ?? r.prefilledColorId!,
+              // include size only when: entity size picked, OR prefill has a
+              // size AND no new entity has been picked for this row yet.
+              if (r.selectedSize != null ||
+                  (r.selectedProduct == null && r.prefilledSizeId != null))
+                'product_size_id': r.selectedSize?.id ?? r.prefilledSizeId,
               'quantity': int.tryParse(r.quantityCtrl.text.trim()) ?? 1,
             })
         .toList();
 
-    final dateStr =
-        '${_orderDate.year}-${_orderDate.month.toString().padLeft(2, '0')}-${_orderDate.day.toString().padLeft(2, '0')}';
-
-    context.read<OrderFormBloc>().add(OrderFormSubmitted(
-          orderDate: dateStr,
-          items: items,
-          clientId: _selectedClient!.id,
-          notes: ctrl.notesCtrl.text.trim().isEmpty
-              ? null
-              : ctrl.notesCtrl.text.trim(),
-        ));
+    if (_isEditMode) {
+      context.read<OrderFormBloc>().add(OrderFormUpdateSubmitted(
+            orderId: widget.initialOrder!.id,
+            orderDate: dateStr,
+            items: items,
+            clientId: _effectiveClientId!,
+            notes: notes,
+          ));
+    } else {
+      context.read<OrderFormBloc>().add(OrderFormSubmitted(
+            orderDate: dateStr,
+            items: items,
+            clientId: _effectiveClientId!,
+            notes: notes,
+          ));
+    }
   }
 
   @override
@@ -113,8 +155,8 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
       listener: (context, state) {
         if (state is OrderFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Buyurtma saqlandi.'),
+            SnackBar(
+              content: Text(_isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -134,7 +176,9 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
           final ctrl = widget.controller;
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Yangi buyurtma'),
+              title: Text(_isEditMode
+                  ? '#${widget.initialOrder!.id} Tahrirlash'
+                  : 'Yangi buyurtma'),
               titleSpacing: 0,
               leading: IconButton(
                 icon: const HugeIcon(
@@ -191,13 +235,13 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
                                 horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: _selectedClient == null
-                                    ? AppColors.divider
-                                    : AppColors.primary,
-                                width: _selectedClient == null ? 1.0 : 1.5,
+                                color: !_hasClient
+                                  ? AppColors.divider
+                                  : AppColors.primary,
+                                width: !_hasClient ? 1.0 : 1.5,
                               ),
                               borderRadius: BorderRadius.circular(8),
-                              color: _selectedClient != null
+                              color: _hasClient
                                   ? AppColors.primary.withValues(alpha: 0.05)
                                   : AppColors.surface,
                             ),
@@ -206,29 +250,28 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
                                 Icon(
                                   Icons.store_outlined,
                                   size: 18,
-                                  color: _selectedClient == null
+                                  color: !_hasClient
                                       ? AppColors.textSecondary
                                       : AppColors.primary,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    _selectedClient?.shopName ??
-                                        'Mijoz tanlash...',
+                                    _clientDisplay,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
-                                          color: _selectedClient == null
+                                          color: !_hasClient
                                               ? AppColors.textSecondary
                                               : null,
                                         ),
                                   ),
                                 ),
-                                if (_selectedClient != null)
+                                if (_newClient != null)
                                   GestureDetector(
                                     onTap: () =>
-                                        setState(() => _selectedClient = null),
+                                        setState(() => _newClient = null),
                                     child: const Icon(Icons.close,
                                         size: 18,
                                         color: AppColors.textSecondary),
@@ -252,7 +295,9 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
                         const SizedBox(height: 24),
 
                         // Items
-                        const _SectionHeader(title: 'Mahsulotlar'),
+                        _SectionHeader(
+                          title: _isEditMode ? 'Mahsulotlar' : 'Mahsulotlar',
+                        ),
                         const SizedBox(height: 8),
 
                         ...ctrl.items.asMap().entries.map((entry) {
@@ -264,7 +309,7 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
                             allItems: ctrl.items,
                             index: index,
                             onRemove: () => ctrl.removeItem(index),
-                            canRemove: row.selectedProduct != null,
+                            canRemove: row.isFilled,
                             onProductChanged: ctrl.notifyChanged,
                           );
                         }),
@@ -422,6 +467,15 @@ class _MobileItemFormRow extends StatelessWidget {
                 productTypeId: product.productTypeId!,
                 onChanged: onProductChanged,
               ),
+            ] else if (product == null && row.prefilledProductTypeId != null) ...[
+              // Existing item from server — allow size change via picker.
+              const SizedBox(height: 8),
+              _SizePicker(
+                row: row,
+                allItems: allItems,
+                productTypeId: row.prefilledProductTypeId!,
+                onChanged: onProductChanged,
+              ),
             ],
           ],
         ),
@@ -446,6 +500,7 @@ class _ProductPickerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final product = row.selectedProduct;
+    final isPrefilled = product == null && row.prefilledColorId != null;
     return InkWell(
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
@@ -481,15 +536,17 @@ class _ProductPickerButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           border: Border.all(
-            color: product == null ? AppColors.divider : AppColors.primary,
-            width: product == null ? 1 : 1.5,
+            color: (!isPrefilled && product == null)
+                ? AppColors.divider
+                : AppColors.primary,
+            width: (!isPrefilled && product == null) ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: product != null
+          color: (product != null || isPrefilled)
               ? AppColors.primary.withValues(alpha: 0.05)
               : null,
         ),
-        child: product == null
+        child: (!isPrefilled && product == null)
             ? Row(
                 children: [
                   const Icon(Icons.search_rounded,
@@ -506,30 +563,42 @@ class _ProductPickerButton extends StatelessWidget {
               )
             : Row(
                 children: [
+                  // Color thumbnail: entity image first, prefill URL as fallback
+                  AppThumbnail(
+                    imageUrl: row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl,
+                    size: 28,
+                    borderRadius: 4,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          product.name,
+                          product?.name ?? row.prefilledProductName ?? '',
                           style: Theme.of(context).textTheme.bodyMedium,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          [
-                            if (product.productType?.type != null)
-                              product.productType!.type,
-                            if (row.selectedColor != null)
-                              row.selectedColor!.colorName,
-                          ].join(' · '),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
+                        if ((product?.productType?.type ?? row.prefilledColorName) != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              if (product?.productType?.type != null)
+                                product!.productType!.type,
+                              if ((row.selectedColor?.colorName ??
+                                      row.prefilledColorName) !=
+                                  null)
+                                row.selectedColor?.colorName ??
+                                    row.prefilledColorName!,
+                            ].join(' · '),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -563,6 +632,9 @@ class _SizePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = row.selectedSize;
+    // Fall back to prefilled dimensions if no entity has been picked yet.
+    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final hasSize = displayDimensions != null;
     return InkWell(
       onTap: () async {
         final picked = await ProductSizePickerSheet.show(
@@ -598,34 +670,34 @@ class _SizePicker extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: size == null ? AppColors.divider : AppColors.primary,
-            width: size == null ? 1 : 1.5,
+            color: !hasSize ? AppColors.divider : AppColors.primary,
+            width: !hasSize ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+          color: hasSize ? AppColors.primary.withValues(alpha: 0.05) : null,
         ),
         child: Row(
           children: [
             Icon(
               Icons.straighten_rounded,
               size: 16,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: !hasSize ? AppColors.textSecondary : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                size == null ? 'O\'lcham tanlash' : size.dimensions,
+                displayDimensions ?? 'O\'lcham tanlash',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: size == null
+                      color: !hasSize
                           ? AppColors.textSecondary
                           : AppColors.primary,
-                      fontWeight: size != null ? FontWeight.w600 : null,
+                      fontWeight: hasSize ? FontWeight.w600 : null,
                     ),
               ),
             ),
             Icon(
               Icons.arrow_drop_down_rounded,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: !hasSize ? AppColors.textSecondary : AppColors.primary,
             ),
           ],
         ),
