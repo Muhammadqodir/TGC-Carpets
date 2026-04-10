@@ -447,6 +447,7 @@ class _DesktopTableHeader extends StatelessWidget {
         children: [
           _HeaderCell(label: '#', fixedWidth: 40),
           _HeaderCell(label: 'Mahsulot', flex: 3),
+          _HeaderCell(label: 'Sifat', flex: 2),
           _HeaderCell(label: 'Rang', flex: 2),
           _HeaderCell(label: "O'lcham", flex: 2),
           _HeaderCell(label: 'Miqdor', fixedWidth: 150),
@@ -531,6 +532,28 @@ class _DesktopItemTableRow extends StatelessWidget {
                 allItems: allItems,
                 onChanged: onChanged,
               ),
+            ),
+          ),
+
+          // Quality column
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: () {
+                final qualityName = row.selectedProduct?.productQuality?.qualityName
+                    ?? row.prefilledQualityName;
+                return Text(
+                  qualityName ?? '—',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: qualityName == null
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                );
+              }(),
             ),
           ),
 

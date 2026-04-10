@@ -38,6 +38,9 @@ class OrderItemResource extends JsonResource
                                         'type' => $this->variant->productColor->product->productType->type,
                                       ]
                                     : null,
+                                'quality_name'    => $this->variant->productColor->product->relationLoaded('productQuality') && $this->variant->productColor->product->productQuality
+                                    ? $this->variant->productColor->product->productQuality->quality_name
+                                    : null,
                             ]
                             : null,
                     ]

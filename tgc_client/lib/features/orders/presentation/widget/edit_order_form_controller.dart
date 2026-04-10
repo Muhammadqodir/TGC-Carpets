@@ -18,6 +18,7 @@ class EditOrderFormController extends OrderFormController {
                   prefilledProductName: item.productName,
                   prefilledColorName: item.colorName,
                   prefilledColorImageUrl: item.colorImageUrl,
+                  prefilledQualityName: item.qualityName,
                   prefilledProductTypeId: item.productTypeId,
                   prefilledSizeLength: item.sizeLength,
                   prefilledSizeWidth: item.sizeWidth,

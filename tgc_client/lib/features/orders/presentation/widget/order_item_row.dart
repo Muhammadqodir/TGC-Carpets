@@ -32,6 +32,9 @@ class OrderItemRow {
   /// Color thumbnail URL from the server.
   final String? prefilledColorImageUrl;
 
+  /// product.productQuality.quality_name — shown in the Sifat column.
+  final String? prefilledQualityName;
+
   /// product.product_type_id — when set, a size picker is shown even for prefilled rows.
   final int? prefilledProductTypeId;
 
@@ -45,6 +48,7 @@ class OrderItemRow {
     this.prefilledProductName,
     this.prefilledColorName,
     this.prefilledColorImageUrl,
+    this.prefilledQualityName,
     this.prefilledProductTypeId,
     this.prefilledSizeLength,
     this.prefilledSizeWidth,
