@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -63,11 +64,11 @@ class _DesktopInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusLabel, statusColor) = switch (order.status) {
-      'pending'       => ('Kutilmoqda', AppColors.warning),
+      'pending' => ('Kutilmoqda', AppColors.warning),
       'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
-      'done'          => ('Bajarildi', AppColors.success),
-      'canceled'      => ('Bekor qilindi', AppColors.error),
-      _               => (order.status, AppColors.textSecondary),
+      'done' => ('Bajarildi', AppColors.success),
+      'canceled' => ('Bekor qilindi', AppColors.error),
+      _ => (order.status, AppColors.textSecondary),
     };
 
     return Card(
@@ -125,13 +126,6 @@ class _DesktopInfoSection extends StatelessWidget {
                   ),
                 if (order.clientPhone != null)
                   _InfoItem(label: 'Telefon', value: order.clientPhone!),
-                _InfoItem(
-                    label: 'Mahsulotlar', value: '${order.items.length} ta'),
-                _InfoItem(
-                    label: 'Jami dona', value: '${order.totalQuantity}'),
-                _InfoItem(
-                    label: 'Jami m²',
-                    value: '${order.totalSqm.toStringAsFixed(2)} m²'),
               ],
             ),
             if (order.notes != null && order.notes!.isNotEmpty) ...[
@@ -225,17 +219,23 @@ class _DesktopItemsTable extends StatelessWidget {
           // Header
           Container(
             color: AppColors.primary.withValues(alpha: 0.04),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                SizedBox(width: 52, child: Text('#', style: labelStyle)),
+                SizedBox(width: 40, child: Text('#', style: labelStyle)),
                 Expanded(flex: 3, child: Text('Mahsulot', style: labelStyle)),
+                Expanded(flex: 2, child: Text('Sifat', style: labelStyle)),
+                Expanded(flex: 2, child: Text('Tur', style: labelStyle)),
                 Expanded(flex: 2, child: Text('Rang', style: labelStyle)),
-                Expanded(flex: 1, child: Text('O\'lcham', style: labelStyle)),
-                Expanded(flex: 2, child: Text('SKU', style: labelStyle)),
-                SizedBox(width: 80, child: Text('Dona', style: labelStyle, textAlign: TextAlign.center)),
-                SizedBox(width: 100, child: Text('m²', style: labelStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('O\'lcham', style: labelStyle)),
+                SizedBox(
+                    width: 70,
+                    child: Text('Dona',
+                        style: labelStyle, textAlign: TextAlign.center)),
+                SizedBox(
+                    width: 100,
+                    child: Text('Jami m²',
+                        style: labelStyle, textAlign: TextAlign.center)),
               ],
             ),
           ),
@@ -247,6 +247,46 @@ class _DesktopItemsTable extends StatelessWidget {
               yield const Divider(height: 1, color: AppColors.divider);
             }
           }),
+          const Divider(height: 1, color: AppColors.divider),
+          // Totals footer
+          Builder(builder: (context) {
+            final totalQty = items.fold(0, (sum, i) => sum + i.quantity);
+            final totalSqm = items.fold(0.0, (sum, i) {
+              if (i.sizeLength == null || i.sizeWidth == null) return sum;
+              return sum + i.sizeLength! * i.sizeWidth! * i.quantity / 10000.0;
+            });
+            final footerStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                );
+            return Container(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const SizedBox(width: 40),
+                  Expanded(
+                    flex: 3,
+                    child: Text('Jami', style: footerStyle),
+                  ),
+                  const Expanded(flex: 2, child: SizedBox.shrink()),
+                  const Expanded(flex: 2, child: SizedBox.shrink()),
+                  const Expanded(flex: 2, child: SizedBox.shrink()),
+                  const Expanded(flex: 2, child: SizedBox.shrink()),
+                  SizedBox(
+                    width: 70,
+                    child: Text('$totalQty dona',
+                        textAlign: TextAlign.center, style: footerStyle),
+                  ),
+                  SizedBox(
+                    width: 100,
+                    child: Text('${totalSqm.toStringAsFixed(2)} m²',
+                        textAlign: TextAlign.center, style: footerStyle),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -256,15 +296,16 @@ class _DesktopItemsTable extends StatelessWidget {
     final sqm = item.sizeLength != null && item.sizeWidth != null
         ? item.sizeLength! * item.sizeWidth! * item.quantity / 10000.0
         : 0.0;
+    final perUnitSqm = item.sizeLength != null && item.sizeWidth != null
+        ? item.sizeLength! * item.sizeWidth! / 10000.0
+        : 0.0;
     return Container(
-      color: index.isOdd
-          ? AppColors.surface.withValues(alpha: 0.5)
-          : null,
+      color: index.isOdd ? AppColors.surface.withValues(alpha: 0.5) : null,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           SizedBox(
-            width: 52,
+            width: 40,
             child: Text(
               '${index + 1}',
               textAlign: TextAlign.center,
@@ -286,31 +327,68 @@ class _DesktopItemsTable extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              item.colorName ?? '—',
+              item.qualityName ?? '—',
               style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              item.sizeLength != null && item.sizeWidth != null
-                  ? '${item.sizeLength}x${item.sizeWidth}'
-                  : '—',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              item.variantSku ?? '—',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+              item.productTypeName ?? '—',
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+              flex: 2,
+              child: Row(
+                children: [
+                  AppThumbnail(
+                    imageUrl: item.colorImageUrl,
+                    size: 32,
                   ),
+                  const SizedBox(width: 6),
+                  Text(
+                    item.colorName?.toUpperCase() ?? '—',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              )),
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.sizeLength != null && item.sizeWidth != null
+                      ? '${item.sizeLength}x${item.sizeWidth}'
+                      : '—',
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  item.sizeLength != null && item.sizeWidth != null
+                      ? '${perUnitSqm.toStringAsFixed(2)} m²'
+                      : '—',
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              ],
             ),
           ),
           SizedBox(
-            width: 80,
+            width: 70,
             child: Text(
               '${item.quantity}',
               textAlign: TextAlign.center,

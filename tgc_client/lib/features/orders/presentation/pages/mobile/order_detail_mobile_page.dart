@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -211,22 +212,26 @@ class _OrderItemTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$index',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
+              // Container(
+              //   width: 28,
+              //   height: 28,
+              //   decoration: BoxDecoration(
+              //     color: AppColors.primary.withAlpha(20),
+              //     borderRadius: BorderRadius.circular(6),
+              //   ),
+              //   alignment: Alignment.center,
+              //   child: Text(
+              //     '$index',
+              //     style: const TextStyle(
+              //       fontSize: 12,
+              //       fontWeight: FontWeight.w600,
+              //       color: AppColors.primary,
+              //     ),
+              //   ),
+              // ),
+              // const SizedBox(width: 12),
+              AppThumbnail(
+                imageUrl: item.colorImageUrl,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -236,7 +241,7 @@ class _OrderItemTile extends StatelessWidget {
                     Text(
                       item.productName,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.bold,
                           ),
                     ),
                     if (item.colorName != null || item.sizeLength != null)
@@ -244,10 +249,10 @@ class _OrderItemTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           _variantLabel(),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                     if (item.variantSku != null)
@@ -295,7 +300,7 @@ class _OrderItemTile extends StatelessWidget {
 
   String _variantLabel() {
     final parts = <String>[];
-    if (item.colorName != null) parts.add(item.colorName!);
+    if (item.colorName != null) parts.add(item.colorName!.toUpperCase());
     if (item.sizeLength != null && item.sizeWidth != null) {
       parts.add('${item.sizeLength}x${item.sizeWidth}');
     }
