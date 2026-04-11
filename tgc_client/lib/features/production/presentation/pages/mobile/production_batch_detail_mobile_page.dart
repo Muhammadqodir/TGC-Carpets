@@ -6,7 +6,9 @@ import '../../../../../core/di/injection.dart';
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
+import '../../../data/datasources/defect_document_remote_datasource.dart';
 import '../../../data/datasources/production_batch_remote_datasource.dart';
+import '../../../domain/entities/defect_document_entity.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../../domain/entities/production_batch_item_entity.dart';
 import '../../widgets/employee_picker_bottom_sheet.dart';
@@ -24,6 +26,7 @@ class ProductionBatchDetailMobilePage extends StatefulWidget {
 class _ProductionBatchDetailMobilePageState
     extends State<ProductionBatchDetailMobilePage> {
   late Future<ProductionBatchEntity> _batchFuture;
+  late Future<List<DefectDocumentEntity>> _defectDocsFuture;
   bool _isActing = false;
 
   @override
@@ -31,6 +34,13 @@ class _ProductionBatchDetailMobilePageState
     super.initState();
     _batchFuture = sl<ProductionBatchRemoteDataSource>()
         .getProductionBatch(widget.batch.id);
+    _defectDocsFuture = _loadDefectDocs();
+  }
+
+  Future<List<DefectDocumentEntity>> _loadDefectDocs() async {
+    final resp = await sl<DefectDocumentRemoteDataSource>()
+        .getDefectDocuments(widget.batch.id);
+    return resp.data;
   }
 
   Future<void> _onStart(ProductionBatchEntity batch) async {
@@ -217,8 +227,9 @@ class _ProductionBatchDetailMobilePageState
               setState(() {
                 _batchFuture = sl<ProductionBatchRemoteDataSource>()
                     .getProductionBatch(widget.batch.id);
+                _defectDocsFuture = _loadDefectDocs();
               });
-              await _batchFuture;
+              await Future.wait([_batchFuture, _defectDocsFuture]);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -270,6 +281,14 @@ class _ProductionBatchDetailMobilePageState
                             AppRoutes.defectDocumentFormName,
                             extra: batch,
                           );
+                          if (context.mounted) {
+                            setState(() {
+                              _defectDocsFuture = _loadDefectDocs();
+                              _batchFuture =
+                                  sl<ProductionBatchRemoteDataSource>()
+                                      .getProductionBatch(widget.batch.id);
+                            });
+                          }
                         },
                       ),
                       const SizedBox(height: 8),
@@ -304,6 +323,8 @@ class _ProductionBatchDetailMobilePageState
                   ],
                   const SizedBox(height: 12),
                   _BatchItemsCard(items: batch.items),
+                  const SizedBox(height: 12),
+                  _DefectDocumentsCard(future: _defectDocsFuture),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -813,5 +834,215 @@ class _QtyBadge extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ── Defect documents card ─────────────────────────────────────────────────────
+
+class _DefectDocumentsCard extends StatelessWidget {
+  final Future<List<DefectDocumentEntity>> future;
+  const _DefectDocumentsCard({required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const HugeIcon(
+                  icon: HugeIcons.strokeRoundedAlert01,
+                  size: 18,
+                  strokeWidth: 2,
+                  color: AppColors.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Nuxson hujjatlari',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            FutureBuilder<List<DefectDocumentEntity>>(
+              future: future,
+              builder: (context, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                if (snap.hasError) {
+                  return Text(
+                    'Yuklashda xatolik',
+                    style: TextStyle(color: AppColors.error),
+                  );
+                }
+                final docs = snap.data!;
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Nuxson hujjatlari mavjud emas',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  itemBuilder: (context, i) =>
+                      _DefectDocTile(doc: docs[i]),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DefectDocTile extends StatelessWidget {
+  final DefectDocumentEntity doc;
+  const _DefectDocTile({required this.doc});
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = doc.datetime;
+    final dateStr =
+        '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}  '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                dateStr,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.error.withAlpha(25),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppColors.error.withAlpha(80)),
+              ),
+              child: Text(
+                'Jami: ${doc.totalDefectQuantity}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (doc.userName != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            doc.userName!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ],
+        if (doc.description.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            doc.description,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        if (doc.items.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          ...doc.items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _itemLabel(item),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                  Text(
+                    '${item.quantity} dona',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (doc.photos.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: doc.photos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                  doc.photos[i].url,
+                  width: 64,
+                  height: 64,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 64,
+                    height: 64,
+                    color: AppColors.surface,
+                    child: const Icon(Icons.broken_image_outlined,
+                        size: 24, color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _itemLabel(DefectDocumentItemEntity item) {
+    if (item.batchItem == null) return '#${item.productionBatchItemId}';
+    final b = item.batchItem!;
+    final parts = <String>[];
+    if (b.productName != null) parts.add(b.productName!);
+    if (b.colorName != null) parts.add(b.colorName!);
+    if (b.sizeLength != null && b.sizeWidth != null) {
+      parts.add('${b.sizeLength}×${b.sizeWidth}');
+    }
+    return parts.isEmpty ? '#${item.productionBatchItemId}' : parts.join(' / ');
   }
 }

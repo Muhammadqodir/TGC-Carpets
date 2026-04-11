@@ -9,6 +9,7 @@ use App\Models\DefectDocument;
 use App\Models\DefectDocumentItem;
 use App\Models\DefectDocumentPhoto;
 use App\Models\ProductionBatch;
+use App\Models\ProductionBatchItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -51,6 +52,9 @@ class DefectDocumentController extends Controller
                     'production_batch_item_id' => $itemData['production_batch_item_id'],
                     'quantity'                 => $itemData['quantity'],
                 ]);
+
+                ProductionBatchItem::where('id', $itemData['production_batch_item_id'])
+                    ->increment('defect_quantity', $itemData['quantity']);
             }
 
             if ($request->hasFile('photos')) {

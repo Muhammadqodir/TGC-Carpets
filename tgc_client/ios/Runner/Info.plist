@@ -45,5 +45,13 @@
     <true/>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Nuxson hujjati uchun rasm olish</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Nuxson hujjati uchun galereyadan rasm tanlash</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Olingan rasmlarni galereyaga saqlash</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Video yozish uchun mikrofonga ruxsat</string>
   </dict>
 </plist>

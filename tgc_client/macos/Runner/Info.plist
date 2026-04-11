@@ -28,5 +28,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Nuxson hujjati uchun rasm olish</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nuxson hujjati uchun galereyadan rasm tanlash</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Video yozish uchun mikrofonga ruxsat</string>
 </dict>
 </plist>

@@ -6,7 +6,9 @@ import '../../../../../core/di/injection.dart';
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
+import '../../../data/datasources/defect_document_remote_datasource.dart';
 import '../../../data/datasources/production_batch_remote_datasource.dart';
+import '../../../domain/entities/defect_document_entity.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../../domain/entities/production_batch_item_entity.dart';
 import '../../widgets/employee_picker_bottom_sheet.dart';
@@ -26,6 +28,7 @@ class ProductionBatchDetailDesktopPage extends StatefulWidget {
 class _ProductionBatchDetailDesktopPageState
     extends State<ProductionBatchDetailDesktopPage> {
   late Future<ProductionBatchEntity> _batchFuture;
+  late Future<List<DefectDocumentEntity>> _defectDocsFuture;
   bool _isActing = false;
 
   @override
@@ -33,6 +36,13 @@ class _ProductionBatchDetailDesktopPageState
     super.initState();
     _batchFuture = sl<ProductionBatchRemoteDataSource>()
         .getProductionBatch(widget.batch.id);
+    _defectDocsFuture = _loadDefectDocs();
+  }
+
+  Future<List<DefectDocumentEntity>> _loadDefectDocs() async {
+    final resp = await sl<DefectDocumentRemoteDataSource>()
+        .getDefectDocuments(widget.batch.id);
+    return resp.data;
   }
 
   Future<void> _onStart(ProductionBatchEntity batch) async {
@@ -275,6 +285,14 @@ class _ProductionBatchDetailDesktopPageState
                               AppRoutes.defectDocumentFormName,
                               extra: batch,
                             );
+                            if (context.mounted) {
+                              setState(() {
+                                _defectDocsFuture = _loadDefectDocs();
+                                _batchFuture =
+                                    sl<ProductionBatchRemoteDataSource>()
+                                        .getProductionBatch(widget.batch.id);
+                              });
+                            }
                           },
                         ),
                       ],
@@ -305,6 +323,8 @@ class _ProductionBatchDetailDesktopPageState
                 ],
                 const SizedBox(height: 20),
                 _ItemsTable(items: batch.items),
+                const SizedBox(height: 20),
+                _DefectDocumentsSection(future: _defectDocsFuture),
               ],
             ),
           );
@@ -796,5 +816,221 @@ class _ItemsTable extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Defect documents section ──────────────────────────────────────────────────
+
+class _DefectDocumentsSection extends StatelessWidget {
+  final Future<List<DefectDocumentEntity>> future;
+  const _DefectDocumentsSection({required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const HugeIcon(
+                  icon: HugeIcons.strokeRoundedAlert01,
+                  size: 18,
+                  strokeWidth: 2,
+                  color: AppColors.error,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Nuxson hujjatlari',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: AppColors.divider),
+            const SizedBox(height: 16),
+            FutureBuilder<List<DefectDocumentEntity>>(
+              future: future,
+              builder: (context, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                if (snap.hasError) {
+                  return Text(
+                    'Yuklashda xatolik',
+                    style: TextStyle(color: AppColors.error),
+                  );
+                }
+                final docs = snap.data!;
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'Nuxson hujjatlari mavjud emas',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (int i = 0; i < docs.length; i++) ...[
+                      _DefectDocRow(doc: docs[i]),
+                      if (i < docs.length - 1)
+                        const Divider(height: 24, color: AppColors.divider),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DefectDocRow extends StatelessWidget {
+  final DefectDocumentEntity doc;
+  const _DefectDocRow({required this.doc});
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = doc.datetime;
+    final dateStr =
+        '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}  '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    dateStr,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  if (doc.userName != null)
+                    Text(
+                      doc.userName!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.error.withAlpha(25),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppColors.error.withAlpha(80)),
+              ),
+              child: Text(
+                'Jami: ${doc.totalDefectQuantity} dona',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (doc.description.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(doc.description,
+              style: Theme.of(context).textTheme.bodySmall),
+        ],
+        if (doc.items.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: doc.items
+                .map(
+                  (item) => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Text(
+                      '${_itemLabel(item)}: ${item.quantity} dona',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+        if (doc.photos.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 80,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: doc.photos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                  doc.photos[i].url,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 80,
+                    height: 80,
+                    color: AppColors.surface,
+                    child: const Icon(Icons.broken_image_outlined,
+                        size: 28, color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _itemLabel(DefectDocumentItemEntity item) {
+    if (item.batchItem == null) return '#${item.productionBatchItemId}';
+    final b = item.batchItem!;
+    final parts = <String>[];
+    if (b.productName != null) parts.add(b.productName!);
+    if (b.colorName != null) parts.add(b.colorName!);
+    if (b.sizeLength != null && b.sizeWidth != null) {
+      parts.add('${b.sizeLength}×${b.sizeWidth}');
+    }
+    return parts.isEmpty ? '#${item.productionBatchItemId}' : parts.join(' / ');
   }
 }
