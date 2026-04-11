@@ -24,6 +24,24 @@ class OrderController extends Controller
             ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'), fn ($q) => $q->whereDate('order_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),   fn ($q) => $q->whereDate('order_date', '<=', $request->date_to))
+            ->when($request->boolean('for_production'), function ($q) {
+                // Return orders that are not yet fully in production:
+                // status is pending, planned, or on_production AND at least one item
+                // still has quantity not covered by non-cancelled production batches.
+                $q->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED, Order::STATUS_ON_PRODUCTION])
+                  ->whereHas('items', function ($iq) {
+                      $iq->whereRaw(
+                          'quantity > COALESCE((
+                              SELECT SUM(pbi.planned_quantity)
+                              FROM production_batch_items pbi
+                              INNER JOIN production_batches pb ON pb.id = pbi.production_batch_id
+                              WHERE pbi.source_order_item_id = order_items.id
+                                AND pb.status != ?
+                          ), 0)',
+                          [\App\Models\ProductionBatch::STATUS_CANCELLED]
+                      );
+                  });
+            })
             ->latest('order_date')
             ->paginate($request->integer('per_page', 20));
 

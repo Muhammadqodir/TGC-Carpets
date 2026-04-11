@@ -79,8 +79,9 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
       _ordersError = null;
     });
     final useCase = sl<GetOrdersUseCase>();
-    // Only load pending orders — those not yet assigned to any production batch.
-    final result = await useCase(status: 'pending', perPage: 100);
+    // Load all orders that have at least one item still available for production
+    // (pending, planned, or on_production with uncovered items, incl. from cancelled batches).
+    final result = await useCase(forProduction: true, perPage: 100);
     if (!mounted) return;
     result.fold(
       (failure) => setState(() {
@@ -193,7 +194,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
                       ),
                       if (_selectedOrder == null)
                         Text(
-                          'Faqat ishlab chiqarilmagan buyurtmalar',
+                          'Ishlab chiqarishga ega bo\'sh mahsulotli buyurtmalar',
                           style: Theme.of(context)
                               .textTheme
                               .labelSmall
@@ -437,11 +438,18 @@ class _OrderTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${order.items.length} ta mahsulot  ·  ${_fmtDate(order.orderDate)}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${order.items.length} ta mahsulot  ·  ${_fmtDate(order.orderDate)}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                       ),
+                    ),
+                    _StatusChip(status: order.status),
+                  ],
                 ),
               ],
             ),
@@ -528,6 +536,37 @@ class _OrderItemTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Status chip ───────────────────────────────────────────────────────────────
+
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      'pending'       => ('Kutilmoqda', Colors.orange),
+      'planned'       => ('Rejalashtirilgan', Colors.blue),
+      'on_production' => ('Ishlab chiqarishda', Colors.purple),
+      _               => (status, Colors.grey),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }

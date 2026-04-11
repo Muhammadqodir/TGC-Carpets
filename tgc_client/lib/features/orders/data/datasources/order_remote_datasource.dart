@@ -12,6 +12,7 @@ abstract class OrderRemoteDataSource {
     int? userId,
     String? dateFrom,
     String? dateTo,
+    bool forProduction = false,
     int page = 1,
     int perPage = 20,
   });
@@ -51,6 +52,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     int? userId,
     String? dateFrom,
     String? dateTo,
+    bool forProduction = false,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -63,6 +65,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         if (userId != null) 'user_id': userId,
         if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
         if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
+        if (forProduction) 'for_production': 1,
       };
 
       final response = await _dio.get(

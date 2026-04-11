@@ -12,6 +12,7 @@ import '../../../domain/entities/defect_document_entity.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../../domain/entities/production_batch_item_entity.dart';
 import '../../widgets/employee_picker_bottom_sheet.dart';
+
 /// Fetches the full batch (with items) from the API on load.
 class ProductionBatchDetailDesktopPage extends StatefulWidget {
   /// Partial entity from the list (no items). Used to show title / ID
@@ -121,8 +122,7 @@ class _ProductionBatchDetailDesktopPageState
             child: const Text('Yo\'q'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Ha, bekor qilish'),
           ),
@@ -246,25 +246,22 @@ class _ProductionBatchDetailDesktopPageState
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.error,
-                            side: const BorderSide(
-                                color: AppColors.error),
+                            side: const BorderSide(color: AppColors.error),
                           ),
                           icon: _isActing
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const HugeIcon(
-                                  icon: HugeIcons
-                                      .strokeRoundedCancel01,
+                                  icon: HugeIcons.strokeRoundedCancel01,
                                   size: 18,
                                   strokeWidth: 2,
                                   color: AppColors.error,
                                 ),
                           label: const Text('Bekor qilish'),
-                          onPressed:
-                              _isActing ? null : () => _onCancel(batch),
+                          onPressed: _isActing ? null : () => _onCancel(batch),
                         ),
                       if (batch.status == 'in_progress') ...[
                         const SizedBox(width: 12),
@@ -304,18 +301,15 @@ class _ProductionBatchDetailDesktopPageState
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
+                                      strokeWidth: 2, color: Colors.white))
                               : const HugeIcon(
                                   icon: HugeIcons.strokeRoundedPlay,
                                   size: 18,
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ),
-                          label: const Text(
-                              'Ishlab chiqarishni boshlash'),
-                          onPressed:
-                              _isActing ? null : () => _onStart(batch),
+                          label: const Text('Ishlab chiqarishni boshlash'),
+                          onPressed: _isActing ? null : () => _onStart(batch),
                         ),
                       ],
                     ],
@@ -942,8 +936,7 @@ class _DefectDocRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.error.withAlpha(25),
                 borderRadius: BorderRadius.circular(4),
@@ -962,8 +955,7 @@ class _DefectDocRow extends StatelessWidget {
         ),
         if (doc.description.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text(doc.description,
-              style: Theme.of(context).textTheme.bodySmall),
+          Text(doc.description, style: Theme.of(context).textTheme.bodySmall),
         ],
         if (doc.items.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -973,8 +965,8 @@ class _DefectDocRow extends StatelessWidget {
             children: doc.items
                 .map(
                   (item) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(4),
@@ -1001,17 +993,11 @@ class _DefectDocRow extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, i) => ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                  doc.photos[i].url,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 80,
-                    height: 80,
-                    color: AppColors.surface,
-                    child: const Icon(Icons.broken_image_outlined,
-                        size: 28, color: AppColors.textSecondary),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: AppThumbnail(
+                    imageUrl: doc.photos[i].url,
+                    size: 50,
                   ),
                 ),
               ),

@@ -119,8 +119,7 @@ class _ProductionBatchDetailMobilePageState
             child: const Text('Yo\'q'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Ha, bekor qilish'),
           ),
@@ -249,25 +248,21 @@ class _ProductionBatchDetailMobilePageState
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white))
+                                    strokeWidth: 2, color: Colors.white))
                             : const HugeIcon(
                                 icon: HugeIcons.strokeRoundedPlay,
                                 size: 18,
                                 strokeWidth: 2,
                                 color: Colors.white,
                               ),
-                        label:
-                            const Text('Ishlab chiqarishni boshlash'),
-                        onPressed:
-                            _isActing ? null : () => _onStart(batch),
+                        label: const Text('Ishlab chiqarishni boshlash'),
+                        onPressed: _isActing ? null : () => _onStart(batch),
                       ),
                     if (batch.status == 'in_progress') ...[
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side:
-                              const BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: AppColors.error),
                         ),
                         icon: const HugeIcon(
                           icon: HugeIcons.strokeRoundedAlert01,
@@ -299,25 +294,22 @@ class _ProductionBatchDetailMobilePageState
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side:
-                              const BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: AppColors.error),
                         ),
                         icon: _isActing
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
                             : const HugeIcon(
-                                icon:
-                                    HugeIcons.strokeRoundedCancel01,
+                                icon: HugeIcons.strokeRoundedCancel01,
                                 size: 18,
                                 strokeWidth: 2,
                                 color: AppColors.error,
                               ),
                         label: const Text('Bekor qilish'),
-                        onPressed:
-                            _isActing ? null : () => _onCancel(batch),
+                        onPressed: _isActing ? null : () => _onCancel(batch),
                       ),
                     ],
                   ],
@@ -907,8 +899,7 @@ class _DefectDocumentsCard extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: docs.length,
                   separatorBuilder: (_, __) => const Divider(height: 16),
-                  itemBuilder: (context, i) =>
-                      _DefectDocTile(doc: docs[i]),
+                  itemBuilder: (context, i) => _DefectDocTile(doc: docs[i]),
                 );
               },
             ),
@@ -944,8 +935,7 @@ class _DefectDocTile extends StatelessWidget {
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.error.withAlpha(25),
                 borderRadius: BorderRadius.circular(4),
@@ -1013,18 +1003,9 @@ class _DefectDocTile extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, i) => ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                  doc.photos[i].url,
-                  width: 64,
-                  height: 64,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 64,
-                    height: 64,
-                    color: AppColors.surface,
-                    child: const Icon(Icons.broken_image_outlined,
-                        size: 24, color: AppColors.textSecondary),
-                  ),
+                child: AppThumbnail(
+                  imageUrl: doc.photos[i].url,
+                  size: 50,
                 ),
               ),
             ),

@@ -16,6 +16,7 @@ class GetOrdersUseCase {
     int? userId,
     String? dateFrom,
     String? dateTo,
+    bool forProduction = false,
     int page = 1,
     int perPage = 20,
   }) =>
@@ -25,6 +26,7 @@ class GetOrdersUseCase {
         userId: userId,
         dateFrom: dateFrom,
         dateTo: dateTo,
+        forProduction: forProduction,
         page: page,
         perPage: perPage,
       );

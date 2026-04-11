@@ -120,15 +120,20 @@ class ProductionBatchService
     }
 
     /**
-     * Cancel production batch.
+     * Cancel production batch and revert any linked orders that are no longer
+     * fully covered by active batches back to pending.
      */
     public function cancel(ProductionBatch $batch): ProductionBatch
     {
-        $batch->update([
-            'status' => ProductionBatch::STATUS_CANCELLED,
-        ]);
+        return DB::transaction(function () use ($batch): ProductionBatch {
+            $batch->update([
+                'status' => ProductionBatch::STATUS_CANCELLED,
+            ]);
 
-        return $batch->fresh()->load(self::EAGER_LOAD);
+            $this->revertOrderStatusesOnCancel($batch);
+
+            return $batch->fresh()->load(self::EAGER_LOAD);
+        });
     }
 
     /**
@@ -217,6 +222,44 @@ class ProductionBatchService
 
             if ($allCovered) {
                 $order->update(['status' => Order::STATUS_PLANNED]);
+            }
+        }
+    }
+
+    /**
+     * After cancelling a batch, revert linked orders to pending if any of their
+     * items are no longer fully covered by remaining active (non-cancelled) batches.
+     * Orders that are already done or canceled are left untouched.
+     */
+    private function revertOrderStatusesOnCancel(ProductionBatch $batch): void
+    {
+        $orderIds = $batch->items()
+            ->whereNotNull('source_order_item_id')
+            ->with('sourceOrderItem')
+            ->get()
+            ->pluck('sourceOrderItem.order_id')
+            ->filter()
+            ->unique();
+
+        foreach ($orderIds as $orderId) {
+            $order = Order::with('items')->find($orderId);
+
+            if (! $order || in_array($order->status, [Order::STATUS_DONE, Order::STATUS_CANCELED])) {
+                continue;
+            }
+
+            // An order should revert to pending when at least one item is no
+            // longer fully covered by any active (non-cancelled) production batch.
+            $allCovered = $order->items->every(function (OrderItem $item) {
+                $planned = ProductionBatchItem::where('source_order_item_id', $item->id)
+                    ->whereHas('productionBatch', fn ($q) => $q->where('status', '!=', ProductionBatch::STATUS_CANCELLED))
+                    ->sum('planned_quantity');
+
+                return $planned >= $item->quantity;
+            });
+
+            if (! $allCovered) {
+                $order->update(['status' => Order::STATUS_PENDING]);
             }
         }
     }
