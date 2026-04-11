@@ -99,9 +99,9 @@ class _ProductionBatchDetailMobilePageState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Batchni bekor qilish'),
+        title: const Text('Partiyani bekor qilish'),
         content: const Text(
-          'Haqiqatan ham bu batchni bekor qilmoqchimisiz? Bu amalni qaytarib bo\'lmaydi.',
+          'Haqiqatan ham bu partiyani bekor qilmoqchimisiz? Bu amalni qaytarib bo\'lmaydi.',
         ),
         actions: [
           TextButton(

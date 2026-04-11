@@ -53,11 +53,65 @@ class _DefectDocumentFormMobilePageState
   List<ProductionBatchItemEntity> get _items => widget.batch.items;
 
   Future<void> _pickPhotos() async {
+    final source = await _showSourceSheet();
+    if (source == null) return;
+
     final picker = ImagePicker();
-    final picked = await picker.pickMultiImage(imageQuality: 85);
-    if (picked.isNotEmpty) {
-      setState(() => _selectedPhotos.addAll(picked));
+    if (source == ImageSource.camera) {
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (photo != null) setState(() => _selectedPhotos.add(photo));
+    } else {
+      final picked = await picker.pickMultiImage(imageQuality: 85);
+      if (picked.isNotEmpty) setState(() => _selectedPhotos.addAll(picked));
     }
+  }
+
+  Future<ImageSource?> _showSourceSheet() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedCamera01,
+                size: 22,
+                strokeWidth: 2,
+              ),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedImage01,
+                size: 22,
+                strokeWidth: 2,
+              ),
+              title: const Text('Galereya'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   void _removePhoto(int index) =>
