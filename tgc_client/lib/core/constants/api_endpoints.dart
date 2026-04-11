@@ -40,6 +40,24 @@ class ApiEndpoints {
   static const String orders = '/orders';
   static String orderById(int id) => '/orders/$id';
 
+  // Machines
+  static const String machines = '/machines';
+  static String machineById(int id) => '/machines/$id';
+
+  // Production Batches
+  static const String productionBatches = '/production-batches';
+  static String productionBatchById(int id) => '/production-batches/$id';
+  static String productionBatchStart(int id) =>
+      '/production-batches/$id/start';
+  static String productionBatchComplete(int id) =>
+      '/production-batches/$id/complete';
+  static String productionBatchCancel(int id) =>
+      '/production-batches/$id/cancel';
+  static String productionBatchItemUpdate(int batchId, int itemId) =>
+      '/production-batches/$batchId/items/$itemId';
+  static const String productionBatchOrderItems =
+      '/production-batches-order-items';
+
   // Dashboard
   static const String dashboardStats = '/dashboard/stats';
 

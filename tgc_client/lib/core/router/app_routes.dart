@@ -56,4 +56,16 @@ class AppRoutes {
 
   static const String editOrder     = '/orders/edit';
   static const String editOrderName = 'editOrder';
+
+  static const String production             = '/production';
+  static const String productionName         = 'production';
+
+  static const String addProductionBatch     = '/production/add';
+  static const String addProductionBatchName = 'addProductionBatch';
+
+  static const String productionBatchDetail     = '/production/detail';
+  static const String productionBatchDetailName = 'productionBatchDetail';
+
+  static const String editProductionBatch     = '/production/edit';
+  static const String editProductionBatchName = 'editProductionBatch';
 }

@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\V1\ProductQualityController;
 use App\Http\Controllers\Api\V1\ProductSizeController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\ProductVariantController;
+use App\Http\Controllers\Api\V1\MachineController;
+use App\Http\Controllers\Api\V1\ProductionBatchController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
@@ -94,6 +96,22 @@ Route::prefix('v1')->group(function (): void {
 
         // Orders
         Route::apiResource('orders', OrderController::class);
+
+        // Machines
+        Route::apiResource('machines', MachineController::class);
+
+        // Production Batches
+        Route::apiResource('production-batches', ProductionBatchController::class);
+        Route::get('production-batches-order-items', [ProductionBatchController::class, 'orderItemsAvailable'])
+            ->name('production-batches.order-items');
+        Route::post('production-batches/{productionBatch}/start', [ProductionBatchController::class, 'start'])
+            ->name('production-batches.start');
+        Route::post('production-batches/{productionBatch}/complete', [ProductionBatchController::class, 'complete'])
+            ->name('production-batches.complete');
+        Route::post('production-batches/{productionBatch}/cancel', [ProductionBatchController::class, 'cancel'])
+            ->name('production-batches.cancel');
+        Route::patch('production-batches/{productionBatch}/items/{item}', [ProductionBatchController::class, 'updateItem'])
+            ->name('production-batches.items.update');
 
     });
 

@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Http\Requests\Production;
+
+use App\Models\ProductionBatch;
+use App\Models\ProductionBatchItem;
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreProductionBatchRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'batch_title'      => ['required', 'string', 'max:255'],
+            'machine_id'       => ['required', 'integer', 'exists:machines,id'],
+            'planned_datetime' => ['nullable', 'date'],
+            'type'             => ['sometimes', 'string', 'in:' . implode(',', ProductionBatch::TYPES)],
+            'notes'            => ['nullable', 'string', 'max:2000'],
+
+            'items'                          => ['sometimes', 'array'],
+            'items.*.source_type'            => ['sometimes', 'string', 'in:' . implode(',', ProductionBatchItem::SOURCE_TYPES)],
+            'items.*.source_order_item_id'   => ['nullable', 'integer', 'exists:order_items,id'],
+            'items.*.product_variant_id'     => ['required_with:items', 'integer', 'exists:product_variants,id'],
+            'items.*.planned_quantity'       => ['required_with:items', 'integer', 'min:1'],
+            'items.*.notes'                  => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+}

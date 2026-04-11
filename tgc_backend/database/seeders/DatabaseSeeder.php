@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             ProductQualitySeeder::class,
             ProductSeeder::class,
             UserSeeder::class,
+            MachineSeeder::class,
         ]);
     }
 }

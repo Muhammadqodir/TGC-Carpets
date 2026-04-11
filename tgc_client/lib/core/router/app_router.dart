@@ -22,6 +22,11 @@ import '../../features/orders/presentation/pages/order_form_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
 import '../../features/orders/presentation/pages/args/order_detail_args.dart';
 import '../../features/orders/domain/entities/order_entity.dart';
+import '../../features/production/presentation/pages/production_batches_page.dart';
+import '../../features/production/presentation/pages/production_batch_form_page.dart';
+import '../../features/production/presentation/pages/production_batch_detail_page.dart';
+import '../../features/production/presentation/pages/args/production_batch_detail_args.dart';
+import '../../features/production/domain/entities/production_batch_entity.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -135,6 +140,32 @@ class AppRouter {
             builder: (context, state) {
               final order = state.extra as OrderEntity;
               return OrderFormPage(order: order);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.production,
+            name: AppRoutes.productionName,
+            builder: (context, state) => const ProductionBatchesPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addProductionBatch,
+            name: AppRoutes.addProductionBatchName,
+            builder: (context, state) => const ProductionBatchFormPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.productionBatchDetail,
+            name: AppRoutes.productionBatchDetailName,
+            builder: (context, state) {
+              final args = state.extra as ProductionBatchDetailArgs;
+              return ProductionBatchDetailPage(args: args);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.editProductionBatch,
+            name: AppRoutes.editProductionBatchName,
+            builder: (context, state) {
+              final batch = state.extra as ProductionBatchEntity;
+              return ProductionBatchFormPage(batch: batch);
             },
           ),
         ],
