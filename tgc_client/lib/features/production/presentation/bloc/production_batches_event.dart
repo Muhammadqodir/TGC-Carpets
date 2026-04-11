@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 
 abstract class ProductionBatchesEvent extends Equatable {
   const ProductionBatchesEvent();
@@ -18,17 +17,17 @@ class ProductionBatchesRefreshRequested extends ProductionBatchesEvent {
 
 class ProductionBatchesFiltersChanged extends ProductionBatchesEvent {
   final String? status;
-  final int? machineId;
-  final DateTimeRange? dateRange;
+  final String? type;
+  final DateTimeRangeSimple? dateRange;
 
   const ProductionBatchesFiltersChanged({
     this.status,
-    this.machineId,
+    this.type,
     this.dateRange,
   });
 
   @override
-  List<Object?> get props => [status, machineId, dateRange];
+  List<Object?> get props => [status, type, dateRange];
 }
 
 class ProductionBatchesStatusFilterChanged extends ProductionBatchesEvent {
@@ -44,11 +43,14 @@ class ProductionBatchesNextPageRequested extends ProductionBatchesEvent {
   const ProductionBatchesNextPageRequested();
 }
 
-class ProductionBatchDeleted extends ProductionBatchesEvent {
-  final int batchId;
+/// Simple value class to carry a date range without depending on Flutter's
+/// [DateTimeRange] from the event layer (avoids importing material.dart here).
+class DateTimeRangeSimple extends Equatable {
+  final DateTime start;
+  final DateTime end;
 
-  const ProductionBatchDeleted(this.batchId);
+  const DateTimeRangeSimple({required this.start, required this.end});
 
   @override
-  List<Object?> get props => [batchId];
+  List<Object?> get props => [start, end];
 }

@@ -10,7 +10,7 @@ class ProductionBatchesBloc
   final GetProductionBatchesUseCase getProductionBatchesUseCase;
 
   String? _activeStatusFilter;
-  int? _activeMachineIdFilter;
+  String? _activeTypeFilter;
   DateTime? _dateFrom;
   DateTime? _dateTo;
 
@@ -21,7 +21,6 @@ class ProductionBatchesBloc
     on<ProductionBatchesFiltersChanged>(_onFiltersChanged);
     on<ProductionBatchesStatusFilterChanged>(_onStatusFilterChanged);
     on<ProductionBatchesNextPageRequested>(_onNextPageRequested);
-    on<ProductionBatchDeleted>(_onBatchDeleted);
   }
 
   Future<void> _onLoadRequested(
@@ -45,9 +44,9 @@ class ProductionBatchesBloc
     Emitter<ProductionBatchesState> emit,
   ) async {
     _activeStatusFilter = event.status;
-    _activeMachineIdFilter = event.machineId;
+    _activeTypeFilter   = event.type;
     _dateFrom = event.dateRange?.start;
-    _dateTo = event.dateRange?.end;
+    _dateTo   = event.dateRange?.end;
     emit(const ProductionBatchesLoading());
     await _fetchPage(emit, page: 1, replace: true);
   }
@@ -75,55 +74,44 @@ class ProductionBatchesBloc
     await _fetchPage(emit, page: current.currentPage + 1, replace: false);
   }
 
-  void _onBatchDeleted(
-      ProductionBatchDeleted event, Emitter<ProductionBatchesState> emit) {
-    final current = state;
-    if (current is ProductionBatchesLoaded) {
-      emit(current.copyWith(
-        batches:
-            current.batches.where((b) => b.id != event.batchId).toList(),
-      ));
-    }
-  }
-
   Future<void> _fetchPage(
     Emitter<ProductionBatchesState> emit, {
     required int page,
     required bool replace,
   }) async {
-    String? dateFrom;
-    String? dateTo;
-    if (_dateFrom != null) {
-      dateFrom =
-          '${_dateFrom!.year}-${_dateFrom!.month.toString().padLeft(2, '0')}-${_dateFrom!.day.toString().padLeft(2, '0')}';
-    }
-    if (_dateTo != null) {
-      dateTo =
-          '${_dateTo!.year}-${_dateTo!.month.toString().padLeft(2, '0')}-${_dateTo!.day.toString().padLeft(2, '0')}';
-    }
+    final dateFrom = _dateFrom != null
+        ? '${_dateFrom!.year}-${_dateFrom!.month.toString().padLeft(2, '0')}-${_dateFrom!.day.toString().padLeft(2, '0')}'
+        : null;
+    final dateTo = _dateTo != null
+        ? '${_dateTo!.year}-${_dateTo!.month.toString().padLeft(2, '0')}-${_dateTo!.day.toString().padLeft(2, '0')}'
+        : null;
 
     final result = await getProductionBatchesUseCase(
-      status: _activeStatusFilter,
-      machineId: _activeMachineIdFilter,
+      status:   _activeStatusFilter,
+      type:     _activeTypeFilter,
       dateFrom: dateFrom,
-      dateTo: dateTo,
-      page: page,
+      dateTo:   dateTo,
+      page:     page,
     );
 
     result.fold(
       (failure) => emit(ProductionBatchesError(failure.message)),
       (paginated) {
-        final current = state;
+        final current  = state;
         final existing = (!replace && current is ProductionBatchesLoaded)
             ? current.batches
             : <ProductionBatchEntity>[];
         final merged = [...existing, ...paginated.data];
         emit(ProductionBatchesLoaded(
-          batches: merged,
-          hasNextPage: paginated.hasNextPage,
-          currentPage: paginated.currentPage,
+          batches:            merged,
+          hasNextPage:        paginated.hasNextPage,
+          currentPage:        paginated.currentPage,
+          total:              paginated.total,
           activeStatusFilter: _activeStatusFilter,
-          activeMachineIdFilter: _activeMachineIdFilter,
+          activeTypeFilter:   _activeTypeFilter,
+          activeDateRange: (_dateFrom != null && _dateTo != null)
+              ? DateTimeRangeSimple(start: _dateFrom!, end: _dateTo!)
+              : null,
         ));
       },
     );

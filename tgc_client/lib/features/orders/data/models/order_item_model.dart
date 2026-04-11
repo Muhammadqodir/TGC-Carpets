@@ -19,6 +19,7 @@ class OrderItemModel extends OrderItemEntity {
     super.productTypeId,
     super.qualityName,
     super.productTypeName,
+    super.remainingQuantity,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +48,7 @@ class OrderItemModel extends OrderItemEntity {
       productTypeId:  productMap?['product_type_id'] as int?,
       qualityName:    productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
+      remainingQuantity: json['remaining_quantity'] as int?,
     );
   }
 

@@ -58,6 +58,9 @@ class ApiEndpoints {
   static const String productionBatchOrderItems =
       '/production-batches-order-items';
 
+  // Product Variants
+  static const String productVariants = '/product-variants';
+
   // Dashboard
   static const String dashboardStats = '/dashboard/stats';
 

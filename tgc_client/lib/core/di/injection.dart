@@ -90,14 +90,12 @@ import '../../features/orders/presentation/bloc/orders_bloc.dart';
 import '../../features/orders/presentation/bloc/order_form_bloc.dart';
 
 // Production feature
-import '../../features/production/data/datasources/production_remote_datasource.dart';
-import '../../features/production/data/repositories/production_repository_impl.dart';
-import '../../features/production/domain/repositories/production_repository.dart';
+import '../../features/production/data/datasources/production_batch_remote_datasource.dart';
+import '../../features/production/data/repositories/production_batch_repository_impl.dart';
+import '../../features/production/domain/repositories/production_batch_repository.dart';
 import '../../features/production/domain/usecases/get_production_batches_usecase.dart';
 import '../../features/production/domain/usecases/create_production_batch_usecase.dart';
 import '../../features/production/domain/usecases/update_production_batch_usecase.dart';
-import '../../features/production/domain/usecases/get_machines_usecase.dart';
-import '../../features/production/domain/usecases/get_available_order_items_usecase.dart';
 import '../../features/production/presentation/bloc/production_batches_bloc.dart';
 import '../../features/production/presentation/bloc/production_batch_form_bloc.dart';
 
@@ -289,6 +287,35 @@ Future<void> initDependencies() async {
     ),
   );
 
+  // ─── Production Feature ────────────────────────────────────────────────────
+  sl.registerLazySingleton<ProductionBatchRemoteDataSource>(
+    () => ProductionBatchRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ProductionBatchRepository>(
+    () => ProductionBatchRepositoryImpl(
+        remoteDataSource: sl<ProductionBatchRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetProductionBatchesUseCase(sl<ProductionBatchRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateProductionBatchUseCase(sl<ProductionBatchRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateProductionBatchUseCase(sl<ProductionBatchRepository>()),
+  );
+  sl.registerFactory(
+    () => ProductionBatchesBloc(
+      getProductionBatchesUseCase: sl<GetProductionBatchesUseCase>(),
+    ),
+  );
+  sl.registerFactory(
+    () => ProductionBatchFormBloc(
+      createProductionBatchUseCase: sl<CreateProductionBatchUseCase>(),
+      updateProductionBatchUseCase: sl<UpdateProductionBatchUseCase>(),
+    ),
+  );
+
   // Employees
   sl.registerLazySingleton<EmployeeRemoteDataSource>(
     () => EmployeeRemoteDataSourceImpl(sl<Dio>()),
@@ -303,31 +330,6 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory(
     () => EmployeeFormBloc(createEmployeeUseCase: sl<CreateEmployeeUseCase>()),
-  );
-
-  // ─── Production Feature ────────────────────────────────────────────────────
-  sl.registerLazySingleton<ProductionRemoteDataSource>(
-    () => ProductionRemoteDataSourceImpl(sl<Dio>()),
-  );
-  sl.registerLazySingleton<ProductionRepository>(
-    () => ProductionRepositoryImpl(remoteDataSource: sl<ProductionRemoteDataSource>()),
-  );
-  sl.registerLazySingleton(() => GetProductionBatchesUseCase(sl<ProductionRepository>()));
-  sl.registerLazySingleton(() => CreateProductionBatchUseCase(sl<ProductionRepository>()));
-  sl.registerLazySingleton(() => UpdateProductionBatchUseCase(sl<ProductionRepository>()));
-  sl.registerLazySingleton(() => GetMachinesUseCase(sl<ProductionRepository>()));
-  sl.registerLazySingleton(() => GetAvailableOrderItemsUseCase(sl<ProductionRepository>()));
-  sl.registerFactory(
-    () => ProductionBatchesBloc(
-      getProductionBatchesUseCase: sl<GetProductionBatchesUseCase>(),
-    ),
-  );
-  sl.registerFactory(
-    () => ProductionBatchFormBloc(
-      createProductionBatchUseCase: sl<CreateProductionBatchUseCase>(),
-      updateProductionBatchUseCase: sl<UpdateProductionBatchUseCase>(),
-      repository: sl<ProductionRepository>(),
-    ),
   );
 
   // ─── Dashboard Feature ─────────────────────────────────────────────────────

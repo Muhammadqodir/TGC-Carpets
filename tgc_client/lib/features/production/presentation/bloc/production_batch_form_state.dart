@@ -34,16 +34,3 @@ class ProductionBatchFormFailure extends ProductionBatchFormState {
   @override
   List<Object?> get props => [message];
 }
-
-class ProductionBatchLoaded extends ProductionBatchFormState {
-  final ProductionBatchEntity batch;
-
-  const ProductionBatchLoaded(this.batch);
-
-  @override
-  List<Object?> get props => [batch];
-}
-
-class ProductionBatchItemUpdated extends ProductionBatchFormState {
-  const ProductionBatchItemUpdated();
-}

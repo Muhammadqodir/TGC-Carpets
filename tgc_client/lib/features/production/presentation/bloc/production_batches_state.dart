@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 
 import '../../domain/entities/production_batch_entity.dart';
+import 'production_batches_event.dart';
 
 abstract class ProductionBatchesState extends Equatable {
   const ProductionBatchesState();
@@ -23,17 +23,19 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
   final bool hasNextPage;
   final bool isLoadingMore;
   final int currentPage;
+  final int total;
   final String? activeStatusFilter;
-  final int? activeMachineIdFilter;
-  final DateTimeRange? activeDateRange;
+  final String? activeTypeFilter;
+  final DateTimeRangeSimple? activeDateRange;
 
   const ProductionBatchesLoaded({
     required this.batches,
     required this.hasNextPage,
     this.isLoadingMore = false,
     required this.currentPage,
+    required this.total,
     this.activeStatusFilter,
-    this.activeMachineIdFilter,
+    this.activeTypeFilter,
     this.activeDateRange,
   });
 
@@ -42,27 +44,23 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
     bool? hasNextPage,
     bool? isLoadingMore,
     int? currentPage,
+    int? total,
     String? activeStatusFilter,
-    int? activeMachineIdFilter,
-    DateTimeRange? activeDateRange,
+    String? activeTypeFilter,
+    DateTimeRangeSimple? activeDateRange,
     bool clearStatusFilter = false,
-    bool clearMachineIdFilter = false,
+    bool clearTypeFilter = false,
     bool clearDateRange = false,
   }) =>
       ProductionBatchesLoaded(
-        batches: batches ?? this.batches,
-        hasNextPage: hasNextPage ?? this.hasNextPage,
-        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-        currentPage: currentPage ?? this.currentPage,
-        activeStatusFilter: clearStatusFilter
-            ? null
-            : (activeStatusFilter ?? this.activeStatusFilter),
-        activeMachineIdFilter: clearMachineIdFilter
-            ? null
-            : (activeMachineIdFilter ?? this.activeMachineIdFilter),
-        activeDateRange: clearDateRange
-            ? null
-            : (activeDateRange ?? this.activeDateRange),
+        batches:            batches       ?? this.batches,
+        hasNextPage:        hasNextPage   ?? this.hasNextPage,
+        isLoadingMore:      isLoadingMore ?? this.isLoadingMore,
+        currentPage:        currentPage   ?? this.currentPage,
+        total:              total         ?? this.total,
+        activeStatusFilter: clearStatusFilter ? null : (activeStatusFilter ?? this.activeStatusFilter),
+        activeTypeFilter:   clearTypeFilter   ? null : (activeTypeFilter   ?? this.activeTypeFilter),
+        activeDateRange:    clearDateRange     ? null : (activeDateRange    ?? this.activeDateRange),
       );
 
   @override
@@ -71,8 +69,9 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
         hasNextPage,
         isLoadingMore,
         currentPage,
+        total,
         activeStatusFilter,
-        activeMachineIdFilter,
+        activeTypeFilter,
         activeDateRange,
       ];
 }

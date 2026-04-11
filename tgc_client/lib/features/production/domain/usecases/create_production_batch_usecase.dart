@@ -2,12 +2,12 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../entities/production_batch_entity.dart';
-import '../repositories/production_repository.dart';
+import '../repositories/production_batch_repository.dart';
 
 class CreateProductionBatchUseCase {
-  final ProductionRepository repository;
+  final ProductionBatchRepository _repository;
 
-  CreateProductionBatchUseCase(this.repository);
+  const CreateProductionBatchUseCase(this._repository);
 
   Future<Either<Failure, ProductionBatchEntity>> call({
     required String batchTitle,
@@ -16,14 +16,13 @@ class CreateProductionBatchUseCase {
     String? type,
     String? notes,
     List<Map<String, dynamic>>? items,
-  }) {
-    return repository.createProductionBatch(
-      batchTitle: batchTitle,
-      machineId: machineId,
-      plannedDatetime: plannedDatetime,
-      type: type,
-      notes: notes,
-      items: items,
-    );
-  }
+  }) =>
+      _repository.createProductionBatch(
+        batchTitle:      batchTitle,
+        machineId:       machineId,
+        plannedDatetime: plannedDatetime,
+        type:            type,
+        notes:           notes,
+        items:           items,
+      );
 }

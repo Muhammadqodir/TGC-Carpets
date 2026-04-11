@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,10 @@ class ProductionBatchService
         'items.variant.productSize',
         'items.sourceOrderItem.order.client',
     ];
+
+    public function __construct(
+        private readonly ProductVariantService $variantService,
+    ) {}
 
     /**
      * Create a production batch with its items.
@@ -36,6 +42,7 @@ class ProductionBatchService
 
             if (! empty($data['items'])) {
                 $this->syncItems($batch, $data['items']);
+                $this->syncOrderStatuses($batch);
             }
 
             return $batch->load(self::EAGER_LOAD);
@@ -60,6 +67,7 @@ class ProductionBatchService
                 // Remove old items and re-sync
                 $batch->items()->delete();
                 $this->syncItems($batch, $data['items']);
+                $this->syncOrderStatuses($batch);
             }
 
             return $batch->fresh()->load(self::EAGER_LOAD);
@@ -140,13 +148,57 @@ class ProductionBatchService
     private function syncItems(ProductionBatch $batch, array $items): void
     {
         foreach ($items as $itemData) {
+            if (!empty($itemData['product_variant_id'])) {
+                $variantId = (int) $itemData['product_variant_id'];
+            } else {
+                $variantId = $this->variantService->findOrCreate(
+                    (int) $itemData['product_color_id'],
+                    !empty($itemData['product_size_id']) ? (int) $itemData['product_size_id'] : null,
+                )->id;
+            }
+
             $batch->items()->create([
                 'source_type'           => $itemData['source_type'] ?? ProductionBatchItem::SOURCE_MANUAL,
                 'source_order_item_id'  => $itemData['source_order_item_id'] ?? null,
-                'product_variant_id'    => $itemData['product_variant_id'],
+                'product_variant_id'    => $variantId,
                 'planned_quantity'      => $itemData['planned_quantity'],
                 'notes'                 => $itemData['notes'] ?? null,
             ]);
+        }
+    }
+
+    /**
+     * After syncing items, check if any linked orders should transition to on_production.
+     * An order moves to on_production when every one of its items has enough planned quantity
+     * across all non-cancelled batches.
+     */
+    private function syncOrderStatuses(ProductionBatch $batch): void
+    {
+        $orderIds = $batch->items()
+            ->whereNotNull('source_order_item_id')
+            ->with('sourceOrderItem')
+            ->get()
+            ->pluck('sourceOrderItem.order_id')
+            ->filter()
+            ->unique();
+
+        foreach ($orderIds as $orderId) {
+            $order = Order::with('items')->find($orderId);
+            if (!$order || $order->status !== Order::STATUS_PENDING) {
+                continue;
+            }
+
+            $allCovered = $order->items->every(function (OrderItem $item) {
+                $planned = ProductionBatchItem::where('source_order_item_id', $item->id)
+                    ->whereHas('productionBatch', fn ($q) => $q->where('status', '!=', ProductionBatch::STATUS_CANCELLED))
+                    ->sum('planned_quantity');
+
+                return $planned >= $item->quantity;
+            });
+
+            if ($allCovered) {
+                $order->update(['status' => Order::STATUS_ON_PRODUCTION]);
+            }
         }
     }
 }

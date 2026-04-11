@@ -1,6 +1,8 @@
-import '../../domain/entities/machine_entity.dart';
+import '../../domain/entities/production_batch_entity.dart';
 
-class MachineModel extends MachineEntity {
+/// Simple data model for a machine, extends [ProductionBatchMachine] so it
+/// can be used directly wherever the entity is expected.
+class MachineModel extends ProductionBatchMachine {
   const MachineModel({
     required super.id,
     required super.name,
@@ -9,15 +11,9 @@ class MachineModel extends MachineEntity {
 
   factory MachineModel.fromJson(Map<String, dynamic> json) {
     return MachineModel(
-      id: json['id'] as int,
-      name: json['name'] as String,
+      id:        json['id'] as int,
+      name:      json['name'] as String,
       modelName: json['model_name'] as String?,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'model_name': modelName,
-      };
 }

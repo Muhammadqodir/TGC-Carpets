@@ -10,9 +10,20 @@ class OrderItemResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Calculate how much of this item is already planned in non-cancelled batches.
+        $plannedQty = $this->whenLoaded('productionBatchItems', function () {
+            return (int) $this->productionBatchItems
+                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
+                    ? $pbi->productionBatch->status !== 'cancelled'
+                    : true)
+                ->sum('planned_quantity');
+        }, 0);
+
         return [
-            'id'       => $this->id,
-            'quantity' => $this->quantity,
+            'id'                => $this->id,
+            'quantity'          => $this->quantity,
+            'planned_quantity'  => $plannedQty,
+            'remaining_quantity'=> max(0, $this->quantity - $plannedQty),
             'variant'  => $this->whenLoaded('variant', fn () => [
                 'id'            => $this->variant->id,
                 'barcode_value' => $this->variant->barcode_value,
