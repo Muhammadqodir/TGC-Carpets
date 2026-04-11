@@ -88,35 +88,38 @@ class _OrderInfoCard extends StatelessWidget {
             ),
             const Divider(height: 20),
             _InfoRow(
-              icon: Icons.tag,
+              icon: HugeIcons.strokeRoundedTag01,
               label: 'ID',
               value: '#${order.id}',
             ),
             _InfoRow(
-              icon: Icons.calendar_today_outlined,
+              icon: HugeIcons.strokeRoundedCalendar01,
               label: 'Sana',
               value: _formatDate(order.orderDate),
             ),
             _InfoRow(
-              icon: Icons.person_outline,
+              icon: HugeIcons.strokeRoundedUser,
               label: 'Xodim',
               value: order.userName,
             ),
             if (order.clientShopName != null)
               _InfoRow(
-                icon: Icons.store_outlined,
+                icon: HugeIcons.strokeRoundedStore03,
                 label: 'Mijoz',
-                value: order.clientShopName!,
+                value: order.clientShopName! +
+                    (order.clientRegion != null
+                        ? ' / ${order.clientRegion!}'
+                        : ''),
               ),
             if (order.clientPhone != null)
               _InfoRow(
-                icon: Icons.phone_outlined,
+                icon: HugeIcons.strokeRoundedCall,
                 label: 'Telefon',
                 value: order.clientPhone!,
               ),
             if (order.notes != null && order.notes!.isNotEmpty)
               _InfoRow(
-                icon: Icons.notes_outlined,
+                icon: HugeIcons.strokeRoundedNote01,
                 label: 'Izoh',
                 value: order.notes!,
               ),
@@ -241,9 +244,10 @@ class _OrderItemTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           _variantLabel(),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                         ),
                       ),
                     if (item.variantSku != null)
@@ -251,10 +255,11 @@ class _OrderItemTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           'SKU: ${item.variantSku}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
                         ),
                       ),
                   ],
@@ -299,7 +304,7 @@ class _OrderItemTile extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final String label;
   final String value;
 
@@ -316,7 +321,12 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
+          HugeIcon(
+            icon: icon,
+            size: 16,
+            color: AppColors.textSecondary,
+            strokeWidth: 2,
+          ),
           const SizedBox(width: 8),
           SizedBox(
             width: 80,
@@ -379,11 +389,11 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'pending'       => ('Kutilmoqda', AppColors.warning),
+      'pending' => ('Kutilmoqda', AppColors.warning),
       'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
-      'done'          => ('Bajarildi', AppColors.success),
-      'canceled'      => ('Bekor qilindi', AppColors.error),
-      _               => (status, AppColors.textSecondary),
+      'done' => ('Bajarildi', AppColors.success),
+      'canceled' => ('Bekor qilindi', AppColors.error),
+      _ => (status, AppColors.textSecondary),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

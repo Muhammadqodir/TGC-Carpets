@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
@@ -43,7 +44,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
   late DateTime _orderDate;
 
   bool get _isEditMode => widget.initialOrder != null;
-  int? get _effectiveClientId => _newClient?.id ?? widget.initialOrder?.clientId;
+  int? get _effectiveClientId =>
+      _newClient?.id ?? widget.initialOrder?.clientId;
   String get _clientDisplay =>
       _newClient?.shopName ??
       widget.initialOrder?.clientShopName ??
@@ -155,7 +157,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
         if (state is OrderFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
+              content: Text(
+                  _isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -219,11 +222,13 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                   // ── Top info bar: date + client ────────────────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: const BoxDecoration(
                       color: AppColors.surface,
-                      border: Border(
-                          bottom: BorderSide(color: AppColors.divider)),
+                      border:
+                          Border(bottom: BorderSide(color: AppColors.divider)),
                     ),
                     child: Row(
                       children: [
@@ -233,8 +238,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             height: 40,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               border: Border.all(color: AppColors.divider),
                               borderRadius: BorderRadius.circular(8),
@@ -247,8 +251,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _formattedDate,
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium,
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ],
                             ),
@@ -263,8 +266,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
                               height: 40,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
                                 border: Border.all(
                                   color: !_hasClient
@@ -274,8 +277,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                                 color: _hasClient
-                                    ? AppColors.primary
-                                        .withValues(alpha: 0.05)
+                                    ? AppColors.primary.withValues(alpha: 0.05)
                                     : null,
                               ),
                               child: Row(
@@ -303,8 +305,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                                   ),
                                   if (_newClient != null)
                                     GestureDetector(
-                                      onTap: () => setState(
-                                          () => _newClient = null),
+                                      onTap: () =>
+                                          setState(() => _newClient = null),
                                       child: const Icon(Icons.close,
                                           size: 18,
                                           color: AppColors.textSecondary),
@@ -323,11 +325,10 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                     child: Text(
                       'Mahsulotlar',
-                      style:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
 
@@ -357,6 +358,23 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                   ),
                   const Divider(height: 1, color: AppColors.divider),
 
+                  // ── Notes at bottom ────────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    child: TextFormField(
+                      controller: ctrl.notesCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: "Izoh (ixtiyoriy)",
+                        hintText: "Qo'shimcha ma'lumot...",
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ),
+
                   // ── Totals summary ─────────────────────────────────────────
                   Builder(builder: (context) {
                     final filled = ctrl.filledItems;
@@ -384,15 +402,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                       }
                       return sum;
                     });
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 10),
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border(
-                          bottom: BorderSide(color: AppColors.divider),
-                        ),
-                      ),
+                    return DesktopStatusBar(
                       child: Row(
                         children: [
                           _TotalChip(
@@ -402,27 +412,12 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                           const SizedBox(width: 16),
                           _TotalChip(
                             label: 'Jami m²',
-                            value: totalSqm.toStringAsFixed(2),
+                            value: '${totalSqm.toStringAsFixed(2)} m²',
                           ),
                         ],
                       ),
                     );
                   }),
-
-                  // ── Notes at bottom ────────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
-                    child: TextFormField(
-                      controller: ctrl.notesCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: "Izoh (ixtiyoriy)",
-                        hintText: "Qo'shimcha ma'lumot...",
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -448,6 +443,7 @@ class _DesktopTableHeader extends StatelessWidget {
           _HeaderCell(label: '#', fixedWidth: 40),
           _HeaderCell(label: 'Mahsulot', flex: 3),
           _HeaderCell(label: 'Sifat', flex: 2),
+          _HeaderCell(label: 'Tur', flex: 2),
           _HeaderCell(label: 'Rang', flex: 2),
           _HeaderCell(label: "O'lcham", flex: 2),
           _HeaderCell(label: 'Miqdor', fixedWidth: 150),
@@ -541,8 +537,9 @@ class _DesktopItemTableRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: () {
-                final qualityName = row.selectedProduct?.productQuality?.qualityName
-                    ?? row.prefilledQualityName;
+                final qualityName =
+                    row.selectedProduct?.productQuality?.qualityName ??
+                        row.prefilledQualityName;
                 return Text(
                   qualityName ?? '—',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -551,6 +548,28 @@ class _DesktopItemTableRow extends StatelessWidget {
                             : AppColors.textPrimary,
                       ),
                   maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                );
+              }(),
+            ),
+          ),
+
+          // Type column
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: () {
+                final typeName = row.selectedProduct?.productType?.type ??
+                    row.prefilledProductTypeName;
+                return Text(
+                  typeName ?? '—',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: typeName == null
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 );
               }(),
@@ -630,20 +649,23 @@ class _DesktopItemTableRow extends StatelessWidget {
                           onChanged: onChanged,
                         )
                       : row.prefilledSizeDimensions != null
-                      ? Text(
-                          row.prefilledSizeDimensions!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        )
-                      : Text(
-                          '—',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
+                          ? Text(
+                              row.prefilledSizeDimensions!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            )
+                          : Text(
+                              '—',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
             ),
           ),
 
@@ -711,18 +733,19 @@ class _DesktopProductPickerCell extends StatelessWidget {
         final result = await ProductPickerBottomSheet.show(context);
         if (result != null) {
           if (result.product.productTypeId == null) {
-            final isDuplicate = allItems.any(
-              (r) =>
-                  r.id != row.id &&
-                  r.selectedProduct?.id == result.product.id &&
-                  r.selectedColor?.id == result.color?.id,
-            );
+            // Non-sized product: variant is fully identified by color ID alone.
+            final incomingColorId = result.color?.id;
+            final isDuplicate = allItems.any((r) {
+              if (r.id == row.id) return false;
+              final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+              return rColorId != null && rColorId == incomingColorId;
+            });
             if (isDuplicate) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                        "Bu mahsulot varianti allaqachon qo'shilgan."),
+                    content:
+                        Text("Bu mahsulot varianti allaqachon qo'shilgan."),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -815,19 +838,20 @@ class _DesktopSizePickerCell extends StatelessWidget {
           productTypeId: productTypeId,
         );
         if (picked != null) {
-          final isDuplicate = allItems.any(
-            (r) =>
-                r.id != row.id &&
-                r.selectedProduct?.id == row.selectedProduct?.id &&
-                r.selectedColor?.id == row.selectedColor?.id &&
-                r.selectedSize?.id == picked.id,
-          );
+          // Use effective IDs so prefilled rows are included in the check.
+          final effectiveColorId =
+              row.selectedColor?.id ?? row.prefilledColorId;
+          final isDuplicate = allItems.any((r) {
+            if (r.id == row.id) return false;
+            final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+            final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
+            return rColorId == effectiveColorId && rSizeId == picked.id;
+          });
           if (isDuplicate) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text("Bu mahsulot varianti allaqachon qo'shilgan."),
+                  content: Text("Bu mahsulot varianti allaqachon qo'shilgan."),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -844,7 +868,9 @@ class _DesktopSizePickerCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: displayDimensions == null ? AppColors.divider : AppColors.primary,
+            color: displayDimensions == null
+                ? AppColors.divider
+                : AppColors.primary,
             width: displayDimensions == null ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
@@ -857,7 +883,9 @@ class _DesktopSizePickerCell extends StatelessWidget {
             Icon(
               Icons.straighten_rounded,
               size: 14,
-              color: displayDimensions == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -867,7 +895,8 @@ class _DesktopSizePickerCell extends StatelessWidget {
                       color: displayDimensions == null
                           ? AppColors.textSecondary
                           : AppColors.primary,
-                      fontWeight: displayDimensions != null ? FontWeight.w600 : null,
+                      fontWeight:
+                          displayDimensions != null ? FontWeight.w600 : null,
                     ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -876,7 +905,9 @@ class _DesktopSizePickerCell extends StatelessWidget {
             Icon(
               Icons.arrow_drop_down_rounded,
               size: 18,
-              color: displayDimensions == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
           ],
         ),

@@ -24,6 +24,7 @@ class OrderResource extends JsonResource
                 'id'        => $this->client->id,
                 'shop_name' => $this->client->shop_name,
                 'phone'     => $this->client->phone,
+                'region'    => $this->client->region,
             ] : null),
             'items'         => OrderItemResource::collection($this->whenLoaded('items')),
             'created_at'    => $this->created_at?->toISOString(),

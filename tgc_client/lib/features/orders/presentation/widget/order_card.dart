@@ -102,7 +102,10 @@ class OrderCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        order.clientShopName!,
+                        order.clientShopName! +
+                            (order.clientRegion != null
+                                ? ' / ${order.clientRegion!}'
+                                : ''),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),

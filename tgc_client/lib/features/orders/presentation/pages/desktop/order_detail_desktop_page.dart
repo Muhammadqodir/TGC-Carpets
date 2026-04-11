@@ -116,7 +116,13 @@ class _DesktopInfoSection extends StatelessWidget {
                 ),
                 _InfoItem(label: 'Xodim', value: order.userName),
                 if (order.clientShopName != null)
-                  _InfoItem(label: 'Mijoz', value: order.clientShopName!),
+                  _InfoItem(
+                    label: 'Mijoz',
+                    value: order.clientShopName! +
+                        (order.clientRegion != null
+                            ? ' / ${order.clientRegion!}'
+                            : ''),
+                  ),
                 if (order.clientPhone != null)
                   _InfoItem(label: 'Telefon', value: order.clientPhone!),
                 _InfoItem(

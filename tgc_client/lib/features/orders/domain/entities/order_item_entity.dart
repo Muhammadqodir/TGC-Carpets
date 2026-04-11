@@ -22,6 +22,8 @@ class OrderItemEntity extends Equatable {
   final int? productTypeId;
   /// product.productQuality.quality_name — shown in the Sifat column.
   final String? qualityName;
+  /// product.productType.type — shown in the Tur column.
+  final String? productTypeName;
 
   const OrderItemEntity({
     required this.id,
@@ -40,6 +42,7 @@ class OrderItemEntity extends Equatable {
     this.productSizeId,
     this.productTypeId,
     this.qualityName,
+    this.productTypeName,
   });
 
   String get variantLabel {
@@ -69,5 +72,6 @@ class OrderItemEntity extends Equatable {
         productSizeId,
         productTypeId,
         qualityName,
+        productTypeName,
       ];
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_data_table.dart';
@@ -23,15 +24,16 @@ class OrderTable extends StatelessWidget {
   final void Function(OrderEntity)? onEdit;
 
   static const _columns = <AppTableColumn>[
-    AppTableColumn(label: 'ID',         fixedWidth: 68, alignment: Alignment.center),
-    AppTableColumn(label: 'Sana',       flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Holati',     flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Xodim',      flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mijoz',      flex: 2,        alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mahsulotlar',flex: 1,        alignment: Alignment.center),
-    AppTableColumn(label: 'Jami dona',  flex: 1,        alignment: Alignment.center),
-    AppTableColumn(label: 'Jami m²',    flex: 1,        alignment: Alignment.center),
-    AppTableColumn(label: '',           fixedWidth: 100, alignment: Alignment.center),
+    AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.center),
+    AppTableColumn(label: 'Sana', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Holati', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Xodim', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Mijoz', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Mahsulotlar', flex: 1, alignment: Alignment.center),
+    AppTableColumn(label: 'Jami dona', flex: 1, alignment: Alignment.center),
+    AppTableColumn(label: 'Jami m²', flex: 1, alignment: Alignment.center),
+    AppTableColumn(
+        label: 'Amallar', fixedWidth: 100, alignment: Alignment.center),
   ];
 
   @override
@@ -69,7 +71,8 @@ class OrderTable extends StatelessWidget {
       case 3:
         return Row(
           children: [
-            const Icon(Icons.person_outline, size: 16, color: AppColors.textSecondary),
+            const Icon(Icons.person_outline,
+                size: 16, color: AppColors.textSecondary),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -86,11 +89,15 @@ class OrderTable extends StatelessWidget {
         return order.clientShopName != null
             ? Row(
                 children: [
-                  const Icon(Icons.store_outlined, size: 16, color: AppColors.textSecondary),
+                  const Icon(Icons.store_outlined,
+                      size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      order.clientShopName!,
+                      order.clientShopName! +
+                          (order.clientRegion != null
+                              ? ' / ${order.clientRegion!}'
+                              : ''),
                       style: Theme.of(context).textTheme.bodyMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -137,32 +144,33 @@ class OrderTable extends StatelessWidget {
             children: [
               if (onViewDetail != null)
                 IconButton(
-                  icon: const Icon(Icons.visibility_outlined,
-                      size: 18, color: AppColors.primaryLight),
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedView,
+                    color: AppColors.primaryLight,
+                  ),
                   onPressed: () => onViewDetail!(order),
                   tooltip: 'Tafsilotlar',
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
                 ),
               if (order.status == 'pending' && onEdit != null) ...[
                 const SizedBox(width: 4),
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined,
-                      size: 18, color: AppColors.warning),
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedEdit02,
+                    color: AppColors.warning,
+                  ),
                   onPressed: () => onEdit!(order),
                   tooltip: 'Tahrirlash',
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
                 ),
               ],
               if (onDelete != null) ...[
                 const SizedBox(width: 4),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 18, color: AppColors.error),
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedRemove01,
+                    color: AppColors.error,
+                  ),
                   onPressed: () => onDelete!(order),
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
+                  tooltip: 'O\'chirish',
                 ),
               ],
             ],
@@ -186,11 +194,11 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'pending'       => ('Kutilmoqda', AppColors.warning),
+      'pending' => ('Kutilmoqda', AppColors.warning),
       'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
-      'done'          => ('Bajarildi', AppColors.success),
-      'canceled'      => ('Bekor qilindi', AppColors.error),
-      _               => (status, AppColors.textSecondary),
+      'done' => ('Bajarildi', AppColors.success),
+      'canceled' => ('Bekor qilindi', AppColors.error),
+      _ => (status, AppColors.textSecondary),
     };
 
     return Container(

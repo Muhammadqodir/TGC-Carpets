@@ -11,6 +11,7 @@ class OrderEntity extends Equatable {
   final int? clientId;
   final String? clientShopName;
   final String? clientPhone;
+  final String? clientRegion;
   final String status; // 'pending' | 'on_production' | 'done' | 'canceled'
   final DateTime orderDate;
   final String? notes;
@@ -27,6 +28,7 @@ class OrderEntity extends Equatable {
     this.clientId,
     this.clientShopName,
     this.clientPhone,
+    this.clientRegion,
     required this.status,
     required this.orderDate,
     this.notes,
@@ -63,6 +65,7 @@ class OrderEntity extends Equatable {
         clientId,
         clientShopName,
         clientPhone,
+        clientRegion,
         status,
         orderDate,
         notes,
