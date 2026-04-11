@@ -390,8 +390,8 @@ class _MobileProductPickerButton extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           [
-                            if (product.productType?.type != null)
-                              product.productType!.type,
+                            if (product.productQuality?.qualityName != null)
+                              product.productQuality!.qualityName,
                             if (row.selectedColor != null)
                               row.selectedColor!.colorName,
                           ].join(' · '),

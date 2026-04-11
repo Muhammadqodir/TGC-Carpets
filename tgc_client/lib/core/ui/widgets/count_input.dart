@@ -50,7 +50,7 @@ class CountInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = dense ? 36.0 : 44.0;
+    final h = dense ? 36.0 : 38.0;
     final iconSize = dense ? 14.0 : 18.0;
 
     return Container(
@@ -81,29 +81,33 @@ class CountInput extends StatelessWidget {
 
           // ── Value field ───────────────────────────────────────────────
           Expanded(
-            child: TextFormField(
-              controller: controller,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                // In dense / table rows suppress the inline error text;
-                // the parent form's snackbar handles validation feedback.
-                errorStyle:
-                    dense ? const TextStyle(height: 0, fontSize: 0) : null,
+            child: Container(
+              height: h,
+              alignment: Alignment.center,
+              child: TextFormField(
+                controller: controller,
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  // In dense / table rows suppress the inline error text;
+                  // the parent form's snackbar handles validation feedback.
+                  errorStyle:
+                      dense ? const TextStyle(height: 0, fontSize: 0) : null,
+                ),
+                onChanged: (_) => onChanged?.call(),
+                validator: validator,
               ),
-              onChanged: (_) => onChanged?.call(),
-              validator: validator,
             ),
           ),
 

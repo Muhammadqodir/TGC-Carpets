@@ -44,7 +44,8 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
   late DateTime _orderDate;
 
   bool get _isEditMode => widget.initialOrder != null;
-  int? get _effectiveClientId => _newClient?.id ?? widget.initialOrder?.clientId;
+  int? get _effectiveClientId =>
+      _newClient?.id ?? widget.initialOrder?.clientId;
   String get _clientDisplay =>
       _newClient?.shopName ??
       widget.initialOrder?.clientShopName ??
@@ -156,7 +157,8 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
         if (state is OrderFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
+              content: Text(
+                  _isEditMode ? 'Buyurtma yangilandi.' : 'Buyurtma saqlandi.'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -236,8 +238,8 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: !_hasClient
-                                  ? AppColors.divider
-                                  : AppColors.primary,
+                                    ? AppColors.divider
+                                    : AppColors.primary,
                                 width: !_hasClient ? 1.0 : 1.5,
                               ),
                               borderRadius: BorderRadius.circular(8),
@@ -432,7 +434,6 @@ class _MobileItemFormRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
             Row(
               children: [
                 Expanded(
@@ -442,14 +443,40 @@ class _MobileItemFormRow extends StatelessWidget {
                     onChanged: onProductChanged,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: (product != null && product.productTypeId != null)
+                      ? _SizePicker(
+                          row: row,
+                          allItems: allItems,
+                          productTypeId: product.productTypeId!,
+                          onChanged: onProductChanged,
+                        )
+                      : (product == null && row.prefilledProductTypeId != null)
+                          ?
+                          // Existing item from server — allow size change via picker.
+                          _SizePicker(
+                              row: row,
+                              allItems: allItems,
+                              productTypeId: row.prefilledProductTypeId!,
+                              onChanged: onProductChanged,
+                            )
+                          : SizedBox.shrink(),
+                ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 120,
+                  width: 140,
                   child: CountInput(
                     controller: row.quantityCtrl,
                     validator: (v) {
                       if (row.selectedProduct == null) return null;
-                      if (v == null || v.trim().isEmpty) return 'Miqdorni kiriting';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Miqdorni kiriting';
+                      }
                       final qty = int.tryParse(v);
                       if (qty == null || qty < 1) return 'Kamida 1';
                       return null;
@@ -458,25 +485,6 @@ class _MobileItemFormRow extends StatelessWidget {
                 ),
               ],
             ),
-
-            if (product != null && product.productTypeId != null) ...[
-              const SizedBox(height: 8),
-              _SizePicker(
-                row: row,
-                allItems: allItems,
-                productTypeId: product.productTypeId!,
-                onChanged: onProductChanged,
-              ),
-            ] else if (product == null && row.prefilledProductTypeId != null) ...[
-              // Existing item from server — allow size change via picker.
-              const SizedBox(height: 8),
-              _SizePicker(
-                row: row,
-                allItems: allItems,
-                productTypeId: row.prefilledProductTypeId!,
-                onChanged: onProductChanged,
-              ),
-            ],
           ],
         ),
       ),
@@ -516,7 +524,8 @@ class _ProductPickerButton extends StatelessWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                    content:
+                        Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -565,7 +574,8 @@ class _ProductPickerButton extends StatelessWidget {
                 children: [
                   // Color thumbnail: entity image first, prefill URL as fallback
                   AppThumbnail(
-                    imageUrl: row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl,
+                    imageUrl: row.selectedColor?.imageUrl ??
+                        row.prefilledColorImageUrl,
                     size: 28,
                     borderRadius: 4,
                   ),
@@ -581,24 +591,37 @@ class _ProductPickerButton extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if ((product?.productType?.type ?? row.prefilledColorName) != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            [
-                              if (product?.productType?.type != null)
-                                product!.productType!.type,
-                              if ((row.selectedColor?.colorName ??
-                                      row.prefilledColorName) !=
-                                  null)
-                                row.selectedColor?.colorName ??
-                                    row.prefilledColorName!,
-                            ].join(' · '),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ],
+                        Builder(builder: (context) {
+                          final qualityName =
+                              product?.productQuality?.qualityName ??
+                                  row.prefilledQualityName;
+                          final parts = [
+                            if (product?.productType?.type != null)
+                              product!.productType!.type.toUpperCase(),
+                            if (qualityName != null) qualityName.toUpperCase(),
+                            if ((row.selectedColor?.colorName ??
+                                    row.prefilledColorName) !=
+                                null)
+                              row.selectedColor?.colorName.toUpperCase() ??
+                                  row.prefilledColorName!.toUpperCase(),
+                          ];
+                          if (parts.isEmpty) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(
+                                parts.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          );
+                        }),
                       ],
                     ),
                   ),
