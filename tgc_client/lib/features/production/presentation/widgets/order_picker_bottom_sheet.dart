@@ -280,7 +280,8 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
           ] else ...[
             // ── Step 2: item multi-select ───────────────────────────
             Flexible(
-              child: _selectedOrder!.items.isEmpty
+              child: _selectedOrder!.items
+                      .every((i) => (i.remainingQuantity ?? i.quantity) <= 0)
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -338,25 +339,31 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
                         ),
                         const Divider(height: 1),
                         Flexible(
-                          child: ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(0, 4, 0, 0),
-                            itemCount: _selectedOrder!.items.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final item = _selectedOrder!.items[i];
-                              final isSelected =
-                                  _selectedItemIds.contains(item.id);
-                              return InkWell(
-                                onTap: () => _toggleItem(item.id),
-                                child: _OrderItemTile(
-                                  item: item,
-                                  isSelected: isSelected,
-                                ),
-                              );
-                            },
-                          ),
+                          child: Builder(builder: (context) {
+                            final visibleItems = _selectedOrder!.items
+                                .where((i) =>
+                                    (i.remainingQuantity ?? i.quantity) > 0)
+                                .toList();
+                            return ListView.separated(
+                              padding:
+                                  const EdgeInsets.fromLTRB(0, 4, 0, 0),
+                              itemCount: visibleItems.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, i) {
+                                final item = visibleItems[i];
+                                final isSelected =
+                                    _selectedItemIds.contains(item.id);
+                                return InkWell(
+                                  onTap: () => _toggleItem(item.id),
+                                  child: _OrderItemTile(
+                                    item: item,
+                                    isSelected: isSelected,
+                                  ),
+                                );
+                              },
+                            );
+                          }),
                         ),
                       ],
                     ),
@@ -369,9 +376,14 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: FilledButton(
                   onPressed: _selectedItemIds.isEmpty ? null : _confirm,
-                  child: Text(
-                    'Import (${_selectedItemIds.length} ta mahsulot)',
-                  ),
+                  child: Builder(builder: (context) {
+                    final pendingCount = (_selectedOrder?.items ?? [])
+                        .where((i) =>
+                            _selectedItemIds.contains(i.id) &&
+                            (i.remainingQuantity ?? i.quantity) > 0)
+                        .length;
+                    return Text('Import ($pendingCount ta mahsulot)');
+                  }),
                 ),
               ),
             ),
@@ -455,7 +467,6 @@ class _OrderItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = item.remainingQuantity ?? item.quantity;
-    final isFullyPlanned = remaining <= 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -475,10 +486,7 @@ class _OrderItemTile extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium
-                      ?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: isFullyPlanned ? AppColors.textSecondary : null,
-                      ),
+                      ?.copyWith(fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -505,14 +513,9 @@ class _OrderItemTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isFullyPlanned
-                    ? 'Tayyor'
-                    : '$remaining ta',
+                '$remaining ta',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isFullyPlanned
-                          ? AppColors.success
-                          : AppColors.textSecondary,
-                      fontWeight: isFullyPlanned ? FontWeight.w600 : null,
+                      color: AppColors.textSecondary,
                     ),
               ),
               if (item.remainingQuantity != null)

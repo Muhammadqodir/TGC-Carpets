@@ -31,6 +31,7 @@ class BatchItemRow {
 
   // ── Source (import from order) ────────────────────────────────────────────
   final int?    sourceOrderId;
+  final int?    sourceOrderItemId;
   final String? sourceClientName;
 
   // ── Extra display fields ──────────────────────────────────────────────────
@@ -47,6 +48,7 @@ class BatchItemRow {
     this.prefilledSizeLength,
     this.prefilledSizeWidth,
     this.sourceOrderId,
+    this.sourceOrderItemId,
     this.sourceClientName,
     this.prefilledQualityName,
     this.prefilledTypeName,
@@ -69,6 +71,7 @@ class BatchItemRow {
         prefilledSizeLength: item.sizeLength,
         prefilledSizeWidth: item.sizeWidth,
         sourceOrderId: orderId,
+        sourceOrderItemId: item.id,
         sourceClientName: clientName,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,

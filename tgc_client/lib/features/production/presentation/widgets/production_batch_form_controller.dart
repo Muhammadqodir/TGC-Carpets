@@ -84,8 +84,9 @@ class ProductionBatchFormController extends ChangeNotifier {
             'product_color_id': colorId,
             'product_size_id': sizeId,
             'planned_quantity': qty,
-            'source_type': r.sourceOrderId != null ? 'order' : 'manual',
-            if (r.sourceOrderId != null) 'source_id': r.sourceOrderId,
+            'source_type': r.sourceOrderItemId != null ? 'order_item' : 'manual',
+            if (r.sourceOrderItemId != null)
+              'source_order_item_id': r.sourceOrderItemId,
           };
         })
         .toList();

@@ -164,6 +164,7 @@ class _StatusFilterBar extends StatelessWidget {
   static const _statusFilters = [
     (label: 'Barchasi', value: null),
     (label: 'Kutilmoqda', value: 'pending'),
+    (label: 'Rejalashtirilgan', value: 'planned'),
     (label: 'Ishlab chiqarilmoqda', value: 'on_production'),
     (label: 'Bajarildi', value: 'done'),
     (label: 'Bekor qilindi', value: 'canceled'),

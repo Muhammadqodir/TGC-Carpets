@@ -144,7 +144,7 @@ class ProductionBatchController extends Controller
                 'variant.productColor.color',
                 'variant.productSize',
             ])
-            ->whereHas('order', fn ($q) => $q->whereIn('status', ['pending', 'on_production']))
+            ->whereHas('order', fn ($q) => $q->whereIn('status', ['pending', 'planned', 'on_production']))
             ->get()
             ->map(function (OrderItem $oi) {
                 // Calculate already planned quantity across all non-cancelled batches

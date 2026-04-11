@@ -64,11 +64,12 @@ class _DesktopInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusLabel, statusColor) = switch (order.status) {
-      'pending' => ('Kutilmoqda', AppColors.warning),
+      'pending'       => ('Kutilmoqda', AppColors.warning),
+      'planned'       => ('Rejalashtirilgan', AppColors.primary),
       'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
-      'done' => ('Bajarildi', AppColors.success),
-      'canceled' => ('Bekor qilindi', AppColors.error),
-      _ => (order.status, AppColors.textSecondary),
+      'done'          => ('Bajarildi', AppColors.success),
+      'canceled'      => ('Bekor qilindi', AppColors.error),
+      _               => (order.status, AppColors.textSecondary),
     };
 
     return Card(

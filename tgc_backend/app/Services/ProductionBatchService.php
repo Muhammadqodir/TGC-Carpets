@@ -79,10 +79,27 @@ class ProductionBatchService
      */
     public function start(ProductionBatch $batch): ProductionBatch
     {
-        $batch->update([
-            'status'           => ProductionBatch::STATUS_IN_PROGRESS,
-            'started_datetime' => now(),
-        ]);
+        DB::transaction(function () use ($batch): void {
+            $batch->update([
+                'status'           => ProductionBatch::STATUS_IN_PROGRESS,
+                'started_datetime' => now(),
+            ]);
+
+            // Move all fully-planned linked orders to on_production.
+            $orderIds = $batch->items()
+                ->whereNotNull('source_order_item_id')
+                ->with('sourceOrderItem')
+                ->get()
+                ->pluck('sourceOrderItem.order_id')
+                ->filter()
+                ->unique();
+
+            if ($orderIds->isNotEmpty()) {
+                Order::whereIn('id', $orderIds)
+                    ->where('status', Order::STATUS_PLANNED)
+                    ->update(['status' => Order::STATUS_ON_PRODUCTION]);
+            }
+        });
 
         return $batch->fresh()->load(self::EAGER_LOAD);
     }
@@ -168,8 +185,8 @@ class ProductionBatchService
     }
 
     /**
-     * After syncing items, check if any linked orders should transition to on_production.
-     * An order moves to on_production when every one of its items has enough planned quantity
+     * After syncing items, check if any linked orders should transition to planned.
+     * An order moves to planned when every one of its items has enough planned quantity
      * across all non-cancelled batches.
      */
     private function syncOrderStatuses(ProductionBatch $batch): void
@@ -197,7 +214,7 @@ class ProductionBatchService
             });
 
             if ($allCovered) {
-                $order->update(['status' => Order::STATUS_ON_PRODUCTION]);
+                $order->update(['status' => Order::STATUS_PLANNED]);
             }
         }
     }

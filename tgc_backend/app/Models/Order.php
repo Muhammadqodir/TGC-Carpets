@@ -13,12 +13,14 @@ class Order extends Model
     use HasFactory;
 
     const STATUS_PENDING       = 'pending';
+    const STATUS_PLANNED        = 'planned';
     const STATUS_ON_PRODUCTION  = 'on_production';
     const STATUS_DONE           = 'done';
     const STATUS_CANCELED       = 'canceled';
 
     const STATUSES = [
         self::STATUS_PENDING,
+        self::STATUS_PLANNED,
         self::STATUS_ON_PRODUCTION,
         self::STATUS_DONE,
         self::STATUS_CANCELED,

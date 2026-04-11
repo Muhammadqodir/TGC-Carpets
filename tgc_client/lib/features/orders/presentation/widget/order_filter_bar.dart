@@ -148,6 +148,9 @@ class _OrderStatusDropdown extends StatelessWidget {
             ),
             const DropdownMenuItem(value: 'pending', child: Text('Kutilmoqda')),
             const DropdownMenuItem(
+                value: 'planned',
+                child: Text('Rejalashtirilgan')),
+            const DropdownMenuItem(
                 value: 'on_production',
                 child: Text('Ishlab chiqarilmoqda')),
             const DropdownMenuItem(value: 'done', child: Text('Bajarildi')),

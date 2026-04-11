@@ -39,6 +39,7 @@ class OrderEntity extends Equatable {
 
   String get statusLabel => switch (status) {
         'pending'       => 'Kutilmoqda',
+        'planned'       => 'Rejalashtirilgan',
         'on_production' => 'Ishlab chiqarilmoqda',
         'done'          => 'Bajarildi',
         'canceled'      => 'Bekor qilindi',
