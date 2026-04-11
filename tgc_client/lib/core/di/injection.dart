@@ -91,6 +91,7 @@ import '../../features/orders/presentation/bloc/order_form_bloc.dart';
 
 // Production feature
 import '../../features/production/data/datasources/production_batch_remote_datasource.dart';
+import '../../features/production/data/datasources/defect_document_remote_datasource.dart';
 import '../../features/production/data/repositories/production_batch_repository_impl.dart';
 import '../../features/production/domain/repositories/production_batch_repository.dart';
 import '../../features/production/domain/usecases/get_production_batches_usecase.dart';
@@ -290,6 +291,9 @@ Future<void> initDependencies() async {
   // ─── Production Feature ────────────────────────────────────────────────────
   sl.registerLazySingleton<ProductionBatchRemoteDataSource>(
     () => ProductionBatchRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<DefectDocumentRemoteDataSource>(
+    () => DefectDocumentRemoteDataSourceImpl(sl<Dio>()),
   );
   sl.registerLazySingleton<ProductionBatchRepository>(
     () => ProductionBatchRepositoryImpl(

@@ -68,4 +68,7 @@ class AppRoutes {
 
   static const String editProductionBatch     = '/production/edit';
   static const String editProductionBatchName = 'editProductionBatch';
+
+  static const String defectDocumentForm     = '/production/defect';
+  static const String defectDocumentFormName = 'defectDocumentForm';
 }

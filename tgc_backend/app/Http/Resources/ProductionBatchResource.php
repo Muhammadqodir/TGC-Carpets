@@ -28,6 +28,10 @@ class ProductionBatchResource extends JsonResource
                 'id'   => $this->creator->id,
                 'name' => $this->creator->name,
             ]),
+            'responsible_employee' => $this->whenLoaded('responsibleEmployee', fn () => $this->responsibleEmployee ? [
+                'id'   => $this->responsibleEmployee->id,
+                'name' => $this->responsibleEmployee->name,
+            ] : null),
             'items'              => ProductionBatchItemResource::collection($this->whenLoaded('items')),
             'items_count'        => $this->whenCounted('items'),
             'total_planned_quantity' => (int) ($this->items_sum_planned_quantity ?? 0),

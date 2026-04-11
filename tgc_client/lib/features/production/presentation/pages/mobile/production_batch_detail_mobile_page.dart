@@ -9,6 +9,7 @@ import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../data/datasources/production_batch_remote_datasource.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../../domain/entities/production_batch_item_entity.dart';
+import '../../widgets/employee_picker_bottom_sheet.dart';
 
 class ProductionBatchDetailMobilePage extends StatefulWidget {
   final ProductionBatchEntity batch;
@@ -23,12 +24,123 @@ class ProductionBatchDetailMobilePage extends StatefulWidget {
 class _ProductionBatchDetailMobilePageState
     extends State<ProductionBatchDetailMobilePage> {
   late Future<ProductionBatchEntity> _batchFuture;
+  bool _isActing = false;
 
   @override
   void initState() {
     super.initState();
     _batchFuture = sl<ProductionBatchRemoteDataSource>()
         .getProductionBatch(widget.batch.id);
+  }
+
+  Future<void> _onStart(ProductionBatchEntity batch) async {
+    final employee = await EmployeePickerBottomSheet.show(context);
+    if (!context.mounted) return;
+
+    if (employee == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mas\'ul hodimni tanlash majburiy.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ishlab chiqarishni boshlash'),
+        content: Text(
+          'Mas\'ul hodim: ${employee.name}\n\nPartiyani ishlab chiqarishga o\'tkazasizmi?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Boshlash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    setState(() => _isActing = true);
+    try {
+      await sl<ProductionBatchRemoteDataSource>().startBatch(
+        batch.id,
+        responsibleEmployeeId: employee.id,
+      );
+      if (context.mounted) {
+        setState(() {
+          _batchFuture = sl<ProductionBatchRemoteDataSource>()
+              .getProductionBatch(widget.batch.id);
+          _isActing = false;
+        });
+        context.pop(true);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        setState(() => _isActing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onCancel(ProductionBatchEntity batch) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Batchni bekor qilish'),
+        content: const Text(
+          'Haqiqatan ham bu batchni bekor qilmoqchimisiz? Bu amalni qaytarib bo\'lmaydi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Yo\'q'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ha, bekor qilish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    setState(() => _isActing = true);
+    try {
+      await sl<ProductionBatchRemoteDataSource>().cancelBatch(batch.id);
+      if (context.mounted) {
+        setState(() {
+          _batchFuture = sl<ProductionBatchRemoteDataSource>()
+              .getProductionBatch(widget.batch.id);
+          _isActing = false;
+        });
+        context.pop(true);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        setState(() => _isActing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -115,6 +227,81 @@ class _ProductionBatchDetailMobilePageState
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _BatchInfoCard(batch: batch),
+                  if (batch.status == 'planned' ||
+                      (batch.status != 'completed' &&
+                          batch.status != 'cancelled')) ...[
+                    const SizedBox(height: 12),
+                    if (batch.status == 'planned')
+                      FilledButton.icon(
+                        icon: _isActing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white))
+                            : const HugeIcon(
+                                icon: HugeIcons.strokeRoundedPlay,
+                                size: 18,
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                        label:
+                            const Text('Ishlab chiqarishni boshlash'),
+                        onPressed:
+                            _isActing ? null : () => _onStart(batch),
+                      ),
+                    if (batch.status == 'in_progress') ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side:
+                              const BorderSide(color: AppColors.error),
+                        ),
+                        icon: const HugeIcon(
+                          icon: HugeIcons.strokeRoundedAlert01,
+                          size: 18,
+                          strokeWidth: 2,
+                          color: AppColors.error,
+                        ),
+                        label: const Text('Nuxson rasmiylashtirish'),
+                        onPressed: () async {
+                          await context.pushNamed(
+                            AppRoutes.defectDocumentFormName,
+                            extra: batch,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (batch.status != 'completed' &&
+                        batch.status != 'cancelled') ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side:
+                              const BorderSide(color: AppColors.error),
+                        ),
+                        icon: _isActing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2))
+                            : const HugeIcon(
+                                icon:
+                                    HugeIcons.strokeRoundedCancel01,
+                                size: 18,
+                                strokeWidth: 2,
+                                color: AppColors.error,
+                              ),
+                        label: const Text('Bekor qilish'),
+                        onPressed:
+                            _isActing ? null : () => _onCancel(batch),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 12),
                   _BatchItemsCard(items: batch.items),
                   const SizedBox(height: 16),
@@ -154,7 +341,7 @@ class _BatchInfoCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Batch ma\'lumotlari',
+                    'Partiya ma\'lumotlari',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -185,6 +372,12 @@ class _BatchInfoCard extends StatelessWidget {
                 icon: HugeIcons.strokeRoundedUser,
                 label: 'Yaratdi',
                 value: batch.creator!.name,
+              ),
+            if (batch.responsibleEmployee != null)
+              _InfoRow(
+                icon: HugeIcons.strokeRoundedUserCheck01,
+                label: 'Mas\'ul',
+                value: batch.responsibleEmployee!.name,
               ),
             if (batch.plannedDatetime != null)
               _InfoRow(
@@ -427,7 +620,7 @@ class _BatchItemTile extends StatelessWidget {
                       item.defectQuantity! > 0) ...[
                     const SizedBox(height: 4),
                     _QtyBadge(
-                      label: 'Brak',
+                      label: 'Nuxson',
                       value: '${item.defectQuantity}',
                       color: AppColors.error,
                     ),

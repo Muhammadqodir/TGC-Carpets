@@ -13,6 +13,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
     super.notes,
     super.machine,
     super.creator,
+    super.responsibleEmployee,
     required super.itemsCount,
     required super.totalPlannedQuantity,
     required super.totalSqm,
@@ -22,9 +23,10 @@ class ProductionBatchModel extends ProductionBatchEntity {
   });
 
   factory ProductionBatchModel.fromJson(Map<String, dynamic> json) {
-    final machineMap  = json['machine']  as Map<String, dynamic>?;
-    final creatorMap  = json['creator']  as Map<String, dynamic>?;
-    final itemsList   = json['items']    as List<dynamic>?;
+    final machineMap           = json['machine']             as Map<String, dynamic>?;
+    final creatorMap           = json['creator']             as Map<String, dynamic>?;
+    final responsibleMap       = json['responsible_employee'] as Map<String, dynamic>?;
+    final itemsList            = json['items']               as List<dynamic>?;
 
     return ProductionBatchModel(
       id:                  json['id'] as int,
@@ -52,6 +54,12 @@ class ProductionBatchModel extends ProductionBatchEntity {
           ? ProductionBatchCreator(
               id:   creatorMap['id'] as int,
               name: creatorMap['name'] as String,
+            )
+          : null,
+      responsibleEmployee: responsibleMap != null
+          ? ProductionBatchCreator(
+              id:   responsibleMap['id'] as int,
+              name: responsibleMap['name'] as String,
             )
           : null,
       itemsCount: json['items_count'] as int? ?? itemsList?.length ?? 0,

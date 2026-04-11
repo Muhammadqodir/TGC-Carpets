@@ -61,6 +61,11 @@ class ApiEndpoints {
   // Product Variants
   static const String productVariants = '/product-variants';
 
+  // Defect Documents
+  static String defectDocuments(int batchId) =>
+      '/production-batches/$batchId/defect-documents';
+  static String defectDocumentById(int id) => '/defect-documents/$id';
+
   // Dashboard
   static const String dashboardStats = '/dashboard/stats';
 

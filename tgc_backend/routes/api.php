@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\ProductSizeController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\MachineController;
+use App\Http\Controllers\Api\V1\DefectDocumentController;
 use App\Http\Controllers\Api\V1\ProductionBatchController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
@@ -112,6 +113,16 @@ Route::prefix('v1')->group(function (): void {
             ->name('production-batches.cancel');
         Route::patch('production-batches/{productionBatch}/items/{item}', [ProductionBatchController::class, 'updateItem'])
             ->name('production-batches.items.update');
+
+        // Defect Documents (nested under production batch + standalone show/delete)
+        Route::get('production-batches/{productionBatch}/defect-documents', [DefectDocumentController::class, 'index'])
+            ->name('production-batches.defect-documents.index');
+        Route::post('production-batches/{productionBatch}/defect-documents', [DefectDocumentController::class, 'store'])
+            ->name('production-batches.defect-documents.store');
+        Route::get('defect-documents/{defectDocument}', [DefectDocumentController::class, 'show'])
+            ->name('defect-documents.show');
+        Route::delete('defect-documents/{defectDocument}', [DefectDocumentController::class, 'destroy'])
+            ->name('defect-documents.destroy');
 
     });
 

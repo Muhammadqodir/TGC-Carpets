@@ -13,6 +13,7 @@ class ProductionBatchService
     private const EAGER_LOAD = [
         'machine',
         'creator',
+        'responsibleEmployee',
         'items.variant.productColor.product.productType',
         'items.variant.productColor.product.productQuality',
         'items.variant.productColor.color',
@@ -77,12 +78,13 @@ class ProductionBatchService
     /**
      * Start production — transition from planned → in_progress.
      */
-    public function start(ProductionBatch $batch): ProductionBatch
+    public function start(ProductionBatch $batch, int $responsibleEmployeeId): ProductionBatch
     {
-        DB::transaction(function () use ($batch): void {
+        DB::transaction(function () use ($batch, $responsibleEmployeeId): void {
             $batch->update([
-                'status'           => ProductionBatch::STATUS_IN_PROGRESS,
-                'started_datetime' => now(),
+                'status'                  => ProductionBatch::STATUS_IN_PROGRESS,
+                'started_datetime'        => now(),
+                'responsible_employee_id' => $responsibleEmployeeId,
             ]);
 
             // Move all fully-planned linked orders to on_production.

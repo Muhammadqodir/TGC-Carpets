@@ -44,6 +44,7 @@ class ProductionBatch extends Model
         'type',
         'status',
         'created_by',
+        'responsible_employee_id',
         'notes',
     ];
 
@@ -66,6 +67,11 @@ class ProductionBatch extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function responsibleEmployee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsible_employee_id');
     }
 
     public function items(): HasMany

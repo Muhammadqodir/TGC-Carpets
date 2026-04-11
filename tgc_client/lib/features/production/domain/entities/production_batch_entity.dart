@@ -38,6 +38,7 @@ class ProductionBatchEntity extends Equatable {
   final String? notes;
   final ProductionBatchMachine? machine;
   final ProductionBatchCreator? creator;
+  final ProductionBatchCreator? responsibleEmployee;
   final int itemsCount;
   final int totalPlannedQuantity;
   final double totalSqm;
@@ -56,6 +57,7 @@ class ProductionBatchEntity extends Equatable {
     this.notes,
     this.machine,
     this.creator,
+    this.responsibleEmployee,
     required this.itemsCount,
     this.totalPlannedQuantity = 0,
     this.totalSqm = 0.0,
@@ -91,6 +93,7 @@ class ProductionBatchEntity extends Equatable {
         notes,
         machine,
         creator,
+        responsibleEmployee,
         itemsCount,
         totalPlannedQuantity,
         totalSqm,

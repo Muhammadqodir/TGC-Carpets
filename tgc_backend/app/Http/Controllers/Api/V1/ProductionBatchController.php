@@ -57,6 +57,7 @@ class ProductionBatchController extends Controller
         $productionBatch->load([
             'machine',
             'creator',
+            'responsibleEmployee',
             'items.variant.productColor.product.productType',
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
@@ -84,13 +85,20 @@ class ProductionBatchController extends Controller
     /**
      * POST /production-batches/{productionBatch}/start
      */
-    public function start(ProductionBatch $productionBatch): JsonResponse
+    public function start(Request $request, ProductionBatch $productionBatch): JsonResponse
     {
         if ($productionBatch->status !== ProductionBatch::STATUS_PLANNED) {
             return response()->json(['message' => 'Batch can only be started from planned status.'], 422);
         }
 
-        $updated = $this->service->start($productionBatch);
+        $validated = $request->validate([
+            'responsible_employee_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $updated = $this->service->start(
+            $productionBatch,
+            $validated['responsible_employee_id'],
+        );
 
         return response()->json(['data' => new ProductionBatchResource($updated)]);
     }
