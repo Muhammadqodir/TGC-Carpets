@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
+import '../../data/datasources/production_batch_remote_datasource.dart';
 import '../../domain/entities/production_batch_entity.dart';
 import '../bloc/production_batch_form_bloc.dart';
 import '../widgets/production_batch_form_controller.dart';
@@ -26,11 +27,32 @@ class ProductionBatchFormPage extends StatefulWidget {
 
 class _ProductionBatchFormPageState extends State<ProductionBatchFormPage> {
   late final ProductionBatchFormController _ctrl;
+  ProductionBatchEntity? _fullBatch;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _ctrl = ProductionBatchFormController();
+    if (widget.batch != null) {
+      _fetchFullBatch(widget.batch!);
+    }
+  }
+
+  Future<void> _fetchFullBatch(ProductionBatchEntity partial) async {
+    setState(() => _loading = true);
+    try {
+      final full = await sl<ProductionBatchRemoteDataSource>()
+          .getProductionBatch(partial.id);
+      if (!mounted) return;
+      _ctrl.loadFromBatch(full);
+      setState(() {
+        _fullBatch = full;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -41,6 +63,16 @@ class _ProductionBatchFormPageState extends State<ProductionBatchFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    // In edit mode, show a spinner until the full batch (with items) is loaded
+    if (widget.batch != null && _loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Tahrirlash...')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final effectiveBatch = _fullBatch ?? widget.batch;
+
     return BlocProvider(
       create: (_) => sl<ProductionBatchFormBloc>(),
       child: LayoutBuilder(
@@ -48,12 +80,12 @@ class _ProductionBatchFormPageState extends State<ProductionBatchFormPage> {
           if (constraints.maxWidth >= AppConstants.desktopBreakpoint) {
             return AddProductionBatchDesktopPage(
               controller: _ctrl,
-              initialBatch: widget.batch,
+              initialBatch: effectiveBatch,
             );
           }
           return AddProductionBatchMobilePage(
             controller: _ctrl,
-            initialBatch: widget.batch,
+            initialBatch: effectiveBatch,
           );
         },
       ),

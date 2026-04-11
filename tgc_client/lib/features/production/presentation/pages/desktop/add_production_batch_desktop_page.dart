@@ -43,8 +43,6 @@ class _AddProductionBatchDesktopPageState
   ProductionBatchMachine? _selectedMachine;
   DateTime? _plannedDate;
   TimeOfDay? _plannedTime;
-  String _batchType = 'by_order';
-
   bool get _isEditMode => widget.initialBatch != null;
 
   ProductionBatchMachine? get _effectiveMachine =>
@@ -61,7 +59,6 @@ class _AddProductionBatchDesktopPageState
     if (batch != null) {
       widget.controller.titleCtrl.text = batch.batchTitle;
       widget.controller.notesCtrl.text = batch.notes ?? '';
-      _batchType = batch.type;
       if (batch.plannedDatetime != null) {
         _plannedDate = batch.plannedDatetime;
         _plannedTime = TimeOfDay.fromDateTime(batch.plannedDatetime!);
@@ -140,7 +137,7 @@ class _AddProductionBatchDesktopPageState
               batchTitle: title,
               machineId: _effectiveMachine!.id,
               plannedDatetime: _plannedDateStr,
-              type: _batchType,
+              type: ctrl.computedType,
               notes: notes,
               items: items.isEmpty ? null : items,
             ),
@@ -151,7 +148,7 @@ class _AddProductionBatchDesktopPageState
               batchTitle: title,
               machineId: _effectiveMachine!.id,
               plannedDatetime: _plannedDateStr,
-              type: _batchType,
+              type: ctrl.computedType,
               notes: notes,
               items: items.isEmpty ? null : items,
             ),
@@ -267,7 +264,7 @@ class _AddProductionBatchDesktopPageState
                             onTap: _pickMachine,
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
-                              height: 48,
+                              height: 36,
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
@@ -326,7 +323,7 @@ class _AddProductionBatchDesktopPageState
                           onTap: _pickDate,
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            height: 48,
+                            height: 36,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               border: Border.all(
@@ -382,27 +379,8 @@ class _AddProductionBatchDesktopPageState
                         ),
                         const SizedBox(width: 12),
 
-                        // Type dropdown
-                        DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _batchType,
-                            isDense: true,
-                            borderRadius: BorderRadius.circular(8),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 'by_order',
-                                  child: Text('Buyurtma bo\'yicha')),
-                              DropdownMenuItem(
-                                  value: 'for_stock',
-                                  child: Text('Ombor uchun')),
-                              DropdownMenuItem(
-                                  value: 'mixed', child: Text('Aralash')),
-                            ],
-                            onChanged: (v) {
-                              if (v != null) setState(() => _batchType = v);
-                            },
-                          ),
-                        ),
+                        // Computed type badge (read-only)
+                        _ComputedTypeBadge(type: ctrl.computedType),
                       ],
                     ),
                   ),
@@ -556,7 +534,7 @@ class _DesktopTableHeader extends StatelessWidget {
           _HeaderCell(label: 'Tur', flex: 1),
           _HeaderCell(label: 'Sifat', flex: 1),
           _HeaderCell(label: 'O\'lcham', flex: 2),
-          _HeaderCell(label: 'Manba', fixedWidth: 150),
+          _HeaderCell(label: 'Mijoz', fixedWidth: 150),
           _HeaderCell(label: 'Miqdor', fixedWidth: 130),
           const SizedBox(width: 40),
         ],
@@ -1040,6 +1018,47 @@ class _DesktopSizeCell extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Total chip ────────────────────────────────────────────────────────────────
+
+// ── Computed type badge (read-only indicator) ─────────────────────────────────
+
+class _ComputedTypeBadge extends StatelessWidget {
+  final String type;
+  const _ComputedTypeBadge({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (type) {
+      'by_order'  => ('Buyurtma bo\'yicha', AppColors.primary),
+      'for_stock' => ('Ombor uchun', AppColors.accent),
+      _           => ('Aralash', AppColors.warning),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_outlined, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

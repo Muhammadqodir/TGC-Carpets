@@ -42,8 +42,6 @@ class _AddProductionBatchMobilePageState
   ProductionBatchMachine? _selectedMachine;
   DateTime? _plannedDate;
   TimeOfDay? _plannedTime;
-  String _batchType = 'by_order';
-
   bool get _isEditMode => widget.initialBatch != null;
 
   ProductionBatchMachine? get _effectiveMachine =>
@@ -51,8 +49,7 @@ class _AddProductionBatchMobilePageState
 
   bool get _hasMachine => _effectiveMachine != null;
 
-  String get _machineDisplay =>
-      _effectiveMachine?.name ?? 'Stanok tanlash...';
+  String get _machineDisplay => _effectiveMachine?.name ?? 'Stanok tanlash...';
 
   @override
   void initState() {
@@ -61,7 +58,6 @@ class _AddProductionBatchMobilePageState
     if (batch != null) {
       widget.controller.titleCtrl.text = batch.batchTitle;
       widget.controller.notesCtrl.text = batch.notes ?? '';
-      _batchType = batch.type;
       if (batch.plannedDatetime != null) {
         _plannedDate = batch.plannedDatetime;
         _plannedTime = TimeOfDay.fromDateTime(batch.plannedDatetime!);
@@ -141,7 +137,7 @@ class _AddProductionBatchMobilePageState
               batchTitle: title,
               machineId: _effectiveMachine!.id,
               plannedDatetime: _plannedDateStr,
-              type: _batchType,
+              type: ctrl.computedType,
               notes: notes,
               items: items.isEmpty ? null : items,
             ),
@@ -152,7 +148,7 @@ class _AddProductionBatchMobilePageState
               batchTitle: title,
               machineId: _effectiveMachine!.id,
               plannedDatetime: _plannedDateStr,
-              type: _batchType,
+              type: ctrl.computedType,
               notes: notes,
               items: items.isEmpty ? null : items,
             ),
@@ -350,27 +346,8 @@ class _AddProductionBatchMobilePageState
                         ),
                         const SizedBox(height: 12),
 
-                        // Type dropdown
-                        DropdownButtonFormField<String>(
-                          value: _batchType,
-                          decoration: const InputDecoration(
-                            labelText: 'Tur',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'by_order',
-                                child: Text('Buyurtma bo\'yicha')),
-                            DropdownMenuItem(
-                                value: 'for_stock',
-                                child: Text('Ombor uchun')),
-                            DropdownMenuItem(
-                                value: 'mixed', child: Text('Aralash')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => _batchType = v);
-                          },
-                        ),
+                        // Notes
+                        _ComputedTypeRow(type: ctrl.computedType),
                         const SizedBox(height: 12),
 
                         // Notes
@@ -394,15 +371,14 @@ class _AddProductionBatchMobilePageState
                             TextButton.icon(
                               onPressed: () async {
                                 final result =
-                                    await OrderPickerBottomSheet.show(
-                                        context);
+                                    await OrderPickerBottomSheet.show(context);
                                 if (result != null && context.mounted) {
                                   ctrl.addRowsFromOrder(
                                       result.order, result.items);
                                 }
                               },
-                              icon: const Icon(Icons.download_rounded,
-                                  size: 14),
+                              icon:
+                                  const Icon(Icons.download_rounded, size: 14),
                               label: const Text('Import'),
                               style: TextButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
@@ -478,6 +454,55 @@ class _AddProductionBatchMobilePageState
 
 // ── Section header ────────────────────────────────────────────────────────────
 
+class _ComputedTypeRow extends StatelessWidget {
+  final String type;
+  const _ComputedTypeRow({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (type) {
+      'by_order' => ('Buyurtma bo\'yicha', AppColors.primary),
+      'for_stock' => ('Ombor uchun', AppColors.accent),
+      _ => ('Aralash', AppColors.warning),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome_outlined, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            'Tur: ',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+          ),
+          const Spacer(),
+          Text(
+            'Avtomatik',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   final String title;
 
@@ -547,35 +572,26 @@ class _MobileItemCard extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.receipt_long_outlined,
-                                size: 11, color: AppColors.primary),
+                            const HugeIcon(
+                              icon: HugeIcons.strokeRoundedStore03,
+                              size: 11,
+                              strokeWidth: 3,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 3),
                             Text(
-                              '#${row.sourceOrderId}',
+                              row.sourceClientName!,
                               style: Theme.of(context)
                                   .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
+                                  .labelSmall!.copyWith(
                                     color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                        if (row.sourceClientName != null)
-                          Text(
-                            row.sourceClientName!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 9,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                       ],
                     ),
                   ),
@@ -620,8 +636,7 @@ class _MobileItemCard extends StatelessWidget {
                           productTypeId: product.productTypeId!,
                           onChanged: onProductChanged,
                         )
-                      : (product == null &&
-                              row.prefilledProductTypeId != null)
+                      : (product == null && row.prefilledProductTypeId != null)
                           ? _SizePicker(
                               row: row,
                               allItems: allItems,
@@ -716,8 +731,8 @@ class _ProductPickerButton extends StatelessWidget {
             : Row(
                 children: [
                   AppThumbnail(
-                    imageUrl:
-                        row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl,
+                    imageUrl: row.selectedColor?.imageUrl ??
+                        row.prefilledColorImageUrl,
                     size: 28,
                     borderRadius: 4,
                   ),
@@ -755,8 +770,7 @@ class _ProductPickerButton extends StatelessWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .labelSmall
-                                    ?.copyWith(
-                                        color: AppColors.textSecondary),
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ],
                           );
@@ -814,8 +828,7 @@ class _SizePicker extends StatelessWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                  content: Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -850,8 +863,9 @@ class _SizePicker extends StatelessWidget {
               child: Text(
                 displayDimensions ?? "O'lcham tanlash",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color:
-                          !hasSize ? AppColors.textSecondary : AppColors.primary,
+                      color: !hasSize
+                          ? AppColors.textSecondary
+                          : AppColors.primary,
                       fontWeight: hasSize ? FontWeight.w600 : null,
                     ),
               ),

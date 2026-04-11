@@ -118,18 +118,43 @@ class ProductionBatchCard extends StatelessWidget {
                 const SizedBox(height: 6),
               ],
 
-              // Items count + view hint
+              // Items count + totals
               Row(
                 children: [
                   const Icon(Icons.inventory_2_outlined,
                       size: 14, color: AppColors.textSecondary),
                   const SizedBox(width: 6),
                   Text(
-                    '${batch.itemsCount} ta mahsulot',
+                    '${batch.itemsCount} ta',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                   ),
+                  if (batch.totalPlannedQuantity > 0) ...[  
+                    const SizedBox(width: 12),
+                    const Icon(Icons.format_list_numbered_outlined,
+                        size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${batch.totalPlannedQuantity} dona',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                  if (batch.totalSqm > 0) ...[  
+                    const SizedBox(width: 12),
+                    const Icon(Icons.straighten_outlined,
+                        size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${batch.totalSqm.toStringAsFixed(2)} m²',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
                   const Spacer(),
                   Text(
                     "Ko'proq",

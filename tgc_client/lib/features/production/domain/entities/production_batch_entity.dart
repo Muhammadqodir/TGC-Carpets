@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'production_batch_item_entity.dart';
+
 class ProductionBatchMachine extends Equatable {
   final int id;
   final String name;
@@ -37,6 +39,9 @@ class ProductionBatchEntity extends Equatable {
   final ProductionBatchMachine? machine;
   final ProductionBatchCreator? creator;
   final int itemsCount;
+  final int totalPlannedQuantity;
+  final double totalSqm;
+  final List<ProductionBatchItemEntity> items;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -52,6 +57,9 @@ class ProductionBatchEntity extends Equatable {
     this.machine,
     this.creator,
     required this.itemsCount,
+    this.totalPlannedQuantity = 0,
+    this.totalSqm = 0.0,
+    this.items = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -84,6 +92,9 @@ class ProductionBatchEntity extends Equatable {
         machine,
         creator,
         itemsCount,
+        totalPlannedQuantity,
+        totalSqm,
+        items,
         createdAt,
         updatedAt,
       ];

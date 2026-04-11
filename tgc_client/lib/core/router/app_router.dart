@@ -24,6 +24,7 @@ import '../../features/orders/presentation/pages/args/order_detail_args.dart';
 import '../../features/orders/domain/entities/order_entity.dart';
 import '../../features/production/presentation/pages/production_batches_page.dart';
 import '../../features/production/presentation/pages/production_batch_form_page.dart';
+import '../../features/production/presentation/pages/production_batch_detail_page.dart';
 import '../../features/production/domain/entities/production_batch_entity.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
@@ -156,6 +157,14 @@ class AppRouter {
             builder: (context, state) {
               final batch = state.extra as ProductionBatchEntity;
               return ProductionBatchFormPage(batch: batch);
+            },
+          ),
+          GoRoute(
+            path: AppRoutes.productionBatchDetail,
+            name: AppRoutes.productionBatchDetailName,
+            builder: (context, state) {
+              final batch = state.extra as ProductionBatchEntity;
+              return ProductionBatchDetailPage(batch: batch);
             },
           ),
         ],

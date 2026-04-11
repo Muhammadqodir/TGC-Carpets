@@ -30,6 +30,8 @@ class ProductionBatchResource extends JsonResource
             ]),
             'items'              => ProductionBatchItemResource::collection($this->whenLoaded('items')),
             'items_count'        => $this->whenCounted('items'),
+            'total_planned_quantity' => (int) ($this->items_sum_planned_quantity ?? 0),
+            'total_sqm'          => round((float) ($this->total_sqm ?? 0), 2),
             'created_at'         => $this->created_at?->toISOString(),
             'updated_at'         => $this->updated_at?->toISOString(),
         ];

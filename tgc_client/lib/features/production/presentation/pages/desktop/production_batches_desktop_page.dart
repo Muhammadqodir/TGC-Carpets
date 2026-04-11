@@ -155,7 +155,7 @@ class _ProductionBatchesDesktopPageState
                 if (state is ProductionBatchesLoaded) {
                   if (state.batches.isEmpty) {
                     return const Center(
-                        child: Text('Ishlab chiqarish batcklari topilmadi.'));
+                        child: Text('Ishlab chiqarish partiyalari topilmadi.'));
                   }
                   return ProductionBatchTable(
                     batches:          state.batches,

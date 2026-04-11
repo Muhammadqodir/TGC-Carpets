@@ -15,6 +15,7 @@ use App\Services\ProductionBatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class ProductionBatchController extends Controller
 {
@@ -22,8 +23,17 @@ class ProductionBatchController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $batches = ProductionBatch::with(['machine', 'creator'])
+        $batches = ProductionBatch::select('production_batches.*')
+            ->addSelect(DB::raw('(
+                SELECT COALESCE(SUM(pbi.planned_quantity * ps.length * ps.width), 0) / 10000.0
+                FROM production_batch_items pbi
+                INNER JOIN product_variants pv ON pv.id = pbi.product_variant_id
+                INNER JOIN product_sizes ps ON ps.id = pv.product_size_id
+                WHERE pbi.production_batch_id = production_batches.id
+            ) AS total_sqm'))
+            ->with(['machine', 'creator'])
             ->withCount('items')
+            ->withSum('items', 'planned_quantity')
             ->when($request->filled('status'),     fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('type'),       fn ($q) => $q->where('type', $request->type))
             ->when($request->filled('machine_id'), fn ($q) => $q->where('machine_id', $request->machine_id))

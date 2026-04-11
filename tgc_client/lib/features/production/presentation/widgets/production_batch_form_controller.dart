@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../orders/domain/entities/order_entity.dart';
 import '../../../orders/domain/entities/order_item_entity.dart';
+import '../../domain/entities/production_batch_entity.dart';
 import 'batch_item_row.dart';
 
 /// Holds mutable UI state for the production batch form.
@@ -38,6 +39,20 @@ class ProductionBatchFormController extends ChangeNotifier {
       notifyListeners();
     }
   }
+  /// Replaces all current rows with rows built from an existing [batch]'s
+  /// items. Called once on entering edit mode.
+  void loadFromBatch(ProductionBatchEntity batch) {
+    for (final row in _items) {
+      row.dispose();
+    }
+    _items.clear();
+    for (final item in batch.items) {
+      _items.add(BatchItemRow.fromBatchItem(item));
+    }
+    _ensureSentinel();
+    notifyListeners();
+  }
+
   /// Inserts rows imported from [order]'s [items].
   /// Any duplicate variant (same colorId + sizeId) already in the list is
   /// skipped to avoid duplicates.
@@ -66,6 +81,20 @@ class ProductionBatchFormController extends ChangeNotifier {
     notifyListeners();
   }
   // ── Build submission payload ───────────────────────────────────────────────
+
+  /// Derives the batch type from the current filled rows:
+  /// - all from orders  → `'by_order'`
+  /// - all manual       → `'for_stock'`
+  /// - mixed            → `'mixed'`
+  /// Falls back to `'for_stock'` when there are no filled rows yet.
+  String get computedType {
+    final filled = _items.where((r) => r.isFilled).toList();
+    if (filled.isEmpty) return 'for_stock';
+    final fromOrder = filled.where((r) => r.sourceOrderItemId != null).length;
+    if (fromOrder == filled.length) return 'by_order';
+    if (fromOrder == 0) return 'for_stock';
+    return 'mixed';
+  }
 
   List<Map<String, dynamic>> buildItemsPayload() {
     return _items

@@ -28,7 +28,9 @@ class ProductionBatchTable extends StatelessWidget {
     AppTableColumn(label: 'Stanok',      flex: 2,         alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Holat',       flex: 2,         alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Reja sanasi', flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: "Mahsulotlar", flex: 1,         alignment: Alignment.center),
+    AppTableColumn(label: 'Mahsulotlar', flex: 1,         alignment: Alignment.center),
+    AppTableColumn(label: 'Jami dona',   fixedWidth: 90,  alignment: Alignment.center),
+    AppTableColumn(label: 'Jami m²',     fixedWidth: 100, alignment: Alignment.center),
     AppTableColumn(label: 'Amallar',     fixedWidth: 100, alignment: Alignment.center),
   ];
 
@@ -122,6 +124,29 @@ class ProductionBatchTable extends StatelessWidget {
         );
 
       case 7:
+        return Center(
+          child: Text(
+            '${batch.totalPlannedQuantity}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        );
+
+      case 8:
+        return Center(
+          child: Text(
+            batch.totalSqm > 0
+                ? '${batch.totalSqm.toStringAsFixed(2)} m²'
+                : '—',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: batch.totalSqm > 0 ? AppColors.primary : AppColors.textSecondary,
+                ),
+          ),
+        );
+
+      case 9:
         return Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,

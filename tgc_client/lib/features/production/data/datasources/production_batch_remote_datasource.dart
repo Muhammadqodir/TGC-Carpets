@@ -37,6 +37,8 @@ abstract class ProductionBatchRemoteDataSource {
     String? notes,
     List<Map<String, dynamic>>? items,
   });
+
+  Future<ProductionBatchModel> getProductionBatch(int id);
 }
 
 class ProductionBatchRemoteDataSourceImpl
@@ -167,8 +169,20 @@ class ProductionBatchRemoteDataSourceImpl
     }
   }
 
-  Never _handleDioError(DioException e) {
-    if (e.response?.statusCode == 401) {
+  @override
+  Future<ProductionBatchModel> getProductionBatch(int id) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.productionBatchById(id));
+      return ProductionBatchModel.fromJson(
+        (response.data as Map<String, dynamic>)['data']
+            as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  Never _handleDioError(DioException e) {    if (e.response?.statusCode == 401) {
       throw const UnauthorizedException();
     }
     if (e.response?.statusCode == 422) {

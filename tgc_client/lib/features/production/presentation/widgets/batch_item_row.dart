@@ -4,6 +4,7 @@ import '../../../orders/domain/entities/order_item_entity.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
+import '../../domain/entities/production_batch_item_entity.dart';
 
 /// View-layer model for a single item row in the production batch form.
 ///
@@ -76,6 +77,26 @@ class BatchItemRow {
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
         initialQuantity: item.remainingQuantity ?? item.quantity,
+      );
+
+  /// Creates a [BatchItemRow] pre-populated from a [ProductionBatchItemEntity]
+  /// (used when loading an existing batch for editing).
+  factory BatchItemRow.fromBatchItem(ProductionBatchItemEntity item) =>
+      BatchItemRow(
+        prefilledColorId: item.productColorId,
+        prefilledSizeId: item.productSizeId,
+        prefilledProductName: item.productName,
+        prefilledColorName: item.colorName,
+        prefilledColorImageUrl: item.colorImageUrl,
+        prefilledProductTypeId: item.productTypeId,
+        prefilledSizeLength: item.sizeLength,
+        prefilledSizeWidth: item.sizeWidth,
+        sourceOrderId: item.sourceOrderId,
+        sourceOrderItemId: item.sourceOrderItemId,
+        sourceClientName: item.sourceClientShopName,
+        prefilledQualityName: item.qualityName,
+        prefilledTypeName: item.productTypeName,
+        initialQuantity: item.plannedQuantity,
       );
 
   /// Quality name — from selected product or prefill.
