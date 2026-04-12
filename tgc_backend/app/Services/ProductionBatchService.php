@@ -137,6 +137,24 @@ class ProductionBatchService
     }
 
     /**
+     * Atomically increment produced_quantity by 1 (label print action).
+     */
+    public function incrementProducedQuantity(ProductionBatchItem $item): ProductionBatchItem
+    {
+        DB::transaction(function () use ($item): void {
+            $item->increment('produced_quantity');
+        });
+
+        return $item->fresh()->load([
+            'variant.productColor.product.productType',
+            'variant.productColor.product.productQuality',
+            'variant.productColor.color',
+            'variant.productSize',
+            'sourceOrderItem.order.client',
+        ]);
+    }
+
+    /**
      * Update quantities on a single batch item (during production).
      */
     public function updateItem(ProductionBatchItem $item, array $data): ProductionBatchItem

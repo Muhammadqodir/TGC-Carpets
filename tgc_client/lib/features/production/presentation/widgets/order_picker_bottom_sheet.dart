@@ -90,6 +90,10 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
       }),
       (page) {
         var data = page.data;
+        // Drop orders where every item is already fully covered by active batches.
+        data = data
+            .where((o) => o.items.any((i) => (i.remainingQuantity ?? i.quantity) > 0))
+            .toList();
         if (query.isNotEmpty) {
           final q = query.toLowerCase();
           data = data

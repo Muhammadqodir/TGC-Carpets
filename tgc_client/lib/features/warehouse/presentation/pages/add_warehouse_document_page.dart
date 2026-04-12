@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/warehouse_document_draft_service.dart';
 import '../widget/warehouse_document_form_controller.dart';
-import 'args/print_labels_args.dart';
 import 'desktop/add_warehouse_document_desktop_page.dart';
 import 'mobile/add_warehouse_document_mobile_page.dart';
 
@@ -82,21 +79,14 @@ class _AddWarehouseDocumentPageState extends State<AddWarehouseDocumentPage> {
       );
     }
 
-    return PopScope<PrintLabelsArgs?>(
+    return PopScope<bool?>(
       // Always allow the pop; we just react to the result.
       canPop: true,
       onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) return;
-        if (result != null) {
+        if (result == true) {
           // Successful submit → wipe draft
           _draft.clear();
-          // Navigate to print labels page
-          if (context.mounted) {
-            context.push(
-              AppRoutes.printLabels,
-              extra: result,
-            );
-          }
         }
         // Any other exit → draft is already auto-saved; nothing extra needed.
       },

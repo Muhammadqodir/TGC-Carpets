@@ -55,8 +55,11 @@ class ApiEndpoints {
       '/production-batches/$id/cancel';
   static String productionBatchItemUpdate(int batchId, int itemId) =>
       '/production-batches/$batchId/items/$itemId';
+  static String productionBatchItemPrintLabel(int batchId, int itemId) =>
+      '/production-batches/$batchId/items/$itemId/print-label';
   static const String productionBatchOrderItems =
       '/production-batches-order-items';
+  static const String labelingItems = '/production-batches-labeling-items';
 
   // Product Variants
   static const String productVariants = '/product-variants';

@@ -109,6 +109,12 @@ import '../../features/employees/domain/usecases/create_employee_usecase.dart';
 import '../../features/employees/presentation/bloc/employees_bloc.dart';
 import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
 
+// Labeling feature
+import '../../features/labeling/data/datasources/labeling_remote_datasource.dart';
+import '../../features/labeling/data/repositories/labeling_repository_impl.dart';
+import '../../features/labeling/domain/repositories/labeling_repository.dart';
+import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -336,7 +342,16 @@ Future<void> initDependencies() async {
     () => EmployeeFormBloc(createEmployeeUseCase: sl<CreateEmployeeUseCase>()),
   );
 
-  // ─── Dashboard Feature ─────────────────────────────────────────────────────
+  // ─── Labeling Feature ─────────────────────────────────────────────────────
+  sl.registerLazySingleton<LabelingRemoteDataSource>(
+    () => LabelingRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<LabelingRepository>(
+    () => LabelingRepositoryImpl(remoteDataSource: sl<LabelingRemoteDataSource>()),
+  );
+  sl.registerFactory(
+    () => LabelingBloc(repository: sl<LabelingRepository>()),
+  );
   sl.registerLazySingleton<DashboardRemoteDataSource>(
     () => DashboardRemoteDataSourceImpl(sl<Dio>()),
   );

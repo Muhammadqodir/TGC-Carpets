@@ -27,6 +27,7 @@ import '../../features/production/presentation/pages/production_batch_form_page.
 import '../../features/production/presentation/pages/production_batch_detail_page.dart';
 import '../../features/production/presentation/pages/defect_document_form_page.dart';
 import '../../features/production/domain/entities/production_batch_entity.dart';
+import '../../features/labeling/presentation/pages/labeling_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -175,6 +176,11 @@ class AppRouter {
               final batch = state.extra as ProductionBatchEntity;
               return DefectDocumentFormPage(batch: batch);
             },
+          ),
+          GoRoute(
+            path: AppRoutes.labeling,
+            name: AppRoutes.labelingName,
+            builder: (context, state) => const LabelingPage(),
           ),
         ],
       ),

@@ -105,6 +105,10 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('production-batches', ProductionBatchController::class);
         Route::get('production-batches-order-items', [ProductionBatchController::class, 'orderItemsAvailable'])
             ->name('production-batches.order-items');
+        Route::get('production-batches-labeling-items', [ProductionBatchController::class, 'labelingItems'])
+            ->name('production-batches.labeling-items');
+        Route::post('production-batches/{productionBatch}/items/{item}/print-label', [ProductionBatchController::class, 'printLabel'])
+            ->name('production-batches.items.print-label');
         Route::post('production-batches/{productionBatch}/start', [ProductionBatchController::class, 'start'])
             ->name('production-batches.start');
         Route::post('production-batches/{productionBatch}/complete', [ProductionBatchController::class, 'complete'])

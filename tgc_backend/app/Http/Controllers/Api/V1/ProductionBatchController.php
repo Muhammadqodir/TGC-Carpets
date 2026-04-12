@@ -214,4 +214,46 @@ class ProductionBatchController extends Controller
 
         return response()->json(['data' => $orderItems]);
     }
+
+    /**
+     * GET /production-batches-labeling-items
+     * Returns all items from in_progress batches that are not yet fully labeled (produced).
+     */
+    public function labelingItems(): JsonResponse
+    {
+        $items = ProductionBatchItem::with([
+                'productionBatch:id,batch_title,status',
+                'variant.productColor.product.productType',
+                'variant.productColor.product.productQuality',
+                'variant.productColor.color',
+                'variant.productSize',
+            ])
+            ->whereHas('productionBatch', fn ($q) => $q->where('status', ProductionBatch::STATUS_IN_PROGRESS))
+            ->where(function ($query) {
+                $query->whereNull('produced_quantity')
+                    ->orWhereColumn('produced_quantity', '<', 'planned_quantity');
+            })
+            ->get();
+
+        return response()->json([
+            'data' => ProductionBatchItemResource::collection($items),
+        ]);
+    }
+
+    /**
+     * POST /production-batches/{productionBatch}/items/{item}/print-label
+     * Atomically increments produced_quantity by 1.
+     */
+    public function printLabel(
+        ProductionBatch $productionBatch,
+        ProductionBatchItem $item,
+    ): JsonResponse {
+        if ($item->production_batch_id !== $productionBatch->id) {
+            return response()->json(['message' => 'Item does not belong to this batch.'], 404);
+        }
+
+        $updated = $this->service->incrementProducedQuantity($item);
+
+        return response()->json(['data' => new ProductionBatchItemResource($updated)]);
+    }
 }
