@@ -11,6 +11,7 @@ import 'package:usb_label_print/usb_label_print.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../widget/print_label.dart';
+import '../widgets/batch_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
@@ -62,6 +63,9 @@ class _LabelingViewState extends State<_LabelingView> {
 
   // ── Current items (mirrored from BLoC for hidden-label rendering) ─────────
   List<LabelingItemEntity> _items = [];
+
+  // ── Selected batch filter (null = show all) ───────────────────────────────
+  int? _selectedBatchId;
 
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
@@ -299,49 +303,50 @@ class _LabelingViewState extends State<_LabelingView> {
     final printingItems =
         state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
-    // Group items by batchId while preserving insertion order
+    // Group all items by batchId (preserves insertion order)
     final groups = <int, List<LabelingItemEntity>>{};
     for (final item in items) {
       groups.putIfAbsent(item.batchId, () => []).add(item);
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount =
-                (constraints.maxWidth / 260).floor().clamp(1, 6);
-            const spacing = 12.0;
-            final cardWidth =
-                (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
-                    crossAxisCount;
+    // Filter by selected batch
+    final displayedItems = _selectedBatchId == null
+        ? items
+        : groups[_selectedBatchId] ?? [];
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: groups.entries.map((entry) {
-                final batchId = entry.key;
-                final batchItems = entry.value;
-                final batchTitle = batchItems.first.batchTitle ?? 'Batch #$batchId';
+    final isDesktop = Theme.of(context).platform == TargetPlatform.macOS ||
+        Theme.of(context).platform == TargetPlatform.windows ||
+        Theme.of(context).platform == TargetPlatform.linux;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8, top: 4),
-                      child: Text(
-                        batchTitle,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                    ),
-                    Wrap(
+    return Row(
+      children: [
+        if (isDesktop)
+          BatchFilterSidebar(
+            groups: groups,
+            selectedBatchId: _selectedBatchId,
+            onBatchSelected: (id) => setState(() => _selectedBatchId = id),
+          ),
+        Expanded(
+          child: SizedBox(
+            height: double.infinity,
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount =
+                        (constraints.maxWidth / 260).floor().clamp(1, 5);
+                    const spacing = 12.0;
+                    final cardWidth =
+                        (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
+                            crossAxisCount;
+            
+                    return Wrap(
                       spacing: spacing,
                       runSpacing: spacing,
-                      children: batchItems.map((item) {
+                      children: displayedItems.map((item) {
                         return SizedBox(
                           width: cardWidth,
                           child: _LabelingCard(
@@ -352,15 +357,14 @@ class _LabelingViewState extends State<_LabelingView> {
                           ),
                         );
                       }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                );
-              }).toList(),
-            );
-          },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
