@@ -3,7 +3,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
-import 'package:tgc_client/core/ui/widgets/app_status_chip.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 
@@ -88,7 +87,7 @@ class ProductDataTable extends StatelessWidget {
           onAddColor: () => onAddColor(product),
         );
       case 5: // status
-        return AppStatusChip(
+        return AppBadge(
           label: product.isActive ? 'Faol' : 'Arxivlangan',
           color: product.isActive ? AppColors.success : AppColors.textSecondary,
         );

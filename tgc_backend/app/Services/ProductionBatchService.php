@@ -146,6 +146,7 @@ class ProductionBatchService
         });
 
         return $item->fresh()->load([
+            'productionBatch',
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
             'variant.productColor.color',

@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../warehouse/presentation/widget/print_label.dart';
+import '../widget/print_label.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
@@ -298,6 +299,12 @@ class _LabelingViewState extends State<_LabelingView> {
     final printingItems =
         state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
+    // Group items by batchId while preserving insertion order
+    final groups = <int, List<LabelingItemEntity>>{};
+    for (final item in items) {
+      groups.putIfAbsent(item.batchId, () => []).add(item);
+    }
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: SingleChildScrollView(
@@ -312,18 +319,42 @@ class _LabelingViewState extends State<_LabelingView> {
                 (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
                     crossAxisCount;
 
-            return Wrap(
-              spacing: spacing,
-              runSpacing: spacing,
-              children: items.map((item) {
-                return SizedBox(
-                  width: cardWidth,
-                  child: _LabelingCard(
-                    item: item,
-                    isPrinting: printingItems[item.id] == true,
-                    isPrintPlatform: _isPrintingPlatform,
-                    onPrint: () => _onPrint(item),
-                  ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: groups.entries.map((entry) {
+                final batchId = entry.key;
+                final batchItems = entry.value;
+                final batchTitle = batchItems.first.batchTitle ?? 'Batch #$batchId';
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8, top: 4),
+                      child: Text(
+                        batchTitle,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                    Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: batchItems.map((item) {
+                        return SizedBox(
+                          width: cardWidth,
+                          child: _LabelingCard(
+                            item: item,
+                            isPrinting: printingItems[item.id] == true,
+                            isPrintPlatform: _isPrintingPlatform,
+                            onPrint: () => _onPrint(item),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 );
               }).toList(),
             );
@@ -443,21 +474,31 @@ class _LabelingCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Big variant image ──────────────────────────────────────────
-          AspectRatio(
-            aspectRatio: 1,
-            child: item.colorImageUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: item.colorImageUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      color: const Color(0xFFF0F2F5),
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                    errorWidget: (_, __, ___) => _PlaceholderImage(),
-                  )
-                : _PlaceholderImage(),
+          Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: item.colorImageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: item.colorImageUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFFF0F2F5),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => _PlaceholderImage(),
+                      )
+                    : _PlaceholderImage(),
+              ),
+              Positioned(
+                child: AppBadge(
+                  label: item.batchTitle ?? 'Batch #${item.batchId}',
+                  color: AppColors.textPrimary,
+                ),
+              )
+            ],
           ),
           // ── Info section ─────────────────────────────────────────────────
           Padding(
@@ -466,7 +507,7 @@ class _LabelingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.productName,
+                  '${item.productName} | ${item.sizeLabel} | ${item.colorName?.toUpperCase() ?? '—'}',
                   style: textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                   maxLines: 2,
@@ -543,16 +584,9 @@ class _InfoChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context)
-        .textTheme
-        .labelSmall
-        ?.copyWith(color: AppColors.textSecondary);
-
     final parts = <String>[
-      item.sizeLabel,
-      if (item.colorName != null) item.colorName!,
-      if (item.qualityName != null) item.qualityName!,
-      if (item.batchTitle != null) item.batchTitle!,
+      if (item.productTypeName != null) item.productTypeName!.toUpperCase(),
+      if (item.qualityName != null) item.qualityName!.toUpperCase(),
     ];
 
     return Wrap(
@@ -560,14 +594,10 @@ class _InfoChips extends StatelessWidget {
       runSpacing: 4,
       children: parts
           .map(
-            (p) => Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F2F5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(p, style: style),
+            (p) => AppBadge(
+              label: p,
+              color: Color(0xFFF0F2F5),
+              textColor: AppColors.textPrimary,
             ),
           )
           .toList(),

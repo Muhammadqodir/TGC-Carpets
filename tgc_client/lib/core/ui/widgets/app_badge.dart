@@ -10,23 +10,28 @@ class AppBadge extends StatelessWidget {
   const AppBadge({
     super.key,
     required this.label,
-    this.color = Colors.blue,
+    this.textColor = Colors.white,
+    this.color = Colors.black,
   });
 
   final String label;
   final Color color;
+  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+        style: Theme.of(context).textTheme.labelSmall!.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }

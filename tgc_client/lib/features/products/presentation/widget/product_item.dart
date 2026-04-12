@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
-import 'package:tgc_client/core/ui/widgets/app_status_chip.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import '../../domain/entities/product_entity.dart';
 
@@ -55,14 +54,19 @@ class ProductItem extends StatelessWidget {
                         ),
                       ...product.productColors.take(3).map(
                             (pc) => AppBadge(
-                              label: pc.colorName,
+                              label: pc.colorName.toUpperCase(),
                               color: AppColors.accent,
                             ),
                           ),
+                      if (product.productColors.length > 3)
+                        AppBadge(
+                          label: '+${product.productColors.length} rang',
+                          color: AppColors.accent,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  AppStatusChip(
+                  AppBadge(
                     label: product.isActive ? 'Faol' : 'Arxivlangan',
                     color: product.isActive
                         ? AppColors.success
