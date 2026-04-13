@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * stock_movements is the auditable ledger of all inventory changes.
-     * It is created LAST because it references both warehouse_documents and sales.
+     * It is created LAST because it references warehouse_documents.
      * All FK references are nullable so historical audit records survive
      * if a source document is ever deleted.
      */
@@ -26,11 +26,6 @@ return new class extends Migration
             $table->foreignId('warehouse_document_id')
                 ->nullable()
                 ->constrained('warehouse_documents')
-                ->nullOnDelete();
-
-            $table->foreignId('sale_id')
-                ->nullable()
-                ->constrained('sales')
                 ->nullOnDelete();
 
             // Denormalized for faster reporting without joins

@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Moves warehouse_document_items, sale_items, and stock_movements away from
+ * Moves warehouse_document_items and stock_movements away from
  * the separate (product_id, product_size_id) columns to a single
  * product_variant_id reference.
  *
  * Steps:
- *  1. Add nullable product_variant_id FK to all three tables.
+ *  1. Add nullable product_variant_id FK to both tables.
  *  2. Backfill: create a ProductVariant row for every distinct
  *     (product_id, product_size_id) found in the transaction tables, then
  *     stamp each transaction row with the matching variant ID.
@@ -34,14 +34,6 @@ return new class extends Migration
                 ->restrictOnDelete();
         });
 
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->foreignId('product_variant_id')
-                ->nullable()
-                ->after('product_id')
-                ->constrained('product_variants')
-                ->restrictOnDelete();
-        });
-
         Schema::table('stock_movements', function (Blueprint $table) {
             $table->foreignId('product_variant_id')
                 ->nullable()
@@ -53,7 +45,7 @@ return new class extends Migration
         // ── 2. Backfill variants and stamp transaction rows ────────────────────
 
         $now    = now()->toDateTimeString();
-        $tables = ['warehouse_document_items', 'sale_items', 'stock_movements'];
+        $tables = ['warehouse_document_items', 'stock_movements'];
 
         // Collect all unique (product_id, product_size_id) combos
         $combos = collect();
@@ -109,7 +101,6 @@ return new class extends Migration
         // ── 3. Make NOT NULL (raw ALTER avoids doctrine/dbal requirement) ──────
 
         DB::statement('ALTER TABLE `warehouse_document_items` MODIFY `product_variant_id` BIGINT UNSIGNED NOT NULL');
-        DB::statement('ALTER TABLE `sale_items`               MODIFY `product_variant_id` BIGINT UNSIGNED NOT NULL');
         DB::statement('ALTER TABLE `stock_movements`          MODIFY `product_variant_id` BIGINT UNSIGNED NOT NULL');
 
         // ── 4. Drop old columns ───────────────────────────────────────────────
@@ -118,13 +109,6 @@ return new class extends Migration
             $table->dropForeign(['product_size_id']);
             $table->dropForeign(['product_id']);
             $this->dropIndexIfExists($table, 'warehouse_document_items_product_size_id_index');
-            $table->dropColumn(['product_id', 'product_size_id']);
-        });
-
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->dropForeign(['product_size_id']);
-            $table->dropForeign(['product_id']);
-            $this->dropIndexIfExists($table, 'sale_items_product_size_id_index');
             $table->dropColumn(['product_id', 'product_size_id']);
         });
 
@@ -150,13 +134,6 @@ return new class extends Migration
         // Re-add old columns (nullable so existing rows don't break)
         Schema::table('warehouse_document_items', function (Blueprint $table) {
             $table->foreignId('product_id')->nullable()->after('id')->constrained('products')->restrictOnDelete();
-            $table->foreignId('product_size_id')->nullable()->after('product_id')->constrained('product_sizes')->nullOnDelete();
-            $table->dropForeign(['product_variant_id']);
-            $table->dropColumn('product_variant_id');
-        });
-
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->foreignId('product_id')->nullable()->after('sale_id')->constrained('products')->restrictOnDelete();
             $table->foreignId('product_size_id')->nullable()->after('product_id')->constrained('product_sizes')->nullOnDelete();
             $table->dropForeign(['product_variant_id']);
             $table->dropColumn('product_variant_id');

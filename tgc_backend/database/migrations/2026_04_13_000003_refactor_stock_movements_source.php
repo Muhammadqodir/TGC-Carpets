@@ -18,15 +18,23 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stock_movements', function (Blueprint $table) {
-            // Drop legacy FKs and columns
-            $table->dropForeign(['sale_id']);
-            $table->dropColumn('sale_id');
+            // Drop legacy FKs and columns (only if they exist — already removed in create migration)
+            $columns = \Illuminate\Support\Facades\Schema::getColumnListing('stock_movements');
 
-            $table->dropForeign(['client_id']);
-            $table->dropColumn('client_id');
+            if (in_array('sale_id', $columns)) {
+                $table->dropForeign(['sale_id']);
+                $table->dropColumn('sale_id');
+            }
 
-            $table->dropForeign(['warehouse_document_id']);
-            $table->dropColumn('warehouse_document_id');
+            if (in_array('client_id', $columns)) {
+                $table->dropForeign(['client_id']);
+                $table->dropColumn('client_id');
+            }
+
+            if (in_array('warehouse_document_id', $columns)) {
+                $table->dropForeign(['warehouse_document_id']);
+                $table->dropColumn('warehouse_document_id');
+            }
 
             // Drop stale composite index if it was created by an earlier migration
             $indexes = collect(\Illuminate\Support\Facades\Schema::getIndexes('stock_movements'))
@@ -57,11 +65,6 @@ return new class extends Migration
                 ->nullable()
                 ->after('product_variant_id')
                 ->constrained('warehouse_documents')
-                ->nullOnDelete();
-
-            $table->foreignId('sale_id')
-                ->nullable()
-                ->constrained('sales')
                 ->nullOnDelete();
 
             $table->foreignId('client_id')
