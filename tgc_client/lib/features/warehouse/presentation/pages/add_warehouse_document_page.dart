@@ -6,7 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/warehouse_document_draft_service.dart';
-import '../widget/warehouse_document_form_controller.dart';
+import '../widgets/warehouse_document_form_controller.dart';
 import 'desktop/add_warehouse_document_desktop_page.dart';
 import 'mobile/add_warehouse_document_mobile_page.dart';
 

@@ -13,8 +13,8 @@ import 'package:tgc_client/features/employees/presentation/bloc/employees_state.
 import '../../bloc/warehouse_docs_bloc.dart';
 import '../../bloc/warehouse_docs_event.dart';
 import '../../bloc/warehouse_docs_state.dart';
-import '../../widget/warehouse_document_filter_bar.dart';
-import '../../widget/warehouse_document_table.dart';
+import '../../widgets/warehouse_document_filter_bar.dart';
+import '../../widgets/warehouse_document_table.dart';
 
 /// Desktop view fordocuments with data table layout.
 class WarehouseDocumentsDesktopPage extends StatelessWidget {

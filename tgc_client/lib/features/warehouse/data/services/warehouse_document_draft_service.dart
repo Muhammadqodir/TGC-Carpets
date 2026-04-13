@@ -10,8 +10,8 @@ import '../../../products/data/models/product_size_model.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
-import '../../presentation/widget/warehouse_document_form_controller.dart';
-import '../../presentation/widget/warehouse_item_row.dart';
+import '../../presentation/widgets/warehouse_document_form_controller.dart';
+import '../../presentation/widgets/warehouse_item_row.dart';
 
 /// Persists the in-progress "add warehouse document" draft so that:
 ///   • Navigating away / closing the page does NOT lose data.

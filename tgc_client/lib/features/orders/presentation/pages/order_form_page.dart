@@ -5,8 +5,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../domain/entities/order_entity.dart';
 import '../bloc/order_form_bloc.dart';
-import '../widget/edit_order_form_controller.dart';
-import '../widget/order_form_controller.dart';
+import '../widgets/edit_order_form_controller.dart';
+import '../widgets/order_form_controller.dart';
 import 'desktop/add_order_desktop_page.dart';
 import 'mobile/add_order_mobile_page.dart';
 

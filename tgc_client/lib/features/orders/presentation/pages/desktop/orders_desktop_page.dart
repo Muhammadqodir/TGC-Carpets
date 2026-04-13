@@ -9,8 +9,8 @@ import '../../../domain/entities/order_entity.dart';
 import '../../bloc/orders_bloc.dart';
 import '../../bloc/orders_event.dart';
 import '../../bloc/orders_state.dart';
-import '../../widget/order_filter_bar.dart';
-import '../../widget/order_table.dart';
+import '../../widgets/order_filter_bar.dart';
+import '../../widgets/order_table.dart';
 import '../args/order_detail_args.dart';
 
 class OrdersDesktopPage extends StatefulWidget {

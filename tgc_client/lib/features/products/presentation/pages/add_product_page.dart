@@ -6,7 +6,7 @@ import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
-import 'package:tgc_client/features/products/presentation/widget/product_form_body.dart';
+import 'package:tgc_client/features/products/presentation/widgets/product_form_body.dart';
 
 class AddProductPage extends StatelessWidget {
   const AddProductPage({super.key});

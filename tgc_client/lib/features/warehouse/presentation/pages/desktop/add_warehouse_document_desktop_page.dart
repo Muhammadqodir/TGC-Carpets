@@ -7,11 +7,11 @@ import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
-import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
+import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
 import '../args/warehouse_document_preview_args.dart';
-import '../../widget/warehouse_document_form_controller.dart';
-import '../../widget/warehouse_item_row.dart';
+import '../../widgets/warehouse_document_form_controller.dart';
+import '../../widgets/warehouse_item_row.dart';
 
 /// Desktop variant of the "add warehouse document" form.
 /// Displays items as an editable table with sticky column headers.

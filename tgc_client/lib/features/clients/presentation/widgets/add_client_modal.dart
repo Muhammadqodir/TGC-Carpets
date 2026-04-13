@@ -2,31 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
-import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
-import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
-import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
-import 'package:tgc_client/features/products/presentation/widget/product_form_body.dart';
+import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
+import 'package:tgc_client/features/clients/presentation/bloc/client_form_bloc.dart';
+import 'package:tgc_client/features/clients/presentation/bloc/client_form_state.dart';
+import 'package:tgc_client/features/clients/presentation/widgets/client_form_body.dart';
 
-/// Shows the add-product form inside a desktop dialog.
-/// On success calls [onProductAdded] then closes.
-class AddProductModal {
-  const AddProductModal._();
+/// Shows the add/edit client form inside a desktop dialog.
+/// On success calls [onClientAdded] then closes.
+class AddClientModal {
+  const AddClientModal._();
 
   static void show(
     BuildContext context, {
-    required VoidCallback onProductAdded,
-    ProductEntity? product,
+    required VoidCallback onClientAdded,
+    ClientEntity? client,
   }) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => BlocProvider(
-        create: (_) => sl<ProductFormBloc>()..add(const ProductFormStarted()),
-        child: _AddProductDialogContent(
-          onProductAdded: onProductAdded,
+        create: (_) => sl<ClientFormBloc>(),
+        child: _AddClientDialogContent(
+          onClientAdded: onClientAdded,
           onClose: () => Navigator.of(dialogCtx).pop(),
-          product: product,
+          client: client,
         ),
       ),
     );
@@ -35,46 +34,45 @@ class AddProductModal {
 
 // ---------------------------------------------------------------------------
 
-class _AddProductDialogContent extends StatefulWidget {
-  const _AddProductDialogContent({
-    required this.onProductAdded,
+class _AddClientDialogContent extends StatefulWidget {
+  const _AddClientDialogContent({
+    required this.onClientAdded,
     required this.onClose,
-    this.product,
+    this.client,
   });
 
-  final VoidCallback onProductAdded;
+  final VoidCallback onClientAdded;
   final VoidCallback onClose;
-  final ProductEntity? product;
+  final ClientEntity? client;
 
   @override
-  State<_AddProductDialogContent> createState() =>
-      _AddProductDialogContentState();
+  State<_AddClientDialogContent> createState() =>
+      _AddClientDialogContentState();
 }
 
-class _AddProductDialogContentState
-    extends State<_AddProductDialogContent> {
-  final _bodyKey = GlobalKey<ProductFormBodyState>();
+class _AddClientDialogContentState extends State<_AddClientDialogContent> {
+  final _bodyKey = GlobalKey<ClientFormBodyState>();
 
   void _submit() => _bodyKey.currentState?.submitToBloc();
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<ProductFormBloc, ProductFormState>(
+    return BlocListener<ClientFormBloc, ClientFormState>(
       listener: (context, state) {
-        if (state is ProductFormSuccess) {
-          widget.onProductAdded();
+        if (state is ClientFormSuccess) {
+          widget.onClientAdded();
           widget.onClose();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                widget.product != null
-                    ? '"${state.product.name}" yangilandi.'
-                    : '"${state.product.name}" mahsuloti yaratildi.',
+                widget.client != null
+                    ? '"${state.client.shopName}" yangilandi.'
+                    : '"${state.client.shopName}" mijozi yaratildi.',
               ),
               backgroundColor: AppColors.success,
             ),
           );
-        } else if (state is ProductFormFailure) {
+        } else if (state is ClientFormFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -88,26 +86,26 @@ class _AddProductDialogContentState
           borderRadius: BorderRadius.circular(16),
         ),
         child: SizedBox(
-          width: 560,
-          height: 680,
+          width: 520,
+          height: 620,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title bar
               _DialogTitleBar(
-                title: widget.product != null
-                    ? 'Mahsulotni tahrirlash'
-                    : 'Mahsulot qo\'shish',
+                title: widget.client != null
+                    ? 'Mijozni tahrirlash'
+                    : 'Mijoz qo\'shish',
                 onClose: widget.onClose,
               ),
               const Divider(height: 1, color: AppColors.divider),
 
               // Shared form body
               Expanded(
-                child: ProductFormBody(
+                child: ClientFormBody(
                   key: _bodyKey,
                   contentPadding: const EdgeInsets.all(20),
-                  initialProduct: widget.product,
+                  initialClient: widget.client,
                 ),
               ),
 
@@ -176,9 +174,9 @@ class _DialogActions extends StatelessWidget {
             child: const Text('Bekor qilish'),
           ),
           const SizedBox(width: 12),
-          BlocBuilder<ProductFormBloc, ProductFormState>(
+          BlocBuilder<ClientFormBloc, ClientFormState>(
             builder: (context, state) {
-              final submitting = state is ProductFormSubmitting;
+              final submitting = state is ClientFormSubmitting;
               return FilledButton(
                 onPressed: submitting ? null : onSave,
                 child: submitting

@@ -7,8 +7,8 @@ import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';
-import 'package:tgc_client/features/clients/presentation/widget/add_client_modal.dart';
-import 'package:tgc_client/features/clients/presentation/widget/client_table.dart';
+import 'package:tgc_client/features/clients/presentation/widgets/add_client_modal.dart';
+import 'package:tgc_client/features/clients/presentation/widgets/client_table.dart';
 
 /// Full desktop view: search bar + scrollable client data table.
 class ClientsDesktopPage extends StatefulWidget {

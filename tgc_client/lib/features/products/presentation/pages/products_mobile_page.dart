@@ -7,7 +7,7 @@ import 'package:tgc_client/core/ui/widgets/appbar_search.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_state.dart';
-import 'package:tgc_client/features/products/presentation/widget/product_item.dart';
+import 'package:tgc_client/features/products/presentation/widgets/product_item.dart';
 
 /// Mobile list view for the products feature.
 class ProductsMobilePage extends StatefulWidget {

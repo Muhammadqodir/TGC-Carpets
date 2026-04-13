@@ -8,7 +8,7 @@ import 'package:tgc_client/core/theme/app_colors.dart';
 import '../../bloc/warehouse_docs_bloc.dart';
 import '../../bloc/warehouse_docs_event.dart';
 import '../../bloc/warehouse_docs_state.dart';
-import '../../widget/warehouse_document_card.dart';
+import '../../widgets/warehouse_document_card.dart';
 
 /// Mobile list view for warehouse documents with enhanced cards.
 class WarehouseDocumentsMobilePage extends StatefulWidget {

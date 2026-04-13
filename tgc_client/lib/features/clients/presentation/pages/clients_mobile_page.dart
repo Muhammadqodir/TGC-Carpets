@@ -7,7 +7,7 @@ import 'package:tgc_client/core/ui/widgets/appbar_search.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';
-import 'package:tgc_client/features/clients/presentation/widget/client_item.dart';
+import 'package:tgc_client/features/clients/presentation/widgets/client_item.dart';
 
 /// Mobile card-list view for the clients feature.
 class ClientsMobilePage extends StatefulWidget {

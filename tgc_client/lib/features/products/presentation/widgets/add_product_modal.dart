@@ -2,30 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
-import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
-import 'package:tgc_client/features/clients/presentation/bloc/client_form_bloc.dart';
-import 'package:tgc_client/features/clients/presentation/bloc/client_form_state.dart';
-import 'package:tgc_client/features/clients/presentation/widget/client_form_body.dart';
+import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
+import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
+import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
+import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
+import 'package:tgc_client/features/products/presentation/widgets/product_form_body.dart';
 
-/// Shows the add/edit client form inside a desktop dialog.
-/// On success calls [onClientAdded] then closes.
-class AddClientModal {
-  const AddClientModal._();
+/// Shows the add-product form inside a desktop dialog.
+/// On success calls [onProductAdded] then closes.
+class AddProductModal {
+  const AddProductModal._();
 
   static void show(
     BuildContext context, {
-    required VoidCallback onClientAdded,
-    ClientEntity? client,
+    required VoidCallback onProductAdded,
+    ProductEntity? product,
   }) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => BlocProvider(
-        create: (_) => sl<ClientFormBloc>(),
-        child: _AddClientDialogContent(
-          onClientAdded: onClientAdded,
+        create: (_) => sl<ProductFormBloc>()..add(const ProductFormStarted()),
+        child: _AddProductDialogContent(
+          onProductAdded: onProductAdded,
           onClose: () => Navigator.of(dialogCtx).pop(),
-          client: client,
+          product: product,
         ),
       ),
     );
@@ -34,45 +35,46 @@ class AddClientModal {
 
 // ---------------------------------------------------------------------------
 
-class _AddClientDialogContent extends StatefulWidget {
-  const _AddClientDialogContent({
-    required this.onClientAdded,
+class _AddProductDialogContent extends StatefulWidget {
+  const _AddProductDialogContent({
+    required this.onProductAdded,
     required this.onClose,
-    this.client,
+    this.product,
   });
 
-  final VoidCallback onClientAdded;
+  final VoidCallback onProductAdded;
   final VoidCallback onClose;
-  final ClientEntity? client;
+  final ProductEntity? product;
 
   @override
-  State<_AddClientDialogContent> createState() =>
-      _AddClientDialogContentState();
+  State<_AddProductDialogContent> createState() =>
+      _AddProductDialogContentState();
 }
 
-class _AddClientDialogContentState extends State<_AddClientDialogContent> {
-  final _bodyKey = GlobalKey<ClientFormBodyState>();
+class _AddProductDialogContentState
+    extends State<_AddProductDialogContent> {
+  final _bodyKey = GlobalKey<ProductFormBodyState>();
 
   void _submit() => _bodyKey.currentState?.submitToBloc();
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<ClientFormBloc, ClientFormState>(
+    return BlocListener<ProductFormBloc, ProductFormState>(
       listener: (context, state) {
-        if (state is ClientFormSuccess) {
-          widget.onClientAdded();
+        if (state is ProductFormSuccess) {
+          widget.onProductAdded();
           widget.onClose();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                widget.client != null
-                    ? '"${state.client.shopName}" yangilandi.'
-                    : '"${state.client.shopName}" mijozi yaratildi.',
+                widget.product != null
+                    ? '"${state.product.name}" yangilandi.'
+                    : '"${state.product.name}" mahsuloti yaratildi.',
               ),
               backgroundColor: AppColors.success,
             ),
           );
-        } else if (state is ClientFormFailure) {
+        } else if (state is ProductFormFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -86,26 +88,26 @@ class _AddClientDialogContentState extends State<_AddClientDialogContent> {
           borderRadius: BorderRadius.circular(16),
         ),
         child: SizedBox(
-          width: 520,
-          height: 620,
+          width: 560,
+          height: 680,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title bar
               _DialogTitleBar(
-                title: widget.client != null
-                    ? 'Mijozni tahrirlash'
-                    : 'Mijoz qo\'shish',
+                title: widget.product != null
+                    ? 'Mahsulotni tahrirlash'
+                    : 'Mahsulot qo\'shish',
                 onClose: widget.onClose,
               ),
               const Divider(height: 1, color: AppColors.divider),
 
               // Shared form body
               Expanded(
-                child: ClientFormBody(
+                child: ProductFormBody(
                   key: _bodyKey,
                   contentPadding: const EdgeInsets.all(20),
-                  initialClient: widget.client,
+                  initialProduct: widget.product,
                 ),
               ),
 
@@ -174,9 +176,9 @@ class _DialogActions extends StatelessWidget {
             child: const Text('Bekor qilish'),
           ),
           const SizedBox(width: 12),
-          BlocBuilder<ClientFormBloc, ClientFormState>(
+          BlocBuilder<ProductFormBloc, ProductFormState>(
             builder: (context, state) {
-              final submitting = state is ClientFormSubmitting;
+              final submitting = state is ProductFormSubmitting;
               return FilledButton(
                 onPressed: submitting ? null : onSave,
                 child: submitting

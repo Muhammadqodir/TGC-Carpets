@@ -8,7 +8,7 @@ import 'package:tgc_client/core/theme/app_colors.dart';
 import '../bloc/employees_bloc.dart';
 import '../bloc/employees_event.dart';
 import '../bloc/employees_state.dart';
-import '../widget/employee_item.dart';
+import '../widgets/employee_item.dart';
 
 class EmployeesPage extends StatelessWidget {
   const EmployeesPage({super.key});

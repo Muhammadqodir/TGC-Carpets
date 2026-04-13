@@ -8,7 +8,7 @@ import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../labeling/presentation/widget/print_label.dart';
+import '../../../labeling/presentation/widgets/print_label.dart';
 import '../../../labeling/presentation/args/print_labels_args.dart';
 
 class PrintLabelsPage extends StatefulWidget {

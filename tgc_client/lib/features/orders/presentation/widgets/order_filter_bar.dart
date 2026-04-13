@@ -3,7 +3,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../clients/domain/entities/client_entity.dart';
-import '../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
+import '../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
 
 /// Desktop filter bar for the orders list page.
 /// All filter state is owned by the parent; this widget is purely controlled.

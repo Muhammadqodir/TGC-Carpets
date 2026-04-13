@@ -12,10 +12,10 @@ import 'package:tgc_client/features/products/presentation/bloc/product_form_stat
 import 'package:tgc_client/features/products/presentation/bloc/products_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/products_state.dart';
-import 'package:tgc_client/features/products/presentation/widget/add_product_modal.dart';
-import 'package:tgc_client/features/products/presentation/widget/add_product_color_modal.dart';
-import 'package:tgc_client/features/products/presentation/widget/product_filter_bar.dart';
-import 'package:tgc_client/features/products/presentation/widget/product_table.dart';
+import 'package:tgc_client/features/products/presentation/widgets/add_product_modal.dart';
+import 'package:tgc_client/features/products/presentation/widgets/add_product_color_modal.dart';
+import 'package:tgc_client/features/products/presentation/widgets/product_filter_bar.dart';
+import 'package:tgc_client/features/products/presentation/widgets/product_table.dart';
 
 /// Full desktop view: top filter bar + scrollable data table.
 /// Wraps itself with [ProductFormBloc] to source type/quality filter options.

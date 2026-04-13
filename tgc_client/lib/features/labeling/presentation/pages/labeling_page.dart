@@ -10,7 +10,7 @@ import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../widget/print_label.dart';
+import '../widgets/print_label.dart';
 import '../widgets/batch_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';

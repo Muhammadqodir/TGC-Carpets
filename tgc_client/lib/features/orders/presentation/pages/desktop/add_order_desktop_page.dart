@@ -8,15 +8,15 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
-import '../../../../clients/presentation/widget/client_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widget/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widget/product_size_picker_sheet.dart';
+import '../../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
+import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
+import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
 import '../../bloc/order_form_state.dart';
-import '../../widget/order_form_controller.dart';
-import '../../widget/order_item_row.dart';
+import '../../widgets/order_form_controller.dart';
+import '../../widgets/order_item_row.dart';
 
 /// Desktop variant of the "add/edit order" form.
 /// When [initialOrder] is provided the form operates in edit mode.

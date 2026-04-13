@@ -7,7 +7,7 @@ import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_bloc.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_event.dart';
 import 'package:tgc_client/features/sales/presentation/bloc/sales_state.dart';
-import 'package:tgc_client/features/sales/presentation/widget/sale_card.dart';
+import 'package:tgc_client/features/sales/presentation/widgets/sale_card.dart';
 
 class SalesPage extends StatelessWidget {
   const SalesPage({super.key});
