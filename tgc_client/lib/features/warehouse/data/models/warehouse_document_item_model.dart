@@ -13,6 +13,7 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
     super.notes,
     super.variantId,
     super.barcodeValue,
+    super.productionBatchItemId,
   });
 
   factory WarehouseDocumentItemModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
       notes: json['notes'] as String?,
       variantId: variantMap?['id'] as int?,
       barcodeValue: variantMap?['barcode_value'] as String?,
+      productionBatchItemId: json['production_batch_item_id'] as int?,
     );
   }
 

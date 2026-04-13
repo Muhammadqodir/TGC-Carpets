@@ -87,16 +87,16 @@ class WarehouseDocumentTable extends StatelessWidget {
       case 4: // Volume
         return _VolumeCell(document: document);
 
-      case 5: // Client
-        return document.clientShopName != null
+      case 5: // Source
+        return document.sourceType != null
             ? Row(
                 children: [
-                  const Icon(Icons.store_outlined,
+                  const Icon(Icons.category_outlined,
                       size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      document.clientShopName!,
+                      _sourceTypeLabel(document.sourceType!),
                       style: Theme.of(context).textTheme.bodyMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -140,6 +140,13 @@ class WarehouseDocumentTable extends StatelessWidget {
         return const SizedBox.shrink();
     }
   }
+
+  String _sourceTypeLabel(String sourceType) => switch (sourceType) {
+        'production' => 'Ishlab chiqarish',
+        'sale' => 'Sotuv',
+        'other' => 'Boshqa',
+        _ => sourceType,
+      };
 
   String _formatDateTime(DateTime date) {
     final timeStr =

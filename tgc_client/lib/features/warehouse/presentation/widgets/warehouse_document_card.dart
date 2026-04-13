@@ -85,16 +85,16 @@ class WarehouseDocumentCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (document.clientShopName != null) ...[
+              if (document.sourceType != null) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.store_outlined,
+                    const Icon(Icons.category_outlined,
                         size: 14, color: AppColors.textSecondary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        document.clientShopName!,
+                        _sourceTypeLabel(document.sourceType!),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -115,6 +115,13 @@ class WarehouseDocumentCard extends StatelessWidget {
       ),
     );
   }
+
+  String _sourceTypeLabel(String sourceType) => switch (sourceType) {
+        'production' => 'Ishlab chiqarish',
+        'sale' => 'Sotuv',
+        'other' => 'Boshqa',
+        _ => sourceType,
+      };
 
   String _formatDateTime(DateTime date) {
     final timeStr =

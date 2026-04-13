@@ -15,7 +15,8 @@ class GetWarehouseDocumentsUseCase {
     int? userId,
     String? dateFrom,
     String? dateTo,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     int page = 1,
     int perPage = 20,
   }) =>
@@ -24,7 +25,8 @@ class GetWarehouseDocumentsUseCase {
         userId: userId,
         dateFrom: dateFrom,
         dateTo: dateTo,
-        clientId: clientId,
+        sourceType: sourceType,
+        sourceId: sourceId,
         page: page,
         perPage: perPage,
       );

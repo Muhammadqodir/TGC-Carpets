@@ -27,7 +27,7 @@ class WarehouseDocumentService
         if (! empty($data['external_uuid'])) {
             $existing = WarehouseDocument::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+                return $existing->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
             }
         }
 
@@ -39,7 +39,8 @@ class WarehouseDocumentService
             $document = WarehouseDocument::create([
                 'external_uuid' => $data['external_uuid'] ?? null,
                 'type'          => $data['type'],
-                'client_id'     => $data['client_id'] ?? null,
+                'source_type'   => $data['source_type'] ?? null,
+                'source_id'     => $data['source_id']   ?? null,
                 'user_id'       => $userId,
                 'document_date' => $data['document_date'],
                 'notes'         => $data['notes'] ?? null,
@@ -51,7 +52,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($document);
             $document->update(['pdf_path' => $pdfPath]);
 
-            return $document->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $document->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
 
@@ -63,7 +64,8 @@ class WarehouseDocumentService
         return DB::transaction(function () use ($document, $data, $userId): WarehouseDocument {
             $document->update(array_filter([
                 'type'          => $data['type']          ?? $document->type,
-                'client_id'     => array_key_exists('client_id', $data) ? $data['client_id'] : $document->client_id,
+                'source_type'   => array_key_exists('source_type', $data) ? $data['source_type'] : $document->source_type,
+                'source_id'     => array_key_exists('source_id', $data)   ? $data['source_id']   : $document->source_id,
                 'document_date' => $data['document_date'] ?? $document->document_date,
                 'notes'         => array_key_exists('notes', $data) ? $data['notes'] : $document->notes,
             ], fn ($v) => $v !== null));
@@ -86,7 +88,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($freshDocument);
             $freshDocument->update(['pdf_path' => $pdfPath]);
 
-            return $freshDocument->load(['user', 'client', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $freshDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
         });
     }
 
@@ -143,8 +145,8 @@ class WarehouseDocumentService
             StockMovement::create([
                 'product_variant_id'    => $variant->id,
                 'warehouse_document_id' => $document->id,
-                'sale_id'               => null,
-                'client_id'             => $document->client_id,
+                'source_type'           => $document->source_type,
+                'source_id'             => $document->source_id,
                 'user_id'               => $userId,
                 'movement_type'         => $document->type,
                 'quantity'              => $itemData['quantity'],
@@ -167,8 +169,8 @@ class WarehouseDocumentService
             StockMovement::create([
                 'product_variant_id'    => $item->product_variant_id,
                 'warehouse_document_id' => $document->id,
-                'sale_id'               => null,
-                'client_id'             => $document->client_id,
+                'source_type'           => $document->source_type,
+                'source_id'             => $document->source_id,
                 'user_id'               => $userId,
                 'movement_type'         => $reverseType,
                 'quantity'              => $item->quantity,

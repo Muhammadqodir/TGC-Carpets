@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\ProductionBatchItem;
 
 class WarehouseDocumentItem extends Model
 {
@@ -14,6 +15,7 @@ class WarehouseDocumentItem extends Model
         'warehouse_document_id',
         'product_variant_id',
         'quantity',
+        'production_batch_item_id',
         'notes',
     ];
 
@@ -35,5 +37,10 @@ class WarehouseDocumentItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function productionBatchItem(): BelongsTo
+    {
+        return $this->belongsTo(ProductionBatchItem::class);
     }
 }

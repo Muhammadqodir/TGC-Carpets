@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 
 class WarehouseDocument extends Model
@@ -28,7 +29,8 @@ class WarehouseDocument extends Model
         'uuid',
         'external_uuid',
         'type',
-        'client_id',
+        'source_type',
+        'source_id',
         'user_id',
         'document_date',
         'notes',
@@ -72,9 +74,13 @@ class WarehouseDocument extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function client(): BelongsTo
+    /**
+     * Polymorphic source that triggered this document.
+     * Morph type values: 'production' | 'sale' | 'other'
+     */
+    public function source(): MorphTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->morphTo('source', 'source_type', 'source_id');
     }
 
     public function items(): HasMany

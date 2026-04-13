@@ -18,7 +18,8 @@ class StoreWarehouseDocumentRequest extends FormRequest
         return [
             'external_uuid'         => ['nullable', 'uuid', Rule::unique('warehouse_documents', 'external_uuid')],
             'type'                  => ['required', 'string', Rule::in(WarehouseDocument::TYPES)],
-            'client_id'             => ['nullable', 'integer', 'exists:clients,id'],
+            'source_type'           => ['nullable', 'string', Rule::in(['production', 'sale', 'other'])],
+            'source_id'             => ['nullable', 'integer', 'min:1'],
             'document_date'         => ['required', 'date'],
             'notes'                 => ['nullable', 'string'],
 

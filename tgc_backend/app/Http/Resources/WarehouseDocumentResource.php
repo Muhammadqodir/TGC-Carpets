@@ -14,16 +14,14 @@ class WarehouseDocumentResource extends JsonResource
             'uuid'          => $this->uuid,
             'external_uuid' => $this->external_uuid,
             'type'          => $this->type,
+            'source_type'   => $this->source_type,
+            'source_id'     => $this->source_id,
             'document_date' => $this->document_date?->toISOString(),
             'notes'         => $this->notes,
             'user'          => $this->whenLoaded('user', fn () => [
                 'id'   => $this->user->id,
                 'name' => $this->user->name,
             ]),
-            'client'        => $this->whenLoaded('client', fn () => $this->client ? [
-                'id'        => $this->client->id,
-                'shop_name' => $this->client->shop_name,
-            ] : null),
             'pdf_url'       => $this->pdf_path ? asset('storage/' . $this->pdf_path) : null,
             'items'         => WarehouseDocumentItemResource::collection($this->whenLoaded('items')),
             'photos'        => WarehouseDocumentPhotoResource::collection($this->whenLoaded('photos')),

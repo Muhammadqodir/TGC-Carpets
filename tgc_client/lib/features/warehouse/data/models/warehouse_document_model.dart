@@ -11,8 +11,8 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
     super.notes,
     required super.userId,
     required super.userName,
-    super.clientId,
-    super.clientShopName,
+    super.sourceType,
+    super.sourceId,
     required super.items,
     super.pdfUrl,
     required super.createdAt,
@@ -21,7 +21,6 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
 
   factory WarehouseDocumentModel.fromJson(Map<String, dynamic> json) {
     final userMap = json['user'] as Map<String, dynamic>?;
-    final clientMap = json['client'] as Map<String, dynamic>?;
     final itemsList = (json['items'] as List? ?? [])
         .map((e) => WarehouseDocumentItemModel.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -35,8 +34,8 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
       notes: json['notes'] as String?,
       userId: userMap?['id'] as int? ?? 0,
       userName: userMap?['name'] as String? ?? '',
-      clientId: clientMap?['id'] as int?,
-      clientShopName: clientMap?['shop_name'] as String?,
+      sourceType: json['source_type'] as String?,
+      sourceId: json['source_id'] as int?,
       items: itemsList,
       pdfUrl: json['pdf_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -52,9 +51,8 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
         'document_date': documentDate.toIso8601String(),
         'notes': notes,
         'user': {'id': userId, 'name': userName},
-        'client': clientId != null
-            ? {'id': clientId, 'shop_name': clientShopName}
-            : null,
+        'source_type': sourceType,
+        'source_id': sourceId,
         'items': items
             .cast<WarehouseDocumentItemModel>()
             .map((e) => e.toJson())

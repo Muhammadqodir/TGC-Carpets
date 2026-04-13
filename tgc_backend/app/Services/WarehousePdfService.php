@@ -53,12 +53,11 @@ class WarehousePdfService
      */
     private function getSaleInfo(WarehouseDocument $document): ?array
     {
-        // Find a sale that has stock movements referencing this warehouse document
-        $sale = DB::table('sales')
-            ->join('stock_movements', 'sales.id', '=', 'stock_movements.sale_id')
-            ->where('stock_movements.warehouse_document_id', $document->id)
-            ->select('sales.*')
-            ->first();
+        // Find a sale linked to this warehouse document via the polymorphic source
+        $sale = null;
+        if ($document->source_type === 'sale' && $document->source_id) {
+            $sale = DB::table('sales')->find($document->source_id);
+        }
 
         if (!$sale) {
             return null;

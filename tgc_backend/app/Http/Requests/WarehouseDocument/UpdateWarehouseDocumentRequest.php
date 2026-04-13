@@ -17,7 +17,8 @@ class UpdateWarehouseDocumentRequest extends FormRequest
     {
         return [
             'type'               => ['sometimes', 'required', 'string', Rule::in(WarehouseDocument::TYPES)],
-            'client_id'          => ['nullable', 'integer', 'exists:clients,id'],
+            'source_type'        => ['nullable', 'string', Rule::in(['production', 'sale', 'other'])],
+            'source_id'          => ['nullable', 'integer', 'min:1'],
             'document_date'      => ['sometimes', 'required', 'date'],
             'notes'              => ['nullable', 'string'],
 

@@ -13,7 +13,8 @@ class CreateWarehouseDocumentUseCase {
     required String type,
     required String documentDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     String? notes,
     String? externalUuid,
   }) =>
@@ -21,7 +22,8 @@ class CreateWarehouseDocumentUseCase {
         type: type,
         documentDate: documentDate,
         items: items,
-        clientId: clientId,
+        sourceType: sourceType,
+        sourceId: sourceId,
         notes: notes,
         externalUuid: externalUuid,
       );

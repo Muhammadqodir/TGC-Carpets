@@ -96,7 +96,8 @@ class SaleService
     {
         $doc = WarehouseDocument::create([
             'type'          => WarehouseDocument::TYPE_OUT,
-            'client_id'     => $sale->client_id,
+            'source_type'   => 'sale',
+            'source_id'     => $sale->id,
             'user_id'       => $userId,
             'document_date' => $sale->sale_date,
             'notes'         => "Auto: Sale #{$sale->id}",
@@ -125,8 +126,8 @@ class SaleService
             StockMovement::create([
                 'product_variant_id'    => $variant->id,
                 'warehouse_document_id' => $doc->id,
-                'sale_id'               => $sale->id,
-                'client_id'             => $sale->client_id,
+                'source_type'           => 'sale',
+                'source_id'             => $sale->id,
                 'user_id'               => $userId,
                 'movement_type'         => WarehouseDocument::TYPE_OUT,
                 'quantity'              => $itemData['quantity'],
@@ -140,7 +141,8 @@ class SaleService
     {
         $doc = WarehouseDocument::create([
             'type'          => WarehouseDocument::TYPE_RETURN,
-            'client_id'     => $sale->client_id,
+            'source_type'   => 'sale',
+            'source_id'     => $sale->id,
             'user_id'       => $userId,
             'document_date' => now(),
             'notes'         => "Auto: Reversal of Sale #{$sale->id}",
@@ -156,8 +158,8 @@ class SaleService
             StockMovement::create([
                 'product_variant_id'    => $item->product_variant_id,
                 'warehouse_document_id' => $doc->id,
-                'sale_id'               => $sale->id,
-                'client_id'             => $sale->client_id,
+                'source_type'           => 'sale',
+                'source_id'             => $sale->id,
                 'user_id'               => $userId,
                 'movement_type'         => WarehouseDocument::TYPE_RETURN,
                 'quantity'              => $item->quantity,

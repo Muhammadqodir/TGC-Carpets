@@ -11,7 +11,8 @@ abstract class WarehouseRemoteDataSource {
     int? userId,
     String? dateFrom,
     String? dateTo,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     int page = 1,
     int perPage = 20,
   });
@@ -22,7 +23,8 @@ abstract class WarehouseRemoteDataSource {
     required String type,
     required String documentDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     String? notes,
     String? externalUuid,
   });
@@ -39,7 +41,8 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
     int? userId,
     String? dateFrom,
     String? dateTo,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -51,7 +54,8 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
         if (userId != null) 'user_id': userId,
         if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
         if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
-        if (clientId != null) 'client_id': clientId,
+        if (sourceType != null) 'source_type': sourceType,
+        if (sourceId != null) 'source_id': sourceId,
       };
 
       final response = await _dio.get(
@@ -94,7 +98,8 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
     required String type,
     required String documentDate,
     required List<Map<String, dynamic>> items,
-    int? clientId,
+    String? sourceType,
+    int? sourceId,
     String? notes,
     String? externalUuid,
   }) async {
@@ -103,7 +108,8 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
         'type': type,
         'document_date': documentDate,
         'items': items,
-        if (clientId != null) 'client_id': clientId,
+        if (sourceType != null) 'source_type': sourceType,
+        if (sourceId != null) 'source_id': sourceId,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
         if (externalUuid != null && externalUuid.isNotEmpty)
           'external_uuid': externalUuid,

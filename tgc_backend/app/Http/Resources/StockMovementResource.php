@@ -35,11 +35,8 @@ class StockMovementResource extends JsonResource
                 'width'  => $this->variant->productSize->width,
             ] : null),
             'warehouse_document_id'   => $this->warehouse_document_id,
-            'sale_id'                 => $this->sale_id,
-            'client'                  => $this->whenLoaded('client', fn () => $this->client ? [
-                'id'        => $this->client->id,
-                'shop_name' => $this->client->shop_name,
-            ] : null),
+            'source_type'             => $this->source_type,
+            'source_id'               => $this->source_id,
             'user'                    => $this->whenLoaded('user', fn () => [
                 'id'   => $this->user->id,
                 'name' => $this->user->name,

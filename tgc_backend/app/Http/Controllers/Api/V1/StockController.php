@@ -85,10 +85,11 @@ class StockController extends Controller
      */
     public function movements(Request $request): AnonymousResourceCollection
     {
-        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'variant.productSize', 'client', 'user'])
+        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'variant.productSize', 'user'])
             ->when($request->filled('product_id'),    fn ($q) => $q->whereHas('variant.productColor', fn ($q2) => $q2->where('product_id', $request->product_id)))
             ->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
-            ->when($request->filled('client_id'),     fn ($q) => $q->where('client_id', $request->client_id))
+            ->when($request->filled('source_type'),   fn ($q) => $q->where('source_type', $request->source_type))
+            ->when($request->filled('source_id'),     fn ($q) => $q->where('source_id', $request->source_id))
             ->when($request->filled('user_id'),       fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'),     fn ($q) => $q->whereDate('movement_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),       fn ($q) => $q->whereDate('movement_date', '<=', $request->date_to))
