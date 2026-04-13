@@ -138,11 +138,29 @@ class ProductionBatchService
 
     /**
      * Atomically increment produced_quantity by 1 (label print action).
+     * After incrementing, checks whether all items in the batch have
+     * produced_quantity >= (planned_quantity - defect_quantity).
+     * If so, the batch is automatically transitioned to completed.
      */
     public function incrementProducedQuantity(ProductionBatchItem $item): ProductionBatchItem
     {
         DB::transaction(function () use ($item): void {
             $item->increment('produced_quantity');
+
+            $batch = ProductionBatch::lockForUpdate()->find($item->production_batch_id);
+
+            if ($batch && $batch->status === ProductionBatch::STATUS_IN_PROGRESS) {
+                $allLabeled = ! $batch->items()
+                    ->whereRaw('produced_quantity < (planned_quantity - defect_quantity)')
+                    ->exists();
+
+                if ($allLabeled) {
+                    $batch->update([
+                        'status'             => ProductionBatch::STATUS_COMPLETED,
+                        'completed_datetime' => now(),
+                    ]);
+                }
+            }
         });
 
         return $item->fresh()->load([

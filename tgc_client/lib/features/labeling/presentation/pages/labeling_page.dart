@@ -524,8 +524,8 @@ class _LabelingCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: item.plannedQuantity > 0
-                        ? item.producedQuantity / item.plannedQuantity
+                    value: item.netTarget > 0
+                        ? item.producedQuantity / item.netTarget
                         : 0,
                     minHeight: 6,
                     backgroundColor: AppColors.divider,
@@ -534,7 +534,7 @@ class _LabelingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Bajarildi: ${item.producedQuantity} / ${item.plannedQuantity}  •  Qoldi: $remaining',
+                  'Bajarildi: ${item.producedQuantity} / ${item.netTarget}  •  Qoldi: $remaining',
                   style: textTheme.labelSmall
                       ?.copyWith(color: AppColors.textSecondary),
                 ),

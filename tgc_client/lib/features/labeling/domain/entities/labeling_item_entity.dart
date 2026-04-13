@@ -7,6 +7,7 @@ class LabelingItemEntity extends Equatable {
 
   final int plannedQuantity;
   final int producedQuantity;
+  final int defectQuantity;
 
   // ── Variant / product ────────────────────────────────────────────────────
   final int variantId;
@@ -26,6 +27,7 @@ class LabelingItemEntity extends Equatable {
     this.batchTitle,
     required this.plannedQuantity,
     required this.producedQuantity,
+    this.defectQuantity = 0,
     required this.variantId,
     this.variantSku,
     this.variantBarcode,
@@ -43,17 +45,20 @@ class LabelingItemEntity extends Equatable {
     return '$sizeLength×$sizeWidth';
   }
 
-  int get remainingQuantity => (plannedQuantity - producedQuantity).clamp(0, plannedQuantity);
+  int get netTarget => (plannedQuantity - defectQuantity).clamp(0, plannedQuantity);
 
-  bool get isFullyLabeled => producedQuantity >= plannedQuantity;
+  int get remainingQuantity => (netTarget - producedQuantity).clamp(0, netTarget);
 
-  LabelingItemEntity copyWith({int? producedQuantity}) {
+  bool get isFullyLabeled => producedQuantity >= netTarget;
+
+  LabelingItemEntity copyWith({int? producedQuantity, int? defectQuantity}) {
     return LabelingItemEntity(
       id: id,
       batchId: batchId,
       batchTitle: batchTitle,
       plannedQuantity: plannedQuantity,
       producedQuantity: producedQuantity ?? this.producedQuantity,
+      defectQuantity: defectQuantity ?? this.defectQuantity,
       variantId: variantId,
       variantSku: variantSku,
       variantBarcode: variantBarcode,
@@ -73,6 +78,7 @@ class LabelingItemEntity extends Equatable {
         batchId,
         plannedQuantity,
         producedQuantity,
+        defectQuantity,
         variantId,
       ];
 }
