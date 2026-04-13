@@ -245,13 +245,13 @@ class _AddProductionBatchDesktopPageState
                           child: TextFormField(
                             controller: ctrl.titleCtrl,
                             decoration: const InputDecoration(
-                              labelText: 'Batch nomi *',
-                              hintText: 'Masalan: Batch #1',
+                              labelText: 'Partiya nomi *',
+                              hintText: 'Masalan: Sherdoraka | 1 Stanok',
                               isDense: true,
                               border: OutlineInputBorder(),
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
-                                ? 'Batch nomini kiriting'
+                                ? 'Partiya nomini kiriting'
                                 : null,
                           ),
                         ),
