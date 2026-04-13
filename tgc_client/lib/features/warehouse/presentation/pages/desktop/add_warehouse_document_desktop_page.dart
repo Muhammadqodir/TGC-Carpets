@@ -364,7 +364,7 @@ class _DesktopTableHeader extends StatelessWidget {
           _HeaderCell(label: 'Tur', flex: 1),
           _HeaderCell(label: 'Sifat', flex: 1),
           _HeaderCell(label: 'O\'lcham', flex: 2),
-          _HeaderCell(label: 'Mijoz', fixedWidth: 140),
+          _HeaderCell(label: 'Mijoz', flex: 2),
           _HeaderCell(label: 'Miqdor', fixedWidth: 130),
           _HeaderCell(label: 'Izoh', flex: 2),
           SizedBox(width: 40),
@@ -589,8 +589,8 @@ class _DesktopItemRow extends StatelessWidget {
           ),
 
           // Partiya (source batch) column
-          SizedBox(
-            width: 140,
+          Expanded(
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: row.sourceBatchTitle != null

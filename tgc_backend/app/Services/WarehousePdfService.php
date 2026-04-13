@@ -18,7 +18,6 @@ class WarehousePdfService
         // Eager-load all needed relationships
         $document->load([
             'user',
-            'client',
             'items.variant.productColor.product.productType',
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
