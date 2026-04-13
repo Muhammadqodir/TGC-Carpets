@@ -23,6 +23,8 @@ class StockFilterBar extends StatelessWidget {
     required this.onQualityChanged,
     required this.onSizeChanged,
     required this.onRefresh,
+    required this.searchController,
+    required this.onSearchChanged,
     this.isLoadingSizes = false,
   });
 
@@ -41,6 +43,9 @@ class StockFilterBar extends StatelessWidget {
   final VoidCallback onRefresh;
   final bool isLoadingSizes;
 
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+
   bool get _hasActiveFilters =>
       selectedTypeId != null ||
       selectedQualityId != null ||
@@ -53,6 +58,13 @@ class StockFilterBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
+          // Search field
+          _FilterSearchField(
+            controller: searchController,
+            onChanged: onSearchChanged,
+          ),
+          const SizedBox(width: 8),
+
           // Type dropdown
           _FilterDropdown<int>(
             hint: 'Turi',
@@ -201,6 +213,50 @@ class _FilterDropdown<T> extends StatelessWidget {
             ...items,
           ],
           onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _FilterSearchField extends StatelessWidget {
+  const _FilterSearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      height: 38,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: Theme.of(context).textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: 'Qidirish...',
+          prefixIcon: const Icon(Icons.search_outlined, size: 18),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          isDense: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.divider),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
         ),
       ),
     );

@@ -13,14 +13,16 @@ class GetStockVariantsUseCase {
     int? productTypeId,
     int? productQualityId,
     int? productSizeId,
+    String? search,
     int page = 1,
     int perPage = 20,
   }) =>
       _repository.getStockVariants(
-        productTypeId: productTypeId,
+        productTypeId:    productTypeId,
         productQualityId: productQualityId,
-        productSizeId: productSizeId,
-        page: page,
-        perPage: perPage,
+        productSizeId:    productSizeId,
+        search:           search,
+        page:             page,
+        perPage:          perPage,
       );
 }

@@ -42,6 +42,7 @@ class _DesktopView extends StatefulWidget {
 
 class _DesktopViewState extends State<_DesktopView> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   final _getSizes = sl<GetProductSizesUseCase>();
 
   int? _selectedTypeId;
@@ -67,6 +68,7 @@ class _DesktopViewState extends State<_DesktopView> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -150,6 +152,10 @@ class _DesktopViewState extends State<_DesktopView> {
                 selectedQualityId:  _selectedQualityId,
                 selectedSizeId:     _selectedSizeId,
                 isLoadingSizes:     _loadingSizes,
+                searchController:   _searchController,
+                onSearchChanged:    (v) => context
+                    .read<ProductsStockBloc>()
+                    .add(ProductsStockSearchChanged(v)),
                 onTypeChanged: (id) {
                   _applyFilters(
                     typeId:     id,

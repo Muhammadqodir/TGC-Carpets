@@ -8,6 +8,7 @@ abstract class ProductsStockRepository {
     int? productTypeId,
     int? productQualityId,
     int? productSizeId,
+    String? search,
     int page = 1,
     int perPage = 20,
   });

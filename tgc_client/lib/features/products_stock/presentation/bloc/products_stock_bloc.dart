@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/stock_variant_entity.dart';
 import '../../domain/usecases/get_stock_variants_usecase.dart';
@@ -10,6 +12,8 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
   int? _filterTypeId;
   int? _filterQualityId;
   int? _filterSizeId;
+  String _searchQuery = '';
+  Timer? _debounce;
 
   ProductsStockBloc({required this.getStockVariantsUseCase})
       : super(const ProductsStockInitial()) {
@@ -17,6 +21,13 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
     on<ProductsStockRefreshRequested>(_onRefreshRequested);
     on<ProductsStockNextPageRequested>(_onNextPageRequested);
     on<ProductsStockFilterChanged>(_onFilterChanged);
+    on<ProductsStockSearchChanged>(_onSearchChanged);
+  }
+
+  @override
+  Future<void> close() {
+    _debounce?.cancel();
+    return super.close();
   }
 
   Future<void> _onLoadRequested(
@@ -45,6 +56,17 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
     add(const ProductsStockLoadRequested());
   }
 
+  void _onSearchChanged(
+    ProductsStockSearchChanged event,
+    Emitter<ProductsStockState> emit,
+  ) {
+    _debounce?.cancel();
+    _searchQuery = event.query;
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      add(const ProductsStockLoadRequested());
+    });
+  }
+
   Future<void> _onNextPageRequested(
     ProductsStockNextPageRequested event,
     Emitter<ProductsStockState> emit,
@@ -68,6 +90,7 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
       productTypeId:    _filterTypeId,
       productQualityId: _filterQualityId,
       productSizeId:    _filterSizeId,
+      search:           _searchQuery.isNotEmpty ? _searchQuery : null,
       page:             page,
     );
 

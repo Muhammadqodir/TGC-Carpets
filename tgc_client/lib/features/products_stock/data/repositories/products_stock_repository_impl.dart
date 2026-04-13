@@ -16,6 +16,7 @@ class ProductsStockRepositoryImpl implements ProductsStockRepository {
     int? productTypeId,
     int? productQualityId,
     int? productSizeId,
+    String? search,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -24,6 +25,7 @@ class ProductsStockRepositoryImpl implements ProductsStockRepository {
         productTypeId:    productTypeId,
         productQualityId: productQualityId,
         productSizeId:    productSizeId,
+        search:           search,
         page:             page,
         perPage:          perPage,
       );

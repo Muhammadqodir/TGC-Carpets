@@ -33,3 +33,12 @@ class ProductsStockFilterChanged extends ProductsStockEvent {
   @override
   List<Object?> get props => [productTypeId, productQualityId, productSizeId];
 }
+
+class ProductsStockSearchChanged extends ProductsStockEvent {
+  final String query;
+
+  const ProductsStockSearchChanged(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}

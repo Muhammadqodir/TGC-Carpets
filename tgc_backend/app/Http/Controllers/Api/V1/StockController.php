@@ -145,6 +145,10 @@ class StockController extends Controller
                 $request->filled('product_size_id'),
                 fn ($q) => $q->where('product_variants.product_size_id', $request->integer('product_size_id'))
             )
+            ->when(
+                $request->filled('search'),
+                fn ($q) => $q->where('products.name', 'like', '%' . $request->string('search') . '%')
+            )
             ->having('quantity_warehouse', '>', 0)
             ->orderByDesc('quantity_warehouse')
             ->paginate(

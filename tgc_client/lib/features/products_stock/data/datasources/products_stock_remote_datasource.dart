@@ -9,6 +9,7 @@ abstract class ProductsStockRemoteDataSource {
     int? productTypeId,
     int? productQualityId,
     int? productSizeId,
+    String? search,
     int page = 1,
     int perPage = 20,
   });
@@ -24,6 +25,7 @@ class ProductsStockRemoteDataSourceImpl implements ProductsStockRemoteDataSource
     int? productTypeId,
     int? productQualityId,
     int? productSizeId,
+    String? search,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -33,9 +35,10 @@ class ProductsStockRemoteDataSourceImpl implements ProductsStockRemoteDataSource
         queryParameters: {
           'page':     page,
           'per_page': perPage,
-          if (productTypeId != null)    'product_type_id': productTypeId,
-          if (productQualityId != null) 'product_quality_id': productQualityId,
-          if (productSizeId != null)    'product_size_id': productSizeId,
+          if (productTypeId != null)                 'product_type_id': productTypeId,
+          if (productQualityId != null)              'product_quality_id': productQualityId,
+          if (productSizeId != null)                 'product_size_id': productSizeId,
+          if (search != null && search.isNotEmpty)   'search': search,
         },
       );
 
