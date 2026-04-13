@@ -194,7 +194,7 @@ class _ProductionBatchPickerBottomSheetState
 
           // Title row
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+            padding: const EdgeInsets.fromLTRB(20, 8, 8, 12),
             child: Row(
               children: [
                 if (_selectedBatch != null)

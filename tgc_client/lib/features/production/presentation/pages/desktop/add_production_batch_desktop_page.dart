@@ -164,7 +164,7 @@ class _AddProductionBatchDesktopPageState
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                _isEditMode ? 'Batch yangilandi.' : 'Batch saqlandi.',
+                _isEditMode ? 'Partiya yangilandi.' : 'Partiya saqlandi.',
               ),
               backgroundColor: AppColors.success,
             ),
