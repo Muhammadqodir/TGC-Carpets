@@ -101,6 +101,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
       sourceOrderId:            orderMap?['id'] as int?,
       sourceOrderQuantity:      sourceItemMap?['quantity'] as int?,
       sourceClientShopName:     clientMap?['shop_name'] as String?,
+      sourceClientRegion:       clientMap?['region'] as String?,
       variantId:                variantMap?['id'] as int? ?? 0,
       variantSku:               variantMap?['sku_code'] as String?,
       variantBarcode:           variantMap?['barcode_value'] as String?,

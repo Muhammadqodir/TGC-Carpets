@@ -107,6 +107,9 @@ class _AddWarehouseDocumentMobilePageState
         itemNotes: row.notesCtrl.text.trim().isEmpty
             ? null
             : row.notesCtrl.text.trim(),
+        sourceClientShopName: row.sourceClientShopName,
+        sourceClientRegion: row.sourceClientRegion,
+        isOrderItem: row.sourceType == 'order_item',
       );
     }).toList();
 
@@ -307,26 +310,47 @@ class _MobileItemCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
+                      color: (row.sourceType == 'order_item'
+                              ? AppColors.success
+                              : AppColors.primary)
+                          .withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.primary, width: 1),
+                      border: Border.all(
+                        color: row.sourceType == 'order_item'
+                            ? AppColors.success
+                            : AppColors.primary,
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.precision_manufacturing_outlined,
+                        Icon(
+                          row.sourceType == 'order_item'
+                              ? Icons.person_outline_rounded
+                              : Icons.precision_manufacturing_outlined,
                           size: 11,
-                          color: AppColors.primary,
+                          color: row.sourceType == 'order_item'
+                              ? AppColors.success
+                              : AppColors.primary,
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          row.sourceBatchTitle!,
+                          row.sourceType == 'order_item' &&
+                                  row.sourceClientShopName != null
+                              ? [
+                                  row.sourceClientShopName!,
+                                  if (row.sourceClientRegion != null)
+                                    row.sourceClientRegion!,
+                                ].join(' / ')
+                              : row.sourceBatchTitle!,
                           style: Theme.of(context)
                               .textTheme
                               .labelSmall
                               ?.copyWith(
-                                  color: AppColors.primary,
+                                  color: row.sourceType == 'order_item'
+                                      ? AppColors.success
+                                      : AppColors.primary,
                                   fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

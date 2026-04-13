@@ -111,6 +111,9 @@ class _AddWarehouseDocumentDesktopPageState
         itemNotes: row.notesCtrl.text.trim().isEmpty
             ? null
             : row.notesCtrl.text.trim(),
+        sourceClientShopName: row.sourceClientShopName,
+        sourceClientRegion: row.sourceClientRegion,
+        isOrderItem: row.sourceType == 'order_item',
       );
     }).toList();
 
@@ -361,7 +364,7 @@ class _DesktopTableHeader extends StatelessWidget {
           _HeaderCell(label: 'Tur', flex: 1),
           _HeaderCell(label: 'Sifat', flex: 1),
           _HeaderCell(label: 'O\'lcham', flex: 2),
-          _HeaderCell(label: 'Partiya', fixedWidth: 140),
+          _HeaderCell(label: 'Mijoz', fixedWidth: 140),
           _HeaderCell(label: 'Miqdor', fixedWidth: 130),
           _HeaderCell(label: 'Izoh', flex: 2),
           SizedBox(width: 40),
@@ -591,42 +594,56 @@ class _DesktopItemRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: row.sourceBatchTitle != null
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 1.5,
+                  ? Builder(builder: (context) {
+                      final isOrder = row.sourceType == 'order_item';
+                      final label = isOrder && row.sourceClientShopName != null
+                          ? [
+                              row.sourceClientShopName!,
+                              if (row.sourceClientRegion != null)
+                                row.sourceClientRegion!,
+                            ].join(' / ')
+                          : row.sourceBatchTitle!;
+                      final color =
+                          isOrder ? AppColors.success : AppColors.primary;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: color,
+                            width: 1.5,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.precision_manufacturing_outlined,
-                            size: 14,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              row.sourceBatchTitle!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          children: [
+                            Icon(
+                              isOrder
+                                  ? Icons.person_outline_rounded
+                                  : Icons.precision_manufacturing_outlined,
+                              size: 14,
+                              color: color,
                             ),
-                          ),
-                        ],
-                      ),
-                    )
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    })
                   : const SizedBox.shrink(),
             ),
           ),

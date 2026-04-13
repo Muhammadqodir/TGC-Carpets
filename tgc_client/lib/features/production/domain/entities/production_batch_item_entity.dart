@@ -18,6 +18,7 @@ class ProductionBatchItemEntity extends Equatable {
   final int? sourceOrderId;
   final int? sourceOrderQuantity;
   final String? sourceClientShopName;
+  final String? sourceClientRegion;
 
   // ── Variant / product ────────────────────────────────────────────────────
   final int variantId;
@@ -48,6 +49,7 @@ class ProductionBatchItemEntity extends Equatable {
     this.sourceOrderId,
     this.sourceOrderQuantity,
     this.sourceClientShopName,
+    this.sourceClientRegion,
     required this.variantId,
     this.variantSku,
     this.variantBarcode,
@@ -90,6 +92,7 @@ class ProductionBatchItemEntity extends Equatable {
         sourceOrderId,
         sourceOrderQuantity,
         sourceClientShopName,
+        sourceClientRegion,
         variantId,
         variantSku,
         variantBarcode,

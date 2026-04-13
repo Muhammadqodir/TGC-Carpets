@@ -28,6 +28,9 @@ class WarehouseItemPreviewRow {
   final int? sizeWidth;
   final int quantity;
   final String? itemNotes;
+  final String? sourceClientShopName;
+  final String? sourceClientRegion;
+  final bool isOrderItem;
 
   const WarehouseItemPreviewRow({
     required this.productId,
@@ -42,6 +45,9 @@ class WarehouseItemPreviewRow {
     this.sizeWidth,
     required this.quantity,
     this.itemNotes,
+    this.sourceClientShopName,
+    this.sourceClientRegion,
+    this.isOrderItem = false,
   });
 
   /// Area in m² for this row. Assumes [sizeLength] and [sizeWidth] are in

@@ -57,6 +57,9 @@ class WarehouseDocumentDraftService {
                 'source_batch_id': r.sourceBatchId,
                 'source_batch_item_id': r.sourceBatchItemId,
                 'source_batch_title': r.sourceBatchTitle,
+                'source_client_shop_name': r.sourceClientShopName,
+                'source_client_region': r.sourceClientRegion,
+                'source_type': r.sourceType,
                 'produced_quantity': r.producedQuantity,
               })
           .toList(),
@@ -93,6 +96,9 @@ class WarehouseDocumentDraftService {
           sourceBatchId: item['source_batch_id'] as int?,
           sourceBatchItemId: item['source_batch_item_id'] as int?,
           sourceBatchTitle: item['source_batch_title'] as String?,
+          sourceClientShopName: item['source_client_shop_name'] as String?,
+          sourceClientRegion: item['source_client_region'] as String?,
+          sourceType: item['source_type'] as String?,
           producedQuantity: item['produced_quantity'] as int?,
         );
 

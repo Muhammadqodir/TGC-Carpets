@@ -38,6 +38,9 @@ class WarehouseItemRow {
   final int?    sourceBatchId;
   final int?    sourceBatchItemId;
   final String? sourceBatchTitle;
+  final String? sourceClientShopName;
+  final String? sourceClientRegion;
+  final String? sourceType;
 
   /// The produced_quantity value from the source batch item (for display).
   final int? producedQuantity;
@@ -57,6 +60,9 @@ class WarehouseItemRow {
     this.sourceBatchId,
     this.sourceBatchItemId,
     this.sourceBatchTitle,
+    this.sourceClientShopName,
+    this.sourceClientRegion,
+    this.sourceType,
     this.producedQuantity,
     int initialQuantity = 1,
   })  : quantityCtrl = TextEditingController(text: '$initialQuantity'),
@@ -87,6 +93,9 @@ class WarehouseItemRow {
       sourceBatchId: batchId,
       sourceBatchItemId: item.id,
       sourceBatchTitle: batchTitle,
+      sourceClientShopName: item.sourceClientShopName,
+      sourceClientRegion: item.sourceClientRegion,
+      sourceType: item.sourceType,
       producedQuantity: item.producedQuantity,
       initialQuantity: qty > 0 ? qty : 1,
     );

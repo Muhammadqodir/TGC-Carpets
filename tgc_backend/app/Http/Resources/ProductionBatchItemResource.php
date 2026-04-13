@@ -31,6 +31,7 @@ class ProductionBatchItemResource extends JsonResource
                             ? [
                                 'id'        => $this->sourceOrderItem->order->client->id,
                                 'shop_name' => $this->sourceOrderItem->order->client->shop_name,
+                                'region'    => $this->sourceOrderItem->order->client->region,
                             ]
                             : null,
                     ]

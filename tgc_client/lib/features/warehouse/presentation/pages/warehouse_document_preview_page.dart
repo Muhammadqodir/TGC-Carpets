@@ -263,10 +263,11 @@ class _DocumentCard extends StatelessWidget {
                         _TableHeader(
                           textTheme: textTheme,
                           isDesktop: isDesktop,
+                          hasOrderItems: args.items.any((r) => r.isOrderItem),
                         ),
                         const Divider(height: 1),
 
-                        // ── Table rows ────────────────────────────────────────
+                        // ── Table rows ────────────────────────────────────────────
                         ...args.items.asMap().entries.map((entry) {
                           final i = entry.key;
                           final row = entry.value;
@@ -276,6 +277,7 @@ class _DocumentCard extends StatelessWidget {
                             isEven: i.isEven,
                             textTheme: textTheme,
                             isDesktop: isDesktop,
+                            hasOrderItems: args.items.any((r) => r.isOrderItem),
                           );
                         }),
                       ],
@@ -408,8 +410,13 @@ class _MetaItem extends StatelessWidget {
 class _TableHeader extends StatelessWidget {
   final TextTheme textTheme;
   final bool isDesktop;
+  final bool hasOrderItems;
 
-  const _TableHeader({required this.textTheme, this.isDesktop = false});
+  const _TableHeader({
+    required this.textTheme,
+    this.isDesktop = false,
+    this.hasOrderItems = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -439,6 +446,11 @@ class _TableHeader extends StatelessWidget {
               child: _hCell('Rangi', textTheme),
             ),
           ],
+          if (hasOrderItems)
+            SizedBox(
+              width: 200,
+              child: _hCell('Mijoz', textTheme),
+            ),
           SizedBox(
             width: 70,
             child: _hCell("O'lcham", textTheme),
@@ -470,6 +482,7 @@ class _TableRow extends StatelessWidget {
   final bool isEven;
   final TextTheme textTheme;
   final bool isDesktop;
+  final bool hasOrderItems;
 
   const _TableRow({
     required this.index,
@@ -477,6 +490,7 @@ class _TableRow extends StatelessWidget {
     required this.isEven,
     required this.textTheme,
     this.isDesktop = false,
+    this.hasOrderItems = false,
   });
 
   @override
@@ -509,6 +523,18 @@ class _TableRow extends StatelessWidget {
                         style: textTheme.bodySmall
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
+                      if (row.isOrderItem && row.sourceClientShopName != null)
+                        Text(
+                          [
+                            row.sourceClientShopName!,
+                            if (row.sourceClientRegion != null)
+                              row.sourceClientRegion!,
+                          ].join(' / '),
+                          style: textTheme.labelSmall?.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
                   ),
                 )
@@ -541,6 +567,27 @@ class _TableRow extends StatelessWidget {
                       ?.copyWith(color: AppColors.textSecondary)),
             ),
           ],
+          if (hasOrderItems)
+            SizedBox(
+              width: 200,
+              child: row.isOrderItem && row.sourceClientShopName != null
+                  ? Text(
+                      [
+                        row.sourceClientShopName!,
+                        if (row.sourceClientRegion != null)
+                          row.sourceClientRegion!,
+                      ].join(' / '),
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : Text('—',
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary)),
+            ),
           SizedBox(
             width: 70,
             child: Text(
