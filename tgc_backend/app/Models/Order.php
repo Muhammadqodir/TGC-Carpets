@@ -16,6 +16,7 @@ class Order extends Model
     const STATUS_PLANNED        = 'planned';
     const STATUS_ON_PRODUCTION  = 'on_production';
     const STATUS_DONE           = 'done';
+    const STATUS_SHIPPED        = 'shipped';
     const STATUS_CANCELED       = 'canceled';
 
     const STATUSES = [
@@ -23,6 +24,7 @@ class Order extends Model
         self::STATUS_PLANNED,
         self::STATUS_ON_PRODUCTION,
         self::STATUS_DONE,
+        self::STATUS_SHIPPED,
         self::STATUS_CANCELED,
     ];
 

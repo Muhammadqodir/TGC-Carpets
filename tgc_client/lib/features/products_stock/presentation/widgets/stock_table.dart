@@ -24,8 +24,9 @@ class StockVariantDataTable extends StatelessWidget {
     AppTableColumn(label: 'Sifat', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Turi', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'O\'lcham', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Band (buyurtma)', flex: 2),
     AppTableColumn(label: 'Omborda', flex: 2),
+    AppTableColumn(label: 'Band (buyurtma)', flex: 2),
+    AppTableColumn(label: 'Bosh', flex: 2),
   ];
 
   @override
@@ -100,18 +101,25 @@ class StockVariantDataTable extends StatelessWidget {
               )
             : const Text('—');
 
-      case 5: // Qty reserved
-        return _QuantityCell(
-          value: variant.quantityReserved,
-          highlightNonZero: true,
-          highlightColor: AppColors.warning,
-        );
-
-      case 6: // Qty warehouse
+      case 5: // Qty warehouse
         return _QuantityCell(
           value: variant.quantityWarehouse,
           highlightNonZero: false,
           highlightColor: AppColors.success,
+        );
+
+      case 6: // Qty reserved
+        return _QuantityCell(
+          value: variant.quantityReserved,
+          highlightNonZero: false,
+          highlightColor: AppColors.warning,
+        );
+
+      case 7: // Qty available (calculated)
+        return _QuantityCell(
+          value: variant.quantityWarehouse - variant.quantityReserved,
+          highlightNonZero: true,
+          highlightColor: AppColors.warning,
         );
 
       default:

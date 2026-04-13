@@ -154,6 +154,7 @@ class _OrderStatusDropdown extends StatelessWidget {
                 value: 'on_production',
                 child: Text('Ishlab chiqarilmoqda')),
             const DropdownMenuItem(value: 'done', child: Text('Bajarildi')),
+            const DropdownMenuItem(value: 'shipped', child: Text('Yuborildi')),
             const DropdownMenuItem(
                 value: 'canceled', child: Text('Bekor qilindi')),
           ],

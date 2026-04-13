@@ -164,6 +164,7 @@ class _StatusBadge extends StatelessWidget {
       'planned'       => ('Rejalashtirilgan', AppColors.primary),
       'on_production' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
       'done'          => ('Bajarildi', AppColors.success),
+      'shipped'       => ('Yuborildi', AppColors.info),
       'canceled'      => ('Bekor qilindi', AppColors.error),
       _               => (status, AppColors.textSecondary),
     };
