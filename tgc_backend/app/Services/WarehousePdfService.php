@@ -163,10 +163,10 @@ class WarehousePdfService
 
             $shipmentSection = "
                 <div style=\"margin-top: 20px; padding: 12px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px;\">
-                    <div style=\"font-size: 13px; font-weight: bold; margin-bottom: 8px;\">YETKAZIB BERISH MA'LUMOTLARI</div>
+                    <div style=\"font-size: 13px; font-weight: bold; margin-bottom: 8px;\">YUK MA'LUMOTLARI</div>
                     <table style=\"width: 100%; font-size: 11px;\">
                         <tr>
-                            <td style=\"padding: 3px 0; width: 30%;\">Yetkazib berish №:</td>
+                            <td style=\"padding: 3px 0; width: 30%;\">Yuk chiqarish №:</td>
                             <td style=\"padding: 3px 0;\"><strong>{$shipmentInfo['id']}</strong></td>
                         </tr>
                         <tr>

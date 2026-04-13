@@ -28,6 +28,7 @@ import '../../features/production/domain/entities/production_batch_entity.dart';
 import '../../features/labeling/presentation/pages/labeling_page.dart';
 import '../../features/products_stock/presentation/pages/products_stock_page.dart';
 import '../../features/shipments/presentation/pages/shipments_page.dart';
+import '../../features/shipments/presentation/pages/add_shipment_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -181,6 +182,11 @@ class AppRouter {
             path: AppRoutes.shipping,
             name: AppRoutes.shippingName,
             builder: (context, state) => const ShipmentsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addShipping,
+            name: AppRoutes.addShippingName,
+            builder: (context, state) => const AddShipmentPage(),
           ),
         ],
       ),

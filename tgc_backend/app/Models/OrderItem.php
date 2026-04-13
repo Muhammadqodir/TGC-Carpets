@@ -37,4 +37,9 @@ class OrderItem extends Model
     {
         return $this->hasMany(ProductionBatchItem::class, 'source_order_item_id');
     }
+
+    public function shipmentItems(): HasMany
+    {
+        return $this->hasMany(ShipmentItem::class, 'order_item_id');
+    }
 }

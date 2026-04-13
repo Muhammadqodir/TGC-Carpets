@@ -29,9 +29,11 @@ class ApiEndpoints {
   static const String stockVariants = '/stock/variants';
   static const String stockMovements = '/stock/movements';
 
-  // Sales
-  static const String sales = '/sales';
-  static String saleById(int id) => '/sales/$id';
+  // Shipments
+  static const String shipments = '/shipments';
+  static String shipmentById(int id) => '/shipments/$id';
+  static const String shipmentsOrdersForShipment = '/shipments/orders-for-shipment';
+  static const String shipmentsLastPrice = '/shipments/last-price';
 
   // Employees
   static const String employees = '/employees';
@@ -77,8 +79,4 @@ class ApiEndpoints {
 
   // Settings
   static const String changePassword = '/auth/change-password';
-
-  // Shipments
-  static const String shipments = '/shipments';
-  static String shipmentById(int id) => '/shipments/$id';
 }

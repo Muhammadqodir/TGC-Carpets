@@ -281,6 +281,16 @@ class _OrderItemTile extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                   ),
+                  if (item.shippedQuantity != null)
+                    Text(
+                      'Yetkazildi: ${item.shippedQuantity}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: (item.shippedQuantity ?? 0) >= item.quantity
+                                ? AppColors.success
+                                : AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
                   if (item.sizeLength != null && item.sizeWidth != null)
                     Text(
                       '${(item.sizeLength! * item.sizeWidth! * item.quantity / 10000.0).toStringAsFixed(2)} m²',

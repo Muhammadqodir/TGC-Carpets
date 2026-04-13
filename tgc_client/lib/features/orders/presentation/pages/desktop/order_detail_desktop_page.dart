@@ -234,6 +234,10 @@ class _DesktopItemsTable extends StatelessWidget {
                     child: Text('Dona',
                         style: labelStyle, textAlign: TextAlign.center)),
                 SizedBox(
+                    width: 90,
+                    child: Text('Yetkazilgan',
+                        style: labelStyle, textAlign: TextAlign.center)),
+                SizedBox(
                     width: 100,
                     child: Text('Jami m²',
                         style: labelStyle, textAlign: TextAlign.center)),
@@ -279,6 +283,7 @@ class _DesktopItemsTable extends StatelessWidget {
                     child: Text('$totalQty dona',
                         textAlign: TextAlign.center, style: footerStyle),
                   ),
+                  const SizedBox(width: 90),
                   SizedBox(
                     width: 100,
                     child: Text('${totalSqm.toStringAsFixed(2)} m²',
@@ -397,6 +402,19 @@ class _DesktopItemsTable extends StatelessWidget {
                   .textTheme
                   .bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          SizedBox(
+            width: 90,
+            child: Text(
+              item.shippedQuantity != null ? '${item.shippedQuantity}' : '—',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: (item.shippedQuantity ?? 0) >= item.quantity
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
           SizedBox(

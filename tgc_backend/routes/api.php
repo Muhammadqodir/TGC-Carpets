@@ -96,6 +96,13 @@ Route::prefix('v1')->group(function (): void {
         // Orders
         Route::apiResource('orders', OrderController::class);
 
+        // Shipments
+        Route::get('shipments/orders-for-shipment', [ShipmentController::class, 'ordersForShipment'])->name('shipments.orders-for-shipment');
+        Route::get('shipments/last-price', [ShipmentController::class, 'lastPrice'])->name('shipments.last-price');
+        Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
+        Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
+        Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+
         // Machines
         Route::apiResource('machines', MachineController::class);
 

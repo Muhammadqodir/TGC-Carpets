@@ -120,7 +120,10 @@ import '../../features/shipments/data/datasources/shipment_remote_datasource.dar
 import '../../features/shipments/data/repositories/shipment_repository_impl.dart';
 import '../../features/shipments/domain/repositories/shipment_repository.dart';
 import '../../features/shipments/domain/usecases/get_shipments_usecase.dart';
+import '../../features/shipments/domain/usecases/create_shipment_usecase.dart';
+import '../../features/shipments/domain/usecases/get_orders_for_shipment_usecase.dart';
 import '../../features/shipments/presentation/bloc/shipments_bloc.dart';
+import '../../features/shipments/presentation/bloc/shipment_form_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -360,8 +363,17 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(
     () => GetShipmentsUseCase(sl<ShipmentRepository>()),
   );
+  sl.registerLazySingleton(
+    () => CreateShipmentUseCase(sl<ShipmentRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetOrdersForShipmentUseCase(sl<ShipmentRepository>()),
+  );
   sl.registerFactory(
     () => ShipmentsBloc(getShipmentsUseCase: sl<GetShipmentsUseCase>()),
+  );
+  sl.registerFactory(
+    () => ShipmentFormBloc(createShipmentUseCase: sl<CreateShipmentUseCase>()),
   );
   sl.registerLazySingleton<DashboardRemoteDataSource>(
     () => DashboardRemoteDataSourceImpl(sl<Dio>()),

@@ -27,6 +27,9 @@ class OrderItemEntity extends Equatable {
   /// How many units of this item still need to be put into production.
   /// Calculated on the backend as: quantity - sum(planned_quantity in non-cancelled batches).
   final int? remainingQuantity;
+  /// How many units of this item have already been shipped.
+  /// Calculated on the backend as: sum(shipment_items.quantity).
+  final int? shippedQuantity;
 
   const OrderItemEntity({
     required this.id,
@@ -47,6 +50,7 @@ class OrderItemEntity extends Equatable {
     this.qualityName,
     this.productTypeName,
     this.remainingQuantity,
+    this.shippedQuantity,
   });
 
   String get variantLabel {
@@ -78,5 +82,6 @@ class OrderItemEntity extends Equatable {
         qualityName,
         productTypeName,
         remainingQuantity,
+        shippedQuantity,
       ];
 }

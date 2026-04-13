@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
+import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
@@ -64,12 +66,12 @@ class _DesktopViewState extends State<_DesktopView> {
     DateTimeRange? dateRange,
   }) {
     setState(() {
-      _selectedClientId  = clientId;
+      _selectedClientId = clientId;
       _selectedDateRange = dateRange;
     });
     context.read<ShipmentsBloc>().add(
           ShipmentsFiltersChanged(
-            clientId:  clientId,
+            clientId: clientId,
             dateRange: dateRange,
           ),
         );
@@ -85,12 +87,25 @@ class _DesktopViewState extends State<_DesktopView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Yetkazib berish'),
+        title: const Text('Yuk chiqarish'),
         titleSpacing: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
+        actions: [
+          FilledButton.icon(
+            onPressed: () async {
+              final result = await context.pushNamed(AppRoutes.addShippingName);
+              if (result == true && context.mounted) {
+                context.read<ShipmentsBloc>().add(const ShipmentsRefreshRequested());
+              }
+            },
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Yangi yuk'),
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -99,15 +114,15 @@ class _DesktopViewState extends State<_DesktopView> {
           BlocBuilder<ClientsBloc, ClientsState>(
             builder: (context, clientsState) {
               return ShipmentFilterBar(
-                clients:            _clientsFromState(clientsState),
-                selectedClientId:   _selectedClientId,
-                selectedDateRange:  _selectedDateRange,
+                clients: _clientsFromState(clientsState),
+                selectedClientId: _selectedClientId,
+                selectedDateRange: _selectedDateRange,
                 onClientChanged: (v) => _applyFilters(
-                  clientId:  v,
+                  clientId: v,
                   dateRange: _selectedDateRange,
                 ),
                 onDateRangeChanged: (v) => _applyFilters(
-                  clientId:  _selectedClientId,
+                  clientId: _selectedClientId,
                   dateRange: v,
                 ),
                 onRefresh: () => context
@@ -148,8 +163,8 @@ class _DesktopViewState extends State<_DesktopView> {
                   }
 
                   return ShipmentTable(
-                    shipments:        state.shipments,
-                    isLoadingMore:    state.isLoadingMore,
+                    shipments: state.shipments,
+                    isLoadingMore: state.isLoadingMore,
                     scrollController: _scrollController,
                   );
                 }
@@ -175,11 +190,14 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.local_shipping_outlined,
-              size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+          HugeIcon(
+            icon: HugeIcons.strokeRoundedContainerTruck,
+            size: 64,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(height: 16),
           Text(
-            'Yetkazib berish topilmadi',
+            'Yuklar topilmadi',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),

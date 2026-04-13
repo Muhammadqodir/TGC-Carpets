@@ -19,10 +19,15 @@ class OrderItemResource extends JsonResource
                 ->sum('planned_quantity');
         }, 0);
 
+        $shippedQty = $this->whenLoaded('shipmentItems', function () {
+            return (int) $this->shipmentItems->sum('quantity');
+        }, 0);
+
         return [
             'id'                => $this->id,
             'quantity'          => $this->quantity,
             'planned_quantity'  => $plannedQty,
+            'shipped_quantity'  => $shippedQty,
             'remaining_quantity'=> max(0, $this->quantity - $plannedQty),
             'variant'  => $this->whenLoaded('variant', fn () => [
                 'id'            => $this->variant->id,
