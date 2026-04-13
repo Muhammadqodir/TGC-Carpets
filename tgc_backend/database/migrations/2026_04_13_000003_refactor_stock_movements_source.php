@@ -29,9 +29,12 @@ return new class extends Migration
             $table->dropForeign(['client_id']);
             $table->dropColumn('client_id');
 
-            // Also drop the now-redundant composite index that included product_size_id
-            // if it was added by an earlier migration; safe to skip if absent.
-            $table->dropIndexIfExists(['product_id', 'product_size_id', 'movement_type']);
+            // Drop the composite index that included product_size_id if it exists.
+            $indexes = collect(\Illuminate\Support\Facades\Schema::getIndexes('stock_movements'))
+                ->pluck('name');
+            if ($indexes->contains('stock_movements_product_id_product_size_id_movement_type_index')) {
+                $table->dropIndex(['product_id', 'product_size_id', 'movement_type']);
+            }
 
             $table->string('source_type')->nullable()->after('warehouse_document_id');
             $table->unsignedBigInteger('source_id')->nullable()->after('source_type');
