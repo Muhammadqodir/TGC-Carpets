@@ -110,6 +110,7 @@ class _AddWarehouseDocumentMobilePageState
         sourceClientShopName: row.sourceClientShopName,
         sourceClientRegion: row.sourceClientRegion,
         isOrderItem: row.sourceType == 'order_item',
+        sourceBatchItemId: row.sourceBatchItemId,
       );
     }).toList();
 

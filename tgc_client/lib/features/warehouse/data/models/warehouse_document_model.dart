@@ -11,8 +11,6 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
     super.notes,
     required super.userId,
     required super.userName,
-    super.sourceType,
-    super.sourceId,
     required super.items,
     super.pdfUrl,
     required super.createdAt,
@@ -34,8 +32,6 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
       notes: json['notes'] as String?,
       userId: userMap?['id'] as int? ?? 0,
       userName: userMap?['name'] as String? ?? '',
-      sourceType: json['source_type'] as String?,
-      sourceId: json['source_id'] as int?,
       items: itemsList,
       pdfUrl: json['pdf_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -51,8 +47,6 @@ class WarehouseDocumentModel extends WarehouseDocumentEntity {
         'document_date': documentDate.toIso8601String(),
         'notes': notes,
         'user': {'id': userId, 'name': userName},
-        'source_type': sourceType,
-        'source_id': sourceId,
         'items': items
             .cast<WarehouseDocumentItemModel>()
             .map((e) => e.toJson())

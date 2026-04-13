@@ -8,11 +8,12 @@ class WarehouseDocumentItemEntity extends Equatable {
   final String? productUnit;
   final int? productSizeId;
   final String? productSizeLabel;
+  final int? colorId;
+  final String? colorName;
   final int quantity;
   final String? notes;
   final int? variantId;
   final String? barcodeValue;
-  final int? productionBatchItemId;
 
   const WarehouseDocumentItemEntity({
     required this.id,
@@ -22,11 +23,12 @@ class WarehouseDocumentItemEntity extends Equatable {
     this.productUnit,
     this.productSizeId,
     this.productSizeLabel,
+    this.colorId,
+    this.colorName,
     required this.quantity,
     this.notes,
     this.variantId,
     this.barcodeValue,
-    this.productionBatchItemId,
   });
 
   String? get unitLabel => switch (productUnit) {
@@ -44,10 +46,11 @@ class WarehouseDocumentItemEntity extends Equatable {
         productUnit,
         productSizeId,
         productSizeLabel,
+        colorId,
+        colorName,
         quantity,
         notes,
         variantId,
         barcodeValue,
-        productionBatchItemId,
       ];
 }

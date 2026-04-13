@@ -66,6 +66,10 @@ class _PreviewViewState extends State<_PreviewView> {
               'quantity': row.quantity,
               if (row.itemNotes != null && row.itemNotes!.isNotEmpty)
                 'notes': row.itemNotes,
+              if (row.sourceBatchItemId != null) ...{
+                'source_type': 'production_batch_item',
+                'source_id': row.sourceBatchItemId,
+              },
             })
         .toList();
 

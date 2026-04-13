@@ -27,7 +27,7 @@ class WarehouseDocumentTable extends StatelessWidget {
         label: 'Foydalanuvchi', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Turi', flex: 1, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Hajm', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mijoz', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Izoh', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'PDF', fixedWidth: 80),
   ];
 
@@ -87,22 +87,13 @@ class WarehouseDocumentTable extends StatelessWidget {
       case 4: // Volume
         return _VolumeCell(document: document);
 
-      case 5: // Source
-        return document.sourceType != null
-            ? Row(
-                children: [
-                  const Icon(Icons.category_outlined,
-                      size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _sourceTypeLabel(document.sourceType!),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+      case 5: // Notes
+        return document.notes != null && document.notes!.isNotEmpty
+            ? Text(
+                document.notes!,
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               )
             : Text(
                 '—',
@@ -140,13 +131,6 @@ class WarehouseDocumentTable extends StatelessWidget {
         return const SizedBox.shrink();
     }
   }
-
-  String _sourceTypeLabel(String sourceType) => switch (sourceType) {
-        'production' => 'Ishlab chiqarish',
-        'sale' => 'Sotuv',
-        'other' => 'Boshqa',
-        _ => sourceType,
-      };
 
   String _formatDateTime(DateTime date) {
     final timeStr =

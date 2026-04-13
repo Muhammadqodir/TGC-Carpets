@@ -9,32 +9,35 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
     super.productUnit,
     super.productSizeId,
     super.productSizeLabel,
+    super.colorId,
+    super.colorName,
     required super.quantity,
     super.notes,
     super.variantId,
     super.barcodeValue,
-    super.productionBatchItemId,
   });
 
   factory WarehouseDocumentItemModel.fromJson(Map<String, dynamic> json) {
     final productMap  = json['product']      as Map<String, dynamic>?;
     final sizeMap     = json['product_size'] as Map<String, dynamic>?;
     final variantMap  = json['variant']      as Map<String, dynamic>?;
+    final colorMap    = json['color']        as Map<String, dynamic>?;
     return WarehouseDocumentItemModel(
       id: json['id'] as int,
       productId: productMap?['id'] as int? ?? 0,
       productName: productMap?['name'] as String? ?? '',
-      productSkuCode: productMap?['sku_code'] as String?,
+      productSkuCode: variantMap?['sku_code'] as String?,
       productUnit: productMap?['unit'] as String?,
       productSizeId: sizeMap?['id'] as int?,
       productSizeLabel: sizeMap != null
           ? '${sizeMap['length']}x${sizeMap['width']}'
           : null,
+      colorId: colorMap?['id'] as int?,
+      colorName: colorMap?['name'] as String?,
       quantity: json['quantity'] as int,
       notes: json['notes'] as String?,
       variantId: variantMap?['id'] as int?,
       barcodeValue: variantMap?['barcode_value'] as String?,
-      productionBatchItemId: json['production_batch_item_id'] as int?,
     );
   }
 
@@ -43,7 +46,6 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
         'product': {
           'id': productId,
           'name': productName,
-          'sku_code': productSkuCode,
           'unit': productUnit,
         },
         if (productSizeId != null)

@@ -10,8 +10,6 @@ abstract class WarehouseRepository {
     int? userId,
     String? dateFrom,
     String? dateTo,
-    String? sourceType,
-    int? sourceId,
     int page = 1,
     int perPage = 20,
   });
@@ -22,8 +20,6 @@ abstract class WarehouseRepository {
     required String type,
     required String documentDate,
     required List<Map<String, dynamic>> items,
-    String? sourceType,
-    int? sourceId,
     String? notes,
     String? externalUuid,
   });

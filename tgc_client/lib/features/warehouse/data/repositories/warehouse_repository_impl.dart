@@ -19,8 +19,6 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
     int? userId,
     String? dateFrom,
     String? dateTo,
-    String? sourceType,
-    int? sourceId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -30,8 +28,6 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
         userId: userId,
         dateFrom: dateFrom,
         dateTo: dateTo,
-        sourceType: sourceType,
-        sourceId: sourceId,
         page: page,
         perPage: perPage,
       );
@@ -72,8 +68,6 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
     required String type,
     required String documentDate,
     required List<Map<String, dynamic>> items,
-    String? sourceType,
-    int? sourceId,
     String? notes,
     String? externalUuid,
   }) async {
@@ -82,8 +76,6 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
         type: type,
         documentDate: documentDate,
         items: items,
-        sourceType: sourceType,
-        sourceId: sourceId,
         notes: notes,
         externalUuid: externalUuid,
       );

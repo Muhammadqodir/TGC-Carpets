@@ -22,8 +22,6 @@ class WarehouseFormBloc extends Bloc<WarehouseFormEvent, WarehouseFormState> {
       type: event.type,
       documentDate: event.documentDate,
       items: event.items,
-      sourceType: event.sourceType,
-      sourceId: event.sourceId,
       notes: event.notes,
     );
 

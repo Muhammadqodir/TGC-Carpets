@@ -11,8 +11,6 @@ class WarehouseDocumentEntity extends Equatable {
   final String? notes;
   final int userId;
   final String userName;
-  final String? sourceType; // 'production' | 'sale' | 'other'
-  final int? sourceId;
   final List<WarehouseDocumentItemEntity> items;
   final String? pdfUrl;
   final DateTime createdAt;
@@ -27,8 +25,6 @@ class WarehouseDocumentEntity extends Equatable {
     this.notes,
     required this.userId,
     required this.userName,
-    this.sourceType,
-    this.sourceId,
     required this.items,
     this.pdfUrl,
     required this.createdAt,
@@ -52,8 +48,6 @@ class WarehouseDocumentEntity extends Equatable {
         notes,
         userId,
         userName,
-        sourceType,
-        sourceId,
         items,
         pdfUrl,
         createdAt,
