@@ -73,9 +73,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(StockMovement::class);
     }
-
-    public function sales(): HasMany
-    {
-        return $this->hasMany(Sale::class);
-    }
 }

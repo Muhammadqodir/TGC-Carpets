@@ -18,8 +18,6 @@ class StoreWarehouseDocumentRequest extends FormRequest
         return [
             'external_uuid'         => ['nullable', 'uuid', Rule::unique('warehouse_documents', 'external_uuid')],
             'type'                  => ['required', 'string', Rule::in(WarehouseDocument::TYPES)],
-            'source_type'           => ['nullable', 'string', Rule::in(['production', 'sale', 'other'])],
-            'source_id'             => ['nullable', 'integer', 'min:1'],
             'document_date'         => ['required', 'date'],
             'notes'                 => ['nullable', 'string'],
 
@@ -28,6 +26,8 @@ class StoreWarehouseDocumentRequest extends FormRequest
             'items.*.product_color_id'    => ['required', 'integer', 'exists:product_colors,id'],
             'items.*.product_size_id'     => ['required', 'integer', 'exists:product_sizes,id'],
             'items.*.quantity'            => ['required', 'integer', 'min:1'],
+            'items.*.source_type'         => ['nullable', 'string', Rule::in(['shipment_item', 'production_batch_item'])],
+            'items.*.source_id'           => ['nullable', 'integer', 'min:1'],
             'items.*.notes'               => ['nullable', 'string'],
         ];
     }

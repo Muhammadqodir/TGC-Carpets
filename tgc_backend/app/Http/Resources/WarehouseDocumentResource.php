@@ -14,8 +14,6 @@ class WarehouseDocumentResource extends JsonResource
             'uuid'          => $this->uuid,
             'external_uuid' => $this->external_uuid,
             'type'          => $this->type,
-            'source_type'   => $this->source_type,
-            'source_id'     => $this->source_id,
             'document_date' => $this->document_date?->toISOString(),
             'notes'         => $this->notes,
             'user'          => $this->whenLoaded('user', fn () => [

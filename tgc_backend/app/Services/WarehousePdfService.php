@@ -24,13 +24,13 @@ class WarehousePdfService
             'items.variant.productSize',
         ]);
 
-        // Check if this is an outgoing document related to a sale
-        $saleInfo = null;
+        // Check if this is an outgoing document related to a shipment
+        $shipmentInfo = null;
         if ($document->isOutgoing()) {
-            $saleInfo = $this->getSaleInfo($document);
+            $shipmentInfo = $this->getShipmentInfo($document);
         }
 
-        $html = $this->buildHtml($document, $saleInfo);
+        $html = $this->buildHtml($document, $shipmentInfo);
 
         $pdf = Pdf::loadHTML($html)
             ->setPaper('a4', 'portrait')
@@ -48,42 +48,51 @@ class WarehousePdfService
     }
 
     /**
-     * Get sale information if this warehouse document is linked to a sale.
+     * Get shipment information if this warehouse document's items are linked to a shipment.
      */
-    private function getSaleInfo(WarehouseDocument $document): ?array
+    private function getShipmentInfo(WarehouseDocument $document): ?array
     {
-        // Find a sale linked to this warehouse document via the polymorphic source
-        $sale = null;
-        if ($document->source_type === 'sale' && $document->source_id) {
-            $sale = DB::table('sales')->find($document->source_id);
-        }
+        // Look for a shipment_item linked via warehouse_document_items source
+        $shipmentItemId = DB::table('warehouse_document_items')
+            ->where('warehouse_document_id', $document->id)
+            ->where('source_type', 'shipment_item')
+            ->value('source_id');
 
-        if (!$sale) {
+        if (! $shipmentItemId) {
             return null;
         }
 
-        // Get client info
-        $client = DB::table('clients')->find($sale->client_id);
-        $user = DB::table('users')->find($sale->user_id);
+        $shipment = DB::table('shipments')
+            ->join('shipment_items', 'shipment_items.shipment_id', '=', 'shipments.id')
+            ->where('shipment_items.id', $shipmentItemId)
+            ->select('shipments.*')
+            ->first();
+
+        if (! $shipment) {
+            return null;
+        }
+
+        $client = DB::table('clients')->find($shipment->client_id);
+        $user   = DB::table('users')->find($shipment->user_id);
 
         return [
-            'id' => $sale->id,
-            'sale_date' => $sale->sale_date,
-            'total_amount' => $sale->total_amount,
-            'client' => $client ? [
-                'shop_name' => $client->shop_name,
-                'contact_person' => $client->contact_person,
-                'phone' => $client->phone,
+            'id'                 => $shipment->id,
+            'shipment_datetime'  => $shipment->shipment_datetime,
+            'client'             => $client ? [
+                'shop_name'      => $client->shop_name,
+                'contact_person' => $client->contact_name,
+                'phone'          => $client->phone,
+                'region'         => $client->region,
             ] : null,
-            'user' => $user ? ['name' => $user->name] : null,
-            'notes' => $sale->notes,
+            'user'  => $user ? ['name' => $user->name] : null,
+            'notes' => $shipment->notes,
         ];
     }
 
     /**
      * Build the HTML content for the PDF.
      */
-    private function buildHtml(WarehouseDocument $document, ?array $saleInfo): string
+    private function buildHtml(WarehouseDocument $document, ?array $shipmentInfo): string
     {
         $docType = $this->getDocumentTypeName($document->type);
         $userName = $document->user->name ?? 'N/A';
@@ -143,27 +152,26 @@ class WarehousePdfService
             ";
         }
 
-        // Build sale info section if available
-        $saleSection = '';
-        if ($saleInfo) {
-            $saleDate = date('d.m.Y  H:i', strtotime($saleInfo['sale_date']));
-            $saleTotal = number_format($saleInfo['total_amount'], 2, '.', ' ');
-            $clientName = $saleInfo['client']['shop_name'] ?? 'N/A';
-            $clientRegion = $saleInfo['client']['region'] ?? 'N/A';
-            $clientPhone = $saleInfo['client']['phone'] ?? '';
-            $clientContact = $saleInfo['client']['contact_person'] ?? '';
+        // Build shipment info section if available
+        $shipmentSection = '';
+        if ($shipmentInfo) {
+            $shipmentDate  = date('d.m.Y  H:i', strtotime($shipmentInfo['shipment_datetime']));
+            $clientName    = $shipmentInfo['client']['shop_name'] ?? 'N/A';
+            $clientRegion  = $shipmentInfo['client']['region'] ?? 'N/A';
+            $clientPhone   = $shipmentInfo['client']['phone'] ?? '';
+            $clientContact = $shipmentInfo['client']['contact_person'] ?? '';
 
-            $saleSection = "
+            $shipmentSection = "
                 <div style=\"margin-top: 20px; padding: 12px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px;\">
-                    <div style=\"font-size: 13px; font-weight: bold; margin-bottom: 8px;\">SOTUV MA'LUMOTLARI</div>
+                    <div style=\"font-size: 13px; font-weight: bold; margin-bottom: 8px;\">YETKAZIB BERISH MA'LUMOTLARI</div>
                     <table style=\"width: 100%; font-size: 11px;\">
                         <tr>
-                            <td style=\"padding: 3px 0; width: 30%;\">Sotuv №:</td>
-                            <td style=\"padding: 3px 0;\"><strong>{$saleInfo['id']}</strong></td>
+                            <td style=\"padding: 3px 0; width: 30%;\">Yetkazib berish №:</td>
+                            <td style=\"padding: 3px 0;\"><strong>{$shipmentInfo['id']}</strong></td>
                         </tr>
                         <tr>
                             <td style=\"padding: 3px 0;\">Sana:</td>
-                            <td style=\"padding: 3px 0;\">{$saleDate}</td>
+                            <td style=\"padding: 3px 0;\">{$shipmentDate}</td>
                         </tr>
                         <tr>
                             <td style=\"padding: 3px 0;\">Mijoz:</td>
@@ -291,7 +299,7 @@ class WarehousePdfService
         $html .= "
                 </div>
 
-                {$saleSection}
+                {$shipmentSection}
             </body>
             </html>
         ";

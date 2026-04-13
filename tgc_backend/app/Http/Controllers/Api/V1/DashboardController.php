@@ -44,28 +44,29 @@ class DashboardController extends Controller
             )
             ->value('net') ?? 0;
 
-        // Sales quantity: total items sold in range
-        $salesQuantity = DB::table('sale_items')
-            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+        // Shipments quantity: total items shipped in range
+        $shipmentsQuantity = DB::table('shipment_items')
+            ->join('shipments', 'shipments.id', '=', 'shipment_items.shipment_id')
             ->whereBetween(
-                DB::raw('DATE(sales.sale_date)'),
+                DB::raw('DATE(shipments.shipment_datetime)'),
                 [$from, $to]
             )
-            ->sum('sale_items.quantity');
+            ->sum('shipment_items.quantity');
 
-        // Sales revenue: total sale amounts in range
-        $salesAmount = DB::table('sales')
-            ->whereBetween(DB::raw('DATE(sale_date)'), [$from, $to])
-            ->sum('total_amount');
+        // Shipments revenue: total shipment item amounts in range
+        $shipmentsAmount = DB::table('shipment_items')
+            ->join('shipments', 'shipments.id', '=', 'shipment_items.shipment_id')
+            ->whereBetween(DB::raw('DATE(shipments.shipment_datetime)'), [$from, $to])
+            ->sum('shipment_items.total');
 
         return response()->json([
             'data' => [
-                'production_quantity' => (int) $productionQuantity,
-                'warehouse_stock'     => (int) $warehouseStock,
-                'sales_quantity'      => (int) $salesQuantity,
-                'sales_amount'        => (float) $salesAmount,
-                'date_from'           => $from,
-                'date_to'             => $to,
+                'production_quantity'  => (int) $productionQuantity,
+                'warehouse_stock'      => (int) $warehouseStock,
+                'shipments_quantity'   => (int) $shipmentsQuantity,
+                'shipments_amount'     => (float) $shipmentsAmount,
+                'date_from'            => $from,
+                'date_to'              => $to,
             ],
         ]);
     }

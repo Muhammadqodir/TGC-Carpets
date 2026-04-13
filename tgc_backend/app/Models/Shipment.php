@@ -6,39 +6,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
-class Sale extends Model
+class Shipment extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'uuid',
-        'external_uuid',
         'client_id',
         'user_id',
-        'sale_date',
-        'total_amount',
+        'order_id',
+        'shipment_datetime',
         'notes',
     ];
 
     protected function casts(): array
     {
         return [
-            'sale_date'    => 'datetime',
-            'total_amount' => 'decimal:2',
+            'shipment_datetime' => 'datetime',
         ];
-    }
-
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        static::creating(function (Sale $sale): void {
-            if (empty($sale->uuid)) {
-                $sale->uuid = (string) Str::uuid();
-            }
-        });
     }
 
     // ── Relationships ─────────────────────────────────────────────────────────
@@ -53,13 +38,13 @@ class Sale extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function items(): HasMany
+    public function order(): BelongsTo
     {
-        return $this->hasMany(SaleItem::class);
+        return $this->belongsTo(Order::class);
     }
 
-    public function stockMovements(): HasMany
+    public function items(): HasMany
     {
-        return $this->hasMany(StockMovement::class);
+        return $this->hasMany(ShipmentItem::class);
     }
 }

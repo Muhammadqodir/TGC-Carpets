@@ -5,38 +5,50 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SaleItem extends Model
+class ShipmentItem extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'sale_id',
+        'shipment_id',
+        'order_item_id',
         'product_variant_id',
         'quantity',
         'price',
-        'subtotal',
+        'total',
     ];
 
     protected function casts(): array
     {
         return [
-            'quantity'           => 'integer',
-            'price'              => 'decimal:2',
-            'subtotal'           => 'decimal:2',
-            'product_variant_id' => 'integer',
+            'quantity' => 'integer',
+            'price'    => 'decimal:2',
+            'total'    => 'decimal:2',
         ];
     }
 
     // ── Relationships ─────────────────────────────────────────────────────────
 
-    public function sale(): BelongsTo
+    public function shipment(): BelongsTo
     {
-        return $this->belongsTo(Sale::class);
+        return $this->belongsTo(Shipment::class);
+    }
+
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
     }
 
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function warehouseDocumentItems(): HasMany
+    {
+        return $this->hasMany(WarehouseDocumentItem::class, 'source_id')
+            ->where('source_type', 'shipment_item');
     }
 }

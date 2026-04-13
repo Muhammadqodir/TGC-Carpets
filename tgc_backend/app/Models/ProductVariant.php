@@ -74,9 +74,9 @@ class ProductVariant extends Model
         return $this->hasMany(WarehouseDocumentItem::class);
     }
 
-    public function saleItems(): HasMany
+    public function shipmentItems(): HasMany
     {
-        return $this->hasMany(SaleItem::class);
+        return $this->hasMany(ShipmentItem::class);
     }
 
     public function stockMovements(): HasMany

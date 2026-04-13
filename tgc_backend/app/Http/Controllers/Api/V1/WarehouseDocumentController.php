@@ -20,10 +20,8 @@ class WarehouseDocumentController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $documents = WarehouseDocument::with(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos'])
-            ->when($request->filled('type'),        fn ($q) => $q->where('type', $request->type))
-            ->when($request->filled('source_type'), fn ($q) => $q->where('source_type', $request->source_type))
-            ->when($request->filled('source_id'),   fn ($q) => $q->where('source_id', $request->source_id))
-            ->when($request->filled('user_id'),     fn ($q) => $q->where('user_id', $request->user_id))
+            ->when($request->filled('type'),      fn ($q) => $q->where('type', $request->type))
+            ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'),   fn ($q) => $q->whereDate('document_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),     fn ($q) => $q->whereDate('document_date', '<=', $request->date_to))
             ->latest('document_date')

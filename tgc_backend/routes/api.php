@@ -15,7 +15,6 @@ use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\MachineController;
 use App\Http\Controllers\Api\V1\DefectDocumentController;
 use App\Http\Controllers\Api\V1\ProductionBatchController;
-use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
 use Illuminate\Support\Facades\Route;
@@ -81,9 +80,6 @@ Route::prefix('v1')->group(function (): void {
             'warehouse-documents/{warehouseDocument}/photos/{photoId}',
             [WarehouseDocumentController::class, 'deletePhoto']
         )->name('warehouse-documents.photos.destroy');
-
-        // Sales
-        Route::apiResource('sales', SaleController::class);
 
         // Stock (read-only — all authenticated roles)
         Route::prefix('stock')->name('stock.')->group(function (): void {

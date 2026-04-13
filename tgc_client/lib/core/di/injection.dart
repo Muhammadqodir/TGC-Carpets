@@ -47,15 +47,6 @@ import '../../features/clients/domain/usecases/delete_client_usecase.dart';
 import '../../features/clients/presentation/bloc/clients_bloc.dart';
 import '../../features/clients/presentation/bloc/client_form_bloc.dart';
 
-// Sales feature
-import '../../features/sales/data/datasources/sale_remote_datasource.dart';
-import '../../features/sales/data/repositories/sale_repository_impl.dart';
-import '../../features/sales/domain/repositories/sale_repository.dart';
-import '../../features/sales/domain/usecases/get_sales_usecase.dart';
-import '../../features/sales/domain/usecases/create_sale_usecase.dart';
-import '../../features/sales/presentation/bloc/sales_bloc.dart';
-import '../../features/sales/presentation/bloc/sale_form_bloc.dart';
-
 // Warehouse feature
 import '../../features/warehouse/data/datasources/warehouse_remote_datasource.dart';
 import '../../features/warehouse/data/repositories/warehouse_repository_impl.dart';
@@ -234,22 +225,6 @@ Future<void> initDependencies() async {
       createClientUseCase: sl<CreateClientUseCase>(),
       updateClientUseCase: sl<UpdateClientUseCase>(),
     ),
-  );
-
-  // ─── Sales Feature ────────────────────────────────────────────────────────
-  sl.registerLazySingleton<SaleRemoteDataSource>(
-    () => SaleRemoteDataSourceImpl(sl<Dio>()),
-  );
-  sl.registerLazySingleton<SaleRepository>(
-    () => SaleRepositoryImpl(remoteDataSource: sl<SaleRemoteDataSource>()),
-  );
-  sl.registerLazySingleton(() => GetSalesUseCase(sl<SaleRepository>()));
-  sl.registerLazySingleton(() => CreateSaleUseCase(sl<SaleRepository>()));
-  sl.registerFactory(
-    () => SalesBloc(getSalesUseCase: sl<GetSalesUseCase>()),
-  );
-  sl.registerFactory(
-    () => SaleFormBloc(createSaleUseCase: sl<CreateSaleUseCase>()),
   );
 
   // ─── Warehouse Feature ─────────────────────────────────────────────────────

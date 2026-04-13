@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 
 class StockMovement extends Model
@@ -27,9 +26,7 @@ class StockMovement extends Model
     protected $fillable = [
         'uuid',
         'product_variant_id',
-        'warehouse_document_id',
-        'source_type',
-        'source_id',
+        'warehouse_document_item_id',
         'user_id',
         'movement_type',
         'quantity',
@@ -82,18 +79,9 @@ class StockMovement extends Model
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 
-    public function warehouseDocument(): BelongsTo
+    public function warehouseDocumentItem(): BelongsTo
     {
-        return $this->belongsTo(WarehouseDocument::class);
-    }
-
-    /**
-     * Polymorphic source that triggered this movement.
-     * Morph type values: 'production' | 'sale' | 'other'
-     */
-    public function source(): MorphTo
-    {
-        return $this->morphTo('source', 'source_type', 'source_id');
+        return $this->belongsTo(WarehouseDocumentItem::class);
     }
 
     public function user(): BelongsTo

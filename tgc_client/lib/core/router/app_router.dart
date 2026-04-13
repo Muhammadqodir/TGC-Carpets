@@ -12,8 +12,6 @@ import '../../features/warehouse/presentation/pages/warehouse_document_preview_p
 import '../../features/warehouse/presentation/pages/args/warehouse_document_preview_args.dart';
 import '../../features/warehouse/presentation/pages/print_labels_page.dart';
 import '../../features/labeling/presentation/args/print_labels_args.dart';
-import '../../features/sales/presentation/pages/sales_page.dart';
-import '../../features/sales/presentation/pages/add_sale_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/employees/presentation/pages/add_employee_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -91,16 +89,6 @@ class AppRouter {
               final args = state.extra as WarehouseDocumentPreviewArgs;
               return WarehouseDocumentPreviewPage(args: args);
             },
-          ),
-          GoRoute(
-            path: AppRoutes.sales,
-            name: AppRoutes.salesName,
-            builder: (context, state) => const SalesPage(),
-          ),
-          GoRoute(
-            path: AppRoutes.addSale,
-            name: AppRoutes.addSaleName,
-            builder: (context, state) => const AddSalePage(),
           ),
           GoRoute(
             path: AppRoutes.employees,

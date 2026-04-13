@@ -40,8 +40,6 @@ class WarehouseDocumentService
             $document = WarehouseDocument::create([
                 'external_uuid' => $data['external_uuid'] ?? null,
                 'type'          => $data['type'],
-                'source_type'   => $data['source_type'] ?? null,
-                'source_id'     => $data['source_id']   ?? null,
                 'user_id'       => $userId,
                 'document_date' => $data['document_date'],
                 'notes'         => $data['notes'] ?? null,
@@ -65,8 +63,6 @@ class WarehouseDocumentService
         return DB::transaction(function () use ($document, $data, $userId): WarehouseDocument {
             $document->update(array_filter([
                 'type'          => $data['type']          ?? $document->type,
-                'source_type'   => array_key_exists('source_type', $data) ? $data['source_type'] : $document->source_type,
-                'source_id'     => array_key_exists('source_id', $data)   ? $data['source_id']   : $document->source_id,
                 'document_date' => $data['document_date'] ?? $document->document_date,
                 'notes'         => array_key_exists('notes', $data) ? $data['notes'] : $document->notes,
             ], fn ($v) => $v !== null));
@@ -137,22 +133,22 @@ class WarehouseDocumentService
                 $itemData['product_size_id'] ?? null,
             );
 
-            $document->items()->create([
+            $item = $document->items()->create([
                 'product_variant_id' => $variant->id,
                 'quantity'           => $itemData['quantity'],
+                'source_type'        => $itemData['source_type'] ?? null,
+                'source_id'          => $itemData['source_id'] ?? null,
                 'notes'              => $itemData['notes'] ?? null,
             ]);
 
             StockMovement::create([
-                'product_variant_id'    => $variant->id,
-                'warehouse_document_id' => $document->id,
-                'source_type'           => $document->source_type,
-                'source_id'             => $document->source_id,
-                'user_id'               => $userId,
-                'movement_type'         => $document->type,
-                'quantity'              => $itemData['quantity'],
-                'movement_date'         => $document->document_date,
-                'notes'                 => $document->notes,
+                'product_variant_id'         => $variant->id,
+                'warehouse_document_item_id' => $item->id,
+                'user_id'                    => $userId,
+                'movement_type'              => $document->type,
+                'quantity'                   => $itemData['quantity'],
+                'movement_date'              => $document->document_date,
+                'notes'                      => $document->notes,
             ]);
 
             if ($document->type === WarehouseDocument::TYPE_IN) {
@@ -172,15 +168,13 @@ class WarehouseDocumentService
 
         foreach ($document->items as $item) {
             StockMovement::create([
-                'product_variant_id'    => $item->product_variant_id,
-                'warehouse_document_id' => $document->id,
-                'source_type'           => $document->source_type,
-                'source_id'             => $document->source_id,
-                'user_id'               => $userId,
-                'movement_type'         => $reverseType,
-                'quantity'              => $item->quantity,
-                'movement_date'         => now(),
-                'notes'                 => "Reversal of document #{$document->id}",
+                'product_variant_id'         => $item->product_variant_id,
+                'warehouse_document_item_id' => $item->id,
+                'user_id'                    => $userId,
+                'movement_type'              => $reverseType,
+                'quantity'                   => $item->quantity,
+                'movement_date'              => now(),
+                'notes'                      => "Reversal of document #{$document->id}",
             ]);
 
             if ($document->type === WarehouseDocument::TYPE_IN) {

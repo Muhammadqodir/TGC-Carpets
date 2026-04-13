@@ -8,10 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('sales', function (Blueprint $table) {
+        Schema::create('shipments', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique();
-            $table->uuid('external_uuid')->nullable()->unique();
 
             $table->foreignId('client_id')
                 ->constrained('clients')
@@ -21,19 +19,23 @@ return new class extends Migration
                 ->constrained('users')
                 ->restrictOnDelete();
 
-            $table->timestamp('sale_date')->index();
-            $table->decimal('total_amount', 14, 2)->default(0);
+            $table->foreignId('order_id')
+                ->nullable()
+                ->constrained('orders')
+                ->nullOnDelete();
 
-            // pending = not yet received, partial = partially paid, paid = fully paid
-            $table->string('payment_status')->default('pending')->index();
-
+            $table->timestamp('shipment_datetime');
             $table->text('notes')->nullable();
             $table->timestamps();
+
+            $table->index('client_id');
+            $table->index('order_id');
+            $table->index('shipment_datetime');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('sales');
+        Schema::dropIfExists('shipments');
     }
 };

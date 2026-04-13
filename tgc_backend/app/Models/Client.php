@@ -47,13 +47,8 @@ class Client extends Model
         return $this->hasMany(WarehouseDocument::class);
     }
 
-    public function sales(): HasMany
+    public function shipments(): HasMany
     {
-        return $this->hasMany(Sale::class);
-    }
-
-    public function stockMovements(): HasMany
-    {
-        return $this->hasMany(StockMovement::class);
+        return $this->hasMany(Shipment::class);
     }
 }
