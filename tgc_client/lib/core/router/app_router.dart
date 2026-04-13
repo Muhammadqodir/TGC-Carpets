@@ -26,6 +26,7 @@ import '../../features/production/presentation/pages/production_batch_detail_pag
 import '../../features/production/presentation/pages/defect_document_form_page.dart';
 import '../../features/production/domain/entities/production_batch_entity.dart';
 import '../../features/labeling/presentation/pages/labeling_page.dart';
+import '../../features/products_stock/presentation/pages/products_stock_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -169,6 +170,11 @@ class AppRouter {
             path: AppRoutes.labeling,
             name: AppRoutes.labelingName,
             builder: (context, state) => const LabelingPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.productsStock,
+            name: AppRoutes.productsStockName,
+            builder: (context, state) => const ProductsStockPage(),
           ),
         ],
       ),

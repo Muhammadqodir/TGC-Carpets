@@ -84,6 +84,7 @@ Route::prefix('v1')->group(function (): void {
         // Stock (read-only — all authenticated roles)
         Route::prefix('stock')->name('stock.')->group(function (): void {
             Route::get('/',         [StockController::class, 'index'])->name('index');
+            Route::get('variants',  [StockController::class, 'variants'])->name('variants');
             Route::get('movements', [StockController::class, 'movements'])->name('movements');
         });
 

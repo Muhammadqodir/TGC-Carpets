@@ -18,11 +18,6 @@ class StockController extends Controller
      * GET /api/v1/stock
      *
      * Returns current calculated stock level per product.
-     *
-     * Stock is computed live from stock_movements using two aggregated subqueries.
-     * This approach removes the risk of a cached column drifting out of sync.
-     * For high-traffic production workloads, consider materialising these sums
-     * into a product_stocks table and invalidating on movement writes.
      */
     public function index(Request $request): JsonResponse
     {
@@ -79,6 +74,116 @@ class StockController extends Controller
     }
 
     /**
+     * GET /api/v1/stock/variants
+     *
+     * Per-variant stock view — only variants with quantity_warehouse > 0.
+     *
+     * quantity_warehouse : net stock (in + return − out) from stock_movements
+     * quantity_reserved  : goods produced for active (non-cancelled, non-done) order
+     *                      items that arrived in the warehouse, minus what has already
+     *                      been shipped against those same order items.
+     *
+     * Filters: product_type_id, product_quality_id, product_size_id
+     */
+    public function variants(Request $request): JsonResponse
+    {
+        // Correlated sub-query: net warehouse stock per variant
+        $qtyWarehouse = DB::table('stock_movements as sm')
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN sm.movement_type IN (?, ?) THEN sm.quantity ELSE -sm.quantity END), 0)',
+                [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN]
+            )
+            ->whereColumn('sm.product_variant_id', 'product_variants.id');
+
+        // Correlated sub-query: qty received into warehouse for active-order batch items
+        $qtyReceivedForActiveOrders = DB::table('production_batch_items as pbi')
+            ->join('order_items as oi', 'oi.id', '=', 'pbi.source_order_item_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->selectRaw('COALESCE(SUM(pbi.warehouse_received_quantity), 0)')
+            ->whereColumn('pbi.product_variant_id', 'product_variants.id')
+            ->where('pbi.source_type', 'order_item')
+            ->whereNotIn('o.status', ['canceled', 'done']);
+
+        // Correlated sub-query: qty already shipped against those same active orders
+        $qtyShippedForActiveOrders = DB::table('shipment_items as si')
+            ->join('order_items as oi', 'oi.id', '=', 'si.order_item_id')
+            ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->selectRaw('COALESCE(SUM(si.quantity), 0)')
+            ->whereColumn('si.product_variant_id', 'product_variants.id')
+            ->whereNotIn('o.status', ['canceled', 'done']);
+
+        $results = DB::table('product_variants')
+            ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
+            ->join('products', 'products.id', '=', 'product_colors.product_id')
+            ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
+            ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
+            ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
+            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
+            ->whereNull('products.deleted_at')
+            ->select([
+                'product_variants.id',
+                'products.name as product_name',
+                'colors.name as color_name',
+                'product_colors.image as color_image',
+                'product_qualities.quality_name',
+                'product_types.type as type_name',
+                'product_sizes.length',
+                'product_sizes.width',
+            ])
+            ->selectSub($qtyWarehouse, 'quantity_warehouse')
+            ->selectSub($qtyReceivedForActiveOrders, 'qty_received')
+            ->selectSub($qtyShippedForActiveOrders, 'qty_shipped')
+            ->when(
+                $request->filled('product_type_id'),
+                fn ($q) => $q->where('products.product_type_id', $request->integer('product_type_id'))
+            )
+            ->when(
+                $request->filled('product_quality_id'),
+                fn ($q) => $q->where('products.product_quality_id', $request->integer('product_quality_id'))
+            )
+            ->when(
+                $request->filled('product_size_id'),
+                fn ($q) => $q->where('product_variants.product_size_id', $request->integer('product_size_id'))
+            )
+            ->having('quantity_warehouse', '>', 0)
+            ->orderByDesc('quantity_warehouse')
+            ->paginate(
+                $request->integer('per_page', 20),
+                ['*'],
+                'page',
+                $request->integer('page', 1)
+            );
+
+        $baseUrl = rtrim(config('app.url'), '/');
+
+        $data = collect($results->items())->map(fn ($row) => [
+            'id'                 => $row->id,
+            'product_name'       => $row->product_name,
+            'color_name'         => $row->color_name,
+            'image_url'          => $row->color_image
+                ? $baseUrl . '/storage/' . $row->color_image
+                : null,
+            'quality_name'       => $row->quality_name,
+            'type_name'          => $row->type_name,
+            'size'               => ($row->length && $row->width)
+                ? "{$row->length}x{$row->width}"
+                : null,
+            'quantity_reserved'  => max(0, (int) $row->qty_received - (int) $row->qty_shipped),
+            'quantity_warehouse' => (int) $row->quantity_warehouse,
+        ]);
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $results->currentPage(),
+                'last_page'    => $results->lastPage(),
+                'per_page'     => $results->perPage(),
+                'total'        => $results->total(),
+            ],
+        ]);
+    }
+
+    /**
      * GET /api/v1/stock/movements
      *
      * Paginated, filterable stock movement history.
@@ -98,3 +203,4 @@ class StockController extends Controller
         return StockMovementResource::collection($movements);
     }
 }
+

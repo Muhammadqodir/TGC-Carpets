@@ -229,6 +229,12 @@ class _DashboardViewState extends State<_DashboardView> {
                                       .pushNamed(AppRoutes.warehouseName),
                                 ),
                                 _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedPackageOpen,
+                                  label: 'Ombor qoldig\'i',
+                                  onTap: () => context
+                                      .pushNamed(AppRoutes.productsStockName),
+                                ),
+                                _DashboardCard(
                                   icon: HugeIcons.strokeRoundedContainerTruck,
                                   label: 'Yuk chiqarish',
                                   onTap: () =>

@@ -70,6 +70,13 @@ import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/change_password_usecase.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 
+// Products Stock feature
+import '../../features/products_stock/data/datasources/products_stock_remote_datasource.dart';
+import '../../features/products_stock/data/repositories/products_stock_repository_impl.dart';
+import '../../features/products_stock/domain/repositories/products_stock_repository.dart';
+import '../../features/products_stock/domain/usecases/get_stock_variants_usecase.dart';
+import '../../features/products_stock/presentation/bloc/products_stock_bloc.dart';
+
 // Orders feature
 import '../../features/orders/data/datasources/order_remote_datasource.dart';
 import '../../features/orders/data/repositories/order_repository_impl.dart';
@@ -358,5 +365,17 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => ChangePasswordUseCase(sl<SettingsRepository>()));
   sl.registerFactory(
     () => SettingsBloc(changePasswordUseCase: sl<ChangePasswordUseCase>()),
+  );
+
+  // ─── Products Stock Feature ───────────────────────────────────────────────
+  sl.registerLazySingleton<ProductsStockRemoteDataSource>(
+    () => ProductsStockRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ProductsStockRepository>(
+    () => ProductsStockRepositoryImpl(remoteDataSource: sl<ProductsStockRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetStockVariantsUseCase(sl<ProductsStockRepository>()));
+  sl.registerFactory(
+    () => ProductsStockBloc(getStockVariantsUseCase: sl<GetStockVariantsUseCase>()),
   );
 }

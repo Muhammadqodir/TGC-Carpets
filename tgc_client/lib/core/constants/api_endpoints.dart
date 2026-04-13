@@ -26,6 +26,7 @@ class ApiEndpoints {
 
   // Stock
   static const String stock = '/stock';
+  static const String stockVariants = '/stock/variants';
   static const String stockMovements = '/stock/movements';
 
   // Sales
