@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ProductionBatchItem;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\WarehouseDocument;
@@ -153,6 +154,10 @@ class WarehouseDocumentService
                 'movement_date'         => $document->document_date,
                 'notes'                 => $document->notes,
             ]);
+
+            if ($document->type === WarehouseDocument::TYPE_IN) {
+                $this->creditProductionBatchItems($variant->id, (int) $itemData['quantity']);
+            }
         }
     }
 
@@ -177,6 +182,10 @@ class WarehouseDocumentService
                 'movement_date'         => now(),
                 'notes'                 => "Reversal of document #{$document->id}",
             ]);
+
+            if ($document->type === WarehouseDocument::TYPE_IN) {
+                $this->debitProductionBatchItems($item->product_variant_id, (int) $item->quantity);
+            }
         }
     }
 
@@ -228,6 +237,61 @@ class WarehouseDocumentService
             ->sum('quantity');
 
         return (int) ($in - $out);
+    }
+
+    /**
+     * FIFO: distribute received quantity across production batch items for a variant.
+     * Only targets completed/in_progress batches that still have unaccounted produced goods.
+     */
+    private function creditProductionBatchItems(int $variantId, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        $batchItems = ProductionBatchItem::where('product_variant_id', $variantId)
+            ->whereHas('productionBatch', fn ($q) => $q->whereIn('status', ['completed', 'in_progress']))
+            ->whereRaw('(produced_quantity - defect_quantity - warehouse_received_quantity) > 0')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $remaining = $quantity;
+        foreach ($batchItems as $batchItem) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $receivable = $batchItem->produced_quantity - $batchItem->defect_quantity - $batchItem->warehouse_received_quantity;
+            $credit     = min($remaining, $receivable);
+            $batchItem->increment('warehouse_received_quantity', $credit);
+            $remaining -= $credit;
+        }
+    }
+
+    /**
+     * LIFO: undo previously credited warehouse_received_quantity (used on reversal).
+     */
+    private function debitProductionBatchItems(int $variantId, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        $batchItems = ProductionBatchItem::where('product_variant_id', $variantId)
+            ->where('warehouse_received_quantity', '>', 0)
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->get();
+
+        $remaining = $quantity;
+        foreach ($batchItems as $batchItem) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $debit = min($remaining, $batchItem->warehouse_received_quantity);
+            $batchItem->decrement('warehouse_received_quantity', $debit);
+            $remaining -= $debit;
+        }
     }
 
     private function deletePhotoFile(WarehouseDocumentPhoto $photo): void
