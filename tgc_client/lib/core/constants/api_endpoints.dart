@@ -77,4 +77,8 @@ class ApiEndpoints {
 
   // Settings
   static const String changePassword = '/auth/change-password';
+
+  // Shipments
+  static const String shipments = '/shipments';
+  static String shipmentById(int id) => '/shipments/$id';
 }

@@ -115,6 +115,13 @@ import '../../features/labeling/data/repositories/labeling_repository_impl.dart'
 import '../../features/labeling/domain/repositories/labeling_repository.dart';
 import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
 
+// Shipments feature
+import '../../features/shipments/data/datasources/shipment_remote_datasource.dart';
+import '../../features/shipments/data/repositories/shipment_repository_impl.dart';
+import '../../features/shipments/domain/repositories/shipment_repository.dart';
+import '../../features/shipments/domain/usecases/get_shipments_usecase.dart';
+import '../../features/shipments/presentation/bloc/shipments_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -341,6 +348,20 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory(
     () => LabelingBloc(repository: sl<LabelingRepository>()),
+  );
+
+  // ─── Shipments Feature ─────────────────────────────────────────────────────
+  sl.registerLazySingleton<ShipmentRemoteDataSource>(
+    () => ShipmentRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ShipmentRepository>(
+    () => ShipmentRepositoryImpl(remoteDataSource: sl<ShipmentRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetShipmentsUseCase(sl<ShipmentRepository>()),
+  );
+  sl.registerFactory(
+    () => ShipmentsBloc(getShipmentsUseCase: sl<GetShipmentsUseCase>()),
   );
   sl.registerLazySingleton<DashboardRemoteDataSource>(
     () => DashboardRemoteDataSourceImpl(sl<Dio>()),

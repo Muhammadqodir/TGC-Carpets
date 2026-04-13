@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\MachineController;
 use App\Http\Controllers\Api\V1\DefectDocumentController;
 use App\Http\Controllers\Api\V1\ProductionBatchController;
 use App\Http\Controllers\Api\V1\StockController;
+use App\Http\Controllers\Api\V1\ShipmentController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
 use Illuminate\Support\Facades\Route;
 
@@ -126,6 +127,10 @@ Route::prefix('v1')->group(function (): void {
             ->name('defect-documents.show');
         Route::delete('defect-documents/{defectDocument}', [DefectDocumentController::class, 'destroy'])
             ->name('defect-documents.destroy');
+
+        // Shipments (read-only list + show)
+        Route::get('shipments',          [ShipmentController::class, 'index'])->name('shipments.index');
+        Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
 
     });
 
