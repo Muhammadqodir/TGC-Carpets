@@ -38,16 +38,12 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
     final current = state;
     if (current is! LabelingLoaded) return;
 
-    // Find the item — if already fully labeled, skip the API call
-    final item = current.items.firstWhere(
-      (i) => i.id == event.itemId,
-      orElse: () => current.items.first,
+    // If the item is already fully labeled, skip the API call.
+    // The label still renders and prints locally.
+    final isFullyLabeled = current.items.any(
+      (i) => i.id == event.itemId && i.isFullyLabeled,
     );
-
-    if (item.isFullyLabeled) {
-      // Label still renders and prints; just don't hit the backend
-      return;
-    }
+    if (isFullyLabeled) return;
 
     // Mark item as printing
     emit(current.copyWith(
