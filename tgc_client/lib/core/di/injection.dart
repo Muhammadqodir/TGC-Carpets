@@ -48,13 +48,13 @@ import '../../features/clients/presentation/bloc/clients_bloc.dart';
 import '../../features/clients/presentation/bloc/client_form_bloc.dart';
 
 // Warehouse feature
-import '../../features/warehouse/data/datasources/warehouse_remote_datasource.dart';
-import '../../features/warehouse/data/repositories/warehouse_repository_impl.dart';
-import '../../features/warehouse/domain/repositories/warehouse_repository.dart';
-import '../../features/warehouse/domain/usecases/get_warehouse_documents_usecase.dart';
-import '../../features/warehouse/domain/usecases/create_warehouse_document_usecase.dart';
-import '../../features/warehouse/presentation/bloc/warehouse_docs_bloc.dart';
-import '../../features/warehouse/presentation/bloc/warehouse_form_bloc.dart';
+import '../../features/warehouse_documents/data/datasources/warehouse_remote_datasource.dart';
+import '../../features/warehouse_documents/data/repositories/warehouse_repository_impl.dart';
+import '../../features/warehouse_documents/domain/repositories/warehouse_repository.dart';
+import '../../features/warehouse_documents/domain/usecases/get_warehouse_documents_usecase.dart';
+import '../../features/warehouse_documents/domain/usecases/create_warehouse_document_usecase.dart';
+import '../../features/warehouse_documents/presentation/bloc/warehouse_docs_bloc.dart';
+import '../../features/warehouse_documents/presentation/bloc/warehouse_form_bloc.dart';
 
 // Dashboard feature
 import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';

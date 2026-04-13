@@ -229,17 +229,17 @@ class _DashboardViewState extends State<_DashboardView> {
                                       .pushNamed(AppRoutes.warehouseName),
                                 ),
                                 _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedAgreement02,
-                                  label: 'Savdo',
+                                  icon: HugeIcons.strokeRoundedContainerTruck,
+                                  label: 'Yuk chiqarish',
                                   onTap: () =>
-                                      context.pushNamed(AppRoutes.salesName),
+                                      context.pushNamed(AppRoutes.shippingName),
                                 ),
-                                _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedUserDollar,
-                                  label: 'Qarzlar',
-                                  onTap: () =>
-                                      context.pushNamed(AppRoutes.salesName),
-                                ),
+                                // _DashboardCard(
+                                //   icon: HugeIcons.strokeRoundedUserDollar,
+                                //   label: 'Qarzlar',
+                                //   onTap: () =>
+                                //       context.pushNamed(AppRoutes.salesName),
+                                // ),
                                 _DashboardCard(
                                   icon: HugeIcons.strokeRoundedUserSettings01,
                                   label: 'Hodimlar',

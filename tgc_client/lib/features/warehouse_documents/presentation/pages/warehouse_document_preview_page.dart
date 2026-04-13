@@ -450,23 +450,29 @@ class _TableHeader extends StatelessWidget {
               child: _hCell('Rangi', textTheme),
             ),
           ],
-          if (hasOrderItems)
+          if (hasOrderItems && isDesktop) ...[
             SizedBox(
               width: 200,
               child: _hCell('Mijoz', textTheme),
             ),
-          SizedBox(
-            width: 70,
-            child: _hCell("O'lcham", textTheme),
-          ),
-          SizedBox(
-            width: 60,
-            child: _hCell('Miqdor', textTheme, align: TextAlign.end),
-          ),
-          SizedBox(
-            width: 80,
-            child: _hCell('Miqdor (м²)', textTheme, align: TextAlign.end),
-          ),
+            SizedBox(
+              width: 70,
+              child: _hCell("O'lcham", textTheme),
+            ),
+            SizedBox(
+              width: 60,
+              child: _hCell('Miqdor', textTheme, align: TextAlign.end),
+            ),
+            SizedBox(
+              width: 80,
+              child: _hCell('Miqdor (м²)', textTheme, align: TextAlign.end),
+            ),
+          ] else ...[
+            SizedBox(
+              width: 60,
+              child: _hCell('Miqdor', textTheme, align: TextAlign.end),
+            ),
+          ]
         ],
       ),
     );
@@ -517,13 +523,13 @@ class _TableRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        row.productName,
+                        '${row.productName} | ${row.sizeLength}×${row.sizeWidth}',
                         style: textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        '${row.quality ?? '—'} | ${row.type ?? '—'} | ${row.color ?? '—'}',
+                        '${row.quality?.toUpperCase() ?? '—'} | ${row.type?.toUpperCase() ?? '—'} | ${row.color?.toUpperCase() ?? '—'}',
                         style: textTheme.bodySmall
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
@@ -571,7 +577,7 @@ class _TableRow extends StatelessWidget {
                       ?.copyWith(color: AppColors.textSecondary)),
             ),
           ],
-          if (hasOrderItems)
+          if (hasOrderItems && isDesktop)
             SizedBox(
               width: 200,
               child: row.isOrderItem && row.sourceClientShopName != null
@@ -592,33 +598,47 @@ class _TableRow extends StatelessWidget {
                       style: textTheme.bodySmall
                           ?.copyWith(color: AppColors.textSecondary)),
             ),
-          SizedBox(
-            width: 70,
-            child: Text(
-              row.sizeLabel ?? '—',
-              style: row.sizeLabel != null
-                  ? textTheme.bodySmall?.copyWith(
-                      color: AppColors.primary, fontWeight: FontWeight.w600)
-                  : textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
+          if (isDesktop) ...[
+            SizedBox(
+              width: 70,
+              child: Text(
+                row.sizeLabel ?? '—',
+                style: row.sizeLabel != null
+                    ? textTheme.bodySmall?.copyWith(
+                        color: AppColors.primary, fontWeight: FontWeight.w600)
+                    : textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+              ),
             ),
-          ),
-          SizedBox(
-            width: 60,
-            child: Text(
-              '${row.quantity}',
-              textAlign: TextAlign.end,
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            SizedBox(
+              width: 60,
+              child: Text(
+                '${row.quantity}',
+                textAlign: TextAlign.end,
+                style:
+                    textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-          SizedBox(
-            width: 80,
-            child: Text(
-              row.squareMeters != null ? fmtSqM(row.squareMeters!) : '—',
-              textAlign: TextAlign.end,
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            SizedBox(
+              width: 80,
+              child: Text(
+                row.squareMeters != null ? fmtSqM(row.squareMeters!) : '—',
+                textAlign: TextAlign.end,
+                style:
+                    textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
+          ] else ...[
+            SizedBox(
+              width: 80,
+              child: Text(
+                '${row.quantity} dona\n${row.squareMeters != null ? fmtSqM(row.squareMeters!) : ''}',
+                textAlign: TextAlign.end,
+                style:
+                    textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]
         ],
       ),
     );

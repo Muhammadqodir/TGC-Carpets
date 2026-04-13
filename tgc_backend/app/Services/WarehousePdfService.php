@@ -145,7 +145,7 @@ class WarehousePdfService
                     <td style=\"padding: 6px; font-size: 9px;\">{$type}</td>
                     <td style=\"padding: 6px; font-size: 9px;\">{$color}</td>
                     <td style=\"padding: 6px; font-size: 9px;\">{$sizeLabel}</td>
-                    <td style=\"padding: 6px; font-size: 9px;\">{$sizeLabel}</td>
+                    <td style=\"padding: 6px; font-size: 9px;\">{$squareMeters}</td>
                     <td style=\"padding: 6px; font-size: 9px; font-weight: bold;\">{$item->quantity}</td>
                     <td style=\"padding: 6px; font-size: 9px; font-weight: bold;\">{$sqmFormatted}</td>
                 </tr>

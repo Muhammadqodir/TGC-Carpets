@@ -31,11 +31,12 @@ class AppRoutes {
   static const String printLabels     = '/warehouse/print-labels';
   static const String printLabelsName = 'printLabels';
 
-  static const String sales = '/sales';
-  static const String salesName = 'sales';
+  static const String shipping = '/shipping';
+  static const String shippingName = 'shipping';
 
-  static const String addSale = '/sales/add';
-  static const String addSaleName = 'addSale';
+  static const String addShipping = '/shipping/add';
+  static const String addShippingName = 'addShipping';
+
   static const String employees     = '/employees';
   static const String employeesName = 'employees';
 
