@@ -4,6 +4,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/production_batch_entity.dart';
+import '../../domain/entities/production_batch_item_entity.dart';
 import '../../domain/repositories/production_batch_repository.dart';
 import '../datasources/production_batch_remote_datasource.dart';
 
@@ -115,6 +116,39 @@ class ProductionBatchRepositoryImpl implements ProductionBatchRepository {
         notes:           notes,
         items:           items,
       );
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ProductionBatchEntity>> getProductionBatch(
+      int id) async {
+    try {
+      final result = await remoteDataSource.getProductionBatch(id);
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ProductionBatchItemEntity>> getProductionBatchItem(
+    int batchId,
+    int itemId,
+  ) async {
+    try {
+      final result =
+          await remoteDataSource.getProductionBatchItem(batchId, itemId);
       return Right(result);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));

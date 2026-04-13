@@ -203,7 +203,7 @@ class _LabelingViewState extends State<_LabelingView> {
                 final barcodeValue = item.variantBarcode?.isNotEmpty == true
                     ? item.variantBarcode!
                     : 'TGC-VAR-${item.variantId.toString().padLeft(8, '0')}';
-                final qrData = '${item.batchId}/${item.id}';
+                final qrData = 'PB{${item.batchId}} PBI{${item.id}}';
 
                 return Positioned(
                   left: -5000,

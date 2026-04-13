@@ -70,7 +70,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
       totalSqm: (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
       items: itemsList != null
           ? itemsList
-              .map((e) => _parseItem(e as Map<String, dynamic>))
+              .map((e) => parseItem(e as Map<String, dynamic>))
               .toList()
           : const [],
       createdAt:  DateTime.parse(json['created_at'] as String),
@@ -78,7 +78,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
     );
   }
 
-  static ProductionBatchItemEntity _parseItem(Map<String, dynamic> json) {
+  static ProductionBatchItemEntity parseItem(Map<String, dynamic> json) {
     final variantMap     = json['variant']       as Map<String, dynamic>?;
     final colorMap       = variantMap?['product_color'] as Map<String, dynamic>?;
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;

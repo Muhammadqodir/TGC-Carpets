@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/production_batch_entity.dart';
+import '../entities/production_batch_item_entity.dart';
 
 abstract class ProductionBatchRepository {
   Future<Either<Failure, PaginatedResponse<ProductionBatchEntity>>> getProductionBatches({
@@ -37,4 +38,11 @@ abstract class ProductionBatchRepository {
     String? notes,
     List<Map<String, dynamic>>? items,
   });
+
+  Future<Either<Failure, ProductionBatchEntity>> getProductionBatch(int id);
+
+  Future<Either<Failure, ProductionBatchItemEntity>> getProductionBatchItem(
+    int batchId,
+    int itemId,
+  );
 }

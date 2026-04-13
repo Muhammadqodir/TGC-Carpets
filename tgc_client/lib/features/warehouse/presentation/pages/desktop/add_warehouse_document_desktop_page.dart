@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
+import '../../../../../core/ui/widgets/count_input.dart';
+import '../../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
 import '../args/warehouse_document_preview_args.dart';
+import '../../widgets/production_batch_picker_bottom_sheet.dart';
 import '../../widgets/warehouse_document_form_controller.dart';
 import '../../widgets/warehouse_item_row.dart';
 
 /// Desktop variant of the "add warehouse document" form.
-/// Displays items as an editable table with sticky column headers.
+/// Displays items as an editable table that mirrors the production batch form
+/// structure. Supports both manual entry and import from production batches.
 /// All form state lives in [controller], owned by the parent page.
 class AddWarehouseDocumentDesktopPage extends StatefulWidget {
   const AddWarehouseDocumentDesktopPage({
@@ -49,7 +51,11 @@ class _AddWarehouseDocumentDesktopPageState
       return;
     }
 
-    final hasUnpickedColor = filledItems.any((r) => r.selectedColor == null);
+    // Only manually-added rows without a batch source need color/size validation.
+    final manualRows = filledItems.where((r) => r.sourceBatchId == null);
+
+    final hasUnpickedColor =
+        manualRows.any((r) => r.selectedColor == null);
     if (hasUnpickedColor) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -60,7 +66,7 @@ class _AddWarehouseDocumentDesktopPageState
       return;
     }
 
-    final hasUnpickedSize = filledItems.any(
+    final hasUnpickedSize = manualRows.any(
       (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
     );
     if (hasUnpickedSize) {
@@ -73,24 +79,40 @@ class _AddWarehouseDocumentDesktopPageState
       return;
     }
 
-    final previewItems = filledItems
-        .map((row) => WarehouseItemPreviewRow(
-              productId: row.selectedProduct!.id,
-              productName: row.selectedProduct!.name,
-              quality: row.selectedProduct!.productQuality?.qualityName,
-              type: row.selectedProduct!.productType?.type,
-              color: row.selectedColor?.colorName,
-              productColorId: row.selectedColor?.id,
-              productSizeId: row.selectedSize?.id,
-              sizeLabel: row.selectedSize?.dimensions,
-              sizeLength: row.selectedSize?.length,
-              sizeWidth: row.selectedSize?.width,
-              quantity: int.parse(row.quantityCtrl.text.trim()),
-              itemNotes: row.notesCtrl.text.trim().isEmpty
-                  ? null
-                  : row.notesCtrl.text.trim(),
-            ))
-        .toList();
+    final previewItems = filledItems.map((row) {
+      final productId = row.selectedProduct?.id ?? row.prefilledProductId;
+      final productName =
+          row.selectedProduct?.name ?? row.prefilledProductName ?? '';
+      final quality = row.selectedProduct?.productQuality?.qualityName ??
+          row.prefilledQualityName;
+      final type =
+          row.selectedProduct?.productType?.type ?? row.prefilledTypeName;
+      final colorName =
+          row.selectedColor?.colorName ?? row.prefilledColorName;
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      final sizeId = row.selectedSize?.id ?? row.prefilledSizeId;
+      final sizeLabel =
+          row.selectedSize?.dimensions ?? row.prefilledSizeDimensions;
+      final sizeLength = row.selectedSize?.length ?? row.prefilledSizeLength;
+      final sizeWidth = row.selectedSize?.width ?? row.prefilledSizeWidth;
+
+      return WarehouseItemPreviewRow(
+        productId: productId!,
+        productName: productName,
+        quality: quality,
+        type: type,
+        color: colorName,
+        productColorId: colorId,
+        productSizeId: sizeId,
+        sizeLabel: sizeLabel,
+        sizeLength: sizeLength,
+        sizeWidth: sizeWidth,
+        quantity: int.tryParse(row.quantityCtrl.text.trim()) ?? 1,
+        itemNotes: row.notesCtrl.text.trim().isEmpty
+            ? null
+            : row.notesCtrl.text.trim(),
+      );
+    }).toList();
 
     final args = WarehouseDocumentPreviewArgs(
       type: 'in',
@@ -144,23 +166,48 @@ class _AddWarehouseDocumentDesktopPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Items header label ─────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-                  child: Text(
-                    'Mahsulotlar',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                // ── Items section label + import button ─────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+                        child: Text(
+                          'Mahsulotlar',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                  ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final result =
+                              await ProductionBatchPickerBottomSheet.show(
+                                  context);
+                          if (result != null && mounted) {
+                            ctrl.addRowsFromProductionBatch(
+                                result.batch, result.items);
+                          }
+                        },
+                        icon: const Icon(Icons.download_rounded, size: 16),
+                        label: const Text('Partiyadan import'),
+                      ),
+                    ),
+                  ],
                 ),
 
-                // ── Table header ───────────────────────────────────────────────
+                // ── Table header ────────────────────────────────────────────
                 const _DesktopTableHeader(),
                 const Divider(height: 1, color: AppColors.divider),
 
-                // ── Table rows ─────────────────────────────────────────────────
+                // ── Table rows ──────────────────────────────────────────────
                 Expanded(
                   child: ListView.separated(
                     padding: EdgeInsets.zero,
@@ -169,56 +216,88 @@ class _AddWarehouseDocumentDesktopPageState
                         const Divider(height: 1, color: AppColors.divider),
                     itemBuilder: (context, index) {
                       final row = ctrl.items[index];
-                      return _DesktopItemTableRow(
+                      return _DesktopItemRow(
                         key: ValueKey(row.id),
                         row: row,
                         allItems: ctrl.items,
                         index: index,
-                        canRemove: row.selectedProduct != null,
-                        onRemove: () => ctrl.removeItem(index),
-                        onChanged: ctrl.notifyChanged,
+                        onRemove: () => ctrl.removeRow(index),
+                        onChanged: () {
+                          ctrl.promoteIfSentinel(row);
+                          ctrl.updateRow(row);
+                        },
                       );
                     },
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
+
+                // ── Notes ───────────────────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: ctrl.notesCtrl,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Izoh (ixtiyoriy)',
-                          hintText: 'Qo\'shimcha ma\'lumot...',
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                    ],
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: TextFormField(
+                    controller: ctrl.notesCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Izoh (ixtiyoriy)',
+                      hintText: "Qo'shimcha ma'lumot...",
+                      alignLabelWithHint: true,
+                    ),
                   ),
                 ),
-                DesktopStatusBar(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Text('Hujjat sanasi: $_formattedDate'),
-                      ),
-                      Expanded(
-                        child: Text(
-                          textAlign: TextAlign.end,
-                          'Xodim: ${ctrl.username.isEmpty ? 'Noma\'lum' : ctrl.username}',
+
+                // ── Status bar ──────────────────────────────────────────────
+                Builder(builder: (context) {
+                  final filled = ctrl.filledItems;
+                  final totalQty = filled.fold(
+                    0,
+                    (sum, r) =>
+                        sum + (int.tryParse(r.quantityCtrl.text) ?? 1),
+                  );
+                  final totalSqm = filled.fold(0.0, (sum, r) {
+                    final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
+                    if (r.selectedSize != null) {
+                      return sum +
+                          r.selectedSize!.length *
+                              r.selectedSize!.width *
+                              qty /
+                              10000.0;
+                    }
+                    if (r.prefilledSizeLength != null &&
+                        r.prefilledSizeWidth != null) {
+                      return sum +
+                          r.prefilledSizeLength! *
+                              r.prefilledSizeWidth! *
+                              qty /
+                              10000.0;
+                    }
+                    return sum;
+                  });
+                  return DesktopStatusBar(
+                    child: Row(
+                      children: [
+                        _TotalChip(
+                            label: 'Mahsulotlar', value: '${filled.length}'),
+                        const SizedBox(width: 16),
+                        _TotalChip(label: 'Jami dona', value: '$totalQty'),
+                        const SizedBox(width: 16),
+                        _TotalChip(
+                            label: 'Jami m²',
+                            value: '${totalSqm.toStringAsFixed(2)} m²'),
+                        const Spacer(),
+                        Text(
+                          'Sana: $_formattedDate  ·  Xodim: ${ctrl.username.isEmpty ? 'Noma\'lum' : ctrl.username}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
-                      ),
-                      const SizedBox(width: 24),
-                    ],
-                  ),
-                ),
+                        const SizedBox(width: 24),
+                      ],
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -233,7 +312,38 @@ class _AddWarehouseDocumentDesktopPageState
   }
 }
 
-// ── Desktop table header ─────────────────────────────────────────────────────
+// ── Status bar chip ───────────────────────────────────────────────────────────
+
+class _TotalChip extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TotalChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label: ',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.textSecondary),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Desktop table header ──────────────────────────────────────────────────────
 
 class _DesktopTableHeader extends StatelessWidget {
   const _DesktopTableHeader();
@@ -243,17 +353,18 @@ class _DesktopTableHeader extends StatelessWidget {
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      child: Row(
+      child: const Row(
         children: [
           _HeaderCell(label: '#', fixedWidth: 40),
           _HeaderCell(label: 'Mahsulot', flex: 3),
-          _HeaderCell(label: 'Sifat', flex: 1),
-          _HeaderCell(label: 'Tur', flex: 1),
           _HeaderCell(label: 'Rang', flex: 2),
+          _HeaderCell(label: 'Tur', flex: 1),
+          _HeaderCell(label: 'Sifat', flex: 1),
           _HeaderCell(label: 'O\'lcham', flex: 2),
-          _HeaderCell(label: 'Miqdor', fixedWidth: 150),
+          _HeaderCell(label: 'Partiya', fixedWidth: 140),
+          _HeaderCell(label: 'Miqdor', fixedWidth: 130),
           _HeaderCell(label: 'Izoh', flex: 2),
-          const SizedBox(width: 40), // actions column
+          SizedBox(width: 40),
         ],
       ),
     );
@@ -276,7 +387,6 @@ class _HeaderCell extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
     );
-
     if (fixedWidth != null) {
       return SizedBox(width: fixedWidth, child: child);
     }
@@ -284,22 +394,20 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-// ── Desktop editable item row ─────────────────────────────────────────────────
+// ── Desktop item row ──────────────────────────────────────────────────────────
 
-class _DesktopItemTableRow extends StatelessWidget {
+class _DesktopItemRow extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
   final int index;
-  final bool canRemove;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
 
-  const _DesktopItemTableRow({
+  const _DesktopItemRow({
     super.key,
     required this.row,
     required this.allItems,
     required this.index,
-    required this.canRemove,
     required this.onRemove,
     required this.onChanged,
   });
@@ -315,7 +423,7 @@ class _DesktopItemTableRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // # index
+          // #
           SizedBox(
             width: 40,
             child: Text(
@@ -332,7 +440,7 @@ class _DesktopItemTableRow extends StatelessWidget {
             flex: 3,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: _DesktopProductPickerCell(
+              child: _DesktopProductCell(
                 row: row,
                 allItems: allItems,
                 onChanged: onChanged,
@@ -340,47 +448,7 @@ class _DesktopItemTableRow extends StatelessWidget {
             ),
           ),
 
-          // Quality
-          Expanded(
-            flex: 1,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: product?.productQuality != null
-                  ? Text(
-                      product!.productQuality!.qualityName,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : Text('—',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.textSecondary)),
-            ),
-          ),
-
-          // Type
-          Expanded(
-            flex: 1,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: product?.productType != null
-                  ? Text(
-                      product!.productType!.type,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : Text('—',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.textSecondary)),
-            ),
-          ),
-
-          // Color (thumbnail + name)
+          // Color column — entity first, prefill as fallback
           Expanded(
             flex: 2,
             child: Padding(
@@ -404,45 +472,175 @@ class _DesktopItemTableRow extends StatelessWidget {
                         ),
                       ],
                     )
-                  : Text('—',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.textSecondary)),
+                  : row.prefilledColorName != null
+                      ? Row(
+                          children: [
+                            AppThumbnail(
+                              imageUrl: row.prefilledColorImageUrl,
+                              size: 24,
+                              borderRadius: 4,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                row.prefilledColorName!,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          '—',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
             ),
           ),
 
-          // Size picker
+          // Tur column
+          Expanded(
+            flex: 1,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: row.typeName != null
+                  ? Text(
+                      row.typeName!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : Text(
+                      '—',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+            ),
+          ),
+
+          // Sifat column
+          Expanded(
+            flex: 1,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: row.qualityName != null
+                  ? Text(
+                      row.qualityName!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : Text(
+                      '—',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+            ),
+          ),
+
+          // Size column
           Expanded(
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: product != null && product.productTypeId != null
-                  ? _DesktopSizePickerCell(
+                  ? _DesktopSizeCell(
                       row: row,
                       allItems: allItems,
                       productTypeId: product.productTypeId!,
                       onChanged: onChanged,
                     )
-                  : Text('—',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.textSecondary)),
+                  : row.prefilledProductTypeId != null
+                      ? _DesktopSizeCell(
+                          row: row,
+                          allItems: allItems,
+                          productTypeId: row.prefilledProductTypeId!,
+                          onChanged: onChanged,
+                        )
+                      : row.prefilledSizeDimensions != null
+                          ? Text(
+                              row.prefilledSizeDimensions!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            )
+                          : Text(
+                              '—',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+            ),
+          ),
+
+          // Partiya (source batch) column
+          SizedBox(
+            width: 140,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: row.sourceBatchTitle != null
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.precision_manufacturing_outlined,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              row.sourceBatchTitle!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
 
           // Quantity
           SizedBox(
-            width: 150,
+            width: 130,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: CountInput(
                 controller: row.quantityCtrl,
                 dense: true,
                 validator: (v) {
-                  // Skip validation for empty rows
-                  if (product == null) return null;
+                  if (!row.isFilled) return null;
                   if (v == null || v.trim().isEmpty) return 'Kiriting';
                   if ((int.tryParse(v) ?? 0) < 1) return '≥ 1';
                   return null;
@@ -469,7 +667,7 @@ class _DesktopItemTableRow extends StatelessWidget {
           // Remove action
           SizedBox(
             width: 40,
-            child: canRemove
+            child: row.isFilled
                 ? IconButton(
                     onPressed: onRemove,
                     icon: const HugeIcon(
@@ -489,14 +687,14 @@ class _DesktopItemTableRow extends StatelessWidget {
   }
 }
 
-// ── Desktop cell widgets ──────────────────────────────────────────────────────
+// ── Desktop product picker cell ───────────────────────────────────────────────
 
-class _DesktopProductPickerCell extends StatelessWidget {
+class _DesktopProductCell extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
   final VoidCallback onChanged;
 
-  const _DesktopProductPickerCell({
+  const _DesktopProductCell({
     required this.row,
     required this.allItems,
     required this.onChanged,
@@ -505,30 +703,13 @@ class _DesktopProductPickerCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final product = row.selectedProduct;
+    final isPrefilled = product == null && row.prefilledColorId != null;
+    final displayName = product?.name ?? row.prefilledProductName;
+
     return InkWell(
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
         if (result != null) {
-          if (result.product.productTypeId == null) {
-            final isDuplicate = allItems.any(
-              (r) =>
-                  r.id != row.id &&
-                  r.selectedProduct?.id == result.product.id &&
-                  r.selectedColor?.id == result.color?.id,
-            );
-            if (isDuplicate) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Bu mahsulot varianti allaqachon qo\'shilgan.'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-              return;
-            }
-          }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
           row.selectedSize = null;
@@ -541,30 +722,33 @@ class _DesktopProductPickerCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: product == null ? AppColors.divider : AppColors.primary,
-            width: product == null ? 1 : 1.5,
+            color: (product == null && !isPrefilled)
+                ? AppColors.divider
+                : AppColors.primary,
+            width: (product == null && !isPrefilled) ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
-          color: product != null
+          color: (product != null || isPrefilled)
               ? AppColors.primary.withValues(alpha: 0.05)
               : null,
         ),
         child: Row(
           children: [
             Icon(
-              product == null
+              displayName == null
                   ? Icons.search_rounded
                   : Icons.inventory_2_outlined,
               size: 14,
-              color:
-                  product == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayName == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                product == null ? 'Mahsulot tanlash' : product.name,
+                displayName ?? 'Mahsulot tanlash',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: product == null
+                      color: displayName == null
                           ? AppColors.textSecondary
                           : AppColors.textPrimary,
                     ),
@@ -572,7 +756,7 @@ class _DesktopProductPickerCell extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (product != null)
+            if (displayName != null)
               const HugeIcon(
                 icon: HugeIcons.strokeRoundedReplace,
                 size: 14,
@@ -585,13 +769,15 @@ class _DesktopProductPickerCell extends StatelessWidget {
   }
 }
 
-class _DesktopSizePickerCell extends StatelessWidget {
+// ── Desktop size picker cell ──────────────────────────────────────────────────
+
+class _DesktopSizeCell extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
   final int productTypeId;
   final VoidCallback onChanged;
 
-  const _DesktopSizePickerCell({
+  const _DesktopSizeCell({
     required this.row,
     required this.allItems,
     required this.productTypeId,
@@ -601,6 +787,8 @@ class _DesktopSizePickerCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = row.selectedSize;
+    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+
     return InkWell(
       onTap: () async {
         final picked = await ProductSizePickerSheet.show(
@@ -609,11 +797,13 @@ class _DesktopSizePickerCell extends StatelessWidget {
         );
         if (picked != null) {
           final isDuplicate = allItems.any(
-            (r) =>
-                r.id != row.id &&
-                r.selectedProduct?.id == row.selectedProduct?.id &&
-                r.selectedColor?.id == row.selectedColor?.id &&
-                r.selectedSize?.id == picked.id,
+            (r) {
+              final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+              final mColorId = row.selectedColor?.id ?? row.prefilledColorId;
+              return r.id != row.id &&
+                  rColorId == mColorId &&
+                  r.selectedSize?.id == picked.id;
+            },
           );
           if (isDuplicate) {
             if (context.mounted) {
@@ -637,29 +827,36 @@ class _DesktopSizePickerCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: size == null ? AppColors.divider : AppColors.primary,
-            width: size == null ? 1 : 1.5,
+            color: displayDimensions == null
+                ? AppColors.divider
+                : AppColors.primary,
+            width: displayDimensions == null ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
-          color:
-              size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+          color: displayDimensions != null
+              ? AppColors.primary.withValues(alpha: 0.05)
+              : null,
         ),
         child: Row(
           children: [
             Icon(
               Icons.straighten_rounded,
               size: 14,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                size == null ? 'O\'lcham' : size.dimensions,
+                displayDimensions ?? 'O\'lcham',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: size == null
+                      color: displayDimensions == null
                           ? AppColors.textSecondary
                           : AppColors.primary,
-                      fontWeight: size != null ? FontWeight.w600 : null,
+                      fontWeight: displayDimensions != null
+                          ? FontWeight.w600
+                          : null,
                     ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -668,7 +865,9 @@ class _DesktopSizePickerCell extends StatelessWidget {
             Icon(
               Icons.arrow_drop_down_rounded,
               size: 18,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
           ],
         ),
@@ -676,3 +875,5 @@ class _DesktopSizePickerCell extends StatelessWidget {
     );
   }
 }
+
+

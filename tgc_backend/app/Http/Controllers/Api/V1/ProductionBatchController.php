@@ -132,6 +132,30 @@ class ProductionBatchController extends Controller
     }
 
     /**
+     * GET /production-batches/{productionBatch}/items/{item}
+     * Returns full detail for a single batch item (used by QR scanner lookup).
+     */
+    public function showItem(
+        ProductionBatch $productionBatch,
+        ProductionBatchItem $item,
+    ): JsonResponse {
+        if ($item->production_batch_id !== $productionBatch->id) {
+            return response()->json(['message' => 'Item does not belong to this batch.'], 404);
+        }
+
+        $item->load([
+            'productionBatch:id,batch_title,status',
+            'variant.productColor.product.productType',
+            'variant.productColor.product.productQuality',
+            'variant.productColor.color',
+            'variant.productSize',
+            'sourceOrderItem.order.client',
+        ]);
+
+        return response()->json(['data' => new ProductionBatchItemResource($item)]);
+    }
+
+    /**
      * PATCH /production-batches/{productionBatch}/items/{item}
      * Update produced/defect quantities during production.
      */

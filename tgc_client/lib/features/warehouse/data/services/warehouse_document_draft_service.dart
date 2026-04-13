@@ -20,7 +20,7 @@ import '../../presentation/widgets/warehouse_item_row.dart';
 /// Storage key is versioned (v1) — bump to wipe stale drafts after
 /// breaking schema changes.
 class WarehouseDocumentDraftService {
-  static const _key = 'wh_doc_draft_v1';
+  static const _key = 'wh_doc_draft_v2';
 
   final SharedPreferences _prefs;
 
@@ -41,6 +41,23 @@ class WarehouseDocumentDraftService {
                 'size': r.selectedSize != null ? _sizeToJson(r.selectedSize!) : null,
                 'quantity': r.quantityCtrl.text,
                 'notes': r.notesCtrl.text,
+                // Prefill fields (batch-imported rows)
+                'prefilled_color_id': r.prefilledColorId,
+                'prefilled_size_id': r.prefilledSizeId,
+                'prefilled_product_id': r.prefilledProductId,
+                'prefilled_product_name': r.prefilledProductName,
+                'prefilled_color_name': r.prefilledColorName,
+                'prefilled_color_image_url': r.prefilledColorImageUrl,
+                'prefilled_product_type_id': r.prefilledProductTypeId,
+                'prefilled_size_length': r.prefilledSizeLength,
+                'prefilled_size_width': r.prefilledSizeWidth,
+                'prefilled_quality_name': r.prefilledQualityName,
+                'prefilled_type_name': r.prefilledTypeName,
+                // Source tracking
+                'source_batch_id': r.sourceBatchId,
+                'source_batch_item_id': r.sourceBatchItemId,
+                'source_batch_title': r.sourceBatchTitle,
+                'produced_quantity': r.producedQuantity,
               })
           .toList(),
     };
@@ -60,7 +77,24 @@ class WarehouseDocumentDraftService {
       final rows = <WarehouseItemRow>[];
       for (final rawItem in rawItems) {
         final item = rawItem as Map<String, dynamic>;
-        final row = WarehouseItemRow();
+
+        final row = WarehouseItemRow(
+          prefilledColorId: item['prefilled_color_id'] as int?,
+          prefilledSizeId: item['prefilled_size_id'] as int?,
+          prefilledProductId: item['prefilled_product_id'] as int?,
+          prefilledProductName: item['prefilled_product_name'] as String?,
+          prefilledColorName: item['prefilled_color_name'] as String?,
+          prefilledColorImageUrl: item['prefilled_color_image_url'] as String?,
+          prefilledProductTypeId: item['prefilled_product_type_id'] as int?,
+          prefilledSizeLength: item['prefilled_size_length'] as int?,
+          prefilledSizeWidth: item['prefilled_size_width'] as int?,
+          prefilledQualityName: item['prefilled_quality_name'] as String?,
+          prefilledTypeName: item['prefilled_type_name'] as String?,
+          sourceBatchId: item['source_batch_id'] as int?,
+          sourceBatchItemId: item['source_batch_item_id'] as int?,
+          sourceBatchTitle: item['source_batch_title'] as String?,
+          producedQuantity: item['produced_quantity'] as int?,
+        );
 
         final rawProduct = item['product'] as Map<String, dynamic>?;
         if (rawProduct != null) {

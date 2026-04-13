@@ -53,6 +53,8 @@ class ApiEndpoints {
       '/production-batches/$id/complete';
   static String productionBatchCancel(int id) =>
       '/production-batches/$id/cancel';
+  static String productionBatchItemById(int batchId, int itemId) =>
+      '/production-batches/$batchId/items/$itemId';
   static String productionBatchItemUpdate(int batchId, int itemId) =>
       '/production-batches/$batchId/items/$itemId';
   static String productionBatchItemPrintLabel(int batchId, int itemId) =>

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
+import '../../domain/entities/production_batch_item_entity.dart';
 import '../models/production_batch_model.dart';
 import '../models/machine_model.dart';
 
@@ -39,6 +40,8 @@ abstract class ProductionBatchRemoteDataSource {
   });
 
   Future<ProductionBatchModel> getProductionBatch(int id);
+
+  Future<ProductionBatchItemEntity> getProductionBatchItem(int batchId, int itemId);
 
   Future<ProductionBatchModel> startBatch(int id, {required int responsibleEmployeeId});
 
@@ -178,6 +181,23 @@ class ProductionBatchRemoteDataSourceImpl
     try {
       final response = await _dio.get(ApiEndpoints.productionBatchById(id));
       return ProductionBatchModel.fromJson(
+        (response.data as Map<String, dynamic>)['data']
+            as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductionBatchItemEntity> getProductionBatchItem(
+    int batchId,
+    int itemId,
+  ) async {
+    try {
+      final response =
+          await _dio.get(ApiEndpoints.productionBatchItemById(batchId, itemId));
+      return ProductionBatchModel.parseItem(
         (response.data as Map<String, dynamic>)['data']
             as Map<String, dynamic>,
       );

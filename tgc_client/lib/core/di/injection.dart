@@ -95,6 +95,8 @@ import '../../features/production/data/datasources/defect_document_remote_dataso
 import '../../features/production/data/repositories/production_batch_repository_impl.dart';
 import '../../features/production/domain/repositories/production_batch_repository.dart';
 import '../../features/production/domain/usecases/get_production_batches_usecase.dart';
+import '../../features/production/domain/usecases/get_production_batch_usecase.dart';
+import '../../features/production/domain/usecases/get_production_batch_item_usecase.dart';
 import '../../features/production/domain/usecases/create_production_batch_usecase.dart';
 import '../../features/production/domain/usecases/update_production_batch_usecase.dart';
 import '../../features/production/presentation/bloc/production_batches_bloc.dart';
@@ -307,6 +309,12 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(
     () => GetProductionBatchesUseCase(sl<ProductionBatchRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetProductionBatchUseCase(sl<ProductionBatchRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetProductionBatchItemUseCase(sl<ProductionBatchRepository>()),
   );
   sl.registerLazySingleton(
     () => CreateProductionBatchUseCase(sl<ProductionBatchRepository>()),

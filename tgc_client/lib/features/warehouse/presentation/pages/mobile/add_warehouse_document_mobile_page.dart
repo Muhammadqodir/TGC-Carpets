@@ -4,12 +4,15 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../../core/router/app_routes.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
 import '../args/warehouse_document_preview_args.dart';
+import '../../widgets/production_batch_picker_bottom_sheet.dart';
 import '../../widgets/warehouse_document_form_controller.dart';
 import '../../widgets/warehouse_item_row.dart';
+import 'qr_scanner_screen.dart';
 
 /// Mobile variant of the "add warehouse document" form.
 /// All form state lives in [controller], owned by the parent page.
@@ -39,14 +42,17 @@ class _AddWarehouseDocumentMobilePageState
     if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kamida bitta mahsulot qo\'shing.'),
+          content: Text("Kamida bitta mahsulot qo'shing."),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    final hasUnpickedColor = filledItems.any((r) => r.selectedColor == null);
+    // Only manually-added rows (no batch source) need color/size validation.
+    final manualRows = filledItems.where((r) => r.sourceBatchId == null);
+
+    final hasUnpickedColor = manualRows.any((r) => r.selectedColor == null);
     if (hasUnpickedColor) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -57,37 +63,52 @@ class _AddWarehouseDocumentMobilePageState
       return;
     }
 
-    final hasUnpickedSize = filledItems.any(
+    final hasUnpickedSize = manualRows.any(
       (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
     );
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Barcha qatorlardagi mahsulot o\'lchamini tanlang.'),
+          content: Text("Barcha qatorlardagi mahsulot o'lchamini tanlang."),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    final previewItems = filledItems
-        .map((row) => WarehouseItemPreviewRow(
-              productId: row.selectedProduct!.id,
-              productName: row.selectedProduct!.name,
-              quality: row.selectedProduct!.productQuality?.qualityName,
-              type: row.selectedProduct!.productType?.type,
-              color: row.selectedColor?.colorName,
-              productColorId: row.selectedColor?.id,
-              productSizeId: row.selectedSize?.id,
-              sizeLabel: row.selectedSize?.dimensions,
-              sizeLength: row.selectedSize?.length,
-              sizeWidth: row.selectedSize?.width,
-              quantity: int.parse(row.quantityCtrl.text.trim()),
-              itemNotes: row.notesCtrl.text.trim().isEmpty
-                  ? null
-                  : row.notesCtrl.text.trim(),
-            ))
-        .toList();
+    final previewItems = filledItems.map((row) {
+      final productId = row.selectedProduct?.id ?? row.prefilledProductId;
+      final productName =
+          row.selectedProduct?.name ?? row.prefilledProductName ?? '';
+      final quality = row.selectedProduct?.productQuality?.qualityName ??
+          row.prefilledQualityName;
+      final type =
+          row.selectedProduct?.productType?.type ?? row.prefilledTypeName;
+      final colorName = row.selectedColor?.colorName ?? row.prefilledColorName;
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      final sizeId = row.selectedSize?.id ?? row.prefilledSizeId;
+      final sizeLabel =
+          row.selectedSize?.dimensions ?? row.prefilledSizeDimensions;
+      final sizeLength = row.selectedSize?.length ?? row.prefilledSizeLength;
+      final sizeWidth = row.selectedSize?.width ?? row.prefilledSizeWidth;
+
+      return WarehouseItemPreviewRow(
+        productId: productId!,
+        productName: productName,
+        quality: quality,
+        type: type,
+        color: colorName,
+        productColorId: colorId,
+        productSizeId: sizeId,
+        sizeLabel: sizeLabel,
+        sizeLength: sizeLength,
+        sizeWidth: sizeWidth,
+        quantity: int.tryParse(row.quantityCtrl.text.trim()) ?? 1,
+        itemNotes: row.notesCtrl.text.trim().isEmpty
+            ? null
+            : row.notesCtrl.text.trim(),
+      );
+    }).toList();
 
     final args = WarehouseDocumentPreviewArgs(
       type: 'in',
@@ -95,14 +116,16 @@ class _AddWarehouseDocumentMobilePageState
       notes: ctrl.notesCtrl.text.trim().isEmpty
           ? null
           : ctrl.notesCtrl.text.trim(),
-      username: ctrl.username.isEmpty ? 'Noma\'lum' : ctrl.username,
+      username: ctrl.username.isEmpty ? "Noma'lum" : ctrl.username,
       items: previewItems,
     );
 
-    context.pushNamed(
+    context
+        .pushNamed(
       AppRoutes.warehouseDocumentPreviewName,
       extra: args,
-    ).then((result) {
+    )
+        .then((result) {
       if (result != null && mounted) context.pop(result);
     });
   }
@@ -123,6 +146,22 @@ class _AddWarehouseDocumentMobilePageState
               ),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'QR-kodni skanerlash',
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                onPressed: () async {
+                  final result = await QrScannerScreen.show(context);
+                  if (result != null && mounted) {
+                    ctrl.addOrIncrementFromQr(
+                      result.item,
+                      batchId: result.batchId,
+                      batchTitle: result.batchTitle,
+                    );
+                  }
+                },
+              ),
+            ],
           ),
           body: Stack(
             children: [
@@ -132,36 +171,62 @@ class _AddWarehouseDocumentMobilePageState
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      // ── Header info ──────────────────────────────────────
-                      const _SectionHeader(title: 'Hujjat ma\'lumotlari'),
-                      const SizedBox(height: 12),
-
                       // Notes
                       TextFormField(
                         controller: ctrl.notesCtrl,
                         maxLines: 2,
                         decoration: const InputDecoration(
                           labelText: 'Izoh (ixtiyoriy)',
-                          hintText: 'Qo\'shimcha ma\'lumot...',
+                          hintText: "Qo'shimcha ma'lumot...",
                           alignLabelWithHint: true,
                         ),
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Items ────────────────────────────────────────────
-                      const _SectionHeader(title: 'Mahsulotlar'),
+                      // Section header + import button
+                      Row(
+                        children: [
+                          Text(
+                            'Mahsulotlar',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final result =
+                                  await ProductionBatchPickerBottomSheet.show(
+                                      context);
+                              if (result != null && mounted) {
+                                ctrl.addRowsFromProductionBatch(
+                                    result.batch, result.items);
+                              }
+                            },
+                            icon: const Icon(Icons.download_rounded, size: 16),
+                            label: const Text('Partiyadan'),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 8),
 
                       ...ctrl.items.asMap().entries.map((entry) {
                         final index = entry.key;
                         final row = entry.value;
-                        return _MobileItemFormRow(
+                        return _MobileItemCard(
                           key: ValueKey(row.id),
                           row: row,
                           allItems: ctrl.items,
                           index: index,
-                          onRemove: () => ctrl.removeItem(index),
-                          canRemove: row.selectedProduct != null,
+                          onRemove: () => ctrl.removeRow(index),
+                          canRemove: row.isFilled,
                           onProductChanged: ctrl.notifyChanged,
                         );
                       }),
@@ -201,9 +266,9 @@ class _AddWarehouseDocumentMobilePageState
   }
 }
 
-// ── Mobile item form row ─────────────────────────────────────────────────────
+// -- Mobile item card --
 
-class _MobileItemFormRow extends StatelessWidget {
+class _MobileItemCard extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
   final int index;
@@ -211,7 +276,7 @@ class _MobileItemFormRow extends StatelessWidget {
   final bool canRemove;
   final VoidCallback onProductChanged;
 
-  const _MobileItemFormRow({
+  const _MobileItemCard({
     super.key,
     required this.row,
     required this.allItems,
@@ -232,13 +297,46 @@ class _MobileItemFormRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row header
             Row(
               children: [
                 Text('${index + 1}-mahsulot',
                     style: Theme.of(context).textTheme.bodyMedium),
+                if (row.sourceBatchTitle != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.primary, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.precision_manufacturing_outlined,
+                          size: 11,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          row.sourceBatchTitle!,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
-                if (canRemove) ...[
+                if (canRemove)
                   InkWell(
                     onTap: onRemove,
                     child: const Padding(
@@ -251,12 +349,9 @@ class _MobileItemFormRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                ]
               ],
             ),
             const SizedBox(height: 8),
-
             Row(
               children: [
                 Expanded(
@@ -272,11 +367,8 @@ class _MobileItemFormRow extends StatelessWidget {
                   child: CountInput(
                     controller: row.quantityCtrl,
                     validator: (v) {
-                      // Skip validation for empty rows
-                      if (row.selectedProduct == null) return null;
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Miqdorni kiriting';
-                      }
+                      if (!row.isFilled) return null;
+                      if (v == null || v.trim().isEmpty) return 'Miqdorni kiriting';
                       final qty = int.tryParse(v);
                       if (qty == null || qty < 1) return 'Kamida 1';
                       return null;
@@ -285,8 +377,53 @@ class _MobileItemFormRow extends StatelessWidget {
                 ),
               ],
             ),
-
-            if (product != null && product.productTypeId != null) ...[
+            // Prefill meta for batch-imported rows
+            if (row.sourceBatchId != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (row.prefilledColorName != null) ...[
+                    AppThumbnail(
+                      imageUrl: row.prefilledColorImageUrl,
+                      size: 20,
+                      borderRadius: 4,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      row.prefilledColorName!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                  if (row.prefilledSizeDimensions != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      row.prefilledSizeDimensions!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                  if (row.qualityName != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      row.qualityName!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            // Size picker for manually-added rows with product type
+            if (row.sourceBatchId == null &&
+                product != null &&
+                product.productTypeId != null) ...[
               const SizedBox(height: 8),
               _MobileSizePicker(
                 row: row,
@@ -302,6 +439,8 @@ class _MobileItemFormRow extends StatelessWidget {
   }
 }
 
+// -- Mobile product picker button --
+
 class _MobileProductPickerButton extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
@@ -316,30 +455,13 @@ class _MobileProductPickerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final product = row.selectedProduct;
+    final isPrefilled = product == null && row.prefilledColorId != null;
+    final displayName = product?.name ?? row.prefilledProductName;
+
     return InkWell(
       onTap: () async {
         final result = await ProductPickerBottomSheet.show(context);
         if (result != null) {
-          if (result.product.productTypeId == null) {
-            final isDuplicate = allItems.any(
-              (r) =>
-                  r.id != row.id &&
-                  r.selectedProduct?.id == result.product.id &&
-                  r.selectedColor?.id == result.color?.id,
-            );
-            if (isDuplicate) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Bu mahsulot varianti allaqachon qo\'shilgan.'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-              return;
-            }
-          }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
           row.selectedSize = null;
@@ -349,71 +471,57 @@ class _MobileProductPickerButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: product == null ? AppColors.divider : AppColors.primary,
-            width: product == null ? 1 : 1.5,
+            color: (product == null && !isPrefilled)
+                ? AppColors.divider
+                : AppColors.primary,
+            width: (product == null && !isPrefilled) ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          color:
-              product != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+          color: (product != null || isPrefilled)
+              ? AppColors.primary.withValues(alpha: 0.05)
+              : null,
         ),
-        child: product == null
-            ? Row(
-                children: [
-                  const Icon(Icons.search_rounded,
-                      size: 18, color: AppColors.textSecondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Mahsulot tanlash',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          product.name,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          [
-                            if (product.productQuality?.qualityName != null)
-                              product.productQuality!.qualityName,
-                            if (row.selectedColor != null)
-                              row.selectedColor!.colorName,
-                          ].join(' · '),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
+        child: Row(
+          children: [
+            Icon(
+              displayName == null
+                  ? Icons.search_rounded
+                  : Icons.inventory_2_outlined,
+              size: 18,
+              color: displayName == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                displayName ?? 'Mahsulot tanlash',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: displayName == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
                     ),
-                  ),
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedReplace,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            if (displayName != null)
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedReplace,
+                size: 18,
+                color: AppColors.primary,
+              ),
+          ],
+        ),
       ),
     );
   }
 }
+
+// -- Mobile size picker --
 
 class _MobileSizePicker extends StatelessWidget {
   final WarehouseItemRow row;
@@ -449,8 +557,7 @@ class _MobileSizePicker extends StatelessWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text('Bu mahsulot varianti allaqachon qo\'shilgan.'),
+                  content: Text("Bu mahsulot varianti allaqachon qo'shilgan."),
                   backgroundColor: AppColors.error,
                 ),
               );
@@ -471,56 +578,35 @@ class _MobileSizePicker extends StatelessWidget {
             width: size == null ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+          color:
+              size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
         ),
         child: Row(
           children: [
             Icon(
               Icons.straighten_rounded,
               size: 16,
-              color:
-                  size == null ? AppColors.textSecondary : AppColors.primary,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                size == null ? 'O\'lcham tanlash' : size.dimensions,
+                size == null ? "O'lcham tanlash" : size.dimensions,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: size == null
                           ? AppColors.textSecondary
                           : AppColors.primary,
-                      fontWeight:
-                          size != null ? FontWeight.w600 : null,
+                      fontWeight: size != null ? FontWeight.w600 : null,
                     ),
               ),
             ),
             Icon(
               Icons.arrow_drop_down_rounded,
-              color:
-                  size == null ? AppColors.textSecondary : AppColors.primary,
+              color: size == null ? AppColors.textSecondary : AppColors.primary,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// ── Shared sub-widgets ───────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
-          ),
     );
   }
 }
