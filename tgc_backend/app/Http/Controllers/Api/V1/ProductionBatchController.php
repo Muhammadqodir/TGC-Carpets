@@ -229,10 +229,6 @@ class ProductionBatchController extends Controller
                 'variant.productSize',
             ])
             ->whereHas('productionBatch', fn ($q) => $q->where('status', ProductionBatch::STATUS_IN_PROGRESS))
-            ->where(function ($query) {
-                $query->whereNull('produced_quantity')
-                    ->orWhereColumn('produced_quantity', '<', 'planned_quantity');
-            })
             ->get();
 
         return response()->json([
