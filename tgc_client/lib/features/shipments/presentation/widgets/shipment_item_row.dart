@@ -81,7 +81,12 @@ class ShipmentItemRow {
 
   int get parsedQuantity => int.tryParse(quantityCtrl.text.trim()) ?? 0;
 
-  double get lineTotal => parsedPrice * parsedQuantity;
+  double get rowSqm =>
+      (sizeLength != null && sizeWidth != null)
+          ? sizeLength! * sizeWidth! * parsedQuantity / 10000.0
+          : parsedQuantity.toDouble();
+
+  double get lineTotal => parsedPrice * rowSqm;
 
   void dispose() {
     quantityCtrl.dispose();

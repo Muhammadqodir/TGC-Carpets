@@ -25,14 +25,19 @@ class ShipmentFormController extends ChangeNotifier {
   /// Replaces all current rows with items from [order].
   /// Rows that have no remaining quantity are skipped.
   /// [lastPrices] maps variantId → last known price.
+  /// [selectedItemIds] — when non-null, only those order-item IDs are imported.
   void importFromOrder(
     OrderEntity order,
-    Map<int, double> lastPrices,
-  ) {
+    Map<int, double> lastPrices, {
+    Set<int>? selectedItemIds,
+  }) {
     _clearRows();
     importedOrder = order;
 
     for (final item in order.items) {
+      if (selectedItemIds != null && !selectedItemIds.contains(item.id)) {
+        continue;
+      }
       final alreadyShipped = item.shippedQuantity ?? 0;
       if (alreadyShipped >= item.quantity) continue; // fully shipped — skip
 
@@ -71,10 +76,7 @@ class ShipmentFormController extends ChangeNotifier {
   int get totalQuantity =>
       _items.fold(0, (sum, r) => sum + r.parsedQuantity);
 
-  double get totalSqm => _items.fold(0.0, (sum, r) {
-        if (r.sizeLength == null || r.sizeWidth == null) return sum;
-        return sum + r.sizeLength! * r.sizeWidth! * r.parsedQuantity / 10000.0;
-      });
+  double get totalSqm => _items.fold(0.0, (sum, r) => sum + r.rowSqm);
 
   // ── Private helpers ───────────────────────────────────────────────────────
 

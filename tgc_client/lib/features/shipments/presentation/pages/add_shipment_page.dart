@@ -6,6 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../bloc/shipment_form_bloc.dart';
 import '../widgets/shipment_form_controller.dart';
 import 'desktop/add_shipment_desktop_page.dart';
+import 'mobile/add_shipment_mobile_page.dart';
 
 /// Adaptive entry point for the "add shipment" flow.
 ///
@@ -43,9 +44,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
           if (constraints.maxWidth >= AppConstants.desktopBreakpoint) {
             return AddShipmentDesktopPage(controller: _ctrl);
           }
-          // Fallback — reuse desktop page for smaller screens until a dedicated
-          // mobile layout is built.
-          return AddShipmentDesktopPage(controller: _ctrl);
+          return AddShipmentMobilePage(controller: _ctrl);
         },
       ),
     );

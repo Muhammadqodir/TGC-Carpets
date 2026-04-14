@@ -13,12 +13,11 @@ import '../../../../clients/presentation/widgets/client_picker_bottom_sheet.dart
 import '../../bloc/shipment_form_bloc.dart';
 import '../../bloc/shipment_form_event.dart';
 import '../../bloc/shipment_form_state.dart';
-import '../../widgets/order_picker_for_shipment_sheet.dart';
+import '../../widgets/order_picker_for_shipment_sheet.dart'
+    show OrderImportResult, OrderPickerForShipmentSheet;
 import '../../widgets/shipment_form_controller.dart';
 import '../../widgets/shipment_item_row.dart';
-import '../../../../orders/domain/entities/order_entity.dart';
 import '../../../domain/repositories/shipment_repository.dart';
-import '../../../../../core/error/failures.dart';
 
 /// Desktop layout for the "add shipment" form.
 ///
@@ -74,48 +73,47 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
   }
 
   Future<void> _importFromOrder() async {
-    final order = await OrderPickerForShipmentSheet.show(
+    final result = await OrderPickerForShipmentSheet.show(
       context,
       clientId: _selectedClient?.id,
     );
-    if (order == null || !mounted) return;
+    if (result == null || !mounted) return;
 
-    // Auto-set client from order if not already picked
-    if (_selectedClient == null) {
-      // We don't have a full ClientEntity from the order, but we can set
-      // the display. For submission we use orderId → the backend knows client.
-      // Alternatively, show a toast and require the user to pick a client first.
-    }
-
-    // Fetch last prices for all variants in this order
     final lastPrices = await _fetchLastPrices(
-      order,
-      clientId: _selectedClient?.id ?? order.clientId,
+      result,
+      clientId: _selectedClient?.id ?? result.order.clientId,
     );
 
     if (!mounted) return;
-    widget.controller.importFromOrder(order, lastPrices);
+    widget.controller.importFromOrder(
+      result.order,
+      lastPrices,
+      selectedItemIds: result.selectedItemIds,
+    );
   }
 
   Future<Map<int, double>> _fetchLastPrices(
-    OrderEntity order, {
+    OrderImportResult result, {
     int? clientId,
   }) async {
     if (clientId == null) return {};
 
     final repo = sl<ShipmentRepository>();
-    final results = <int, double>{};
+    final itemsToFetch = result.order.items
+        .where((i) => result.selectedItemIds.contains(i.id))
+        .toList();
+    final prices = <int, double>{};
 
-    for (final item in order.items) {
-      final result = await repo.getLastPrice(
+    for (final item in itemsToFetch) {
+      final r = await repo.getLastPrice(
         variantId: item.variantId,
         clientId: clientId,
       );
-      result.fold((_) {}, (price) {
-        if (price != null) results[item.variantId] = price;
+      r.fold((_) {}, (price) {
+        if (price != null) prices[item.variantId] = price;
       });
     }
-    return results;
+    return prices;
   }
 
   Future<void> _refreshLastPrices() async {
@@ -124,13 +122,20 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
     final clientId = _selectedClient?.id;
     if (order == null || clientId == null) return;
 
-    final prices = await _fetchLastPrices(order, clientId: clientId);
+    final repo = sl<ShipmentRepository>();
+    final prices = <int, double>{};
+    for (final row in ctrl.items) {
+      final r = await repo.getLastPrice(
+          variantId: row.variantId, clientId: clientId);
+      r.fold((_) {}, (price) {
+        if (price != null) prices[row.variantId] = price;
+      });
+    }
     if (!mounted) return;
 
     for (final row in ctrl.items) {
       if (prices.containsKey(row.variantId)) {
-        row.priceCtrl.text =
-            prices[row.variantId]!.toStringAsFixed(2);
+        row.priceCtrl.text = prices[row.variantId]!.toStringAsFixed(2);
       }
     }
     ctrl.notifyChanged();
@@ -174,9 +179,8 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
     }
 
     final dateStr = _shipmentDate.toIso8601String();
-    final notes = ctrl.notesCtrl.text.trim().isEmpty
-        ? null
-        : ctrl.notesCtrl.text.trim();
+    final notes =
+        ctrl.notesCtrl.text.trim().isEmpty ? null : ctrl.notesCtrl.text.trim();
 
     final items = filled
         .map((r) => {
@@ -269,8 +273,8 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                         horizontal: 12, vertical: 12),
                     decoration: const BoxDecoration(
                       color: AppColors.surface,
-                      border: Border(
-                          bottom: BorderSide(color: AppColors.divider)),
+                      border:
+                          Border(bottom: BorderSide(color: AppColors.divider)),
                     ),
                     child: Row(
                       children: [
@@ -280,8 +284,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             height: 40,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               border: Border.all(color: AppColors.divider),
                               borderRadius: BorderRadius.circular(8),
@@ -294,8 +297,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _formattedDate,
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium,
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ],
                             ),
@@ -321,8 +323,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                                 color: _hasClient
-                                    ? AppColors.primary
-                                        .withValues(alpha: 0.05)
+                                    ? AppColors.primary.withValues(alpha: 0.05)
                                     : null,
                               ),
                               child: Row(
@@ -373,8 +374,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                     children: [
                       Expanded(
                         child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(24, 12, 24, 8),
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                           child: Text(
                             'Mahsulotlar',
                             style: Theme.of(context)
@@ -388,15 +388,11 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                         ),
                       ),
                       Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(0, 4, 12, 4),
+                        padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
                         child: TextButton.icon(
                           onPressed: _importFromOrder,
-                          icon: const Icon(
-                              Icons.download_rounded,
-                              size: 16),
-                          label:
-                              const Text('Buyurtmadan import'),
+                          icon: const Icon(Icons.download_rounded, size: 16),
+                          label: const Text('Buyurtmadan import'),
                         ),
                       ),
                     ],
@@ -414,8 +410,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 HugeIcon(
-                                  icon: HugeIcons
-                                      .strokeRoundedContainerTruck,
+                                  icon: HugeIcons.strokeRoundedContainerTruck,
                                   size: 48,
                                   color: AppColors.textSecondary,
                                 ),
@@ -426,8 +421,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                                       .textTheme
                                       .bodyMedium
                                       ?.copyWith(
-                                          color:
-                                              AppColors.textSecondary),
+                                          color: AppColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -482,14 +476,12 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                         const SizedBox(width: 16),
                         _TotalChip(
                           label: 'Jami m²',
-                          value:
-                              '${ctrl.totalSqm.toStringAsFixed(2)} m²',
+                          value: '${ctrl.totalSqm.toStringAsFixed(2)} m²',
                         ),
                         const SizedBox(width: 16),
                         _TotalChip(
                           label: 'Jami summa',
-                          value:
-                              '\$${ctrl.grandTotal.toStringAsFixed(2)}',
+                          value: '\$${ctrl.grandTotal.toStringAsFixed(2)}',
                         ),
                         const Spacer(),
                         Text(
@@ -497,8 +489,7 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
-                              ?.copyWith(
-                                  color: AppColors.textSecondary),
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                         const SizedBox(width: 24),
                       ],
@@ -523,17 +514,16 @@ class _DesktopTableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.surface,
-      padding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       child: const Row(
         children: [
           _HeaderCell(label: '#', fixedWidth: 40),
-          _HeaderCell(label: 'Mahsulot', flex: 3),
+          _HeaderCell(label: 'Mahsulot', flex: 2),
           _HeaderCell(label: 'Rang', flex: 2),
-          _HeaderCell(label: 'Tur', flex: 1),
-          _HeaderCell(label: 'Sifat', flex: 1),
-          _HeaderCell(label: "O'lcham", flex: 2),
-          _HeaderCell(label: 'Miqdor', fixedWidth: 110),
+          _HeaderCell(label: 'Tur', flex: 2),
+          _HeaderCell(label: 'Sifat', flex: 2),
+          _HeaderCell(label: "O'lcham", fixedWidth: 110),
+          _HeaderCell(label: 'Miqdor', fixedWidth: 150),
           _HeaderCell(label: 'Narx', fixedWidth: 110),
           _HeaderCell(label: 'Jami', fixedWidth: 100),
           SizedBox(width: 40),
@@ -588,8 +578,7 @@ class _DesktopItemRow extends StatelessWidget {
 
     return Container(
       color: isEven ? null : AppColors.surface.withValues(alpha: 0.5),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -606,7 +595,7 @@ class _DesktopItemRow extends StatelessWidget {
 
           // Mahsulot
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Text(
@@ -637,8 +626,7 @@ class _DesktopItemRow extends StatelessWidget {
                         Expanded(
                           child: Text(
                             row.colorName!,
-                            style:
-                                Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -650,23 +638,21 @@ class _DesktopItemRow extends StatelessWidget {
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
-                          ?.copyWith(
-                              color: AppColors.textSecondary),
+                          ?.copyWith(color: AppColors.textSecondary),
                     ),
             ),
           ),
 
           // Tur
           Expanded(
-            flex: 1,
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Text(
                 row.typeName ?? '—',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: row.typeName == null
-                          ? AppColors.textSecondary
-                          : null,
+                      color:
+                          row.typeName == null ? AppColors.textSecondary : null,
                     ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -676,7 +662,7 @@ class _DesktopItemRow extends StatelessWidget {
 
           // Sifat
           Expanded(
-            flex: 1,
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Text(
@@ -693,8 +679,8 @@ class _DesktopItemRow extends StatelessWidget {
           ),
 
           // O'lcham
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 110,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Text(
@@ -713,7 +699,7 @@ class _DesktopItemRow extends StatelessWidget {
 
           // Miqdor
           SizedBox(
-            width: 110,
+            width: 150,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: CountInput(
@@ -732,19 +718,20 @@ class _DesktopItemRow extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: TextFormField(
                 controller: row.priceCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: Theme.of(context).textTheme.bodyMedium,
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding:
-                      EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 13),
                   hintText: '0.00',
                   prefixText: '\$',
                 ),
                 validator: (v) {
-                  final val = double.tryParse(
-                      v?.trim().replaceAll(',', '.') ?? '');
+                  final val =
+                      double.tryParse(v?.trim().replaceAll(',', '.') ?? '');
                   if (val == null || val <= 0) {
                     return 'Narx kiriting';
                   }
