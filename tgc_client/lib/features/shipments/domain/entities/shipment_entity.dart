@@ -43,6 +43,20 @@ class ShipmentEntity extends Equatable {
   /// Grand total in USD.
   double get grandTotal => items.fold(0.0, (sum, i) => sum + i.lineTotal);
 
+  /// Unique, sorted order dates from all items.
+  List<DateTime> get orderDates {
+    final seen = <String>{};
+    final dates = <DateTime>[];
+    for (final item in items) {
+      if (item.orderDate != null) {
+        final key = item.orderDate!.toIso8601String().substring(0, 10);
+        if (seen.add(key)) dates.add(item.orderDate!);
+      }
+    }
+    dates.sort((a, b) => a.compareTo(b));
+    return dates;
+  }
+
   @override
   List<Object?> get props => [
         id,

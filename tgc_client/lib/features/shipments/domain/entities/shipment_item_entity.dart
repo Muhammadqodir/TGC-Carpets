@@ -16,6 +16,8 @@ class ShipmentItemEntity extends Equatable {
   final int? sizeWidth;
   final int? colorId;
   final String? colorName;
+  final int? orderId;
+  final DateTime? orderDate;
 
   const ShipmentItemEntity({
     required this.id,
@@ -33,6 +35,8 @@ class ShipmentItemEntity extends Equatable {
     this.sizeWidth,
     this.colorId,
     this.colorName,
+    this.orderId,
+    this.orderDate,
   });
 
   /// Area in m² for this item.
@@ -65,5 +69,7 @@ class ShipmentItemEntity extends Equatable {
         sizeWidth,
         colorId,
         colorName,
+        orderId,
+        orderDate,
       ];
 }

@@ -25,6 +25,7 @@ class ShipmentController extends Controller
                 'items.variant.productColor.product',
                 'items.variant.productColor.color',
                 'items.variant.productSize',
+                'items.orderItem.order',
             ])
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->when($request->filled('date_from'),  fn ($q) => $q->whereDate('shipment_datetime', '>=', $request->date_from))
@@ -50,6 +51,7 @@ class ShipmentController extends Controller
             'items.variant.productColor.product',
             'items.variant.productColor.color',
             'items.variant.productSize',
+            'items.orderItem.order',
         ]);
 
         return response()->json(['data' => new ShipmentResource($shipment)]);

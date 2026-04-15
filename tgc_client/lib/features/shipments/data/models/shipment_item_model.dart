@@ -17,6 +17,8 @@ class ShipmentItemModel extends ShipmentItemEntity {
     super.sizeWidth,
     super.colorId,
     super.colorName,
+    super.orderId,
+    super.orderDate,
   });
 
   factory ShipmentItemModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,11 @@ class ShipmentItemModel extends ShipmentItemEntity {
       sizeWidth:        sizeMap?['width'] as int?,
       colorId:   colorMap?['id'] as int?,
       colorName: colorMap?['name'] as String?,
+      orderId:   (json['order'] as Map<String, dynamic>?)?['id'] as int?,
+      orderDate: (json['order'] as Map<String, dynamic>?)?['order_date'] != null
+          ? DateTime.parse(
+              (json['order'] as Map<String, dynamic>)['order_date'] as String)
+          : null,
     );
   }
 }

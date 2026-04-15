@@ -21,6 +21,7 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.center),
     AppTableColumn(label: 'Sana', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Mijoz / Hudud', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Buyurtma', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Hajm', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Jami (m²)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
@@ -86,20 +87,23 @@ class ShipmentTable extends StatelessWidget {
           ],
         );
 
-      case 3: // Volume (pieces + m², item count)
+      case 3: // Order dates
+        return _OrderDatesCell(shipment: shipment);
+
+      case 4: // Volume
         return _VolumeCell(shipment: shipment);
 
-      case 4: // Total m²
+      case 5: // Total m²
         final m2 = shipment.totalM2;
         return Text(
-          m2 > 0 ? m2.toStringAsFixed(1) : '—',
+          m2 > 0 ? '${m2.toStringAsFixed(1)} m²' : '—',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
           textAlign: TextAlign.right,
         );
 
-      case 5: // Total $
+      case 6: // Total $
         return Text(
           '\$${shipment.grandTotal.toStringAsFixed(2)}',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -109,7 +113,7 @@ class ShipmentTable extends StatelessWidget {
           textAlign: TextAlign.right,
         );
 
-      case 6: // Notes
+      case 7: // Notes
         return shipment.notes != null && shipment.notes!.isNotEmpty
             ? Text(
                 shipment.notes!,
@@ -135,6 +139,44 @@ class ShipmentTable extends StatelessWidget {
     final d = date.day.toString().padLeft(2, '0');
     final mo = date.month.toString().padLeft(2, '0');
     return '$d.$mo.${date.year} $h:$m';
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _OrderDatesCell extends StatelessWidget {
+  final ShipmentEntity shipment;
+
+  const _OrderDatesCell({required this.shipment});
+
+  @override
+  Widget build(BuildContext context) {
+    final dates = shipment.orderDates;
+    if (dates.isEmpty) {
+      return Text(
+        '—',
+        style: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(color: AppColors.textSecondary),
+      );
+    }
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: dates
+          .map((d) => Text(
+                _fmtDate(d),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ))
+          .toList(),
+    );
+  }
+
+  String _fmtDate(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    final mo  = d.month.toString().padLeft(2, '0');
+    return '$day.$mo.${d.year}';
   }
 }
 

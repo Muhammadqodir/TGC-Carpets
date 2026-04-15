@@ -33,6 +33,10 @@ class ShipmentItemResource extends JsonResource
             'quantity'     => $this->quantity,
             'price'        => $this->price,
             'total'        => $this->computeTotal(),
+            'order'        => $this->whenLoaded('orderItem', fn () => $this->orderItem?->order ? [
+                'id'         => $this->orderItem->order->id,
+                'order_date' => $this->orderItem->order->order_date?->toDateString(),
+            ] : null),
         ];
     }
 
