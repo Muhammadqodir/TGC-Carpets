@@ -6,10 +6,8 @@ import '../../../../core/di/injection.dart';
 import '../bloc/shipments_bloc.dart';
 import '../bloc/shipments_event.dart';
 import 'desktop/shipments_desktop_page.dart';
+import 'mobile/shipments_mobile_page.dart';
 
-/// Adaptive entry point — currently renders desktop table for all widths
-/// ≥ [AppConstants.desktopBreakpoint]; falls back to same table on smaller
-/// screens (a dedicated mobile card view can be added later).
 class ShipmentsPage extends StatelessWidget {
   const ShipmentsPage({super.key});
 
@@ -33,8 +31,7 @@ class _AdaptiveView extends StatelessWidget {
         if (constraints.maxWidth >= AppConstants.desktopBreakpoint) {
           return const ShipmentsDesktopPage();
         }
-        // Reuse desktop layout on smaller screens for now
-        return const ShipmentsDesktopPage();
+        return const ShipmentsMobilePage();
       },
     );
   }

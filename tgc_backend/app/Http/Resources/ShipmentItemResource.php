@@ -32,7 +32,24 @@ class ShipmentItemResource extends JsonResource
             ] : null),
             'quantity'     => $this->quantity,
             'price'        => $this->price,
-            'total'        => $this->total,
+            'total'        => $this->computeTotal(),
         ];
+    }
+
+    private function computeTotal(): float
+    {
+        $qty   = $this->quantity;
+        $price = (float) $this->price;
+        $unit  = $this->variant?->productColor?->product?->unit ?? 'piece';
+
+        if ($unit === 'm2') {
+            $size = $this->variant?->productSize;
+            if ($size) {
+                $sqm = $size->length * $size->width * $qty / 10000.0;
+                return round($price * $sqm, 2);
+            }
+        }
+
+        return round($price * $qty, 2);
     }
 }

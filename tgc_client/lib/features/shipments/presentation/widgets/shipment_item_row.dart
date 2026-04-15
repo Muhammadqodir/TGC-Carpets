@@ -86,7 +86,9 @@ class ShipmentItemRow {
           ? sizeLength! * sizeWidth! * parsedQuantity / 10000.0
           : parsedQuantity.toDouble();
 
-  double get lineTotal => parsedPrice * rowSqm;
+  double get lineTotal => productUnit == 'piece'
+      ? parsedPrice * parsedQuantity
+      : parsedPrice * rowSqm;
 
   void dispose() {
     quantityCtrl.dispose();

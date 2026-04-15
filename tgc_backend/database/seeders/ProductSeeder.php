@@ -83,7 +83,7 @@ class ProductSeeder extends Seeder
                     ],
                     [
                         'uuid'   => (string) Str::uuid(),
-                        'unit'   => 'piece',
+                        'unit'   => 'm2',
                         'status' => 'active',
                     ]
                 );

@@ -17,7 +17,6 @@ class ShipmentItem extends Model
         'product_variant_id',
         'quantity',
         'price',
-        'total',
     ];
 
     protected function casts(): array
@@ -25,7 +24,6 @@ class ShipmentItem extends Model
         return [
             'quantity' => 'integer',
             'price'    => 'decimal:2',
-            'total'    => 'decimal:2',
         ];
     }
 

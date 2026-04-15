@@ -54,7 +54,6 @@ class ShipmentService
                 $variantId = (int) $itemData['product_variant_id'];
                 $qty       = (int) $itemData['quantity'];
                 $price     = (float) $itemData['price'];
-                $total     = round($price * $qty, 2);
 
                 $shipmentItem = ShipmentItem::create([
                     'shipment_id'         => $shipment->id,
@@ -62,7 +61,6 @@ class ShipmentService
                     'product_variant_id'  => $variantId,
                     'quantity'            => $qty,
                     'price'               => $price,
-                    'total'               => $total,
                 ]);
 
                 $docItem = WarehouseDocumentItem::create([

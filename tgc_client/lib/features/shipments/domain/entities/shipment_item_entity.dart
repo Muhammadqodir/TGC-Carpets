@@ -4,7 +4,6 @@ class ShipmentItemEntity extends Equatable {
   final int id;
   final int quantity;
   final double price;
-  final double total;
   final int? variantId;
   final String? barcodeValue;
   final String? skuCode;
@@ -13,6 +12,8 @@ class ShipmentItemEntity extends Equatable {
   final String? productUnit; // 'piece' | 'm2'
   final int? productSizeId;
   final String? productSizeLabel;
+  final int? sizeLength;
+  final int? sizeWidth;
   final int? colorId;
   final String? colorName;
 
@@ -20,7 +21,6 @@ class ShipmentItemEntity extends Equatable {
     required this.id,
     required this.quantity,
     required this.price,
-    required this.total,
     this.variantId,
     this.barcodeValue,
     this.skuCode,
@@ -29,20 +29,30 @@ class ShipmentItemEntity extends Equatable {
     this.productUnit,
     this.productSizeId,
     this.productSizeLabel,
+    this.sizeLength,
+    this.sizeWidth,
     this.colorId,
     this.colorName,
   });
 
-  /// Area in m² for this item (0 if unit is piece).
+  /// Area in m² for this item.
   double get squareMeters =>
-      productUnit == 'm2' ? quantity.toDouble() : 0.0;
+      (sizeLength != null && sizeWidth != null)
+          ? sizeLength! * sizeWidth! * quantity / 10000.0
+          : 0.0;
+
+  /// Line total, unit-aware:
+  ///  - piece: price × quantity
+  ///  - m2:    price × sqm
+  double get lineTotal => productUnit == 'piece'
+      ? price * quantity
+      : price * squareMeters;
 
   @override
   List<Object?> get props => [
         id,
         quantity,
         price,
-        total,
         variantId,
         barcodeValue,
         skuCode,
@@ -51,6 +61,8 @@ class ShipmentItemEntity extends Equatable {
         productUnit,
         productSizeId,
         productSizeLabel,
+        sizeLength,
+        sizeWidth,
         colorId,
         colorName,
       ];

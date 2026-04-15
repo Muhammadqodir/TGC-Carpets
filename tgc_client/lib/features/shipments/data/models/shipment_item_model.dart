@@ -5,7 +5,6 @@ class ShipmentItemModel extends ShipmentItemEntity {
     required super.id,
     required super.quantity,
     required super.price,
-    required super.total,
     super.variantId,
     super.barcodeValue,
     super.skuCode,
@@ -14,6 +13,8 @@ class ShipmentItemModel extends ShipmentItemEntity {
     super.productUnit,
     super.productSizeId,
     super.productSizeLabel,
+    super.sizeLength,
+    super.sizeWidth,
     super.colorId,
     super.colorName,
   });
@@ -28,7 +29,6 @@ class ShipmentItemModel extends ShipmentItemEntity {
       id:               json['id'] as int,
       quantity:         json['quantity'] as int,
       price:            double.parse('${json['price']}'),
-      total:            double.parse('${json['total']}'),
       variantId:        variantMap?['id'] as int?,
       barcodeValue:     variantMap?['barcode_value'] as String?,
       skuCode:          variantMap?['sku_code'] as String?,
@@ -39,6 +39,8 @@ class ShipmentItemModel extends ShipmentItemEntity {
       productSizeLabel: sizeMap != null
           ? '${sizeMap['length']}x${sizeMap['width']}'
           : null,
+      sizeLength:       sizeMap?['length'] as int?,
+      sizeWidth:        sizeMap?['width'] as int?,
       colorId:   colorMap?['id'] as int?,
       colorName: colorMap?['name'] as String?,
     );

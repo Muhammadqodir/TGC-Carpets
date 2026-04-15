@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('density');
             $table->string('color')->index();
             $table->string('edge');
-            $table->string('unit')->default('piece');
+            $table->string('unit')->default('m2');
             $table->string('status')->default('active')->index();
             $table->timestamps();
             $table->softDeletes();

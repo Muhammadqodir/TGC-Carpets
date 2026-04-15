@@ -24,7 +24,7 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(label: 'Hajm', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Jami (m²)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
-    AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.center),
   ];
 
   @override
@@ -147,36 +147,18 @@ class _VolumeCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalPieces = shipment.totalPieces;
-    final totalM2     = shipment.totalM2;
-
-    final parts = <String>[];
-    if (totalPieces > 0) parts.add('$totalPieces dona');
-    if (totalM2 > 0) parts.add('${totalM2.toStringAsFixed(1)} m²');
-
-    if (parts.isEmpty) {
-      return Text(
-        '—',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-      );
-    }
+    final itemCount    = shipment.items.length;
+    final totalQty     = shipment.totalQuantity;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          parts.join(' • '),
+          '$itemCount xil • $totalQty dona',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '${shipment.items.length} mahsulot',
-          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );

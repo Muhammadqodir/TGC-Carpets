@@ -34,13 +34,14 @@ class ShipmentEntity extends Equatable {
       .where((i) => i.productUnit == 'piece')
       .fold(0, (sum, i) => sum + i.quantity);
 
-  /// Total square metres (unit == 'm2').
-  double get totalM2 => items
-      .where((i) => i.productUnit == 'm2')
-      .fold(0.0, (sum, i) => sum + i.quantity);
+  /// Total square metres across all m2 items (uses actual dimensions).
+  double get totalM2 => items.fold(0.0, (sum, i) => sum + i.squareMeters);
+
+  /// Total quantity across all items regardless of unit.
+  int get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
 
   /// Grand total in USD.
-  double get grandTotal => items.fold(0.0, (sum, i) => sum + i.total);
+  double get grandTotal => items.fold(0.0, (sum, i) => sum + i.lineTotal);
 
   @override
   List<Object?> get props => [
