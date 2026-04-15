@@ -32,6 +32,8 @@ class OrderTable extends StatelessWidget {
     AppTableColumn(label: 'Mahsulotlar', flex: 1, alignment: Alignment.center),
     AppTableColumn(label: 'Jami dona', flex: 1, alignment: Alignment.center),
     AppTableColumn(label: 'Jami m²', flex: 1, alignment: Alignment.center),
+    AppTableColumn(label: 'Ishlab chiqarish', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Omborda', flex: 1, alignment: Alignment.center),
     AppTableColumn(
         label: 'Amallar', fixedWidth: 100, alignment: Alignment.center),
   ];
@@ -138,6 +140,17 @@ class OrderTable extends StatelessWidget {
         );
 
       case 8:
+        return _ProductionProgressCell(order: order);
+
+      case 9:
+        return Center(
+          child: Text(
+            '${order.totalWarehouseReceivedQuantity}',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        );
+
+      case 10:
         return Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -184,6 +197,57 @@ class OrderTable extends StatelessWidget {
 
   String _formatDate(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+}
+
+class _ProductionProgressCell extends StatelessWidget {
+  final OrderEntity order;
+
+  const _ProductionProgressCell({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final total    = order.totalQuantity;
+    final planned  = order.totalPlannedQuantity;
+    final progress = order.productionProgress;
+
+    if (total == 0) {
+      return Text('—',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.textSecondary));
+    }
+
+    final color = progress >= 1.0
+        ? AppColors.success
+        : progress > 0
+            ? AppColors.primaryLight
+            : AppColors.textSecondary;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 6,
+            backgroundColor: AppColors.textSecondary.withAlpha(40),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '$planned / $total',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.textSecondary, fontSize: 10),
+        ),
+      ],
+    );
+  }
 }
 
 class _StatusChip extends StatelessWidget {

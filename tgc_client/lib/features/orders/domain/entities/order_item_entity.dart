@@ -24,12 +24,16 @@ class OrderItemEntity extends Equatable {
   final String? qualityName;
   /// product.productType.type — shown in the Tur column.
   final String? productTypeName;
+  /// How many units of this item have been planned in non-cancelled production batches.
+  final int? plannedQuantity;
   /// How many units of this item still need to be put into production.
   /// Calculated on the backend as: quantity - sum(planned_quantity in non-cancelled batches).
   final int? remainingQuantity;
   /// How many units of this item have already been shipped.
   /// Calculated on the backend as: sum(shipment_items.quantity).
   final int? shippedQuantity;
+  /// How many units have been received into the warehouse from production.
+  final int? warehouseReceivedQuantity;
 
   const OrderItemEntity({
     required this.id,
@@ -49,8 +53,10 @@ class OrderItemEntity extends Equatable {
     this.productTypeId,
     this.qualityName,
     this.productTypeName,
+    this.plannedQuantity,
     this.remainingQuantity,
     this.shippedQuantity,
+    this.warehouseReceivedQuantity,
   });
 
   String get variantLabel {
@@ -78,6 +84,10 @@ class OrderItemEntity extends Equatable {
         quantity,
         productColorId,
         productSizeId,
+        plannedQuantity,
+        remainingQuantity,
+        shippedQuantity,
+        warehouseReceivedQuantity,
         productTypeId,
         qualityName,
         productTypeName,

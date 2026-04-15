@@ -131,7 +131,7 @@ class OrderCard extends StatelessWidget {
                   const Spacer(),
                   // "View details" hint
                   Text(
-                    'Ko\'proq',
+                    'Ko\'roq',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.primaryLight,
                           decoration: TextDecoration.underline,
@@ -141,6 +141,10 @@ class OrderCard extends StatelessWidget {
                       size: 14, color: AppColors.primaryLight),
                 ],
               ),
+              if (order.totalQuantity > 0) ...[
+                const SizedBox(height: 8),
+                _ProductionProgressRow(order: order),
+              ],
             ],
           ),
         ),
@@ -150,6 +154,67 @@ class OrderCard extends StatelessWidget {
 
   String _formatDate(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+}
+
+class _ProductionProgressRow extends StatelessWidget {
+  final OrderEntity order;
+
+  const _ProductionProgressRow({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final total    = order.totalQuantity;
+    final planned  = order.totalPlannedQuantity;
+    final inWarehouse = order.totalWarehouseReceivedQuantity;
+    final progress = order.productionProgress;
+
+    final barColor = progress >= 1.0
+        ? AppColors.success
+        : progress > 0
+            ? AppColors.primaryLight
+            : AppColors.textSecondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.factory_outlined,
+                size: 13, color: AppColors.textSecondary),
+            const SizedBox(width: 5),
+            Text(
+              'Ishlab chiqarish: $planned / $total',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+            ),
+            const Spacer(),
+            const Icon(Icons.warehouse_outlined,
+                size: 13, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(
+              'Omborda: $inWarehouse',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 5,
+            backgroundColor: AppColors.textSecondary.withAlpha(40),
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _StatusBadge extends StatelessWidget {

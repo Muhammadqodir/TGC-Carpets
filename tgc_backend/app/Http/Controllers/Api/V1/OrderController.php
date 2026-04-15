@@ -42,7 +42,7 @@ class OrderController extends Controller
                       );
                   });
             })
-            ->latest('order_date')
+            ->latest()
             ->paginate($request->integer('per_page', 20));
 
         return OrderResource::collection($orders);

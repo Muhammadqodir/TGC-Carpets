@@ -19,8 +19,10 @@ class OrderItemModel extends OrderItemEntity {
     super.productTypeId,
     super.qualityName,
     super.productTypeName,
+    super.plannedQuantity,
     super.remainingQuantity,
     super.shippedQuantity,
+    super.warehouseReceivedQuantity,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
@@ -49,8 +51,10 @@ class OrderItemModel extends OrderItemEntity {
       productTypeId:  productMap?['product_type_id'] as int?,
       qualityName:    productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
+      plannedQuantity:            json['planned_quantity'] as int?,
       remainingQuantity: json['remaining_quantity'] as int?,
       shippedQuantity:   json['shipped_quantity'] as int?,
+      warehouseReceivedQuantity: json['warehouse_received_quantity'] as int?,
     );
   }
 
