@@ -79,4 +79,8 @@ class ApiEndpoints {
 
   // Settings
   static const String changePassword = '/auth/change-password';
+
+  // Payments
+  static const String payments = '/payments';
+  static String paymentById(int id) => '/payments/$id';
 }

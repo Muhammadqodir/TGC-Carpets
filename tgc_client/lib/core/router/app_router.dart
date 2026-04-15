@@ -29,6 +29,8 @@ import '../../features/labeling/presentation/pages/labeling_page.dart';
 import '../../features/products_stock/presentation/pages/products_stock_page.dart';
 import '../../features/shipments/presentation/pages/shipments_page.dart';
 import '../../features/shipments/presentation/pages/add_shipment_page.dart';
+import '../../features/payments/presentation/pages/payments_page.dart';
+import '../../features/payments/presentation/pages/add_payment_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -187,6 +189,16 @@ class AppRouter {
             path: AppRoutes.addShipping,
             name: AppRoutes.addShippingName,
             builder: (context, state) => const AddShipmentPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.payments,
+            name: AppRoutes.paymentsName,
+            builder: (context, state) => const PaymentsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addPayment,
+            name: AppRoutes.addPaymentName,
+            builder: (context, state) => const AddPaymentPage(),
           ),
         ],
       ),

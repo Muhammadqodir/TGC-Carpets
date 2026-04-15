@@ -78,4 +78,10 @@ class AppRoutes {
 
   static const String productsStock     = '/products-stock';
   static const String productsStockName = 'productsStock';
+
+  static const String payments     = '/payments';
+  static const String paymentsName = 'payments';
+
+  static const String addPayment     = '/payments/add';
+  static const String addPaymentName = 'addPayment';
 }

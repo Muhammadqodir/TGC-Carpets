@@ -125,6 +125,16 @@ import '../../features/shipments/domain/usecases/get_orders_for_shipment_usecase
 import '../../features/shipments/presentation/bloc/shipments_bloc.dart';
 import '../../features/shipments/presentation/bloc/shipment_form_bloc.dart';
 
+// Payments feature
+import '../../features/payments/data/datasources/payment_remote_datasource.dart';
+import '../../features/payments/data/repositories/payment_repository_impl.dart';
+import '../../features/payments/domain/repositories/payment_repository.dart';
+import '../../features/payments/domain/usecases/get_payments_usecase.dart';
+import '../../features/payments/domain/usecases/create_payment_usecase.dart';
+import '../../features/payments/domain/usecases/delete_payment_usecase.dart';
+import '../../features/payments/presentation/bloc/payments_bloc.dart';
+import '../../features/payments/presentation/bloc/payment_form_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -410,5 +420,25 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetStockVariantsUseCase(sl<ProductsStockRepository>()));
   sl.registerFactory(
     () => ProductsStockBloc(getStockVariantsUseCase: sl<GetStockVariantsUseCase>()),
+  );
+
+  // ─── Payments Feature ─────────────────────────────────────────────────────
+  sl.registerLazySingleton<PaymentRemoteDataSource>(
+    () => PaymentRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<PaymentRepository>(
+    () => PaymentRepositoryImpl(remoteDataSource: sl<PaymentRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetPaymentsUseCase(sl<PaymentRepository>()));
+  sl.registerLazySingleton(() => CreatePaymentUseCase(sl<PaymentRepository>()));
+  sl.registerLazySingleton(() => DeletePaymentUseCase(sl<PaymentRepository>()));
+  sl.registerFactory(
+    () => PaymentsBloc(
+      getPaymentsUseCase: sl<GetPaymentsUseCase>(),
+      deletePaymentUseCase: sl<DeletePaymentUseCase>(),
+    ),
+  );
+  sl.registerFactory(
+    () => PaymentFormBloc(createPaymentUseCase: sl<CreatePaymentUseCase>()),
   );
 }
