@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ShipmentResource extends JsonResource
 {
@@ -13,6 +14,9 @@ class ShipmentResource extends JsonResource
             'id'                => $this->id,
             'shipment_datetime' => $this->shipment_datetime?->toISOString(),
             'notes'             => $this->notes,
+            'pdf_url'           => $this->pdf_path
+                ? Storage::disk('public')->url($this->pdf_path)
+                : null,
             'client'            => $this->whenLoaded('client', fn () => [
                 'id'        => $this->client->id,
                 'shop_name' => $this->client->shop_name,

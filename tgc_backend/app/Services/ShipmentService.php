@@ -9,8 +9,10 @@ use App\Models\ShipmentItem;
 use App\Models\StockMovement;
 use App\Models\WarehouseDocument;
 use App\Models\WarehouseDocumentItem;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ShipmentService
@@ -29,7 +31,7 @@ class ShipmentService
     {
         $this->assertSufficientStock($data['items']);
 
-        return DB::transaction(function () use ($data, $userId): Shipment {
+        $shipment = DB::transaction(function () use ($data, $userId): Shipment {
             $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
             // ── 1. Shipment header ──────────────────────────────────────────
@@ -89,11 +91,43 @@ class ShipmentService
             return $shipment->load([
                 'client',
                 'user',
-                'items.variant.productColor.product',
+                'items.variant.productColor.product.productQuality',
                 'items.variant.productColor.color',
                 'items.variant.productSize',
             ]);
         });
+
+        $this->generateAndStoreInvoice($shipment);
+
+        return $shipment->refresh()->load([
+            'client',
+            'user',
+            'items.variant.productColor.product.productQuality',
+            'items.variant.productColor.color',
+            'items.variant.productSize',
+        ]);
+    }
+
+    /**
+     * Generate the shipment invoice PDF, persist it to storage, and update
+     * the shipment record with the stored path.
+     */
+    public function generateAndStoreInvoice(Shipment $shipment): void
+    {
+        $shipment->loadMissing([
+            'client',
+            'items.variant.productColor.product.productQuality',
+            'items.variant.productSize',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
+            ->setPaper('a4', 'portrait');
+
+        $relativePath = 'shipments/invoices/invoice_' . $shipment->id . '.pdf';
+
+        Storage::disk('public')->put($relativePath, $pdf->output());
+
+        $shipment->update(['pdf_path' => $relativePath]);
     }
 
     /**

@@ -17,6 +17,7 @@ class Shipment extends Model
         'order_id',
         'shipment_datetime',
         'notes',
+        'pdf_path',
     ];
 
     protected function casts(): array
