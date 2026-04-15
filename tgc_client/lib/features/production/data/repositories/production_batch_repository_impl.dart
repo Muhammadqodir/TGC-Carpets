@@ -23,6 +23,7 @@ class ProductionBatchRepositoryImpl implements ProductionBatchRepository {
     String? dateTo,
     int page = 1,
     int perPage = 20,
+    bool excludeWarehouseReceived = false,
   }) async {
     try {
       final result = await remoteDataSource.getProductionBatches(
@@ -33,6 +34,7 @@ class ProductionBatchRepositoryImpl implements ProductionBatchRepository {
         dateTo: dateTo,
         page: page,
         perPage: perPage,
+        excludeWarehouseReceived: excludeWarehouseReceived,
       );
       return Right(
         PaginatedResponse<ProductionBatchEntity>(
@@ -128,9 +130,14 @@ class ProductionBatchRepositoryImpl implements ProductionBatchRepository {
 
   @override
   Future<Either<Failure, ProductionBatchEntity>> getProductionBatch(
-      int id) async {
+    int id, {
+    bool excludeWarehouseReceived = false,
+  }) async {
     try {
-      final result = await remoteDataSource.getProductionBatch(id);
+      final result = await remoteDataSource.getProductionBatch(
+        id,
+        excludeWarehouseReceived: excludeWarehouseReceived,
+      );
       return Right(result);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));

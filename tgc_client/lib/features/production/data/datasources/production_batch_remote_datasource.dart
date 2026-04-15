@@ -16,6 +16,7 @@ abstract class ProductionBatchRemoteDataSource {
     String? dateTo,
     int page = 1,
     int perPage = 20,
+    bool excludeWarehouseReceived = false,
   });
 
   Future<List<MachineModel>> getMachines({String? search});
@@ -39,7 +40,7 @@ abstract class ProductionBatchRemoteDataSource {
     List<Map<String, dynamic>>? items,
   });
 
-  Future<ProductionBatchModel> getProductionBatch(int id);
+  Future<ProductionBatchModel> getProductionBatch(int id, {bool excludeWarehouseReceived = false});
 
   Future<ProductionBatchItemEntity> getProductionBatchItem(int batchId, int itemId);
 
@@ -63,6 +64,7 @@ class ProductionBatchRemoteDataSourceImpl
     String? dateTo,
     int page = 1,
     int perPage = 20,
+    bool excludeWarehouseReceived = false,
   }) async {
     try {
       final queryParams = <String, dynamic>{
@@ -73,6 +75,7 @@ class ProductionBatchRemoteDataSourceImpl
         if (machineId != null) 'machine_id': machineId,
         if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
         if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
+        if (excludeWarehouseReceived) 'exclude_warehouse_received': 1,
       };
 
       final response = await _dio.get(
@@ -177,9 +180,18 @@ class ProductionBatchRemoteDataSourceImpl
   }
 
   @override
-  Future<ProductionBatchModel> getProductionBatch(int id) async {
+  Future<ProductionBatchModel> getProductionBatch(
+    int id, {
+    bool excludeWarehouseReceived = false,
+  }) async {
     try {
-      final response = await _dio.get(ApiEndpoints.productionBatchById(id));
+      final queryParams = <String, dynamic>{
+        if (excludeWarehouseReceived) 'exclude_warehouse_received': 1,
+      };
+      final response = await _dio.get(
+        ApiEndpoints.productionBatchById(id),
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       return ProductionBatchModel.fromJson(
         (response.data as Map<String, dynamic>)['data']
             as Map<String, dynamic>,

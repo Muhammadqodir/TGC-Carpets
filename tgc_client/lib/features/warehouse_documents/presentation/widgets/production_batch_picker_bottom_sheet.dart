@@ -89,6 +89,7 @@ class _ProductionBatchPickerBottomSheetState
     // Only completed and in_progress batches have produced quantities.
     final result = await useCase(
       perPage: 100,
+      excludeWarehouseReceived: true,
     );
     if (!mounted) return;
     result.fold(
@@ -127,7 +128,10 @@ class _ProductionBatchPickerBottomSheetState
     });
 
     final useCase = sl<GetProductionBatchUseCase>();
-    final result = await useCase(batch.id);
+    final result = await useCase(
+      batch.id,
+      excludeWarehouseReceived: true,
+    );
     if (!mounted) return;
 
     result.fold(

@@ -18,6 +18,7 @@ class GetProductionBatchesUseCase {
     String? dateTo,
     int page = 1,
     int perPage = 20,
+    bool excludeWarehouseReceived = false,
   }) =>
       _repository.getProductionBatches(
         status: status,
@@ -27,5 +28,6 @@ class GetProductionBatchesUseCase {
         dateTo: dateTo,
         page: page,
         perPage: perPage,
+        excludeWarehouseReceived: excludeWarehouseReceived,
       );
 }

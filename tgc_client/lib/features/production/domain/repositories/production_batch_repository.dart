@@ -14,6 +14,7 @@ abstract class ProductionBatchRepository {
     String? dateTo,
     int page = 1,
     int perPage = 20,
+    bool excludeWarehouseReceived = false,
   });
 
   Future<Either<Failure, List<ProductionBatchMachine>>> getMachines({
@@ -39,7 +40,10 @@ abstract class ProductionBatchRepository {
     List<Map<String, dynamic>>? items,
   });
 
-  Future<Either<Failure, ProductionBatchEntity>> getProductionBatch(int id);
+  Future<Either<Failure, ProductionBatchEntity>> getProductionBatch(
+    int id, {
+    bool excludeWarehouseReceived = false,
+  });
 
   Future<Either<Failure, ProductionBatchItemEntity>> getProductionBatchItem(
     int batchId,

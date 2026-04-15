@@ -39,6 +39,10 @@ class ProductionBatchController extends Controller
             ->when($request->filled('machine_id'), fn ($q) => $q->where('machine_id', $request->machine_id))
             ->when($request->filled('date_from'),  fn ($q) => $q->whereDate('planned_datetime', '>=', $request->date_from))
             ->when($request->filled('date_to'),    fn ($q) => $q->whereDate('planned_datetime', '<=', $request->date_to))
+            // Exclude batches where every produced item has already been received into the warehouse.
+            ->when($request->boolean('exclude_warehouse_received'), fn ($q) => $q->whereHas('items', fn ($iq) =>
+                $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(defect_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
+            ))
             ->latest('planned_datetime')
             ->paginate($request->integer('per_page', 20));
 
@@ -52,18 +56,26 @@ class ProductionBatchController extends Controller
         return response()->json(['data' => new ProductionBatchResource($batch)], 201);
     }
 
-    public function show(ProductionBatch $productionBatch): JsonResponse
+    public function show(Request $request, ProductionBatch $productionBatch): JsonResponse
     {
-        $productionBatch->load([
-            'machine',
-            'creator',
-            'responsibleEmployee',
-            'items.variant.productColor.product.productType',
-            'items.variant.productColor.product.productQuality',
-            'items.variant.productColor.color',
-            'items.variant.productSize',
-            'items.sourceOrderItem.order.client',
+        $productionBatch->load(['machine', 'creator', 'responsibleEmployee']);
+
+        $itemsQuery = $productionBatch->items()->with([
+            'variant.productColor.product.productType',
+            'variant.productColor.product.productQuality',
+            'variant.productColor.color',
+            'variant.productSize',
+            'sourceOrderItem.order.client',
         ]);
+
+        // When requested, exclude items already fully received into the warehouse.
+        if ($request->boolean('exclude_warehouse_received')) {
+            $itemsQuery->whereRaw(
+                '(COALESCE(produced_quantity, 0) - COALESCE(defect_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0'
+            );
+        }
+
+        $productionBatch->setRelation('items', $itemsQuery->get());
 
         return response()->json(['data' => new ProductionBatchResource($productionBatch)]);
     }

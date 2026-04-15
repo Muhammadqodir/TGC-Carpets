@@ -9,6 +9,12 @@ class GetProductionBatchUseCase {
 
   const GetProductionBatchUseCase(this._repository);
 
-  Future<Either<Failure, ProductionBatchEntity>> call(int id) =>
-      _repository.getProductionBatch(id);
+  Future<Either<Failure, ProductionBatchEntity>> call(
+    int id, {
+    bool excludeWarehouseReceived = false,
+  }) =>
+      _repository.getProductionBatch(
+        id,
+        excludeWarehouseReceived: excludeWarehouseReceived,
+      );
 }
