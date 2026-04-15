@@ -95,14 +95,16 @@ class StockController extends Controller
             )
             ->whereColumn('sm.product_variant_id', 'product_variants.id');
 
-        // Correlated sub-query: qty received into warehouse for active-order batch items
+        // Correlated sub-query: qty received into warehouse for active-order batch items.
+        // Excludes 'canceled' and 'shipped' orders only — 'done' means all items are
+        // physically in the warehouse awaiting shipment, so they must be counted here.
         $qtyReceivedForActiveOrders = DB::table('production_batch_items as pbi')
             ->join('order_items as oi', 'oi.id', '=', 'pbi.source_order_item_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->selectRaw('COALESCE(SUM(pbi.warehouse_received_quantity), 0)')
             ->whereColumn('pbi.product_variant_id', 'product_variants.id')
             ->where('pbi.source_type', 'order_item')
-            ->whereNotIn('o.status', ['canceled', 'done']);
+            ->whereNotIn('o.status', ['canceled', 'shipped']);
 
         // Correlated sub-query: qty already shipped against those same active orders
         $qtyShippedForActiveOrders = DB::table('shipment_items as si')
@@ -110,7 +112,7 @@ class StockController extends Controller
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
             ->selectRaw('COALESCE(SUM(si.quantity), 0)')
             ->whereColumn('si.product_variant_id', 'product_variants.id')
-            ->whereNotIn('o.status', ['canceled', 'done']);
+            ->whereNotIn('o.status', ['canceled', 'shipped']);
 
         $results = DB::table('product_variants')
             ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')

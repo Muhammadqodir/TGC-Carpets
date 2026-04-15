@@ -366,8 +366,8 @@ class _DesktopTableHeader extends StatelessWidget {
           _HeaderCell(label: 'Sifat', flex: 1),
           _HeaderCell(label: 'O\'lcham', flex: 2),
           _HeaderCell(label: 'Mijoz', flex: 2),
+          _HeaderCell(label: 'Partiya', flex: 2),
           _HeaderCell(label: 'Miqdor', fixedWidth: 130),
-          _HeaderCell(label: 'Izoh', flex: 2),
           SizedBox(width: 40),
         ],
       ),
@@ -589,7 +589,7 @@ class _DesktopItemRow extends StatelessWidget {
             ),
           ),
 
-          // Partiya (source batch) column
+          // Client or For warehouse
           Expanded(
             flex: 2,
             child: Padding(
@@ -597,13 +597,14 @@ class _DesktopItemRow extends StatelessWidget {
               child: row.sourceBatchTitle != null
                   ? Builder(builder: (context) {
                       final isOrder = row.sourceType == 'order_item';
-                      final label = isOrder && row.sourceClientShopName != null
+                      final label = isOrder
                           ? [
-                              row.sourceClientShopName!,
+                              if (row.sourceClientShopName != null)
+                                row.sourceClientShopName!,
                               if (row.sourceClientRegion != null)
                                 row.sourceClientRegion!,
                             ].join(' / ')
-                          : row.sourceBatchTitle!;
+                          : 'Ombor uchun';
                       final color =
                           isOrder ? AppColors.success : AppColors.primary;
                       return Container(
@@ -622,7 +623,7 @@ class _DesktopItemRow extends StatelessWidget {
                             Icon(
                               isOrder
                                   ? Icons.person_outline_rounded
-                                  : Icons.precision_manufacturing_outlined,
+                                  : Icons.warehouse_outlined,
                               size: 14,
                               color: color,
                             ),
@@ -649,6 +650,52 @@ class _DesktopItemRow extends StatelessWidget {
             ),
           ),
 
+          // Batch column
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: row.sourceBatchTitle != null
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.precision_manufacturing_outlined,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              row.sourceBatchTitle!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+
           // Quantity
           SizedBox(
             width: 130,
@@ -668,19 +715,19 @@ class _DesktopItemRow extends StatelessWidget {
           ),
 
           // Notes
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextFormField(
-                controller: row.notesCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Izoh...',
-                  isDense: true,
-                ),
-              ),
-            ),
-          ),
+          // Expanded(
+          //   flex: 2,
+          //   child: Padding(
+          //     padding: const EdgeInsets.only(right: 8),
+          //     child: TextFormField(
+          //       controller: row.notesCtrl,
+          //       decoration: const InputDecoration(
+          //         hintText: 'Izoh...',
+          //         isDense: true,
+          //       ),
+          //     ),
+          //   ),
+          // ),
 
           // Remove action
           SizedBox(
