@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\ProductionBatchItem;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
@@ -46,6 +48,7 @@ class WarehouseDocumentService
             ]);
 
             $this->syncItems($document, $data['items'], $userId);
+            $this->checkAndAutoCompleteOrders($document->fresh());
 
             // Generate and store PDF
             $pdfPath = $this->pdfService->generatePdf($document);
@@ -79,6 +82,8 @@ class WarehouseDocumentService
 
                 $this->syncItems($document->fresh(), $data['items'], $userId);
             }
+
+            $this->checkAndAutoCompleteOrders($document->fresh());
 
             // Regenerate PDF
             $freshDocument = $document->fresh();
@@ -285,6 +290,57 @@ class WarehouseDocumentService
             $debit = min($remaining, $batchItem->warehouse_received_quantity);
             $batchItem->decrement('warehouse_received_quantity', $debit);
             $remaining -= $debit;
+        }
+    }
+
+    /**
+     * After a TYPE_IN document is saved, check every affected order and mark it
+     * as 'done' if all its items have been fully received into the warehouse.
+     *
+     * Fulfillment = SUM(production_batch_items.warehouse_received_quantity)
+     *               >= order_item.quantity  for every item on the order.
+     */
+    private function checkAndAutoCompleteOrders(WarehouseDocument $document): void
+    {
+        if ($document->type !== WarehouseDocument::TYPE_IN) {
+            return;
+        }
+
+        $variantIds = $document->items()->pluck('product_variant_id');
+
+        if ($variantIds->isEmpty()) {
+            return;
+        }
+
+        // Find all orders that have at least one item tied to these variants via production batches
+        $orderIds = OrderItem::whereHas('productionBatchItems', function ($q) use ($variantIds): void {
+            $q->whereIn('product_variant_id', $variantIds);
+        })->pluck('order_id')->unique();
+
+        if ($orderIds->isEmpty()) {
+            return;
+        }
+
+        $eligibleOrders = Order::whereIn('id', $orderIds)
+            ->whereNotIn('status', [
+                Order::STATUS_DONE,
+                Order::STATUS_SHIPPED,
+                Order::STATUS_CANCELED,
+            ])
+            ->with('items.productionBatchItems')
+            ->get();
+
+        foreach ($eligibleOrders as $order) {
+            // An order is fulfilled when every order_item has enough warehouse_received_quantity
+            $allFulfilled = $order->items->every(function (OrderItem $orderItem): bool {
+                $received = $orderItem->productionBatchItems->sum('warehouse_received_quantity');
+
+                return $received >= $orderItem->quantity;
+            });
+
+            if ($allFulfilled) {
+                $order->update(['status' => Order::STATUS_DONE]);
+            }
         }
     }
 
