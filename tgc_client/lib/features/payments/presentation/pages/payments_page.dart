@@ -6,6 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../bloc/payments_bloc.dart';
 import '../bloc/payments_event.dart';
 import 'desktop/payments_desktop_page.dart';
+import 'mobile/payments_mobile_page.dart';
 
 /// Adaptive entry point for the Payments feature.
 class PaymentsPage extends StatelessWidget {
@@ -28,11 +29,10 @@ class _AdaptiveView extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Desktop layout used for all widths (mobile view can be added later)
         if (constraints.maxWidth >= AppConstants.desktopBreakpoint) {
           return const PaymentsDesktopPage();
         }
-        return const PaymentsDesktopPage();
+        return const PaymentsMobilePage();
       },
     );
   }

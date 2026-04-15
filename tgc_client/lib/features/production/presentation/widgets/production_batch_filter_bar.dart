@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/ui/widgets/filter_bar.dart';
+import '../../../../core/ui/widgets/filter_date_range_picker.dart';
+import '../../../../core/ui/widgets/filter_dropdown.dart';
 
 /// Desktop filter bar for the production batches list page.
 /// All filter state is owned by the parent; this widget is purely controlled.
@@ -33,221 +34,45 @@ class ProductionBatchFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          _StatusDropdown(value: selectedStatus, onChanged: onStatusChanged),
-          const SizedBox(width: 8),
-          _TypeDropdown(value: selectedType, onChanged: onTypeChanged),
-          const SizedBox(width: 8),
-          _DateRangeButton(
-            value: selectedDateRange,
-            onChanged: onDateRangeChanged,
-          ),
-          if (_hasActiveFilters) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: 'Filtrlarni tozalash',
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedFilterRemove,
-                strokeWidth: 1.5,
-              ),
-              color: AppColors.error,
-              onPressed: () {
-                onStatusChanged(null);
-                onTypeChanged(null);
-                onDateRangeChanged(null);
-              },
-            ),
-          ],
-          const Spacer(),
-          IconButton(
-            tooltip: 'Yangilash',
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedReload,
-              strokeWidth: 2.5,
-            ),
-            onPressed: onRefresh,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Status dropdown ───────────────────────────────────────────────────────────
-
-class _StatusDropdown extends StatelessWidget {
-  const _StatusDropdown({required this.value, required this.onChanged});
-
-  final String? value;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _FilterChip(
-      isActive: value != null,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: Text(
-            'Holat',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-          isDense: true,
-          items: [
-            DropdownMenuItem<String>(
-              value: null,
-              child: Text(
-                'Barchasi',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
-              ),
-            ),
-            const DropdownMenuItem(value: 'planned',     child: Text('Rejalashtirilgan')),
-            const DropdownMenuItem(value: 'in_progress', child: Text('Ishlab chiqarilmoqda')),
-            const DropdownMenuItem(value: 'completed',   child: Text('Bajarildi')),
-            const DropdownMenuItem(value: 'cancelled',   child: Text('Bekor qilindi')),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Type dropdown ─────────────────────────────────────────────────────────────
-
-class _TypeDropdown extends StatelessWidget {
-  const _TypeDropdown({required this.value, required this.onChanged});
-
-  final String? value;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return _FilterChip(
-      isActive: value != null,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          hint: Text(
-            'Tur',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-          isDense: true,
-          items: [
-            DropdownMenuItem<String>(
-              value: null,
-              child: Text(
-                'Barchasi',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
-              ),
-            ),
-            const DropdownMenuItem(value: 'by_order',  child: Text("Buyurtma bo'yicha")),
-            const DropdownMenuItem(value: 'for_stock', child: Text('Ombor uchun')),
-            const DropdownMenuItem(value: 'mixed',     child: Text('Aralash')),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Date range button ─────────────────────────────────────────────────────────
-
-class _DateRangeButton extends StatelessWidget {
-  const _DateRangeButton({required this.value, required this.onChanged});
-
-  final DateTimeRange? value;
-  final ValueChanged<DateTimeRange?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = value != null;
-    final label = isSelected
-        ? '${_fmt(value!.start)} – ${_fmt(value!.end)}'
-        : 'Sana';
-
-    return InkWell(
-      onTap: () async {
-        final picked = await showDateRangePicker(
-          context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDateRange: value,
-        );
-        if (picked != null) onChanged(picked);
+    return FilterBar(
+      hasActiveFilters: _hasActiveFilters,
+      onClearFilters: () {
+        onStatusChanged(null);
+        onTypeChanged(null);
+        onDateRangeChanged(null);
       },
-      borderRadius: BorderRadius.circular(8),
-      child: _FilterChip(
-        isActive: isSelected,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.calendar_today_outlined, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-            ),
+      onRefresh: onRefresh,
+      filters: [
+        FilterDropdown<String>(
+          hint: 'Holat',
+          value: selectedStatus,
+          items: const [
+            DropdownMenuItem(value: 'planned', child: Text('Rejalashtirilgan')),
+            DropdownMenuItem(
+                value: 'in_progress', child: Text('Ishlab chiqarilmoqda')),
+            DropdownMenuItem(value: 'completed', child: Text('Bajarildi')),
+            DropdownMenuItem(value: 'cancelled', child: Text('Bekor qilindi')),
           ],
+          onChanged: onStatusChanged,
         ),
-      ),
-    );
-  }
-
-  String _fmt(DateTime dt) =>
-      '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-}
-
-// ── Shared chip container ─────────────────────────────────────────────────────
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.child, this.isActive = false});
-
-  final Widget child;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.primary.withValues(alpha: 0.06)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isActive ? AppColors.primary : AppColors.divider,
+        const SizedBox(width: 8),
+        FilterDropdown<String>(
+          hint: 'Tur',
+          value: selectedType,
+          items: const [
+            DropdownMenuItem(
+                value: 'by_order', child: Text("Buyurtma bo'yicha")),
+            DropdownMenuItem(value: 'for_stock', child: Text('Ombor uchun')),
+            DropdownMenuItem(value: 'mixed', child: Text('Aralash')),
+          ],
+          onChanged: onTypeChanged,
         ),
-      ),
-      child: child,
+        const SizedBox(width: 8),
+        FilterDateRangePicker(
+          value: selectedDateRange,
+          onChanged: onDateRangeChanged,
+        ),
+      ],
     );
   }
 }

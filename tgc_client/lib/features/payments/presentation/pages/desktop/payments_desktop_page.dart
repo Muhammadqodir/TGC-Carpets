@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
-import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
-import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
-import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';
 
 import '../../bloc/payments_bloc.dart';
 import '../../bloc/payments_event.dart';
@@ -16,7 +12,7 @@ import '../../bloc/payments_state.dart';
 import '../../widgets/payment_filter_bar.dart';
 import '../../widgets/payment_table.dart';
 import '../../../domain/entities/payment_entity.dart';
-import '../../../../clients/domain/entities/client_entity.dart' show ClientEntity;
+import '../../../../clients/domain/entities/client_entity.dart';
 
 /// Desktop layout for the Payments page.
 class PaymentsDesktopPage extends StatefulWidget {
@@ -29,7 +25,7 @@ class PaymentsDesktopPage extends StatefulWidget {
 class _PaymentsDesktopPageState extends State<PaymentsDesktopPage> {
   final _scrollController = ScrollController();
 
-  int? _selectedClientId;
+  ClientEntity? _selectedClient;
   DateTimeRange? _selectedDateRange;
 
   @override
@@ -51,14 +47,14 @@ class _PaymentsDesktopPageState extends State<PaymentsDesktopPage> {
     super.dispose();
   }
 
-  void _applyFilters({int? clientId, DateTimeRange? dateRange}) {
+  void _applyFilters({ClientEntity? client, DateTimeRange? dateRange}) {
     setState(() {
-      _selectedClientId = clientId;
+      _selectedClient = client;
       _selectedDateRange = dateRange;
     });
     context.read<PaymentsBloc>().add(
           PaymentsFiltersChanged(
-            clientId: clientId,
+            clientId: client?.id,
             dateRange: dateRange,
           ),
         );
@@ -83,11 +79,9 @@ class _PaymentsDesktopPageState extends State<PaymentsDesktopPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<ClientsBloc>()..add(const ClientsLoadRequested()),
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
           title: const Text("To'lovlar"),
           titleSpacing: 0,
           leading: IconButton(
@@ -115,28 +109,20 @@ class _PaymentsDesktopPageState extends State<PaymentsDesktopPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Filter bar
-            BlocBuilder<ClientsBloc, ClientsState>(
-              builder: (context, clientsState) {
-                final clients = clientsState is ClientsLoaded
-                    ? clientsState.clients
-                    : const <ClientEntity>[];
-                return PaymentFilterBar(
-                  clients: clients,
-                  selectedClientId: _selectedClientId,
-                  selectedDateRange: _selectedDateRange,
-                  onClientChanged: (v) => _applyFilters(
-                    clientId: v,
-                    dateRange: _selectedDateRange,
-                  ),
-                  onDateRangeChanged: (v) => _applyFilters(
-                    clientId: _selectedClientId,
-                    dateRange: v,
-                  ),
-                  onRefresh: () => context
-                      .read<PaymentsBloc>()
-                      .add(const PaymentsRefreshRequested()),
-                );
-              },
+            PaymentFilterBar(
+              selectedClient: _selectedClient,
+              selectedDateRange: _selectedDateRange,
+              onClientChanged: (v) => _applyFilters(
+                client: v,
+                dateRange: _selectedDateRange,
+              ),
+              onDateRangeChanged: (v) => _applyFilters(
+                client: _selectedClient,
+                dateRange: v,
+              ),
+              onRefresh: () => context
+                  .read<PaymentsBloc>()
+                  .add(const PaymentsRefreshRequested()),
             ),
             const Divider(height: 1, color: AppColors.divider),
 
@@ -204,7 +190,6 @@ class _PaymentsDesktopPageState extends State<PaymentsDesktopPage> {
             ),
           ],
         ),
-      ),
     );
   }
 }

@@ -131,11 +131,14 @@ class _AddPaymentViewState extends State<_AddPaymentView> {
               // ── Client ────────────────────────────────────────────────────
               _SectionLabel(label: 'Mijoz *'),
               const SizedBox(height: 6),
-              _PickerTile(
-                icon: Icons.storefront_outlined,
-                label: _selectedClient?.shopName ?? 'Mijoz tanlang',
-                isEmpty: _selectedClient == null,
+              _ClientPickerField(
+                client: _selectedClient,
                 onTap: _pickClient,
+                onClear: () => setState(() {
+                  _selectedClient = null;
+                  _selectedOrder = null;
+                  _clientOrders = [];
+                }),
                 validator: (_) => _selectedClient == null
                     ? 'Iltimos, mijozni tanlang'
                     : null,
@@ -251,52 +254,67 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _PickerTile extends FormField<String> {
-  _PickerTile({
-    required IconData icon,
-    required String label,
-    required bool isEmpty,
+class _ClientPickerField extends FormField<String> {
+  _ClientPickerField({
+    required ClientEntity? client,
     required VoidCallback onTap,
+    required VoidCallback onClear,
     super.validator,
   }) : super(
           builder: (field) {
+            final isSelected = client != null;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
+                InkWell(
                   onTap: onTap,
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 14),
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(10),
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.05)
+                          : null,
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: field.hasError
                             ? AppColors.error
-                            : AppColors.divider,
+                            : isSelected
+                                ? AppColors.primary
+                                : AppColors.divider,
+                        width: isSelected && !field.hasError ? 1.5 : 1.0,
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(icon,
-                            size: 20,
-                            color: isEmpty
-                                ? AppColors.textSecondary
-                                : AppColors.primary),
+                        Icon(
+                          Icons.store_outlined,
+                          size: 18,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            label,
+                            client?.shopName ?? 'Mijoz tanlang',
                             style: TextStyle(
-                              color: isEmpty
-                                  ? AppColors.textSecondary
-                                  : null,
+                              color: isSelected
+                                  ? null
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ),
-                        Icon(Icons.chevron_right,
-                            size: 18, color: AppColors.textSecondary),
+                        if (isSelected)
+                          GestureDetector(
+                            onTap: onClear,
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -306,7 +324,7 @@ class _PickerTile extends FormField<String> {
                     padding: const EdgeInsets.only(top: 4, left: 4),
                     child: Text(
                       field.errorText!,
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: AppColors.error, fontSize: 12),
                     ),
                   ),

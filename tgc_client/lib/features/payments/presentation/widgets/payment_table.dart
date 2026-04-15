@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 
@@ -23,9 +24,10 @@ class PaymentTable extends StatelessWidget {
     AppTableColumn(label: 'ID', fixedWidth: 64, alignment: Alignment.center),
     AppTableColumn(label: 'Sana', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Mijoz', flex: 3, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Buyurtma', flex: 2, alignment: Alignment.center),
+    AppTableColumn(label: 'Buyurtma', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(
+        label: 'Miqdor (\$)', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Izoh', flex: 4, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Miqdor (\$)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: '', fixedWidth: 48, alignment: Alignment.center),
   ];
 
@@ -95,34 +97,35 @@ class PaymentTable extends StatelessWidget {
                     ? AppColors.primary
                     : AppColors.textSecondary,
               ),
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
         );
 
-      case 4: // Notes
-        return Text(
-          payment.notes ?? '—',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: payment.notes != null
-                    ? null
-                    : AppColors.textSecondary,
-              ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        );
-
-      case 5: // Amount
+      case 4: // Amount
         return Text(
           '\$${payment.amount.toStringAsFixed(2)}',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: AppColors.success,
               ),
-          textAlign: TextAlign.right,
+          textAlign: TextAlign.left,
+        );
+
+      case 5: // Notes
+        return Text(
+          payment.notes ?? '—',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: payment.notes != null ? null : AppColors.textSecondary,
+              ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         );
 
       case 6: // Delete action
         return IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedDelete01,
+            size: 20,
+          ),
           color: AppColors.error,
           tooltip: "O'chirish",
           onPressed: () => onDelete(payment),
