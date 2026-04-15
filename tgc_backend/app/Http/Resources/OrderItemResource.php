@@ -23,6 +23,14 @@ class OrderItemResource extends JsonResource
             return (int) $this->shipmentItems->sum('quantity');
         }, 0);
 
+        $producedQty = $this->whenLoaded('productionBatchItems', function () {
+            return (int) $this->productionBatchItems
+                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
+                    ? $pbi->productionBatch->status !== 'cancelled'
+                    : true)
+                ->sum('produced_quantity');
+        }, 0);
+
         $warehouseReceivedQty = $this->whenLoaded('productionBatchItems', function () {
             return (int) $this->productionBatchItems
                 ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
@@ -35,6 +43,7 @@ class OrderItemResource extends JsonResource
             'id'                          => $this->id,
             'quantity'                    => $this->quantity,
             'planned_quantity'            => $plannedQty,
+            'produced_quantity'           => $producedQty,
             'shipped_quantity'            => $shippedQty,
             'warehouse_received_quantity' => $warehouseReceivedQty,
             'remaining_quantity'          => max(0, $this->quantity - $plannedQty),

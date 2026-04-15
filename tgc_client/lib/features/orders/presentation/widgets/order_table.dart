@@ -207,7 +207,7 @@ class _ProductionProgressCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total    = order.totalQuantity;
-    final planned  = order.totalPlannedQuantity;
+    final produced = order.totalProducedQuantity;
     final progress = order.productionProgress;
 
     if (total == 0) {
@@ -239,7 +239,7 @@ class _ProductionProgressCell extends StatelessWidget {
         ),
         const SizedBox(height: 3),
         Text(
-          '$planned / $total',
+          '$produced / $total',
           style: Theme.of(context)
               .textTheme
               .bodySmall

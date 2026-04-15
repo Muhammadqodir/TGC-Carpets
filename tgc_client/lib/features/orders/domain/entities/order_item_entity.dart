@@ -26,6 +26,8 @@ class OrderItemEntity extends Equatable {
   final String? productTypeName;
   /// How many units of this item have been planned in non-cancelled production batches.
   final int? plannedQuantity;
+  /// How many units of this item have actually been produced (produced_quantity sum).
+  final int? producedQuantity;
   /// How many units of this item still need to be put into production.
   /// Calculated on the backend as: quantity - sum(planned_quantity in non-cancelled batches).
   final int? remainingQuantity;
@@ -54,6 +56,7 @@ class OrderItemEntity extends Equatable {
     this.qualityName,
     this.productTypeName,
     this.plannedQuantity,
+    this.producedQuantity,
     this.remainingQuantity,
     this.shippedQuantity,
     this.warehouseReceivedQuantity,
@@ -85,6 +88,7 @@ class OrderItemEntity extends Equatable {
         productColorId,
         productSizeId,
         plannedQuantity,
+        producedQuantity,
         remainingQuantity,
         shippedQuantity,
         warehouseReceivedQuantity,

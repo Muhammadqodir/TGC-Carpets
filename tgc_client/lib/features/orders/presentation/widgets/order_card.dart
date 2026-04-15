@@ -163,10 +163,10 @@ class _ProductionProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total    = order.totalQuantity;
-    final planned  = order.totalPlannedQuantity;
+    final total       = order.totalQuantity;
+    final produced    = order.totalProducedQuantity;
     final inWarehouse = order.totalWarehouseReceivedQuantity;
-    final progress = order.productionProgress;
+    final progress    = order.productionProgress;
 
     final barColor = progress >= 1.0
         ? AppColors.success
@@ -183,7 +183,7 @@ class _ProductionProgressRow extends StatelessWidget {
                 size: 13, color: AppColors.textSecondary),
             const SizedBox(width: 5),
             Text(
-              'Ishlab chiqarish: $planned / $total',
+              'Ishlab chiqarish: $produced / $total',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                     fontSize: 11,

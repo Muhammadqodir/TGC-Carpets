@@ -49,17 +49,21 @@ class OrderEntity extends Equatable {
   /// Sum of quantities across all line items.
   int get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
 
-  /// Sum of planned quantities across all line items (production progress numerator).
+  /// Sum of planned quantities across all line items.
   int get totalPlannedQuantity =>
       items.fold(0, (sum, i) => sum + (i.plannedQuantity ?? 0));
+
+  /// Sum of actually produced quantities across all line items (production progress numerator).
+  int get totalProducedQuantity =>
+      items.fold(0, (sum, i) => sum + (i.producedQuantity ?? 0));
 
   /// Sum of warehouse-received quantities across all line items.
   int get totalWarehouseReceivedQuantity =>
       items.fold(0, (sum, i) => sum + (i.warehouseReceivedQuantity ?? 0));
 
-  /// Production progress: 0.0 – 1.0. Returns 0 when totalQuantity is 0.
+  /// Production progress: produced / ordered (0.0 – 1.0). Returns 0 when totalQuantity is 0.
   double get productionProgress =>
-      totalQuantity == 0 ? 0.0 : (totalPlannedQuantity / totalQuantity).clamp(0.0, 1.0);
+      totalQuantity == 0 ? 0.0 : (totalProducedQuantity / totalQuantity).clamp(0.0, 1.0);
 
   /// Total square metres: Σ(length × width × quantity) / 10 000.
   /// Items without a size contribute 0.
