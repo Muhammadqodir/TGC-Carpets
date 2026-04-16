@@ -245,7 +245,7 @@
         <div class="brand">
             TGC Carpets
         </div>
-        <div class="invoice-title" style="display: flex;">
+        <div class="invoice-title" style="display: flex; justify-content: space-between;">
             <div>
                 Omborxona hujjati #{{ $document->id }}
             </div>
