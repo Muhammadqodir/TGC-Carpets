@@ -103,7 +103,7 @@ class WarehouseDocsBloc extends Bloc<WarehouseDocsEvent, WarehouseDocsState> {
         final existing =
             (!replace && current is WarehouseDocsLoaded) ? current.documents : <WarehouseDocumentEntity>[];
         final merged = <WarehouseDocumentEntity>[...existing, ...paginated.data]
-          ..sort((a, b) => b.documentDate.compareTo(a.documentDate));
+          ..sort((a, b) => b.id.compareTo(a.id));
         emit(WarehouseDocsLoaded(
           documents: merged,
           hasNextPage: paginated.hasNextPage,
