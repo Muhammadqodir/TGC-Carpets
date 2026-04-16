@@ -225,11 +225,15 @@
 <div class="page">
 
     {{-- ── Brand & Title ────────────────────────────────── --}}
-    <div class="brand">TGC Carpets</div>
+    <div class="brand" style="display: flex;">
+        <div>TGC Carpets</div>
+
+        <div>
+            <span style="margin-top: 12px;" class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+        </div>
+    </div>
     <div class="invoice-title">
         Omborxona hujjati #{{ $document->id }}
-        &nbsp;
-        <span style="margin-top: 12px;" class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
     </div>
 
     <div class="header-meta">
