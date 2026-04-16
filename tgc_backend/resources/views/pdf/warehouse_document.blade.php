@@ -5,6 +5,11 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Warehouse Document #{{ $document->id }}</title>
     <style>
+        @font-face {
+        font-family: custom;
+        src: url('http://erp.tgc-carpets.uz/fonts/Onest-Light.ttf');
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,7 +17,7 @@
         }
 
         body {
-            font-family: DejaVu Sans, Arial, sans-serif;
+            font-family: custom, sans-serif;
             font-size: 12px;
             color: #1a1a1a;
             background: #fff;

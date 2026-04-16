@@ -29,7 +29,7 @@ class WarehousePdfService
             'document'     => $document,
             'docTypeLabel' => $this->resolveDocumentTypeName($document->type),
             'shipmentInfo' => $shipmentInfo,
-        ])->setPaper('a4', 'landscape');
+        ])->scale(0.8)->setPaper('a4', 'landscape');
 
         $filename = "doc_{$document->id}_{$document->uuid}.pdf";
         $path = "warehouse-documents/pdfs/{$filename}";
