@@ -205,11 +205,11 @@
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 35%;">Product</th>
+                <th style="width: 20%;">Product</th>
                 <th style="width: 20%;">Quality</th>
                 <th style="width: 20%;">Size (cm)</th>
-                <th class="right" style="width: 10%;">Qty</th>
-                <th class="right" style="width: 10%;">Total m²</th>
+                <th class="right" style="width: 17.5%;">Qty</th>
+                <th class="right" style="width: 17.5%;">Total m²</th>
             </tr>
         </thead>
         <tbody>

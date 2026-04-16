@@ -59,8 +59,8 @@ class _ProductionBatchesMobilePageState
         actions: [
           IconButton(
             onPressed: () async {
-              final created = await context
-                  .pushNamed(AppRoutes.addProductionBatchName);
+              final created =
+                  await context.pushNamed(AppRoutes.addProductionBatchName);
               if (created == true && context.mounted) {
                 context
                     .read<ProductionBatchesBloc>()
@@ -121,35 +121,38 @@ class _ProductionBatchesMobilePageState
                       ),
                       controller: _scrollController,
                       padding: const EdgeInsets.all(12),
-                      itemCount: state.batches.length +
-                          (state.isLoadingMore ? 1 : 0),
+                      itemCount:
+                          state.batches.length + (state.isLoadingMore ? 1 : 0),
                       separatorBuilder: (_, __) => const SizedBox(height: 6),
                       itemBuilder: (context, index) {
                         if (index >= state.batches.length) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 16),
-                            child:
-                                Center(child: CircularProgressIndicator()),
+                            child: Center(child: CircularProgressIndicator()),
                           );
                         }
                         final batch = state.batches[index];
                         return ProductionBatchCard(
                           batch: batch,
-                          onTap: () => context.pushNamed(
-                            AppRoutes.productionBatchDetailName,
-                            extra: batch,
-                          ),
+                          onTap: () async {
+                            final updated = await context.pushNamed(
+                              AppRoutes.productionBatchDetailName,
+                              extra: batch,
+                            );
+                            if (updated == true && context.mounted) {
+                              context.read<ProductionBatchesBloc>().add(
+                                  const ProductionBatchesRefreshRequested());
+                            }
+                          },
                           onEdit: batch.status == 'planned'
                               ? () async {
-                                  final updated =
-                                      await context.pushNamed(
+                                  final updated = await context.pushNamed(
                                     AppRoutes.editProductionBatchName,
                                     extra: batch,
                                   );
                                   if (updated == true && context.mounted) {
-                                    context
-                                        .read<ProductionBatchesBloc>()
-                                        .add(const ProductionBatchesRefreshRequested());
+                                    context.read<ProductionBatchesBloc>().add(
+                                        const ProductionBatchesRefreshRequested());
                                   }
                                 }
                               : null,
@@ -188,9 +191,11 @@ class _MobileStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final planned    = state.batches.where((b) => b.status == 'planned').length;
-    final inProgress = state.batches.where((b) => b.status == 'in_progress').length;
-    final completed  = state.batches.where((b) => b.status == 'completed').length;
+    final planned = state.batches.where((b) => b.status == 'planned').length;
+    final inProgress =
+        state.batches.where((b) => b.status == 'in_progress').length;
+    final completed =
+        state.batches.where((b) => b.status == 'completed').length;
 
     return Container(
       color: AppColors.surface,
@@ -198,10 +203,18 @@ class _MobileStatusBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _MobileStatItem(label: 'Jami',    value: '${state.total}', color: AppColors.textPrimary),
-          _MobileStatItem(label: 'Reja',    value: '$planned',       color: AppColors.textSecondary),
-          _MobileStatItem(label: "Jarayon", value: '$inProgress',    color: AppColors.primaryLight),
-          _MobileStatItem(label: 'Tayyor',  value: '$completed',     color: AppColors.success),
+          _MobileStatItem(
+              label: 'Jami',
+              value: '${state.total}',
+              color: AppColors.textPrimary),
+          _MobileStatItem(
+              label: 'Reja', value: '$planned', color: AppColors.textSecondary),
+          _MobileStatItem(
+              label: "Jarayon",
+              value: '$inProgress',
+              color: AppColors.primaryLight),
+          _MobileStatItem(
+              label: 'Tayyor', value: '$completed', color: AppColors.success),
         ],
       ),
     );
@@ -248,11 +261,11 @@ class _StatusFilterBar extends StatelessWidget {
   const _StatusFilterBar();
 
   static const _statusFilters = [
-    (label: 'Barchasi',           value: null),
-    (label: 'Reja',               value: 'planned'),
-    (label: 'Jarayon',            value: 'in_progress'),
-    (label: 'Bajarildi',          value: 'completed'),
-    (label: 'Bekor qilindi',      value: 'cancelled'),
+    (label: 'Barchasi', value: null),
+    (label: 'Reja', value: 'planned'),
+    (label: 'Jarayon', value: 'in_progress'),
+    (label: 'Bajarildi', value: 'completed'),
+    (label: 'Bekor qilindi', value: 'cancelled'),
   ];
 
   @override
@@ -271,7 +284,7 @@ class _StatusFilterBar extends StatelessWidget {
             itemCount: _statusFilters.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              final filter   = _statusFilters[index];
+              final filter = _statusFilters[index];
               final isActive = activeFilter == filter.value;
               return FilterChip(
                 selectedColor: Colors.white,

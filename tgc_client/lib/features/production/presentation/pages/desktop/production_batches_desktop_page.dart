@@ -47,8 +47,8 @@ class _ProductionBatchesDesktopPageState
     DateTimeRange? dateRange,
   }) {
     setState(() {
-      _selectedStatus    = status;
-      _selectedType      = type;
+      _selectedStatus = status;
+      _selectedType = type;
       _selectedDateRange = dateRange;
     });
     context.read<ProductionBatchesBloc>().add(
@@ -87,8 +87,8 @@ class _ProductionBatchesDesktopPageState
             icon: const Icon(Icons.add),
             tooltip: "Yangi batch",
             onPressed: () async {
-              final created = await context
-                  .pushNamed(AppRoutes.addProductionBatchName);
+              final created =
+                  await context.pushNamed(AppRoutes.addProductionBatchName);
               if (created == true && context.mounted) {
                 context
                     .read<ProductionBatchesBloc>()
@@ -104,22 +104,22 @@ class _ProductionBatchesDesktopPageState
         children: [
           // Filter bar
           ProductionBatchFilterBar(
-            selectedStatus:      _selectedStatus,
-            selectedType:        _selectedType,
-            selectedDateRange:   _selectedDateRange,
+            selectedStatus: _selectedStatus,
+            selectedType: _selectedType,
+            selectedDateRange: _selectedDateRange,
             onStatusChanged: (v) => _applyFilters(
-              status:    v,
-              type:      _selectedType,
+              status: v,
+              type: _selectedType,
               dateRange: _selectedDateRange,
             ),
             onTypeChanged: (v) => _applyFilters(
-              status:    _selectedStatus,
-              type:      v,
+              status: _selectedStatus,
+              type: v,
               dateRange: _selectedDateRange,
             ),
             onDateRangeChanged: (v) => _applyFilters(
-              status:    _selectedStatus,
-              type:      _selectedType,
+              status: _selectedStatus,
+              type: _selectedType,
               dateRange: v,
             ),
             onRefresh: () => context
@@ -158,13 +158,20 @@ class _ProductionBatchesDesktopPageState
                         child: Text('Ishlab chiqarish partiyalari topilmadi.'));
                   }
                   return ProductionBatchTable(
-                    batches:          state.batches,
-                    isLoadingMore:    state.isLoadingMore,
+                    batches: state.batches,
+                    isLoadingMore: state.isLoadingMore,
                     scrollController: _scrollController,
-                    onView: (batch) => context.pushNamed(
-                      AppRoutes.productionBatchDetailName,
-                      extra: batch,
-                    ),
+                    onView: (batch) async {
+                      final updated = await context.pushNamed(
+                        AppRoutes.productionBatchDetailName,
+                        extra: batch,
+                      );
+                      if (updated == true && context.mounted) {
+                        context
+                            .read<ProductionBatchesBloc>()
+                            .add(const ProductionBatchesRefreshRequested());
+                      }
+                    },
                     onEdit: (batch) async {
                       final updated = await context.pushNamed(
                         AppRoutes.editProductionBatchName,
@@ -208,9 +215,11 @@ class _StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final planned    = state.batches.where((b) => b.status == 'planned').length;
-    final inProgress = state.batches.where((b) => b.status == 'in_progress').length;
-    final completed  = state.batches.where((b) => b.status == 'completed').length;
+    final planned = state.batches.where((b) => b.status == 'planned').length;
+    final inProgress =
+        state.batches.where((b) => b.status == 'in_progress').length;
+    final completed =
+        state.batches.where((b) => b.status == 'completed').length;
 
     return Container(
       color: AppColors.surface,

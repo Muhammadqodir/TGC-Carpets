@@ -43,7 +43,7 @@ class ProductionBatchController extends Controller
             ->when($request->boolean('exclude_warehouse_received'), fn ($q) => $q->whereHas('items', fn ($iq) =>
                 $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(defect_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
             ))
-            ->latest('planned_datetime')
+            ->latest('production_batches.id')
             ->paginate($request->integer('per_page', 20));
 
         return ProductionBatchResource::collection($batches);
