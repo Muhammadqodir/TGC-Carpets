@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Yuk xati #{{ $shipment->id }}</title>
     <style>
         * {
@@ -164,113 +165,121 @@
         }
     </style>
 </head>
+
 <body>
-<div class="page">
+    <div class="page">
 
-    {{-- ── Brand & Title ────────────────────────────────── --}}
-    <div class="header">
-        <div class="brand">TGC Carpets</div>
-        <div class="invoice-title">Yuk xati #{{ $shipment->id }}</div>
+        {{-- ── Brand & Title ────────────────────────────────── --}}
+        <div class="header">
+            <div class="brand">TGC Carpets</div>
+            <div class="invoice-title">Yuk xati #{{ $shipment->id }}</div>
 
-        <div class="header-meta" style="margin-top: 18px;">
+            <div class="header-meta" style="margin-top: 18px;">
+                <table>
+                    <tr>
+                        <td style="width: 50%;">
+                            <div class="meta-label">Sana</div>
+                            <div class="meta-value">
+                                {{ $shipment->shipment_datetime->format('d M Y') }}
+                            </div>
+                            <div class="meta-sub">
+                                {{ $shipment->shipment_datetime->format('H:i') }}
+                            </div>
+                        </td>
+                        <td style="width: 50%;">
+                            <div class="meta-label">Mijoz</div>
+                            <div class="meta-value">
+                                {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
+                            </div>
+                            @if ($shipment->client->region)
+                                <div class="meta-sub">{{ $shipment->client->region }}</div>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        {{-- ── Items Table ──────────────────────────────────── --}}
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 20%;">Mahsulot</th>
+                    <th style="width: 20%;">Sifat</th>
+                    <th style="width: 20%;">O'lcham (cm)</th>
+                    <th class="right" style="width: 17.5%;">Miqdor</th>
+                    <th class="right" style="width: 17.5%;">Jami m²</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $grandTotalSqm = 0;
+                    $grandTotalNumber = 0;
+                @endphp
+                @foreach ($shipment->items as $index => $item)
+                    @php
+                        $product = $item->variant?->productColor?->product;
+                        $quality = $product?->productQuality;
+                        $size = $item->variant?->productSize;
+                        $sqm =
+                            $size && $product?->unit === 'm2'
+                                ? round(($size->length * $size->width * $item->quantity) / 10000, 4)
+                                : 0;
+                        $totalNumber = $item->quantity;
+                        $grandTotalSqm += $sqm;
+                        $grandTotalNumber += $totalNumber;
+                    @endphp
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $product?->name ?? '—' }}</td>
+                        <td>{{ $quality?->quality_name ?? '—' }}</td>
+                        <td>
+                            @if ($size)
+                                {{ $size->length }} × {{ $size->width }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="right">{{ $item->quantity }}</td>
+                        <td class="right">
+                            @if ($sqm > 0)
+                                {{ number_format($sqm, 2) }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        {{-- ── Total ────────────────────────────────────────── --}}
+        <div class="total-row">
             <table>
                 <tr>
-                    <td style="width: 50%;">
-                        <div class="meta-label">Sana</div>
-                        <div class="meta-value">
-                            {{ $shipment->shipment_datetime->format('d M Y') }}
-                        </div>
-                        <div class="meta-sub">
-                            {{ $shipment->shipment_datetime->format('H:i') }}
-                        </div>
+                    <td class="total-label total-border">Umumiy soni</td>
+                    <td class="total-value total-border">
+                        {{ number_format($grandTotalNumber, 0) }}
                     </td>
-                    <td style="width: 50%;">
-                        <div class="meta-label">Mijoz</div>
-                        <div class="meta-value">
-                            {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
-                        </div>
-                        @if($shipment->client->region)
-                            <div class="meta-sub">{{ $shipment->client->region }}</div>
-                        @endif
+                </tr>
+                <tr>
+                    <td class="total-label">Umumiy m²</td>
+                    <td class="total-value">
+                        {{ number_format($grandTotalSqm, 2) }} m²
                     </td>
                 </tr>
             </table>
         </div>
+
+        {{-- ── Footer ───────────────────────────────────────── --}}
+        <div class="footer">
+            Generated on {{ now()->format('d M Y, H:i') }} &nbsp;·&nbsp; TGC Carpets ERP
+        </div>
+
     </div>
-
-    <hr class="divider">
-
-    {{-- ── Items Table ──────────────────────────────────── --}}
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 20%;">Mahsulot</th>
-                <th style="width: 20%;">Sifat</th>
-                <th style="width: 20%;">O'lcham (cm)</th>
-                <th class="right" style="width: 17.5%;">Miqdor</th>
-                <th class="right" style="width: 17.5%;">Jami m²</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $grandTotalSqm = 0; $grandTotalNumber = 0; @endphp
-            @foreach ($shipment->items as $index => $item)
-                @php
-                    $product = $item->variant?->productColor?->product;
-                    $quality = $product?->productQuality;
-                    $size    = $item->variant?->productSize;
-                    $sqm     = ($size && $product?->unit === 'm2')
-                        ? round($size->length * $size->width * $item->quantity / 10000, 4)
-                        : 0;
-                    $totalNumber = $item->quantity;
-                    $grandTotalSqm += $sqm;
-                    $grandTotalNumber += $totalNumber;
-                @endphp
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $product?->name ?? '—' }}</td>
-                    <td>{{ $quality?->quality_name ?? '—' }}</td>
-                    <td>
-                        @if($size)
-                            {{ $size->length }} × {{ $size->width }}
-                        @else
-                            —
-                        @endif
-                    </td>
-                    <td class="right">{{ $item->quantity }}</td>
-                    <td class="right">
-                        @if($sqm > 0)
-                            {{ number_format($sqm, 2) }}
-                        @else
-                            —
-                        @endif
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    {{-- ── Total ────────────────────────────────────────── --}}
-    <div class="total-row">
-        <table>
-            <tr>
-                <td class="total-label total-border">Umumiy soni</td>
-                <td class="total-value total-border">
-                    {{ number_format($grandTotalNumber, 0) }}
-                </td>
-                <td class="total-label">Umumiy m²</td>
-                <td class="total-value">
-                    {{ number_format($grandTotalSqm, 2) }} m²
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    {{-- ── Footer ───────────────────────────────────────── --}}
-    <div class="footer">
-        Generated on {{ now()->format('d M Y, H:i') }} &nbsp;·&nbsp; TGC Carpets ERP
-    </div>
-
-</div>
 </body>
+
 </html>

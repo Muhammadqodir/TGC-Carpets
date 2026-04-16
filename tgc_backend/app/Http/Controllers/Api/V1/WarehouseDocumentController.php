@@ -24,7 +24,7 @@ class WarehouseDocumentController extends Controller
             ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'),   fn ($q) => $q->whereDate('document_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),     fn ($q) => $q->whereDate('document_date', '<=', $request->date_to))
-            ->latest('document_date')
+            ->latest('id')
             ->paginate($request->integer('per_page', 20));
 
         return WarehouseDocumentResource::collection($documents);

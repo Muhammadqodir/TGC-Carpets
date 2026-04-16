@@ -17,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class ShipmentService
 {
+    public function __construct(
+        private readonly WarehousePdfService $warehousePdfService,
+    ) {}
+
     /**
      * Create a shipment, reduce warehouse stock, and update related order status.
      *
@@ -31,7 +35,9 @@ class ShipmentService
     {
         $this->assertSufficientStock($data['items']);
 
-        $shipment = DB::transaction(function () use ($data, $userId): Shipment {
+        $warehouseDocId = null;
+
+        $shipment = DB::transaction(function () use ($data, $userId, &$warehouseDocId): Shipment {
             $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
             // ── 1. Shipment header ──────────────────────────────────────────
@@ -50,6 +56,7 @@ class ShipmentService
                 'document_date' => $shipmentDate->toDateString(),
                 'notes'         => $data['notes'] ?? null,
             ]);
+            $warehouseDocId = $warehouseDoc->id;
 
             // ── 3. Items ────────────────────────────────────────────────────
             foreach ($data['items'] as $itemData) {
@@ -98,6 +105,13 @@ class ShipmentService
         });
 
         $this->generateAndStoreInvoice($shipment);
+
+        // Generate warehouse document PDF after the transaction so all items are committed
+        if ($warehouseDocId !== null) {
+            $warehouseDoc = WarehouseDocument::findOrFail($warehouseDocId);
+            $pdfPath = $this->warehousePdfService->generatePdf($warehouseDoc);
+            $warehouseDoc->update(['pdf_path' => $pdfPath]);
+        }
 
         return $shipment->refresh()->load([
             'client',
