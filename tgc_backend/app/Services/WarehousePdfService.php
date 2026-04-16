@@ -23,11 +23,11 @@ class WarehousePdfService
             'items.variant.productSize',
         ]);
 
-        $shipmentInfo = $document->isOutgoing() ? $this->getShipmentInfo($document) : null;
+        $shipmentInfo = $document->isOutgoing() ? $this->resolveShipmentInfo($document) : null;
 
         $pdf = Pdf::loadView('pdf.warehouse_document', [
             'document'     => $document,
-            'docTypeLabel' => $this->getDocumentTypeName($document->type),
+            'docTypeLabel' => $this->resolveDocumentTypeName($document->type),
             'shipmentInfo' => $shipmentInfo,
         ])->setPaper('a4', 'landscape');
 
@@ -42,7 +42,7 @@ class WarehousePdfService
     /**
      * Get shipment information if this warehouse document's items are linked to a shipment.
      */
-    private function getShipmentInfo(WarehouseDocument $document): ?array
+    public function resolveShipmentInfo(WarehouseDocument $document): ?array
     {
         $shipmentItemId = DB::table('warehouse_document_items')
             ->where('warehouse_document_id', $document->id)
@@ -83,7 +83,7 @@ class WarehousePdfService
     /**
      * Get Uzbek label for a document type.
      */
-    private function getDocumentTypeName(string $type): string
+    public function resolveDocumentTypeName(string $type): string
     {
         return match ($type) {
             'in'         => 'KIRIM',
