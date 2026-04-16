@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Invoice #{{ $shipment->id }}</title>
+    <title>Yuk xati #{{ $shipment->id }}</title>
     <style>
         * {
             margin: 0;
@@ -170,13 +170,13 @@
     {{-- ── Brand & Title ────────────────────────────────── --}}
     <div class="header">
         <div class="brand">TGC Carpets</div>
-        <div class="invoice-title">Shipment Invoice #{{ $shipment->id }}</div>
+        <div class="invoice-title">Yuk xati #{{ $shipment->id }}</div>
 
         <div class="header-meta" style="margin-top: 18px;">
             <table>
                 <tr>
                     <td style="width: 50%;">
-                        <div class="meta-label">Date</div>
+                        <div class="meta-label">Sana</div>
                         <div class="meta-value">
                             {{ $shipment->shipment_datetime->format('d M Y') }}
                         </div>
@@ -185,7 +185,7 @@
                         </div>
                     </td>
                     <td style="width: 50%;">
-                        <div class="meta-label">Client</div>
+                        <div class="meta-label">Mijoz</div>
                         <div class="meta-value">
                             {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
                         </div>
@@ -205,15 +205,15 @@
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 20%;">Product</th>
-                <th style="width: 20%;">Quality</th>
-                <th style="width: 20%;">Size (cm)</th>
-                <th class="right" style="width: 17.5%;">Qty</th>
-                <th class="right" style="width: 17.5%;">Total m²</th>
+                <th style="width: 20%;">Mahsulot</th>
+                <th style="width: 20%;">Sifat</th>
+                <th style="width: 20%;">O'lcham (cm)</th>
+                <th class="right" style="width: 17.5%;">Miqdor</th>
+                <th class="right" style="width: 17.5%;">Jami m²</th>
             </tr>
         </thead>
         <tbody>
-            @php $grandTotalSqm = 0; @endphp
+            @php $grandTotalSqm = 0; $grandTotalNumber = 0; @endphp
             @foreach ($shipment->items as $index => $item)
                 @php
                     $product = $item->variant?->productColor?->product;
@@ -222,7 +222,9 @@
                     $sqm     = ($size && $product?->unit === 'm2')
                         ? round($size->length * $size->width * $item->quantity / 10000, 4)
                         : 0;
+                    $totalNumber = $item->quantity;
                     $grandTotalSqm += $sqm;
+                    $grandTotalNumber += $totalNumber;
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
@@ -252,8 +254,12 @@
     <div class="total-row">
         <table>
             <tr>
-                <td class="total-label total-border">Total m²</td>
+                <td class="total-label total-border">Umumiy soni</td>
                 <td class="total-value total-border">
+                    {{ number_format($grandTotalNumber, 0) }}
+                </td>
+                <td class="total-label">Umumiy m²</td>
+                <td class="total-value">
                     {{ number_format($grandTotalSqm, 2) }} m²
                 </td>
             </tr>

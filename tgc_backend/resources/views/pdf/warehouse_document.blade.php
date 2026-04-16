@@ -331,13 +331,13 @@
     <div class="total-row">
         <table>
             <tr>
-                <td class="total-label">Jami dona</td>
-                <td class="total-value">{{ $grandTotalQty }}</td>
+                <td class="total-label total-border">Jami dona</td>
+                <td class="total-value total-border">{{ $grandTotalQty }}</td>
             </tr>
             @if($hasSqm)
             <tr>
-                <td class="total-label total-border">Jami m²</td>
-                <td class="total-value total-border">{{ number_format($grandTotalSqm, 2) }} m²</td>
+                <td class="total-label">Jami m²</td>
+                <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
             </tr>
             @endif
         </table>
