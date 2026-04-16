@@ -7,7 +7,7 @@
     <style>
         @font-face {
         font-family: custom;
-        src: url('http://erp.tgc-carpets.uz/fonts/Onest-Light.ttf');
+        src: url('https://erp.tgc-carpets.uz/fonts/Onest-Light.ttf');
         }
 
         * {
