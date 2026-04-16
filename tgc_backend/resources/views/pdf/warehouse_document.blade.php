@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="uz">
+
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Warehouse Document #{{ $document->id }}</title>
     <style>
         @font-face {
-        font-family: custom;
-        src: url('https://erp.tgc-carpets.uz/fonts/Onest-Light.ttf');
+            font-family: custom;
+            src: url('https://erp.tgc-carpets.uz/fonts/Onest-Light.ttf');
         }
 
         * {
@@ -94,10 +95,25 @@
             text-transform: uppercase;
         }
 
-        .type-in    { background-color: #dcfce7; color: #166534; }
-        .type-out   { background-color: #fee2e2; color: #991b1b; }
-        .type-return { background-color: #fef3c7; color: #92400e; }
-        .type-adjustment { background-color: #ede9fe; color: #5b21b6; }
+        .type-in {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .type-out {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .type-return {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .type-adjustment {
+            background-color: #ede9fe;
+            color: #5b21b6;
+        }
 
         /* ── Items Table ─────────────────────────────────── */
         .items-table {
@@ -221,191 +237,197 @@
         }
     </style>
 </head>
+
 <body>
-<div class="page">
+    <div class="page">
 
-    {{-- ── Brand & Title ────────────────────────────────── --}}
-    <div class="brand" style="display: flex;">
-        <div>TGC Carpets</div>
-
-        <div>
-            <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+        {{-- ── Brand & Title ────────────────────────────────── --}}
+        <div class="brand">
+            TGC Carpets
         </div>
-    </div>
-    <div class="invoice-title">
-        Omborxona hujjati #{{ $document->id }}
-    </div>
+        <div class="invoice-title" style="display: flex;">
+            <div>
+                Omborxona hujjati #{{ $document->id }}
+            </div>
 
-    <div class="header-meta">
-        <table>
-            <tr>
-                <td style="width: 50%;">
-                    <div class="meta-label">Sana</div>
-                    <div class="meta-value">
-                        {{ $document->document_date?->format('d M Y') }}
-                    </div>
-                    <div class="meta-sub">
-                        {{ $document->document_date?->format('H:i') }}
-                    </div>
-                </td>
-                <td style="width: 50%;">
-                    <div class="meta-label">Masul xodim</div>
-                    <div class="meta-value">{{ $document->user->name ?? '—' }}</div>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <hr class="divider">
-
-    {{-- ── Notes ───────────────────────────────────────── --}}
-    @if($document->notes)
-        <div class="notes-box">
-            <strong>Izoh:</strong> {{ $document->notes }}
+            <div>
+                <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+            </div>
         </div>
-    @endif
 
-    {{-- ── Items Table ──────────────────────────────────── --}}
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th style="width: 4%;">#</th>
-                <th style="width: 19%;">Mahsulot</th>
-                <th style="width: 11%;">Rang</th>
-                <th style="width: 11%;">Tur</th>
-                <th style="width: 11%;">Sifat</th>
-                <th style="width: 11%;">O'lcham</th>
-                <th class="right" style="width: 10%;">m² (dona)</th>
-                <th class="right" style="width: 10%;">Miqdor</th>
-                <th class="right" style="width: 13%;">Umumiy m²</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php
-                $grandTotalQty = 0;
-                $grandTotalSqm = 0.0;
-                $hasSqm = false;
-            @endphp
-            @foreach ($document->items as $index => $item)
-                @php
-                    $variant = $item->variant;
-                    $product = $variant?->productColor?->product;
-                    $quality = $product?->productQuality;
-                    $type    = $product?->productType;
-                    $color   = $variant?->productColor?->color;
-                    $size    = $variant?->productSize;
-
-                    $sizeLabel    = $size ? $size->length . ' × ' . $size->width : '—';
-                    $sizePerUnit  = ($size && $size->length && $size->width)
-                        ? number_format($size->length * $size->width / 10000, 4)
-                        : null;
-                    $sqm = ($size && $size->length && $size->width)
-                        ? round($size->length * $size->width * $item->quantity / 10000, 4)
-                        : null;
-
-                    $grandTotalQty += $item->quantity;
-                    if ($sqm !== null) {
-                        $grandTotalSqm += $sqm;
-                        $hasSqm = true;
-                    }
-                @endphp
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $product?->name ?? '—' }}</td>
-                    <td>{{ $color?->name ?? '—' }}</td>
-                    <td>{{ $type?->type ?? '—' }}</td>
-                    <td>{{ $quality?->quality_name ?? '—' }}</td>
-                    <td>{{ $sizeLabel }}</td>
-                    <td class="right">
-                        @if($sizePerUnit !== null)
-                            {{ $sizePerUnit }} m²
-                        @else
-                            —
-                        @endif
-                    </td>
-                    <td class="right">{{ $item->quantity }}</td>
-                    <td class="right">
-                        @if($sqm !== null)
-                            {{ number_format($sqm, 2) }} m²
-                        @else
-                            —
-                        @endif
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    {{-- ── Totals ───────────────────────────────────────── --}}
-    <div class="total-row">
-        <table>
-            <tr>
-                <td class="total-label total-border">Jami dona</td>
-                <td class="total-value total-border">{{ $grandTotalQty }}</td>
-            </tr>
-            @if($hasSqm)
-            <tr>
-                <td class="total-label">Jami m²</td>
-                <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
-            </tr>
-            @endif
-        </table>
-    </div>
-
-    {{-- ── Shipment Info (out-type only) ───────────────── --}}
-    @if($shipmentInfo)
-        <div class="shipment-box">
-            <div class="shipment-box-title">YUK MA'LUMOTLARI</div>
+        <div class="header-meta">
             <table>
                 <tr>
-                    <td class="sl">Yuk chiqarish №:</td>
-                    <td><strong>{{ $shipmentInfo['id'] }}</strong></td>
+                    <td style="width: 50%;">
+                        <div class="meta-label">Sana</div>
+                        <div class="meta-value">
+                            {{ $document->document_date?->format('d M Y') }}
+                        </div>
+                        <div class="meta-sub">
+                            {{ $document->document_date?->format('H:i') }}
+                        </div>
+                    </td>
+                    <td style="width: 50%;">
+                        <div class="meta-label">Masul xodim</div>
+                        <div class="meta-value">{{ $document->user->name ?? '—' }}</div>
+                    </td>
                 </tr>
+            </table>
+        </div>
+
+        <hr class="divider">
+
+        {{-- ── Notes ───────────────────────────────────────── --}}
+        @if ($document->notes)
+            <div class="notes-box">
+                <strong>Izoh:</strong> {{ $document->notes }}
+            </div>
+        @endif
+
+        {{-- ── Items Table ──────────────────────────────────── --}}
+        <table class="items-table">
+            <thead>
                 <tr>
-                    <td class="sl">Sana:</td>
-                    <td>{{ $shipmentInfo['shipment_datetime'] }}</td>
+                    <th style="width: 4%;">#</th>
+                    <th style="width: 19%;">Mahsulot</th>
+                    <th style="width: 11%;">Rang</th>
+                    <th style="width: 11%;">Tur</th>
+                    <th style="width: 11%;">Sifat</th>
+                    <th style="width: 11%;">O'lcham</th>
+                    <th class="right" style="width: 10%;">m² (dona)</th>
+                    <th class="right" style="width: 10%;">Miqdor</th>
+                    <th class="right" style="width: 13%;">Umumiy m²</th>
                 </tr>
-                @if($shipmentInfo['client'])
+            </thead>
+            <tbody>
+                @php
+                    $grandTotalQty = 0;
+                    $grandTotalSqm = 0.0;
+                    $hasSqm = false;
+                @endphp
+                @foreach ($document->items as $index => $item)
+                    @php
+                        $variant = $item->variant;
+                        $product = $variant?->productColor?->product;
+                        $quality = $product?->productQuality;
+                        $type = $product?->productType;
+                        $color = $variant?->productColor?->color;
+                        $size = $variant?->productSize;
+
+                        $sizeLabel = $size ? $size->length . ' × ' . $size->width : '—';
+                        $sizePerUnit =
+                            $size && $size->length && $size->width
+                                ? number_format(($size->length * $size->width) / 10000, 4)
+                                : null;
+                        $sqm =
+                            $size && $size->length && $size->width
+                                ? round(($size->length * $size->width * $item->quantity) / 10000, 4)
+                                : null;
+
+                        $grandTotalQty += $item->quantity;
+                        if ($sqm !== null) {
+                            $grandTotalSqm += $sqm;
+                            $hasSqm = true;
+                        }
+                    @endphp
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $product?->name ?? '—' }}</td>
+                        <td>{{ $color?->name ?? '—' }}</td>
+                        <td>{{ $type?->type ?? '—' }}</td>
+                        <td>{{ $quality?->quality_name ?? '—' }}</td>
+                        <td>{{ $sizeLabel }}</td>
+                        <td class="right">
+                            @if ($sizePerUnit !== null)
+                                {{ $sizePerUnit }} m²
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="right">{{ $item->quantity }}</td>
+                        <td class="right">
+                            @if ($sqm !== null)
+                                {{ number_format($sqm, 2) }} m²
+                            @else
+                                —
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        {{-- ── Totals ───────────────────────────────────────── --}}
+        <div class="total-row">
+            <table>
                 <tr>
-                    <td class="sl">Mijoz:</td>
-                    <td>{{ $shipmentInfo['client']['shop_name'] }}</td>
+                    <td class="total-label total-border">Jami dona</td>
+                    <td class="total-value total-border">{{ $grandTotalQty }}</td>
                 </tr>
-                {{-- <tr>
-                    <td class="sl">Aloqa shaxs:</td>
-                    <td>{{ $shipmentInfo['client']['contact_person'] }}</td>
-                </tr> --}}
-                <tr>
-                    <td class="sl">Hudud:</td>
-                    <td>{{ $shipmentInfo['client']['region'] }}</td>
-                </tr>
-                @if($shipmentInfo['client']['phone'])
-                {{-- <tr>
-                    <td class="sl">Telefon:</td>
-                    <td>{{ $shipmentInfo['client']['phone'] }}</td>
-                </tr> --}}
-                @endif
-                @endif
-                @if($shipmentInfo['user'])
-                <tr>
-                    <td class="sl">Yuk chiqardi:</td>
-                    <td>{{ $shipmentInfo['user']['name'] }}</td>
-                </tr>
-                @endif
-                @if($shipmentInfo['notes'])
-                <tr>
-                    <td class="sl">Izoh:</td>
-                    <td>{{ $shipmentInfo['notes'] }}</td>
-                </tr>
+                @if ($hasSqm)
+                    <tr>
+                        <td class="total-label">Jami m²</td>
+                        <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
+                    </tr>
                 @endif
             </table>
         </div>
-    @endif
 
-    {{-- ── Footer ───────────────────────────────────────── --}}
-    <div class="footer">
-        Generated on {{ now()->format('d M Y, H:i') }} &nbsp;·&nbsp; TGC Carpets ERP
+        {{-- ── Shipment Info (out-type only) ───────────────── --}}
+        @if ($shipmentInfo)
+            <div class="shipment-box">
+                <div class="shipment-box-title">YUK MA'LUMOTLARI</div>
+                <table>
+                    <tr>
+                        <td class="sl">Yuk chiqarish №:</td>
+                        <td><strong>{{ $shipmentInfo['id'] }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="sl">Sana:</td>
+                        <td>{{ $shipmentInfo['shipment_datetime'] }}</td>
+                    </tr>
+                    @if ($shipmentInfo['client'])
+                        <tr>
+                            <td class="sl">Mijoz:</td>
+                            <td>{{ $shipmentInfo['client']['shop_name'] }}</td>
+                        </tr>
+                        {{-- <tr>
+                    <td class="sl">Aloqa shaxs:</td>
+                    <td>{{ $shipmentInfo['client']['contact_person'] }}</td>
+                </tr> --}}
+                        <tr>
+                            <td class="sl">Hudud:</td>
+                            <td>{{ $shipmentInfo['client']['region'] }}</td>
+                        </tr>
+                        @if ($shipmentInfo['client']['phone'])
+                            {{-- <tr>
+                    <td class="sl">Telefon:</td>
+                    <td>{{ $shipmentInfo['client']['phone'] }}</td>
+                </tr> --}}
+                        @endif
+                    @endif
+                    @if ($shipmentInfo['user'])
+                        <tr>
+                            <td class="sl">Yuk chiqardi:</td>
+                            <td>{{ $shipmentInfo['user']['name'] }}</td>
+                        </tr>
+                    @endif
+                    @if ($shipmentInfo['notes'])
+                        <tr>
+                            <td class="sl">Izoh:</td>
+                            <td>{{ $shipmentInfo['notes'] }}</td>
+                        </tr>
+                    @endif
+                </table>
+            </div>
+        @endif
+
+        {{-- ── Footer ───────────────────────────────────────── --}}
+        <div class="footer">
+            Generated on {{ now()->format('d M Y, H:i') }} &nbsp;·&nbsp; TGC Carpets ERP
+        </div>
+
     </div>
-
-</div>
 </body>
+
 </html>
