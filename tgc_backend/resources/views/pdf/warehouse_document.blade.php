@@ -229,7 +229,7 @@
         <div>TGC Carpets</div>
 
         <div>
-            <span style="margin-top: 12px;" class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+            <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
         </div>
     </div>
     <div class="invoice-title">
