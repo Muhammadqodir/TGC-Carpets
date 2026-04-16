@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 
 import '../../domain/entities/shipment_entity.dart';
@@ -20,12 +22,16 @@ class ShipmentTable extends StatelessWidget {
   static const _columns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.center),
     AppTableColumn(label: 'Sana', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mijoz / Hudud', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(
+        label: 'Mijoz / Hudud', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Buyurtma', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Hajm', flex: 3, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Jami (m²)', flex: 2, alignment: Alignment.centerRight),
-    AppTableColumn(label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
+    AppTableColumn(
+        label: 'Jami (m²)', flex: 2, alignment: Alignment.centerRight),
+    AppTableColumn(
+        label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.center),
+    AppTableColumn(label: '', fixedWidth: 48, alignment: Alignment.center),
   ];
 
   @override
@@ -128,6 +134,22 @@ class ShipmentTable extends StatelessWidget {
                     ),
               );
 
+      case 8: // PDF action
+        if (shipment.pdfUrl == null) return const SizedBox.shrink();
+        return IconButton(
+          tooltip: 'Hisob-faktura',
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+          color: AppColors.primary,
+          onPressed: () => Navigator.of(context).push(
+            CupertinoPageRoute(
+              builder: (_) => PdfViewerPage(
+                title: 'Yuk xati ${shipment.id}',
+                pdfUrl: shipment.pdfUrl!,
+              ),
+            ),
+          ),
+        );
+
       default:
         return const SizedBox.shrink();
     }
@@ -175,7 +197,7 @@ class _OrderDatesCell extends StatelessWidget {
 
   String _fmtDate(DateTime d) {
     final day = d.day.toString().padLeft(2, '0');
-    final mo  = d.month.toString().padLeft(2, '0');
+    final mo = d.month.toString().padLeft(2, '0');
     return '$day.$mo.${d.year}';
   }
 }
@@ -189,8 +211,8 @@ class _VolumeCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemCount    = shipment.items.length;
-    final totalQty     = shipment.totalQuantity;
+    final itemCount = shipment.items.length;
+    final totalQty = shipment.totalQuantity;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

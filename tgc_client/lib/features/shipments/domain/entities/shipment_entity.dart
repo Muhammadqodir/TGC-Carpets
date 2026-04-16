@@ -6,6 +6,7 @@ class ShipmentEntity extends Equatable {
   final int id;
   final DateTime shipmentDatetime;
   final String? notes;
+  final String? pdfUrl;
   final int? clientId;
   final String? clientShopName;
   final String? clientRegion;
@@ -19,6 +20,7 @@ class ShipmentEntity extends Equatable {
     required this.id,
     required this.shipmentDatetime,
     this.notes,
+    this.pdfUrl,
     this.clientId,
     this.clientShopName,
     this.clientRegion,
@@ -62,6 +64,7 @@ class ShipmentEntity extends Equatable {
         id,
         shipmentDatetime,
         notes,
+        pdfUrl,
         clientId,
         clientShopName,
         clientRegion,

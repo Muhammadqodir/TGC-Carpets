@@ -1,5 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/shipment_entity.dart';
 
@@ -11,8 +15,8 @@ class ShipmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalM2   = shipment.totalM2;
-    final totalQty  = shipment.totalQuantity;
+    final totalM2 = shipment.totalM2;
+    final totalQty = shipment.totalQuantity;
     final itemCount = shipment.items.length;
 
     return Card(
@@ -116,6 +120,30 @@ class ShipmentCard extends StatelessWidget {
                         color: AppColors.success,
                       ),
                 ),
+                if (shipment.pdfUrl != null) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 32,
+                    width: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Hisob-faktura',
+                      icon: const Icon(
+                        Icons.picture_as_pdf_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (_) => PdfViewerPage(
+                            title: 'Yuk xati ${shipment.id}',
+                            pdfUrl: shipment.pdfUrl!,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -125,9 +153,9 @@ class ShipmentCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final h  = dt.hour.toString().padLeft(2, '0');
-    final m  = dt.minute.toString().padLeft(2, '0');
-    final d  = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
     final mo = dt.month.toString().padLeft(2, '0');
     return '$d.$mo.${dt.year} $h:$m';
   }

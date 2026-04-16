@@ -84,4 +84,7 @@ class AppRoutes {
 
   static const String addPayment     = '/payments/add';
   static const String addPaymentName = 'addPayment';
+
+  static const String shipmentInvoice     = '/shipping/invoice';
+  static const String shipmentInvoiceName = 'shipmentInvoice';
 }
