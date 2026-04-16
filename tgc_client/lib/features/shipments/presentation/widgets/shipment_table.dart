@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
@@ -31,7 +32,7 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(
         label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.center),
-    AppTableColumn(label: '', fixedWidth: 48, alignment: Alignment.center),
+    AppTableColumn(label: '', fixedWidth: 100, alignment: Alignment.center),
   ];
 
   @override
@@ -134,20 +135,45 @@ class ShipmentTable extends StatelessWidget {
                     ),
               );
 
-      case 8: // PDF action
-        if (shipment.pdfUrl == null) return const SizedBox.shrink();
-        return IconButton(
-          tooltip: 'Hisob-faktura',
-          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-          color: AppColors.primary,
-          onPressed: () => Navigator.of(context).push(
-            CupertinoPageRoute(
-              builder: (_) => PdfViewerPage(
-                title: 'Yuk xati ${shipment.id}',
-                pdfUrl: shipment.pdfUrl!,
-              ),
+      case 8: // PDF actions
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              tooltip: 'Yuk xati',
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice01, size: 24),
+              color: shipment.pdfUrl != null
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+              onPressed: shipment.pdfUrl != null
+                  ? () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (_) => PdfViewerPage(
+                            title: 'Yuk xati ${shipment.id}',
+                            pdfUrl: shipment.pdfUrl!,
+                          ),
+                        ),
+                      )
+                  : null,
             ),
-          ),
+            IconButton(
+              tooltip: 'Hisob-faktura',
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice02, size: 24),
+              color: shipment.invoiceUrl != null
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+              onPressed: shipment.invoiceUrl != null
+                  ? () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (_) => PdfViewerPage(
+                            title: 'Hisob-faktura ${shipment.id}',
+                            pdfUrl: shipment.invoiceUrl!,
+                          ),
+                        ),
+                      )
+                  : null,
+            ),
+          ],
         );
 
       default:

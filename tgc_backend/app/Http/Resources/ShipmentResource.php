@@ -17,6 +17,9 @@ class ShipmentResource extends JsonResource
             'pdf_url'           => $this->pdf_path
                 ? Storage::disk('public')->url($this->pdf_path)
                 : null,
+            'invoice_url'       => $this->invoice_path
+                ? Storage::disk('public')->url($this->invoice_path)
+                : null,
             'client'            => $this->whenLoaded('client', fn () => [
                 'id'        => $this->client->id,
                 'shop_name' => $this->client->shop_name,

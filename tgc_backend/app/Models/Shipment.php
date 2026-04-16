@@ -18,6 +18,7 @@ class Shipment extends Model
         'shipment_datetime',
         'notes',
         'pdf_path',
+        'invoice_path',
     ];
 
     protected function casts(): array

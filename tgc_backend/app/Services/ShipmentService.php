@@ -105,6 +105,7 @@ class ShipmentService
         });
 
         $this->generateAndStoreInvoice($shipment);
+        $this->generateAndStoreHisobFaktura($shipment);
 
         // Generate warehouse document PDF after the transaction so all items are committed
         if ($warehouseDocId !== null) {
@@ -142,6 +143,29 @@ class ShipmentService
         Storage::disk('public')->put($relativePath, $pdf->output());
 
         $shipment->update(['pdf_path' => $relativePath]);
+    }
+
+    /**
+     * Generate the hisob-faktura (price invoice) PDF with price_per_unit and
+     * total price columns, persist it, and update invoice_path on the shipment.
+     */
+    public function generateAndStoreHisobFaktura(Shipment $shipment): void
+    {
+        $shipment->loadMissing([
+            'client',
+            'items.variant.productColor.product.productQuality',
+            'items.variant.productColor.color',
+            'items.variant.productSize',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])
+            ->setPaper('a4', 'portrait');
+
+        $relativePath = 'shipments/hisob_faktura/faktura_' . $shipment->id . '.pdf';
+
+        Storage::disk('public')->put($relativePath, $pdf->output());
+
+        $shipment->update(['invoice_path' => $relativePath]);
     }
 
     /**
