@@ -62,7 +62,11 @@ class _AddProductionBatchDesktopPageState
       if (batch.plannedDatetime != null) {
         _plannedDate = batch.plannedDatetime;
         _plannedTime = TimeOfDay.fromDateTime(batch.plannedDatetime!);
+      } else {
+        _plannedDate = DateTime.now();
       }
+    } else {
+      _plannedDate = DateTime.now();
     }
   }
 
