@@ -224,7 +224,7 @@
     <div class="invoice-title">
         Omborxona hujjati #{{ $document->id }}
         &nbsp;
-        <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+        <span style="margin-top: 12px;" class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
     </div>
 
     <div class="header-meta">
