@@ -261,13 +261,10 @@
                     <td style="width: 50%;">
                         <div class="meta-label">Sana</div>
                         <div class="meta-value">
-                            {{ $document->document_date?->format('d M Y') }}
-                        </div>
-                        <div class="meta-sub">
-                            {{ $document->document_date?->format('H:i') }}
+                            {{ $document->document_date?->format('d m Y H:i') }}
                         </div>
                     </td>
-                    <td style="width: 50%;">
+                    <td style="width: 50%; text-align: right;">
                         <div class="meta-label">Masul xodim</div>
                         <div class="meta-value">{{ $document->user->name ?? '—' }}</div>
                     </td>
