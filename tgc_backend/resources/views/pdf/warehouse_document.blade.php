@@ -361,24 +361,24 @@
                     <td class="sl">Mijoz:</td>
                     <td>{{ $shipmentInfo['client']['shop_name'] }}</td>
                 </tr>
-                <tr>
+                {{-- <tr>
                     <td class="sl">Aloqa shaxs:</td>
                     <td>{{ $shipmentInfo['client']['contact_person'] }}</td>
-                </tr>
+                </tr> --}}
                 <tr>
                     <td class="sl">Hudud:</td>
                     <td>{{ $shipmentInfo['client']['region'] }}</td>
                 </tr>
                 @if($shipmentInfo['client']['phone'])
-                <tr>
+                {{-- <tr>
                     <td class="sl">Telefon:</td>
                     <td>{{ $shipmentInfo['client']['phone'] }}</td>
-                </tr>
+                </tr> --}}
                 @endif
                 @endif
                 @if($shipmentInfo['user'])
                 <tr>
-                    <td class="sl">Sotuv menejeri:</td>
+                    <td class="sl">Yuk chiqardi:</td>
                     <td>{{ $shipmentInfo['user']['name'] }}</td>
                 </tr>
                 @endif
