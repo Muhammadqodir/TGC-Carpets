@@ -240,18 +240,16 @@
         <div class="brand">
             TGC Carpets
         </div>
-        <div class="invoice-title">
-            <table style="width: 100%;">
-                <tr>
-                    <td style="width: 50%;">
-                        Omborxona hujjati #{{ $document->id }}
-                    </td>
-                    <td style="width: 50%; text-align: right;">
-                        <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
-                    </td>
-                </tr>
-            </table>
-        </div>
+        <table class="invoice-title" style="width: 100%;">
+            <tr>
+                <td style="width: 50%;">
+                    Omborxona hujjati #{{ $document->id }}
+                </td>
+                <td style="width: 50%; text-align: right;">
+                    <span class="type-badge type-{{ $document->type }}">{{ $docTypeLabel }}</span>
+                </td>
+            </tr>
+        </table>
 
         <div class="header-meta">
             <table>
