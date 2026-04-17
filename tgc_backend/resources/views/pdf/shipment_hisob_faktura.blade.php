@@ -247,14 +247,21 @@
                         </td>
                         <td class="right">
                             @if ($sqm > 0)
-                                {{ number_format($sqm, 2) }}
+                                {{ number_format($sqm, 2) }} m²
                             @else
                                 —
                             @endif
                         </td>
                         <td class="right">{{ $qty }}</td>
-                        <td class="right">{{ number_format($price, 2) }}</td>
-                        <td class="right">{{ number_format($lineTotal, 2) }}</td>
+                        <td class="right">
+                            @if ($sqm > 0)
+                                {{ number_format($sqm * $qty, 2) }} m²
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="right">{{ number_format($price, 2) }} $</td>
+                        <td class="right">{{ number_format($lineTotal, 2) }} $</td>
                     </tr>
                 @endforeach
             </tbody>

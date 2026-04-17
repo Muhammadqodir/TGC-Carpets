@@ -221,7 +221,7 @@
                         $size = $item->variant?->productSize;
                         $sqm =
                             $size && $product?->unit === 'm2'
-                                ? round(($size->length * $size->width * $item->quantity) / 10000, 4)
+                                ? round(($size->length * $size->width * $item->quantity) / 10000, 2)
                                 : 0;
                         $totalNumber = $item->quantity;
                         $grandTotalSqm += $sqm;
@@ -240,22 +240,15 @@
                         </td>
                         <td class="right">
                             @if ($size)
-                                {{ number_format(($size->length * $size->width / 10000), 2) }}
+                                {{ $sqm }} m²
                             @else
                                 —
                             @endif
                         </td>
                         <td class="right">{{ $item->quantity }}</td>
                         <td class="right">
-                            @if ($size)
-                                {{ number_format($size->length * $size->width * $item->quantity, 2) }}
-                            @else
-                                —
-                            @endif
-                        </td>
-                        <td class="right">
-                            @if ($sqm > 0)
-                                {{ number_format($sqm, 2) }}
+                            @if ($grandTotalSqm > 0)
+                                {{ number_format($grandTotalSqm, 2) }} m²
                             @else
                                 —
                             @endif
