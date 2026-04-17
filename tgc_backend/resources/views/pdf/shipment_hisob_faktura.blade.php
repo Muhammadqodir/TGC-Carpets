@@ -171,7 +171,7 @@
         <div class="header-meta" style="margin-top: 18px;">
             <table>
                 <tr>
-                    <td style="width: 33%;">
+                    <td style="width: 50%;">
                         <div class="meta-label">Sana</div>
                         <div class="meta-value">
                             {{ $shipment->shipment_datetime->format('d M Y') }}
@@ -180,7 +180,7 @@
                             {{ $shipment->shipment_datetime->format('H:i') }}
                         </div>
                     </td>
-                    <td style="width: 33%;">
+                    <td style="width: 50%; text-align: right;">
                         <div class="meta-label">Mijoz</div>
                         <div class="meta-value">
                             {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
@@ -189,12 +189,6 @@
                             <div class="meta-sub">{{ $shipment->client->region }}</div>
                         @endif
                     </td>
-                    @if ($shipment->notes)
-                        <td style="width: 34%;">
-                            <div class="meta-label">Izoh</div>
-                            <div class="meta-sub">{{ $shipment->notes }}</div>
-                        </td>
-                    @endif
                 </tr>
             </table>
         </div>
@@ -206,14 +200,15 @@
             <thead>
                 <tr>
                     <th style="width: 4%;">#</th>
-                    <th style="width: 18%;">Mahsulot</th>
-                    <th style="width: 14%;">Rang</th>
-                    <th style="width: 14%;">Sifat</th>
-                    <th style="width: 14%;">O'lcham (cm)</th>
-                    <th class="right" style="width: 9%;">m²</th>
+                    <th style="width: 12%;">Mahsulot</th>
+                    <th style="width: 12%;">Rang</th>
+                    <th style="width: 18%;">Sifat</th>
+                    <th style="width: 12%;">O'lcham (cm)</th>
+                    <th class="right" style="width: 6%;">m²</th>
                     <th class="right" style="width: 8%;">Miqdor</th>
+                    <th class="right" style="width: 8%;">Jami m²</th>
                     <th class="right" style="width: 10%;">Narx ($)</th>
-                    <th class="right" style="width: 9%;">Jami ($)</th>
+                    <th class="right" style="width: 10%;">Jami ($)</th>
                 </tr>
             </thead>
             <tbody>
