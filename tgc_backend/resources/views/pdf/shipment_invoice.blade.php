@@ -200,13 +200,13 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">#</th>
-                    <th style="width: 20%;">Mahsulot</th>
+                    <th style="width: 4%;">#</th>
+                    <th style="width: 15%;">Mahsulot</th>
                     <th style="width: 20%;">Sifat</th>
-                    <th style="width: 20%;">O'lcham (cm)</th>
-                    <th class="right" style="width: 17.5%;">m²</th>
-                    <th class="right" style="width: 17.5%;">Miqdor</th>
-                    <th class="right" style="width: 17.5%;">Jami m²</th>
+                    <th style="width: 15%;">O'lcham (cm)</th>
+                    <th class="right" style="width: 16%;">m²</th>
+                    <th class="right" style="width: 10%;">Miqdor</th>
+                    <th class="right" style="width: 20%;">Jami m²</th>
                 </tr>
             </thead>
             <tbody>
@@ -240,15 +240,15 @@
                         </td>
                         <td class="right">
                             @if ($size)
-                                {{ $sqm }} m²
+                                {{ number_format(($size->length * $size->width) / 10000, 2) }} m²
                             @else
                                 —
                             @endif
                         </td>
                         <td class="right">{{ $item->quantity }}</td>
                         <td class="right">
-                            @if ($grandTotalSqm > 0)
-                                {{ number_format($grandTotalSqm, 2) }} m²
+                            @if ($sqm > 0)
+                                {{ number_format($sqm, 2) }} m²
                             @else
                                 —
                             @endif

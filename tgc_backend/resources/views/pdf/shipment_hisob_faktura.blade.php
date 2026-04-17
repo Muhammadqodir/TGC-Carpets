@@ -195,12 +195,12 @@
                 <tr>
                     <th style="width: 4%;">#</th>
                     <th style="width: 12%;">Mahsulot</th>
-                    <th style="width: 12%;">Rang</th>
-                    <th style="width: 18%;">Sifat</th>
+                    <th style="width: 10%;">Rang</th>
+                    <th style="width: 14%%;">Sifat</th>
                     <th style="width: 12%;">O'lcham (cm)</th>
-                    <th class="right" style="width: 6%;">m²</th>
+                    <th class="right" style="width: 10%;">m²</th>
                     <th class="right" style="width: 8%;">Miqdor</th>
-                    <th class="right" style="width: 8%;">Jami m²</th>
+                    <th class="right" style="width: 10%;">Jami m²</th>
                     <th class="right" style="width: 10%;">Narx ($)</th>
                     <th class="right" style="width: 10%;">Jami ($)</th>
                 </tr>
