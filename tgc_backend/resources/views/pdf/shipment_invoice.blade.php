@@ -180,20 +180,14 @@
                         <td style="width: 50%;">
                             <div class="meta-label">Sana</div>
                             <div class="meta-value">
-                                {{ $shipment->shipment_datetime->format('d M Y') }}
-                            </div>
-                            <div class="meta-sub">
-                                {{ $shipment->shipment_datetime->format('H:i') }}
+                                {{ $shipment->shipment_datetime->format('d.m.Y H:i') }}
                             </div>
                         </td>
                         <td style="width: 50%; text-align: right;">
                             <div class="meta-label">Mijoz</div>
                             <div class="meta-value">
-                                {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
+                                {{ $shipment->client->shop_name ?? $shipment->client->contact_name }} / {{ $shipment->client->region }}
                             </div>
-                            @if ($shipment->client->region)
-                                <div class="meta-sub">{{ $shipment->client->region }}</div>
-                            @endif
                         </td>
                     </tr>
                 </table>
@@ -246,7 +240,7 @@
                         </td>
                         <td class="right">
                             @if ($size)
-                                {{ number_format($size->length * $size->width, 2) }}
+                                {{ number_format(($size->length * $size->width / 10000), 2) }}
                             @else
                                 —
                             @endif
@@ -281,8 +275,8 @@
                     </td>
                 </tr>
                 <tr>
-                    <td class="total-label">Umumiy m²</td>
-                    <td class="total-value">
+                    <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Umumiy m²</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">
                         {{ number_format($grandTotalSqm, 2) }} m²
                     </td>
                 </tr>

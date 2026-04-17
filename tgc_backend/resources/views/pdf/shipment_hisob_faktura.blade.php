@@ -174,20 +174,14 @@
                     <td style="width: 50%;">
                         <div class="meta-label">Sana</div>
                         <div class="meta-value">
-                            {{ $shipment->shipment_datetime->format('d M Y') }}
-                        </div>
-                        <div class="meta-sub">
-                            {{ $shipment->shipment_datetime->format('H:i') }}
+                            {{ $shipment->shipment_datetime->format('d.m.Y H:i') }}
                         </div>
                     </td>
                     <td style="width: 50%; text-align: right;">
                         <div class="meta-label">Mijoz</div>
                         <div class="meta-value">
-                            {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
+                            {{ $shipment->client->shop_name ?? $shipment->client->contact_name }} / {{ $shipment->client->region }}
                         </div>
-                        @if ($shipment->client->region)
-                            <div class="meta-sub">{{ $shipment->client->region }}</div>
-                        @endif
                     </td>
                 </tr>
             </table>
@@ -270,18 +264,18 @@
         <div class="total-row">
             <table>
                 <tr>
-                    <td class="total-label">Umumiy dona</td>
-                    <td class="total-value">{{ number_format($grandTotalQty, 0) }}</td>
+                    <td class="total-label total-border">Umumiy dona</td>
+                    <td class="total-value total-border">{{ number_format($grandTotalQty, 0) }}</td>
                 </tr>
                 @if ($grandTotalSqm > 0)
                 <tr>
-                    <td class="total-label">Umumiy m²</td>
-                    <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
+                    <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Umumiy m²</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalSqm, 2) }} m²</td>
                 </tr>
                 @endif
                 <tr>
-                    <td class="total-label total-border">Jami summa</td>
-                    <td class="total-value total-border">$ {{ number_format($grandTotalPrice, 2) }}</td>
+                    <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Jami summa</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">$ {{ number_format($grandTotalPrice, 2) }}</td>
                 </tr>
             </table>
         </div>
