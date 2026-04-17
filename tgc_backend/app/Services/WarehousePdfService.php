@@ -29,7 +29,7 @@ class WarehousePdfService
             'document'     => $document,
             'docTypeLabel' => $this->resolveDocumentTypeName($document->type),
             'shipmentInfo' => $shipmentInfo,
-        ])->setPaper('a4', 'portrait')->setOptions(['dpi' => 150, 'defaultFont' => 'sans-serif']);
+        ])->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
 
         $filename = "doc_{$document->id}_{$document->uuid}.pdf";
         $path = "warehouse-documents/pdfs/{$filename}";
