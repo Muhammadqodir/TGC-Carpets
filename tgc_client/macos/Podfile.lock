@@ -1,6 +1,8 @@
 PODS:
   - connectivity_plus (0.0.1):
     - FlutterMacOS
+  - file_picker (0.0.1):
+    - FlutterMacOS
   - file_selector_macos (0.0.1):
     - FlutterMacOS
   - flutter_secure_storage_macos (6.1.3):
@@ -21,6 +23,7 @@ PODS:
 
 DEPENDENCIES:
   - connectivity_plus (from `Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos`)
+  - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - flutter_secure_storage_macos (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
@@ -33,6 +36,8 @@ DEPENDENCIES:
 EXTERNAL SOURCES:
   connectivity_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos
+  file_picker:
+    :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   flutter_secure_storage_macos:
@@ -52,6 +57,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   connectivity_plus: 0a976dfd033b59192912fa3c6c7b54aab5093802
+  file_picker: e716a70a9fe5fd9e09ebc922d7541464289443af
   file_selector_macos: 3e56eaea051180007b900eacb006686fd54da150
   flutter_secure_storage_macos: c2754d3483d20bb207bb9e5a14f1b8e771abcdb9
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1

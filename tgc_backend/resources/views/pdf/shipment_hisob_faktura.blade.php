@@ -282,7 +282,7 @@
                 @endif
                 <tr>
                     <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Jami summa</td>
-                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">$ {{ number_format($grandTotalPrice, 2) }}</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalPrice, 2) }} $</td>
                 </tr>
             </table>
         </div>

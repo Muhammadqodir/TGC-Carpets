@@ -85,6 +85,12 @@ class AppRoutes {
   static const String addPayment     = '/payments/add';
   static const String addPaymentName = 'addPayment';
 
+  static const String debits     = '/debits';
+  static const String debitsName = 'debits';
+
+  static const String clientDebitDetail     = '/debits/detail';
+  static const String clientDebitDetailName = 'clientDebitDetail';
+
   static const String shipmentInvoice     = '/shipping/invoice';
   static const String shipmentInvoiceName = 'shipmentInvoice';
 }

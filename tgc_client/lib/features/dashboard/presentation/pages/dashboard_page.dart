@@ -246,12 +246,12 @@ class _DashboardViewState extends State<_DashboardView> {
                                   onTap: () =>
                                       context.pushNamed(AppRoutes.paymentsName),
                                 ),
-                                // _DashboardCard(
-                                //   icon: HugeIcons.strokeRoundedUserDollar,
-                                //   label: 'Qarzlar',
-                                //   onTap: () =>
-                                //       context.pushNamed(AppRoutes.salesName),
-                                // ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedUserDollar,
+                                  label: 'Debitorlar',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.debitsName),
+                                ),
                                 _DashboardCard(
                                   icon: HugeIcons.strokeRoundedUserSettings01,
                                   label: 'Hodimlar',

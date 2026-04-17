@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/pdf_downloader.dart';
 
 class PdfViewerPage extends StatelessWidget {
   final String pdfUrl;
@@ -19,8 +20,17 @@ class PdfViewerPage extends StatelessWidget {
     required this.title,
   });
 
+  bool _isDesktop(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    return platform == TargetPlatform.macOS ||
+        platform == TargetPlatform.windows ||
+        platform == TargetPlatform.linux;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = _isDesktop(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
@@ -33,14 +43,29 @@ class PdfViewerPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            tooltip: 'Ulashish / Chop etish',
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedShare01,
+            tooltip: isDesktop ? 'Yuklab olish' : 'Ulashish / Chop etish',
+            icon: HugeIcon(
+              icon: isDesktop
+                  ? HugeIcons.strokeRoundedDownload01
+                  : HugeIcons.strokeRoundedShare01,
               strokeWidth: 2,
             ),
             onPressed: () async {
               final bytes = await _fetchBytes();
-              await Printing.sharePdf(bytes: bytes, filename: '$title.pdf');
+              if (isDesktop) {
+                final messenger = ScaffoldMessenger.of(context);
+                final path = await downloadPdf(bytes, '$title.pdf');
+                if (path != null) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Saqlandi: $path'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else {
+                await Printing.sharePdf(bytes: bytes, filename: '$title.pdf');
+              }
             },
           ),
         ],

@@ -83,4 +83,8 @@ class ApiEndpoints {
   // Payments
   static const String payments = '/payments';
   static String paymentById(int id) => '/payments/$id';
+
+  // Debits (client debit/credit ledger)
+  static const String clientDebits = '/clients/debits';
+  static String clientDebitLedger(int clientId) => '/clients/$clientId/debit-ledger';
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
+use App\Http\Controllers\Api\V1\ClientDebitController;
 use App\Http\Controllers\Api\V1\ColorController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\EmployeeController;
@@ -67,6 +68,9 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('product-colors', ProductColorController::class)->except(['show']);
 
         // Clients
+        // NOTE: literal /clients/debits must be declared before the apiResource wildcard
+        Route::get('clients/debits',                [ClientDebitController::class, 'index'])->name('clients.debits.index');
+        Route::get('clients/{client}/debit-ledger', [ClientDebitController::class, 'ledger'])->name('clients.debit-ledger');
         Route::apiResource('clients', ClientController::class);
 
         // Employees (users management)

@@ -135,6 +135,15 @@ import '../../features/payments/domain/usecases/delete_payment_usecase.dart';
 import '../../features/payments/presentation/bloc/payments_bloc.dart';
 import '../../features/payments/presentation/bloc/payment_form_bloc.dart';
 
+// Debits feature
+import '../../features/debits/data/datasources/debit_remote_datasource.dart';
+import '../../features/debits/data/repositories/debit_repository_impl.dart';
+import '../../features/debits/domain/repositories/debit_repository.dart';
+import '../../features/debits/domain/usecases/get_client_debits_usecase.dart';
+import '../../features/debits/domain/usecases/get_client_debit_ledger_usecase.dart';
+import '../../features/debits/presentation/bloc/debits_bloc.dart';
+import '../../features/debits/presentation/bloc/debit_ledger_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -440,5 +449,27 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory(
     () => PaymentFormBloc(createPaymentUseCase: sl<CreatePaymentUseCase>()),
+  );
+
+  // ─── Debits Feature ───────────────────────────────────────────────────────
+  sl.registerLazySingleton<DebitRemoteDataSource>(
+    () => DebitRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<DebitRepository>(
+    () => DebitRepositoryImpl(remoteDataSource: sl<DebitRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetClientDebitsUseCase(sl<DebitRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetClientDebitLedgerUseCase(sl<DebitRepository>()),
+  );
+  sl.registerFactory(
+    () => DebitsBloc(getClientDebitsUseCase: sl<GetClientDebitsUseCase>()),
+  );
+  sl.registerFactory(
+    () => DebitLedgerBloc(
+      getClientDebitLedgerUseCase: sl<GetClientDebitLedgerUseCase>(),
+    ),
   );
 }

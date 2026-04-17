@@ -31,6 +31,9 @@ import '../../features/shipments/presentation/pages/shipments_page.dart';
 import '../../features/shipments/presentation/pages/add_shipment_page.dart';
 import '../../features/payments/presentation/pages/payments_page.dart';
 import '../../features/payments/presentation/pages/add_payment_page.dart';
+import '../../features/debits/domain/entities/client_debit_entity.dart';
+import '../../features/debits/presentation/pages/debits_page.dart';
+import '../../features/debits/presentation/pages/client_debit_detail_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -199,6 +202,19 @@ class AppRouter {
             path: AppRoutes.addPayment,
             name: AppRoutes.addPaymentName,
             builder: (context, state) => const AddPaymentPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.debits,
+            name: AppRoutes.debitsName,
+            builder: (context, state) => const DebitsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.clientDebitDetail,
+            name: AppRoutes.clientDebitDetailName,
+            builder: (context, state) {
+              final client = state.extra as ClientDebitEntity;
+              return ClientDebitDetailPage(client: client);
+            },
           ),
         ],
       ),
