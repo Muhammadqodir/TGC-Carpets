@@ -210,8 +210,8 @@
                     <th style="width: 14%;">Rang</th>
                     <th style="width: 14%;">Sifat</th>
                     <th style="width: 14%;">O'lcham (cm)</th>
-                    <th class="right" style="width: 8%;">Miqdor</th>
                     <th class="right" style="width: 9%;">m²</th>
+                    <th class="right" style="width: 8%;">Miqdor</th>
                     <th class="right" style="width: 10%;">Narx ($)</th>
                     <th class="right" style="width: 9%;">Jami ($)</th>
                 </tr>
@@ -247,7 +247,7 @@
                     <tr>
                         <td>{{ $index + 1 }}</td>
                         <td>{{ $product?->name ?? '—' }}</td>
-                        <td>{{ $color?->color_name ?? '—' }}</td>
+                        <td>{{ $color?->name ?? '—' }}</td>
                         <td>{{ $quality?->quality_name ?? '—' }}</td>
                         <td>
                             @if ($size)
@@ -256,7 +256,6 @@
                                 —
                             @endif
                         </td>
-                        <td class="right">{{ $qty }}</td>
                         <td class="right">
                             @if ($sqm > 0)
                                 {{ number_format($sqm, 2) }}
@@ -264,6 +263,7 @@
                                 —
                             @endif
                         </td>
+                        <td class="right">{{ $qty }}</td>
                         <td class="right">{{ number_format($price, 2) }}</td>
                         <td class="right">{{ number_format($lineTotal, 2) }}</td>
                     </tr>

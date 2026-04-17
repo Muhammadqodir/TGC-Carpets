@@ -136,7 +136,7 @@ class ShipmentService
         ]);
 
         $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
-            ->setPaper('a4', 'portrait');
+            ->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
 
         $relativePath = 'shipments/invoices/invoice_' . $shipment->id . '.pdf';
 
@@ -159,7 +159,7 @@ class ShipmentService
         ]);
 
         $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])
-            ->setPaper('a4', 'portrait');
+            ->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
 
         $relativePath = 'shipments/hisob_faktura/faktura_' . $shipment->id . '.pdf';
 

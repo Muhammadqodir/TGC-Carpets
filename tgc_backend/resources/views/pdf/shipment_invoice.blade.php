@@ -210,6 +210,7 @@
                     <th style="width: 20%;">Mahsulot</th>
                     <th style="width: 20%;">Sifat</th>
                     <th style="width: 20%;">O'lcham (cm)</th>
+                    <th class="right" style="width: 17.5%;">m²</th>
                     <th class="right" style="width: 17.5%;">Miqdor</th>
                     <th class="right" style="width: 17.5%;">Jami m²</th>
                 </tr>
@@ -239,6 +240,13 @@
                         <td>
                             @if ($size)
                                 {{ $size->length }} × {{ $size->width }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td>
+                            @if ($size)
+                                {{ $size->length * $size->width }}
                             @else
                                 —
                             @endif
