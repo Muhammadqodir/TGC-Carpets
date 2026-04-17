@@ -260,14 +260,14 @@
                             {{ $document->document_date?->format('d.m.Y H:i') }}
                         </div>
                         <div class="meta-label" style="margin-top: 8px;">Masul shaxs</div>
-                        <div class="meta-value">{{ $document->responsible_person ?? '—' }}</div>
+                        <div class="meta-value">{{ $document->user->name ?? '—' }}</div>
                     </td>
                     <td style="width: 50%; text-align: right;">
                         {{-- ── Shipment Info (out-type only) ───────────────── --}}
                         @if ($shipmentInfo)
                             <div class="meta-label">Yuk chiqardi</div>
                             <div class="meta-value">
-                                {{ $shipmentInfo->user->name ?? '—' }}
+                                {{ $shipmentInfo['user']['name'] ?? '—' }}
                             </div>
                             <div class="meta-label" style="margin-top: 8px;">Mijoz</div>
                             <div class="meta-value">
