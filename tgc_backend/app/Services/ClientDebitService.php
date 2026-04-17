@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\Shipment;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ClientDebitService
 {
@@ -117,6 +118,9 @@ class ClientDebitService
                 'debit'     => round($total, 2),
                 'credit'    => 0.0,
                 'source_id' => $shipment->id,
+                'pdf_url'   => $shipment->pdf_path
+                    ? Storage::disk('public')->url($shipment->pdf_path)
+                    : null,
             ];
         }
 
@@ -134,6 +138,7 @@ class ClientDebitService
                 'debit'     => 0.0,
                 'credit'    => round((float) $payment->amount, 2),
                 'source_id' => $payment->id,
+                'pdf_url'   => null,
             ];
         }
 

@@ -11,6 +11,7 @@ class DebitLedgerEntryEntity extends Equatable {
   final double credit;
   final double runningBalance;
   final int sourceId;
+  final String? pdfUrl;
 
   const DebitLedgerEntryEntity({
     required this.type,
@@ -21,6 +22,7 @@ class DebitLedgerEntryEntity extends Equatable {
     required this.credit,
     required this.runningBalance,
     required this.sourceId,
+    this.pdfUrl,
   });
 
   bool get isShipment => type == 'shipment';
@@ -36,5 +38,6 @@ class DebitLedgerEntryEntity extends Equatable {
         credit,
         runningBalance,
         sourceId,
+        pdfUrl,
       ];
 }

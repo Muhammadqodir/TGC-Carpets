@@ -152,8 +152,8 @@ class _SummaryRow extends StatelessWidget {
         children: [
           Expanded(
             child: _SummaryCard(
-              label: 'Jami Debit',
-              value: totalDebit.toStringAsFixed(2),
+              label: 'Jami Yuklama',
+              value: '-${totalDebit.toStringAsFixed(2)}',
               color: AppColors.error,
               icon: Icons.arrow_upward_rounded,
             ),
@@ -161,8 +161,8 @@ class _SummaryRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: _SummaryCard(
-              label: 'Jami Kredit',
-              value: totalCredit.toStringAsFixed(2),
+              label: "Jami To'lov",
+              value: '+${totalCredit.toStringAsFixed(2)}',
               color: AppColors.success,
               icon: Icons.arrow_downward_rounded,
             ),
@@ -171,7 +171,7 @@ class _SummaryRow extends StatelessWidget {
           Expanded(
             child: _SummaryCard(
               label: 'Joriy Balans',
-              value: balance.toStringAsFixed(2),
+              value: '${balance > 0 ? '-' : (balance < 0 ? '+' : '')}${balance.abs().toStringAsFixed(2)}',
               color: balance >= 0 ? AppColors.error : AppColors.success,
               icon: balance >= 0
                   ? Icons.account_balance_wallet_outlined

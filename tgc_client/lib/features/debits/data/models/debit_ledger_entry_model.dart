@@ -10,6 +10,7 @@ class DebitLedgerEntryModel extends DebitLedgerEntryEntity {
     required super.credit,
     required super.runningBalance,
     required super.sourceId,
+    super.pdfUrl,
   });
 
   factory DebitLedgerEntryModel.fromJson(Map<String, dynamic> json) =>
@@ -22,5 +23,6 @@ class DebitLedgerEntryModel extends DebitLedgerEntryEntity {
         credit:         (json['credit'] as num).toDouble(),
         runningBalance: (json['running_balance'] as num).toDouble(),
         sourceId:       json['source_id'] as int,
+        pdfUrl:         json['pdf_url'] as String?,
       );
 }

@@ -228,20 +228,20 @@ class _ClientDebitCard extends StatelessWidget {
               Row(
                 children: [
                   _AmountTile(
-                    label: 'Debit',
-                    value: client.totalDebit.toStringAsFixed(2),
+                    label: 'Yuklama',
+                    value: '-${client.totalDebit.toStringAsFixed(2)}',
                     color: AppColors.error,
                   ),
                   const SizedBox(width: 12),
                   _AmountTile(
-                    label: 'Kredit',
-                    value: client.totalCredit.toStringAsFixed(2),
+                    label: "To'lov",
+                    value: '+${client.totalCredit.toStringAsFixed(2)}',
                     color: AppColors.success,
                   ),
                   const SizedBox(width: 12),
                   _AmountTile(
                     label: 'Balans',
-                    value: client.balance.toStringAsFixed(2),
+                    value: '${client.balance > 0 ? '-' : (client.balance < 0 ? '+' : '')}${client.balance.abs().toStringAsFixed(2)}',
                     color: isInDebt ? AppColors.error : AppColors.success,
                     bold: true,
                   ),

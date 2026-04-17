@@ -1,12 +1,22 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 
 import '../../domain/entities/debit_ledger_entry_entity.dart';
 
 String _fmtMoney(double v) => v.toStringAsFixed(2);
 
-String _fmtDate(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}.'
+/// Formats a running balance with sign:
+/// positive = client owes → '-', negative = client in credit → '+'.
+String _fmtBalance(double v) {
+  if (v == 0) return '0.00';
+  final sign = v > 0 ? '-' : '+';
+  return '$sign${v.abs().toStringAsFixed(2)}';
+}
+
+String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}.'
     '${d.month.toString().padLeft(2, '0')}.'
     '${d.year}';
 
@@ -30,14 +40,14 @@ class DebitLedgerTable extends StatelessWidget {
         _HeaderRow(theme: theme),
         const Divider(height: 1, color: AppColors.divider),
 
-        // ── Rows ─────────────────────────────────────────────────────────
+        // ── Rows (newest first) ──────────────────────────────────────────
         Expanded(
           child: ListView.separated(
             itemCount: entries.length,
             separatorBuilder: (_, __) =>
                 const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (context, i) =>
-                _LedgerRow(entry: entries[i], theme: theme),
+            itemBuilder: (context, i) => _LedgerRow(
+                entry: entries[entries.length - 1 - i], theme: theme),
           ),
         ),
       ],
@@ -62,12 +72,21 @@ class _HeaderRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text('Sana',       style: style)),
-          Expanded(flex: 1, child: Text('Tur',        style: style)),
-          Expanded(flex: 3, child: Text('Ma\'lumoт',  style: style)),
-          Expanded(flex: 2, child: Text('Debit (\$)',  style: style, textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Text('Kredit (\$)', style: style, textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Text('Balans (\$)', style: style, textAlign: TextAlign.right)),
+          Expanded(flex: 2, child: Text('Sana', style: style)),
+          Expanded(flex: 1, child: Text('Tur', style: style)),
+          Expanded(flex: 3, child: Text('Ma\'lumoт', style: style)),
+          Expanded(
+              flex: 2,
+              child: Text('Yuklama (\$)',
+                  style: style, textAlign: TextAlign.right)),
+          Expanded(
+              flex: 2,
+              child: Text('To\'lov (\$)',
+                  style: style, textAlign: TextAlign.right)),
+          Expanded(
+              flex: 2,
+              child: Text('Balans (\$)',
+                  style: style, textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -83,7 +102,7 @@ class _LedgerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isShipment = entry.isShipment;
-    final rowColor   = isShipment
+    final rowColor = isShipment
         ? AppColors.error.withOpacity(0.04)
         : AppColors.success.withOpacity(0.04);
 
@@ -121,13 +140,43 @@ class _LedgerRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.reference,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                if (entry.pdfUrl != null)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedPdf01,
+                      size: 16,
+                    ),
+                    label: Text(
+                      entry.reference,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => PdfViewerPage(
+                            pdfUrl: entry.pdfUrl!,
+                            title: entry.reference,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                else
+                  Text(
+                    entry.reference,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 if (entry.notes != null && entry.notes!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -142,37 +191,40 @@ class _LedgerRow extends StatelessWidget {
             ),
           ),
 
-          // Debit
+          // Debit (shipment — shown with minus sign)
           Expanded(
             flex: 2,
             child: Text(
-              entry.debit > 0 ? _fmtMoney(entry.debit) : '—',
+              entry.debit > 0 ? '-${_fmtMoney(entry.debit)}' : '—',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: entry.debit > 0 ? AppColors.error : AppColors.textSecondary,
+                color:
+                    entry.debit > 0 ? AppColors.error : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.right,
             ),
           ),
 
-          // Credit
+          // Credit (payment — shown with plus sign)
           Expanded(
             flex: 2,
             child: Text(
-              entry.credit > 0 ? _fmtMoney(entry.credit) : '—',
+              entry.credit > 0 ? '+${_fmtMoney(entry.credit)}' : '—',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: entry.credit > 0 ? AppColors.success : AppColors.textSecondary,
+                color: entry.credit > 0
+                    ? AppColors.success
+                    : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.right,
             ),
           ),
 
-          // Running balance
+          // Running balance (- = owes, + = in credit)
           Expanded(
             flex: 2,
             child: Text(
-              _fmtMoney(entry.runningBalance),
+              _fmtBalance(entry.runningBalance),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: balanceColor,
                 fontWeight: FontWeight.w700,
@@ -201,7 +253,7 @@ class _TypeBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        isShipment ? 'Yuk' : "To'lov",
+        isShipment ? 'Yuklama' : "To'lov",
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: isShipment ? AppColors.error : AppColors.success,
               fontWeight: FontWeight.w700,

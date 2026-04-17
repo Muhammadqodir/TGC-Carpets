@@ -23,8 +23,8 @@ class DebitSummaryTable extends StatelessWidget {
     AppTableColumn(label: '#',         fixedWidth: 52,  alignment: Alignment.center),
     AppTableColumn(label: 'Do\'kon',   flex: 3,         alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Mintaqa',   flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Debit (\$)', flex: 2,        alignment: Alignment.centerRight),
-    AppTableColumn(label: 'Kredit (\$)', flex: 2,       alignment: Alignment.centerRight),
+    AppTableColumn(label: 'Yuklama (\$)', flex: 2,        alignment: Alignment.centerRight),
+    AppTableColumn(label: 'To\'lov (\$)', flex: 2,       alignment: Alignment.centerRight),
     AppTableColumn(label: 'Balans (\$)', flex: 2,       alignment: Alignment.centerRight),
   ];
 
@@ -71,7 +71,6 @@ class DebitSummaryTable extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
-                  decoration: TextDecoration.underline,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -96,9 +95,9 @@ class DebitSummaryTable extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         );
 
-      case 3: // Debit
+      case 3: // Yuklama
         return Text(
-          client.totalDebit.toStringAsFixed(2),
+          '-${client.totalDebit.toStringAsFixed(2)}',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AppColors.error,
             fontWeight: FontWeight.w600,
@@ -106,9 +105,9 @@ class DebitSummaryTable extends StatelessWidget {
           textAlign: TextAlign.right,
         );
 
-      case 4: // Credit
+      case 4: // To'lov
         return Text(
-          client.totalCredit.toStringAsFixed(2),
+          '+${client.totalCredit.toStringAsFixed(2)}',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AppColors.success,
             fontWeight: FontWeight.w600,
@@ -116,10 +115,12 @@ class DebitSummaryTable extends StatelessWidget {
           textAlign: TextAlign.right,
         );
 
-      case 5: // Balance
-        final isPositive = client.balance >= 0;
+      case 5: // Balans
+        final balance = client.balance;
+        final isPositive = balance > 0;
+        final balanceSign = balance > 0 ? '-' : (balance < 0 ? '+' : '');
         return Text(
-          client.balance.toStringAsFixed(2),
+          '$balanceSign${balance.abs().toStringAsFixed(2)}',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: isPositive ? AppColors.error : AppColors.success,
             fontWeight: FontWeight.w700,
