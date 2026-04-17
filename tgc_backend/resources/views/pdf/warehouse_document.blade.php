@@ -370,9 +370,9 @@
                     <td class="total-value total-border">{{ $grandTotalQty }}</td>
                 </tr>
                 @if ($hasSqm)
-                    <tr style="margin-top: 0px; padding-top: 0px;">
-                        <td class="total-label">Jami m²</td>
-                        <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
+                    <tr>
+                        <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Jami m²</td>
+                        <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalSqm, 2) }} m²</td>
                     </tr>
                 @endif
             </table>
