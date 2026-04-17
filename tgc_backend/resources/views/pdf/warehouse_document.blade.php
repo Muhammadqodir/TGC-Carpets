@@ -17,9 +17,6 @@
             font-size: 12px;
             color: #1a1a1a;
             background: #fff;
-            transform-origin: top left;
-            width: 120%;
-            transform: scale(0.8);
         }
 
         .page {
@@ -284,10 +281,10 @@
             <thead>
                 <tr>
                     <th style="width: 4%;">#</th>
-                    <th style="width: 19%;">Mahsulot</th>
+                    <th style="width: 11%;">Mahsulot</th>
                     <th style="width: 11%;">Rang</th>
                     <th style="width: 11%;">Tur</th>
-                    <th style="width: 11%;">Sifat</th>
+                    <th style="width: 19%;">Sifat</th>
                     <th style="width: 11%;">O'lcham</th>
                     <th class="right" style="width: 10%;">m² (dona)</th>
                     <th class="right" style="width: 10%;">Miqdor</th>
@@ -367,6 +364,55 @@
                 @endif
             </table>
         </div>
+
+        {{-- ── Shipment Info (out-type only) ───────────────── --}}
+        @if ($shipmentInfo)
+            <div class="shipment-box">
+                <div class="shipment-box-title">YUK MA'LUMOTLARI</div>
+                <table>
+                    <tr>
+                        <td class="sl">Yuk chiqarish №:</td>
+                        <td><strong>{{ $shipmentInfo['id'] }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="sl">Sana:</td>
+                        <td>{{ $shipmentInfo['shipment_datetime'] }}</td>
+                    </tr>
+                    @if ($shipmentInfo['client'])
+                        <tr>
+                            <td class="sl">Mijoz:</td>
+                            <td>{{ $shipmentInfo['client']['shop_name'] }}</td>
+                        </tr>
+                        {{-- <tr>
+                    <td class="sl">Aloqa shaxs:</td>
+                    <td>{{ $shipmentInfo['client']['contact_person'] }}</td>
+                </tr> --}}
+                        <tr>
+                            <td class="sl">Hudud:</td>
+                            <td>{{ $shipmentInfo['client']['region'] }}</td>
+                        </tr>
+                        @if ($shipmentInfo['client']['phone'])
+                            {{-- <tr>
+                    <td class="sl">Telefon:</td>
+                    <td>{{ $shipmentInfo['client']['phone'] }}</td>
+                </tr> --}}
+                        @endif
+                    @endif
+                    @if ($shipmentInfo['user'])
+                        <tr>
+                            <td class="sl">Yuk chiqardi:</td>
+                            <td>{{ $shipmentInfo['user']['name'] }}</td>
+                        </tr>
+                    @endif
+                    @if ($shipmentInfo['notes'])
+                        <tr>
+                            <td class="sl">Izoh:</td>
+                            <td>{{ $shipmentInfo['notes'] }}</td>
+                        </tr>
+                    @endif
+                </table>
+            </div>
+        @endif
 
         {{-- ── Footer ───────────────────────────────────────── --}}
         <div class="footer">
