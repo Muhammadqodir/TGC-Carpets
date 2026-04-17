@@ -241,7 +241,7 @@
             TGC Carpets
         </div>
         <div class="invoice-title">
-            <table>
+            <table style="width: 100%;">
                 <tr>
                     <td style="width: 50%;">
                         Omborxona hujjati #{{ $document->id }}
