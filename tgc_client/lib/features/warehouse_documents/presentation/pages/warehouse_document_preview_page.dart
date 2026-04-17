@@ -455,7 +455,8 @@ class _TableHeader extends StatelessWidget {
               width: 200,
               child: _hCell('Mijoz', textTheme),
             ),
-          ] else ...[
+          ],
+          if (isDesktop) ...[
             SizedBox(
               width: 70,
               child: _hCell("O'lcham", textTheme),

@@ -186,7 +186,7 @@
                                 {{ $shipment->shipment_datetime->format('H:i') }}
                             </div>
                         </td>
-                        <td style="width: 50%;">
+                        <td style="width: 50%; text-align: right;">
                             <div class="meta-label">Mijoz</div>
                             <div class="meta-value">
                                 {{ $shipment->client->shop_name ?? $shipment->client->contact_name }}
@@ -244,9 +244,9 @@
                                 —
                             @endif
                         </td>
-                        <td>
+                        <td class="right">
                             @if ($size)
-                                {{ $size->length * $size->width }}
+                                {{ number_format($size->length * $size->width, 2) }}
                             @else
                                 —
                             @endif
