@@ -39,7 +39,7 @@
         }
 
         .header-meta {
-            margin-top: 18px;
+            margin-top: 12px;
             width: 100%;
         }
 
@@ -259,10 +259,22 @@
                         <div class="meta-value">
                             {{ $document->document_date?->format('d.m.Y H:i') }}
                         </div>
+                        <div class="meta-label" style="margin-top: 8px;">Masul shaxs</div>
+                        <div class="meta-value">{{ $document->responsible_person ?? '—' }}</div>
                     </td>
                     <td style="width: 50%; text-align: right;">
-                        <div class="meta-label">Masul xodim</div>
-                        <div class="meta-value">{{ $document->user->name ?? '—' }}</div>
+                        {{-- ── Shipment Info (out-type only) ───────────────── --}}
+                        @if ($shipmentInfo)
+                            <div class="meta-label">Yuk chiqardi</div>
+                            <div class="meta-value">
+                                {{ $shipmentInfo->user->name ?? '—' }}
+                            </div>
+                            <div class="meta-label" style="margin-top: 8px;">Mijoz</div>
+                            <div class="meta-value">
+                                {{ $shipmentInfo['client']['shop_name'] }} /
+                                {{ $shipmentInfo['client']['region'] }}
+                            </div>
+                        @endif
                     </td>
                 </tr>
             </table>
@@ -358,62 +370,13 @@
                     <td class="total-value total-border">{{ $grandTotalQty }}</td>
                 </tr>
                 @if ($hasSqm)
-                    <tr>
+                    <tr style="margin-top: 0px; padding-top: 0px;">
                         <td class="total-label">Jami m²</td>
                         <td class="total-value">{{ number_format($grandTotalSqm, 2) }} m²</td>
                     </tr>
                 @endif
             </table>
         </div>
-
-        {{-- ── Shipment Info (out-type only) ───────────────── --}}
-        @if ($shipmentInfo)
-            <div class="shipment-box">
-                <div class="shipment-box-title">YUK MA'LUMOTLARI</div>
-                <table>
-                    <tr>
-                        <td class="sl">Yuk chiqarish №:</td>
-                        <td><strong>{{ $shipmentInfo['id'] }}</strong></td>
-                    </tr>
-                    <tr>
-                        <td class="sl">Sana:</td>
-                        <td>{{ $shipmentInfo['shipment_datetime'] }}</td>
-                    </tr>
-                    @if ($shipmentInfo['client'])
-                        <tr>
-                            <td class="sl">Mijoz:</td>
-                            <td>{{ $shipmentInfo['client']['shop_name'] }}</td>
-                        </tr>
-                        {{-- <tr>
-                    <td class="sl">Aloqa shaxs:</td>
-                    <td>{{ $shipmentInfo['client']['contact_person'] }}</td>
-                </tr> --}}
-                        <tr>
-                            <td class="sl">Hudud:</td>
-                            <td>{{ $shipmentInfo['client']['region'] }}</td>
-                        </tr>
-                        @if ($shipmentInfo['client']['phone'])
-                            {{-- <tr>
-                    <td class="sl">Telefon:</td>
-                    <td>{{ $shipmentInfo['client']['phone'] }}</td>
-                </tr> --}}
-                        @endif
-                    @endif
-                    @if ($shipmentInfo['user'])
-                        <tr>
-                            <td class="sl">Yuk chiqardi:</td>
-                            <td>{{ $shipmentInfo['user']['name'] }}</td>
-                        </tr>
-                    @endif
-                    @if ($shipmentInfo['notes'])
-                        <tr>
-                            <td class="sl">Izoh:</td>
-                            <td>{{ $shipmentInfo['notes'] }}</td>
-                        </tr>
-                    @endif
-                </table>
-            </div>
-        @endif
 
         {{-- ── Footer ───────────────────────────────────────── --}}
         <div class="footer">
