@@ -253,6 +253,13 @@
                         </td>
                         <td class="right">{{ $item->quantity }}</td>
                         <td class="right">
+                            @if ($size)
+                                {{ number_format($size->length * $size->width * $item->quantity, 2) }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="right">
                             @if ($sqm > 0)
                                 {{ number_format($sqm, 2) }}
                             @else
