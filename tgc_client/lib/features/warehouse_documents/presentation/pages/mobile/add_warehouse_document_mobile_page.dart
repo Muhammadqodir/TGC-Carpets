@@ -205,10 +205,15 @@ class _AddWarehouseDocumentMobilePageState
                             onPressed: () async {
                               final result =
                                   await ProductionBatchPickerBottomSheet.show(
-                                      context);
+                                context,
+                                existingRows: ctrl.items,
+                              );
                               if (result != null && mounted) {
                                 ctrl.addRowsFromProductionBatch(
-                                    result.batch, result.items);
+                                  result.batch,
+                                  result.items,
+                                  quantities: result.quantities,
+                                );
                               }
                             },
                             icon: const Icon(Icons.download_rounded, size: 16),

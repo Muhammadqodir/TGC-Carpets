@@ -58,10 +58,12 @@ class WarehouseDocumentFormController extends ChangeNotifier {
   }
 
   /// Imports items from a production batch. Skips variants already present.
+  /// [quantities] maps item id → quantity to use; falls back to produced qty.
   void addRowsFromProductionBatch(
     ProductionBatchEntity batch,
-    List<ProductionBatchItemEntity> items,
-  ) {
+    List<ProductionBatchItemEntity> items, {
+    Map<int, int> quantities = const {},
+  }) {
     // Remove ALL unfilled rows (sentinel + any lingering empty rows from draft
     // restore or partial edits) so they don't accumulate at the beginning.
     final toRemove = _items.where((r) => !r.isFilled).toList();
@@ -82,6 +84,7 @@ class WarehouseDocumentFormController extends ChangeNotifier {
           item,
           batchId: batch.id,
           batchTitle: batch.batchTitle,
+          initialQuantity: quantities[item.id],
         );
         _hookRow(row);
         _items.add(row);

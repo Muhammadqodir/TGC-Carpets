@@ -344,7 +344,7 @@
                         <td>{{ $sizeLabel }}</td>
                         <td class="right">
                             @if ($sizePerUnit !== null)
-                                {{ $sizePerUnit }} m²
+                                {{ number_format($sizePerUnit, 2) }} m²
                             @else
                                 —
                             @endif

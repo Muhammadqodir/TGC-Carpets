@@ -8,12 +8,19 @@ import '../../../production/domain/entities/production_batch_entity.dart';
 import '../../../production/domain/entities/production_batch_item_entity.dart';
 import '../../../production/domain/usecases/get_production_batch_usecase.dart';
 import '../../../production/domain/usecases/get_production_batches_usecase.dart';
+import 'warehouse_item_row.dart';
 
 /// Result returned by [ProductionBatchPickerBottomSheet.show].
 class BatchImportResult {
   final ProductionBatchEntity batch;
   final List<ProductionBatchItemEntity> items;
-  const BatchImportResult({required this.batch, required this.items});
+  /// Available quantity per item id: produced - defect - warehouse_received.
+  final Map<int, int> quantities;
+  const BatchImportResult({
+    required this.batch,
+    required this.items,
+    required this.quantities,
+  });
 }
 
 /// Two-step bottom sheet for importing items from a production batch into a
@@ -23,9 +30,17 @@ class BatchImportResult {
 ///
 /// Returns [BatchImportResult] or null if dismissed.
 class ProductionBatchPickerBottomSheet extends StatefulWidget {
-  const ProductionBatchPickerBottomSheet({super.key});
+  final List<WarehouseItemRow> existingRows;
 
-  static Future<BatchImportResult?> show(BuildContext context) {
+  const ProductionBatchPickerBottomSheet({
+    super.key,
+    this.existingRows = const [],
+  });
+
+  static Future<BatchImportResult?> show(
+    BuildContext context, {
+    List<WarehouseItemRow> existingRows = const [],
+  }) {
     return showModalBottomSheet<BatchImportResult>(
       context: context,
       isScrollControlled: true,
@@ -34,7 +49,9 @@ class ProductionBatchPickerBottomSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const ProductionBatchPickerBottomSheet(),
+      builder: (_) => ProductionBatchPickerBottomSheet(
+        existingRows: existingRows,
+      ),
     );
   }
 
@@ -171,7 +188,16 @@ class _ProductionBatchPickerBottomSheetState
     final items =
         _batchItems.where((i) => _selectedItemIds.contains(i.id)).toList();
     if (items.isEmpty) return;
-    Navigator.of(context).pop(BatchImportResult(batch: batch, items: items));
+    final quantities = <int, int>{
+      for (final item in items)
+        item.id: ((item.producedQuantity ?? 0) -
+                (item.defectQuantity ?? 0) -
+                (item.warehouseReceivedQuantity ?? 0))
+            .clamp(1, (item.producedQuantity ?? 1)),
+    };
+    Navigator.of(context).pop(
+      BatchImportResult(batch: batch, items: items, quantities: quantities),
+    );
   }
 
   @override
@@ -306,9 +332,17 @@ class _ProductionBatchPickerBottomSheetState
                                   const Divider(height: 1),
                               itemBuilder: (context, i) {
                                 final batch = _batches[i];
+                                final addedCount = widget.existingRows
+                                    .where((r) =>
+                                        r.sourceBatchId == batch.id &&
+                                        r.isFilled)
+                                    .length;
                                 return InkWell(
                                   onTap: () => _selectBatch(batch),
-                                  child: _BatchTile(batch: batch),
+                                  child: _BatchTile(
+                                    batch: batch,
+                                    addedCount: addedCount,
+                                  ),
                                 );
                               },
                             ),
@@ -389,11 +423,18 @@ class _ProductionBatchPickerBottomSheetState
                           final item = _batchItems[i];
                           final isSelected =
                               _selectedItemIds.contains(item.id);
+                          final matchingRows = widget.existingRows
+                              .where((r) => r.sourceBatchItemId == item.id);
+                          final existingQty = matchingRows.isEmpty
+                              ? null
+                              : int.tryParse(
+                                  matchingRows.first.quantityCtrl.text);
                           return InkWell(
                             onTap: () => _toggleItem(item.id),
                             child: _BatchItemTile(
                               item: item,
                               isSelected: isSelected,
+                              existingQty: existingQty,
                             ),
                           );
                         },
@@ -427,7 +468,8 @@ class _ProductionBatchPickerBottomSheetState
 
 class _BatchTile extends StatelessWidget {
   final ProductionBatchEntity batch;
-  const _BatchTile({required this.batch});
+  final int addedCount;
+  const _BatchTile({required this.batch, this.addedCount = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -529,6 +571,27 @@ class _BatchTile extends StatelessWidget {
                     .labelSmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
+              if (addedCount > 0) ...
+                [
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '$addedCount ta qo\'shilgan',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
             ],
           ),
           const SizedBox(width: 4),
@@ -548,14 +611,22 @@ class _BatchTile extends StatelessWidget {
 class _BatchItemTile extends StatelessWidget {
   final ProductionBatchItemEntity item;
   final bool isSelected;
+  final int? existingQty;
 
-  const _BatchItemTile({required this.item, required this.isSelected});
+  const _BatchItemTile({
+    required this.item,
+    required this.isSelected,
+    this.existingQty,
+  });
 
   @override
   Widget build(BuildContext context) {
     final produced = item.producedQuantity ?? 0;
     final defect = item.defectQuantity ?? 0;
-    final net = produced - defect;
+    final received = item.warehouseReceivedQuantity ?? 0;
+    final inRow = existingQty ?? 0;
+    // available = produced - defect - already warehouse-received - qty already in this form
+    final available = (produced - defect - received - inRow).clamp(0, produced);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -621,14 +692,28 @@ class _BatchItemTile extends StatelessWidget {
                   color: AppColors.error,
                 ),
               ],
-              if (net != produced) ...[
+              if (received > 0) ...[
                 const SizedBox(height: 2),
                 _QtyChip(
-                  label: 'Sof',
-                  value: '$net dona',
-                  color: AppColors.primary,
+                  label: 'Qabul qilingan',
+                  value: '$received dona',
+                  color: AppColors.textSecondary,
                 ),
               ],
+              if (inRow > 0) ...[
+                const SizedBox(height: 2),
+                _QtyChip(
+                  label: 'Qo\'shilgan',
+                  value: '$inRow dona',
+                  color: AppColors.warning,
+                ),
+              ],
+              const SizedBox(height: 2),
+              _QtyChip(
+                label: 'Mavjud',
+                value: '$available dona',
+                color: available > 0 ? AppColors.primary : AppColors.error,
+              ),
             ],
           ),
         ],

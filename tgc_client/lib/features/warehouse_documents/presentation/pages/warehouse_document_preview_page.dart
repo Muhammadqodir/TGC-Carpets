@@ -455,6 +455,7 @@ class _TableHeader extends StatelessWidget {
               width: 200,
               child: _hCell('Mijoz', textTheme),
             ),
+          ] else ...[
             SizedBox(
               width: 70,
               child: _hCell("O'lcham", textTheme),
@@ -466,11 +467,6 @@ class _TableHeader extends StatelessWidget {
             SizedBox(
               width: 80,
               child: _hCell('Miqdor (м²)', textTheme, align: TextAlign.end),
-            ),
-          ] else ...[
-            SizedBox(
-              width: 60,
-              child: _hCell('Miqdor', textTheme, align: TextAlign.end),
             ),
           ]
         ],
