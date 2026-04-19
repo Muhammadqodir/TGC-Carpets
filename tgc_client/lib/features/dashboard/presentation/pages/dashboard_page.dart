@@ -199,12 +199,6 @@ class _DashboardViewState extends State<_DashboardView> {
                                       context.pushNamed(AppRoutes.productsName),
                                 ),
                                 _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedUserGroup,
-                                  label: 'Mijozlar',
-                                  onTap: () =>
-                                      context.pushNamed(AppRoutes.clientsName),
-                                ),
-                                _DashboardCard(
                                   icon: HugeIcons.strokeRoundedAddToList,
                                   label: 'Buyurtmalar',
                                   onTap: () =>
@@ -217,10 +211,10 @@ class _DashboardViewState extends State<_DashboardView> {
                                       context.pushNamed(AppRoutes.productionName),
                                 ),
                                 _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedReceiptText,
-                                  label: 'Yorliqlash',
+                                  icon: HugeIcons.strokeRoundedContainerTruck,
+                                  label: 'Yuk chiqarish',
                                   onTap: () =>
-                                      context.pushNamed(AppRoutes.labelingName),
+                                      context.pushNamed(AppRoutes.shippingName),
                                 ),
                                 _DashboardCard(
                                   icon: HugeIcons.strokeRoundedWarehouse,
@@ -235,10 +229,16 @@ class _DashboardViewState extends State<_DashboardView> {
                                       .pushNamed(AppRoutes.productsStockName),
                                 ),
                                 _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedContainerTruck,
-                                  label: 'Yuk chiqarish',
+                                  icon: HugeIcons.strokeRoundedUserGroup,
+                                  label: 'Mijozlar',
                                   onTap: () =>
-                                      context.pushNamed(AppRoutes.shippingName),
+                                      context.pushNamed(AppRoutes.clientsName),
+                                ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedUserDollar,
+                                  label: 'Debitorlar',
+                                  onTap: () =>
+                                      context.pushNamed(AppRoutes.debitsName),
                                 ),
                                 _DashboardCard(
                                   icon: HugeIcons.strokeRoundedMoney01,
@@ -247,10 +247,10 @@ class _DashboardViewState extends State<_DashboardView> {
                                       context.pushNamed(AppRoutes.paymentsName),
                                 ),
                                 _DashboardCard(
-                                  icon: HugeIcons.strokeRoundedUserDollar,
-                                  label: 'Debitorlar',
+                                  icon: HugeIcons.strokeRoundedReceiptText,
+                                  label: 'Yorliqlash',
                                   onTap: () =>
-                                      context.pushNamed(AppRoutes.debitsName),
+                                      context.pushNamed(AppRoutes.labelingName),
                                 ),
                                 _DashboardCard(
                                   icon: HugeIcons.strokeRoundedUserSettings01,
