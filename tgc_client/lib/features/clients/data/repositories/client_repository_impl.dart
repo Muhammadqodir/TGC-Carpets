@@ -59,8 +59,8 @@ class ClientRepositoryImpl implements ClientRepository {
 
   @override
   Future<Either<Failure, ClientEntity>> createClient({
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -88,8 +88,8 @@ class ClientRepositoryImpl implements ClientRepository {
   @override
   Future<Either<Failure, ClientEntity>> updateClient({
     required int id,
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,

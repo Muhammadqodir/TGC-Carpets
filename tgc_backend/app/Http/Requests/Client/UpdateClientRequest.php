@@ -14,8 +14,8 @@ class UpdateClientRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'contact_name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone'        => ['sometimes', 'required', 'string', 'max:30'],
+            'contact_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone'        => ['sometimes', 'nullable', 'string', 'max:30'],
             'shop_name'    => ['sometimes', 'required', 'string', 'max:255'],
             'region'       => ['sometimes', 'required', 'string', 'max:100'],
             'address'      => ['nullable', 'string'],

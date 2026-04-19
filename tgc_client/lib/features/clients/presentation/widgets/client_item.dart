@@ -42,7 +42,7 @@ class ClientItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    client.contactName,
+                    client.contactName ?? '—',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -60,7 +60,7 @@ class ClientItem extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          client.phone,
+                          client.phone ?? '—',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall

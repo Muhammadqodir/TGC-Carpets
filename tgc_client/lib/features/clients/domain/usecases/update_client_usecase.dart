@@ -10,8 +10,8 @@ class UpdateClientUseCase {
 
   Future<Either<Failure, ClientEntity>> call({
     required int id,
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,

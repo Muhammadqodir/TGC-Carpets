@@ -4,8 +4,8 @@ class ClientModel extends ClientEntity {
   const ClientModel({
     required super.id,
     required super.uuid,
-    required super.contactName,
-    required super.phone,
+    super.contactName,
+    super.phone,
     required super.shopName,
     required super.region,
     super.address,
@@ -17,8 +17,8 @@ class ClientModel extends ClientEntity {
   factory ClientModel.fromJson(Map<String, dynamic> json) => ClientModel(
         id: json['id'] as int,
         uuid: json['uuid'] as String,
-        contactName: json['contact_name'] as String,
-        phone: json['phone'] as String,
+        contactName: json['contact_name'] as String?,
+        phone: json['phone'] as String?,
         shopName: json['shop_name'] as String,
         region: json['region'] as String,
         address: json['address'] as String?,

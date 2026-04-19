@@ -68,7 +68,7 @@ class ClientDataTable extends StatelessWidget {
         );
       case 2: // contact name
         return Text(
-          client.contactName,
+          client.contactName ?? '—',
           style: Theme.of(context)
               .textTheme
               .bodyMedium
@@ -77,7 +77,7 @@ class ClientDataTable extends StatelessWidget {
         );
       case 3: // phone
         return Text(
-          client.phone,
+          client.phone ?? '—',
           style: Theme.of(context)
               .textTheme
               .bodySmall
