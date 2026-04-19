@@ -36,16 +36,22 @@ return new class extends Migration
 
         // ── 3. Drop product_size_id from product_variants ─────────────────
         Schema::table('product_variants', function (Blueprint $table) {
-            // Drop the old composite index before modifying columns
-            try {
-                $table->dropIndex('variants_color_size_idx');
-            } catch (\Throwable) {}
-
+            // Drop both FKs first — product_color_id's FK uses variants_color_size_idx
+            // as its supporting index, so the index can't be dropped while it exists.
+            $table->dropForeign(['product_color_id']);
             $table->dropForeign(['product_size_id']);
+
+            $table->dropIndex('variants_color_size_idx');
             $table->dropColumn('product_size_id');
 
-            // New index for efficient look-ups by (color, length, width)
+            // New index on (color, length, width) — also serves as the supporting
+            // index for the re-added product_color_id FK below.
             $table->index(['product_color_id', 'length', 'width'], 'variants_color_size_idx');
+
+            $table->foreign('product_color_id')
+                ->references('id')
+                ->on('product_colors')
+                ->restrictOnDelete();
         });
 
         // ── 4. Drop product_size_id from warehouse_document_items ─────────
