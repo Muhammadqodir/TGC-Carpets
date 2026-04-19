@@ -20,7 +20,7 @@ class ProductsStockRepositoryImpl implements ProductsStockRepository {
     int perPage = 20,
   }) async {
     try {
-      final result = await _remoteDataSource.getStockVariants(
+      final result = await remoteDataSource.getStockVariants(
         productTypeId:    productTypeId,
         productQualityId: productQualityId,
         search:           search,

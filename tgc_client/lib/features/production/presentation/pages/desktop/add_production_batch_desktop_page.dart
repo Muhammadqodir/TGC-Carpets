@@ -731,9 +731,9 @@ class _DesktopItemRow extends StatelessWidget {
                           productTypeId: row.prefilledProductTypeId!,
                           onChanged: onChanged,
                         )
-                      : row.prefilledSizeDimensions != null
+                      : (row.prefilledSizeLength != null && row.prefilledSizeWidth != null)
                           ? Text(
-                              row.prefilledSizeDimensions!,
+                              '${row.prefilledSizeLength} × ${row.prefilledSizeWidth}',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
