@@ -61,8 +61,8 @@ class _PreviewViewState extends State<_PreviewView> {
               'product_id': row.productId,
               if (row.productColorId != null)
                 'product_color_id': row.productColorId,
-              if (row.productSizeId != null)
-                'product_size_id': row.productSizeId,
+              if (row.sizeLength != null) 'length': row.sizeLength,
+              if (row.sizeWidth != null) 'width': row.sizeWidth,
               'quantity': row.quantity,
               if (row.itemNotes != null && row.itemNotes!.isNotEmpty)
                 'notes': row.itemNotes,

@@ -6,7 +6,6 @@ import '../models/color_model.dart';
 import '../models/product_color_model.dart';
 import '../models/product_model.dart';
 import '../models/product_quality_model.dart';
-import '../models/product_size_model.dart';
 import '../models/product_type_model.dart';
 
 abstract class ProductRemoteDataSource {
@@ -24,8 +23,6 @@ abstract class ProductRemoteDataSource {
   Future<List<ProductTypeModel>> getProductTypes();
 
   Future<List<ProductQualityModel>> getProductQualities();
-
-  Future<List<ProductSizeModel>> getProductSizes({int? productTypeId});
 
   Future<ProductModel> createProduct({
     required String name,
@@ -139,24 +136,6 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       final body = response.data as Map<String, dynamic>;
       return (body['data'] as List)
           .map((e) => ProductQualityModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      _handleDioError(e);
-    }
-  }
-
-  @override
-  Future<List<ProductSizeModel>> getProductSizes({int? productTypeId}) async {
-    try {
-      final response = await _dio.get(
-        ApiEndpoints.productSizes,
-        queryParameters: {
-          if (productTypeId != null) 'product_type_id': productTypeId,
-        },
-      );
-      final body = response.data as Map<String, dynamic>;
-      return (body['data'] as List)
-          .map((e) => ProductSizeModel.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       _handleDioError(e);

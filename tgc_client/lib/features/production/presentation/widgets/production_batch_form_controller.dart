@@ -66,9 +66,9 @@ class ProductionBatchFormController extends ChangeNotifier {
     for (final item in items) {
       final alreadyExists = _items.any((r) {
         final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
-        final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
         return rColorId == item.productColorId &&
-            rSizeId == item.productSizeId;
+            r.effectiveLength == item.sizeLength &&
+            r.effectiveWidth == item.sizeWidth;
       });
       if (!alreadyExists) {
         _items.add(BatchItemRow.fromOrderItem(item,
@@ -105,13 +105,12 @@ class ProductionBatchFormController extends ChangeNotifier {
         .map((r) {
           final colorId =
               r.selectedColor?.id ?? r.prefilledColorId;
-          final sizeId =
-              r.selectedSize?.id ?? r.prefilledSizeId;
           final qty =
               int.tryParse(r.quantityCtrl.text.trim()) ?? 1;
           return {
             'product_color_id': colorId,
-            'product_size_id': sizeId,
+            if (r.effectiveLength != null) 'length': r.effectiveLength,
+            if (r.effectiveWidth != null) 'width': r.effectiveWidth,
             'planned_quantity': qty,
             'source_type': r.sourceOrderItemId != null ? 'order_item' : 'manual',
             if (r.sourceOrderItemId != null)

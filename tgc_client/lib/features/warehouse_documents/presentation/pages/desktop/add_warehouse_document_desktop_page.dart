@@ -8,7 +8,7 @@ import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../args/warehouse_document_preview_args.dart';
 import '../../widgets/production_batch_picker_bottom_sheet.dart';
 import '../../widgets/warehouse_document_form_controller.dart';
@@ -67,7 +67,7 @@ class _AddWarehouseDocumentDesktopPageState
     }
 
     final hasUnpickedSize = manualRows.any(
-      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+      (r) => r.selectedProduct?.productTypeId != null && r.effectiveLength == null,
     );
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,11 +90,9 @@ class _AddWarehouseDocumentDesktopPageState
       final colorName =
           row.selectedColor?.colorName ?? row.prefilledColorName;
       final colorId = row.selectedColor?.id ?? row.prefilledColorId;
-      final sizeId = row.selectedSize?.id ?? row.prefilledSizeId;
-      final sizeLabel =
-          row.selectedSize?.dimensions ?? row.prefilledSizeDimensions;
-      final sizeLength = row.selectedSize?.length ?? row.prefilledSizeLength;
-      final sizeWidth = row.selectedSize?.width ?? row.prefilledSizeWidth;
+      final sizeLabel = row.sizeDimensions;
+      final sizeLength = row.effectiveLength;
+      final sizeWidth = row.effectiveWidth;
 
       return WarehouseItemPreviewRow(
         productId: productId!,
@@ -103,7 +101,6 @@ class _AddWarehouseDocumentDesktopPageState
         type: type,
         color: colorName,
         productColorId: colorId,
-        productSizeId: sizeId,
         sizeLabel: sizeLabel,
         sizeLength: sizeLength,
         sizeWidth: sizeWidth,
@@ -266,18 +263,10 @@ class _AddWarehouseDocumentDesktopPageState
                   );
                   final totalSqm = filled.fold(0.0, (sum, r) {
                     final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
-                    if (r.selectedSize != null) {
+                    if (r.effectiveLength != null && r.effectiveWidth != null) {
                       return sum +
-                          r.selectedSize!.length *
-                              r.selectedSize!.width *
-                              qty /
-                              10000.0;
-                    }
-                    if (r.prefilledSizeLength != null &&
-                        r.prefilledSizeWidth != null) {
-                      return sum +
-                          r.prefilledSizeLength! *
-                              r.prefilledSizeWidth! *
+                          r.effectiveLength! *
+                              r.effectiveWidth! *
                               qty /
                               10000.0;
                     }
@@ -559,38 +548,20 @@ class _DesktopItemRow extends StatelessWidget {
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: product != null && product.productTypeId != null
+              child: (product != null && product.productTypeId != null) ||
+                      row.prefilledProductTypeId != null
                   ? _DesktopSizeCell(
                       row: row,
                       allItems: allItems,
-                      productTypeId: product.productTypeId!,
                       onChanged: onChanged,
                     )
-                  : row.prefilledProductTypeId != null
-                      ? _DesktopSizeCell(
-                          row: row,
-                          allItems: allItems,
-                          productTypeId: row.prefilledProductTypeId!,
-                          onChanged: onChanged,
-                        )
-                      : row.prefilledSizeDimensions != null
-                          ? Text(
-                              row.prefilledSizeDimensions!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            )
-                          : Text(
-                              '—',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
+                  : Text(
+                      '—',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
             ),
           ),
 
@@ -782,7 +753,8 @@ class _DesktopProductCell extends StatelessWidget {
         if (result != null) {
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -844,26 +816,24 @@ class _DesktopProductCell extends StatelessWidget {
 class _DesktopSizeCell extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
-  final int productTypeId;
   final VoidCallback onChanged;
 
   const _DesktopSizeCell({
     required this.row,
     required this.allItems,
-    required this.productTypeId,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final displayDimensions = row.sizeDimensions;
 
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
           final isDuplicate = allItems.any(
@@ -872,7 +842,8 @@ class _DesktopSizeCell extends StatelessWidget {
               final mColorId = row.selectedColor?.id ?? row.prefilledColorId;
               return r.id != row.id &&
                   rColorId == mColorId &&
-                  r.selectedSize?.id == picked.id;
+                  r.effectiveLength == picked.length &&
+                  r.effectiveWidth == picked.width;
             },
           );
           if (isDuplicate) {
@@ -887,7 +858,8 @@ class _DesktopSizeCell extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },

@@ -19,7 +19,7 @@ abstract class OrderRemoteDataSource {
 
   Future<OrderModel> getOrder(int id);
 
-  /// Each item map must contain: product_color_id (required), product_size_id (nullable), quantity (required).
+  /// Each item map must contain: product_color_id (required), length (nullable), width (nullable), quantity (required).
   Future<OrderModel> createOrder({
     required String orderDate,
     required List<Map<String, dynamic>> items,

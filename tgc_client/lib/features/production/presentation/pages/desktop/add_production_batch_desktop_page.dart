@@ -8,7 +8,7 @@ import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../bloc/production_batch_form_bloc.dart';
 import '../../bloc/production_batch_form_event.dart';
@@ -478,18 +478,10 @@ class _AddProductionBatchDesktopPageState
                     );
                     final totalSqm = filled.fold(0.0, (sum, r) {
                       final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
-                      if (r.selectedSize != null) {
+                      if (r.effectiveLength != null && r.effectiveWidth != null) {
                         return sum +
-                            r.selectedSize!.length *
-                                r.selectedSize!.width *
-                                qty /
-                                10000.0;
-                      }
-                      if (r.prefilledSizeLength != null &&
-                          r.prefilledSizeWidth != null) {
-                        return sum +
-                            r.prefilledSizeLength! *
-                                r.prefilledSizeWidth! *
+                            r.effectiveLength! *
+                                r.effectiveWidth! *
                                 qty /
                                 10000.0;
                       }
@@ -867,7 +859,8 @@ class _DesktopProductCell extends StatelessWidget {
         if (result != null) {
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -941,13 +934,13 @@ class _DesktopSizeCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final displayDimensions = row.sizeDimensions;
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
           final effectiveColorId =
@@ -955,8 +948,9 @@ class _DesktopSizeCell extends StatelessWidget {
           final isDuplicate = allItems.any((r) {
             if (r.id == row.id) return false;
             final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
-            final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
-            return rColorId == effectiveColorId && rSizeId == picked.id;
+            return rColorId == effectiveColorId &&
+                r.effectiveLength == picked.length &&
+                r.effectiveWidth == picked.width;
           });
           if (isDuplicate) {
             if (context.mounted) {
@@ -969,7 +963,8 @@ class _DesktopSizeCell extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },

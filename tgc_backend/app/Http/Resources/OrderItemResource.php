@@ -79,13 +79,8 @@ class OrderItemResource extends JsonResource
                             : null,
                     ]
                     : null,
-                'product_size' => $this->variant->relationLoaded('productSize') && $this->variant->productSize
-                    ? [
-                        'id'     => $this->variant->productSize->id,
-                        'length' => $this->variant->productSize->length,
-                        'width'  => $this->variant->productSize->width,
-                    ]
-                    : null,
+                'length'       => $this->variant->length,
+                'width'        => $this->variant->width,
             ]),
         ];
     }

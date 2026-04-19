@@ -11,7 +11,8 @@ class ProductVariant extends Model
 {
     protected $fillable = [
         'product_color_id',
-        'product_size_id',
+        'length',
+        'width',
         'barcode_value',
         'sku_code',
     ];
@@ -20,7 +21,8 @@ class ProductVariant extends Model
     {
         return [
             'product_color_id' => 'integer',
-            'product_size_id'  => 'integer',
+            'length'           => 'integer',
+            'width'            => 'integer',
         ];
     }
 
@@ -37,7 +39,8 @@ class ProductVariant extends Model
         ?int $qualityId,
         ?int $typeId,
         string $colorName,
-        ?ProductSize $size
+        ?int $length,
+        ?int $width,
     ): string {
         $sku = 'TGC-' . strtoupper(Str::slug($name, '_'));
 
@@ -50,8 +53,8 @@ class ProductVariant extends Model
 
         $sku .= '-' . strtoupper(Str::slug($colorName, '_'));
 
-        if ($size) {
-            $sku .= '-' . $size->length . 'x' . $size->width;
+        if ($length && $width) {
+            $sku .= '-' . $length . 'x' . $width;
         }
 
         return $sku;
@@ -62,11 +65,6 @@ class ProductVariant extends Model
     public function productColor(): BelongsTo
     {
         return $this->belongsTo(ProductColor::class);
-    }
-
-    public function productSize(): BelongsTo
-    {
-        return $this->belongsTo(ProductSize::class);
     }
 
     public function warehouseDocumentItems(): HasMany

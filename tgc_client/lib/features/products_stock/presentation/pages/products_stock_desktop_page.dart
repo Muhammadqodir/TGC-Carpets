@@ -4,9 +4,7 @@ import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
-import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
-import 'package:tgc_client/features/products/domain/usecases/get_product_sizes_usecase.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
@@ -17,8 +15,6 @@ import 'package:tgc_client/features/products_stock/presentation/widgets/stock_fi
 import 'package:tgc_client/features/products_stock/presentation/widgets/stock_table.dart';
 
 /// Full-width desktop view: filter bar + scrollable stock table.
-/// Uses [ProductFormBloc] for type/quality filter options, and loads sizes
-/// dynamically via [GetProductSizesUseCase] when the type filter changes.
 class ProductsStockDesktopPage extends StatelessWidget {
   const ProductsStockDesktopPage({super.key});
 
@@ -43,14 +39,9 @@ class _DesktopView extends StatefulWidget {
 class _DesktopViewState extends State<_DesktopView> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
-  final _getSizes = sl<GetProductSizesUseCase>();
 
   int? _selectedTypeId;
   int? _selectedQualityId;
-  int? _selectedSizeId;
-
-  List<ProductSizeEntity> _sizes = [];
-  bool _loadingSizes = false;
 
   @override
   void initState() {
@@ -72,42 +63,20 @@ class _DesktopViewState extends State<_DesktopView> {
     super.dispose();
   }
 
-  Future<void> _loadSizes(int? typeId) async {
-    if (typeId == null) {
-      setState(() {
-        _sizes = [];
-        _loadingSizes = false;
-      });
-      return;
-    }
-    setState(() => _loadingSizes = true);
-    final result = await _getSizes(productTypeId: typeId);
-    if (!mounted) return;
-    result.fold(
-      (_) => setState(() => _loadingSizes = false),
-      (sizes) => setState(() {
-        _sizes = sizes;
-        _loadingSizes = false;
-      }),
-    );
-  }
+  Future<void> _loadSizes(int? typeId) async {}
 
   void _applyFilters({
     int? typeId,
     int? qualityId,
-    int? sizeId,
-    bool resetSize = false,
   }) {
     setState(() {
       _selectedTypeId = typeId;
       _selectedQualityId = qualityId;
-      _selectedSizeId = resetSize ? null : sizeId;
     });
     context.read<ProductsStockBloc>().add(
           ProductsStockFilterChanged(
             productTypeId:    typeId,
             productQualityId: qualityId,
-            productSizeId:    resetSize ? null : sizeId,
           ),
         );
   }
@@ -147,11 +116,8 @@ class _DesktopViewState extends State<_DesktopView> {
               return StockFilterBar(
                 productTypes:       _typesFromFormState(formState),
                 productQualities:   _qualitiesFromFormState(formState),
-                productSizes:       _sizes,
                 selectedTypeId:     _selectedTypeId,
                 selectedQualityId:  _selectedQualityId,
-                selectedSizeId:     _selectedSizeId,
-                isLoadingSizes:     _loadingSizes,
                 searchController:   _searchController,
                 onSearchChanged:    (v) => context
                     .read<ProductsStockBloc>()
@@ -160,19 +126,12 @@ class _DesktopViewState extends State<_DesktopView> {
                   _applyFilters(
                     typeId:     id,
                     qualityId:  _selectedQualityId,
-                    resetSize:  true,
                   );
                   _loadSizes(id);
                 },
                 onQualityChanged: (id) => _applyFilters(
                   typeId:    _selectedTypeId,
                   qualityId: id,
-                  sizeId:    _selectedSizeId,
-                ),
-                onSizeChanged: (id) => _applyFilters(
-                  typeId:    _selectedTypeId,
-                  qualityId: _selectedQualityId,
-                  sizeId:    id,
                 ),
                 onRefresh: () => context
                     .read<ProductsStockBloc>()

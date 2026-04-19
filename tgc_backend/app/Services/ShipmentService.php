@@ -100,7 +100,6 @@ class ShipmentService
                 'user',
                 'items.variant.productColor.product.productQuality',
                 'items.variant.productColor.color',
-                'items.variant.productSize',
             ]);
         });
 
@@ -119,7 +118,6 @@ class ShipmentService
             'user',
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
-            'items.variant.productSize',
         ]);
     }
 
@@ -132,7 +130,6 @@ class ShipmentService
         $shipment->loadMissing([
             'client',
             'items.variant.productColor.product.productQuality',
-            'items.variant.productSize',
         ]);
 
         $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
@@ -155,7 +152,6 @@ class ShipmentService
             'client',
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
-            'items.variant.productSize',
         ]);
 
         $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])

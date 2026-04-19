@@ -76,8 +76,9 @@ class WarehouseDocumentFormController extends ChangeNotifier {
     for (final item in items) {
       final alreadyExists = _items.any((r) {
         final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
-        final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
-        return rColorId == item.productColorId && rSizeId == item.productSizeId;
+        return rColorId == item.productColorId &&
+            r.effectiveLength == item.sizeLength &&
+            r.effectiveWidth == item.sizeWidth;
       });
       if (!alreadyExists) {
         final row = WarehouseItemRow.fromBatchItem(

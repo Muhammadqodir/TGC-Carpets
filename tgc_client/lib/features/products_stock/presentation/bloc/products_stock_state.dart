@@ -24,7 +24,6 @@ class ProductsStockLoaded extends ProductsStockState {
   final int total;
   final int? filterTypeId;
   final int? filterQualityId;
-  final int? filterSizeId;
 
   const ProductsStockLoaded({
     required this.variants,
@@ -34,7 +33,6 @@ class ProductsStockLoaded extends ProductsStockState {
     required this.total,
     this.filterTypeId,
     this.filterQualityId,
-    this.filterSizeId,
   });
 
   ProductsStockLoaded copyWith({
@@ -45,7 +43,6 @@ class ProductsStockLoaded extends ProductsStockState {
     int? total,
     int? filterTypeId,
     int? filterQualityId,
-    int? filterSizeId,
   }) =>
       ProductsStockLoaded(
         variants:        variants ?? this.variants,
@@ -55,7 +52,6 @@ class ProductsStockLoaded extends ProductsStockState {
         total:           total ?? this.total,
         filterTypeId:    filterTypeId ?? this.filterTypeId,
         filterQualityId: filterQualityId ?? this.filterQualityId,
-        filterSizeId:    filterSizeId ?? this.filterSizeId,
       );
 
   @override
@@ -67,7 +63,6 @@ class ProductsStockLoaded extends ProductsStockState {
         total,
         filterTypeId,
         filterQualityId,
-        filterSizeId,
       ];
 }
 

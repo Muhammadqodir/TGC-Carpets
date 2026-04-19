@@ -22,16 +22,14 @@ class ProductsStockNextPageRequested extends ProductsStockEvent {
 class ProductsStockFilterChanged extends ProductsStockEvent {
   final int? productTypeId;
   final int? productQualityId;
-  final int? productSizeId;
 
   const ProductsStockFilterChanged({
     this.productTypeId,
     this.productQualityId,
-    this.productSizeId,
   });
 
   @override
-  List<Object?> get props => [productTypeId, productQualityId, productSizeId];
+  List<Object?> get props => [productTypeId, productQualityId];
 }
 
 class ProductsStockSearchChanged extends ProductsStockEvent {

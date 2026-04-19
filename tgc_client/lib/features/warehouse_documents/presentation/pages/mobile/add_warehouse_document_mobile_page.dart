@@ -7,7 +7,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../args/warehouse_document_preview_args.dart';
 import '../../widgets/production_batch_picker_bottom_sheet.dart';
 import '../../widgets/warehouse_document_form_controller.dart';
@@ -64,7 +64,7 @@ class _AddWarehouseDocumentMobilePageState
     }
 
     final hasUnpickedSize = manualRows.any(
-      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+      (r) => r.selectedProduct?.productTypeId != null && r.effectiveLength == null,
     );
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,11 +86,9 @@ class _AddWarehouseDocumentMobilePageState
           row.selectedProduct?.productType?.type ?? row.prefilledTypeName;
       final colorName = row.selectedColor?.colorName ?? row.prefilledColorName;
       final colorId = row.selectedColor?.id ?? row.prefilledColorId;
-      final sizeId = row.selectedSize?.id ?? row.prefilledSizeId;
-      final sizeLabel =
-          row.selectedSize?.dimensions ?? row.prefilledSizeDimensions;
-      final sizeLength = row.selectedSize?.length ?? row.prefilledSizeLength;
-      final sizeWidth = row.selectedSize?.width ?? row.prefilledSizeWidth;
+      final sizeLabel = row.sizeDimensions;
+      final sizeLength = row.effectiveLength;
+      final sizeWidth = row.effectiveWidth;
 
       return WarehouseItemPreviewRow(
         productId: productId!,
@@ -99,7 +97,6 @@ class _AddWarehouseDocumentMobilePageState
         type: type,
         color: colorName,
         productColorId: colorId,
-        productSizeId: sizeId,
         sizeLabel: sizeLabel,
         sizeLength: sizeLength,
         sizeWidth: sizeWidth,
@@ -427,10 +424,10 @@ class _MobileItemCard extends StatelessWidget {
                           ?.copyWith(color: AppColors.textSecondary),
                     ),
                   ],
-                  if (row.prefilledSizeDimensions != null) ...[
+                  if (row.sizeDimensions != null) ...[
                     const SizedBox(width: 8),
                     Text(
-                      row.prefilledSizeDimensions!,
+                      row.sizeDimensions!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
@@ -458,7 +455,6 @@ class _MobileItemCard extends StatelessWidget {
               _MobileSizePicker(
                 row: row,
                 allItems: allItems,
-                productTypeId: product.productTypeId!,
                 onChanged: onProductChanged,
               ),
             ],
@@ -494,7 +490,8 @@ class _MobileProductPickerButton extends StatelessWidget {
         if (result != null) {
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -556,32 +553,32 @@ class _MobileProductPickerButton extends StatelessWidget {
 class _MobileSizePicker extends StatelessWidget {
   final WarehouseItemRow row;
   final List<WarehouseItemRow> allItems;
-  final int productTypeId;
   final VoidCallback onChanged;
 
   const _MobileSizePicker({
     required this.row,
     required this.allItems,
-    required this.productTypeId,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
+    final displayDimensions = row.sizeDimensions;
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
           final isDuplicate = allItems.any(
             (r) =>
                 r.id != row.id &&
-                r.selectedProduct?.id == row.selectedProduct?.id &&
-                r.selectedColor?.id == row.selectedColor?.id &&
-                r.selectedSize?.id == picked.id,
+                (r.selectedColor?.id ?? r.prefilledColorId) ==
+                    (row.selectedColor?.id ?? row.prefilledColorId) &&
+                r.effectiveLength == picked.length &&
+                r.effectiveWidth == picked.width,
           );
           if (isDuplicate) {
             if (context.mounted) {
@@ -594,7 +591,8 @@ class _MobileSizePicker extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },
@@ -604,35 +602,41 @@ class _MobileSizePicker extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: size == null ? AppColors.divider : AppColors.primary,
-            width: size == null ? 1 : 1.5,
+            color: displayDimensions == null ? AppColors.divider : AppColors.primary,
+            width: displayDimensions == null ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          color:
-              size != null ? AppColors.primary.withValues(alpha: 0.05) : null,
+          color: displayDimensions != null
+              ? AppColors.primary.withValues(alpha: 0.05)
+              : null,
         ),
         child: Row(
           children: [
             Icon(
               Icons.straighten_rounded,
               size: 16,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                size == null ? "O'lcham tanlash" : size.dimensions,
+                displayDimensions ?? "O'lcham tanlash",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: size == null
+                      color: displayDimensions == null
                           ? AppColors.textSecondary
                           : AppColors.primary,
-                      fontWeight: size != null ? FontWeight.w600 : null,
+                      fontWeight:
+                          displayDimensions != null ? FontWeight.w600 : null,
                     ),
               ),
             ),
             Icon(
               Icons.arrow_drop_down_rounded,
-              color: size == null ? AppColors.textSecondary : AppColors.primary,
+              color: displayDimensions == null
+                  ? AppColors.textSecondary
+                  : AppColors.primary,
             ),
           ],
         ),

@@ -27,14 +27,13 @@ class ClientDebitService
             ->join('product_variants as pv',    'pv.id', '=', 'si.product_variant_id')
             ->join('product_colors as pc',      'pc.id', '=', 'pv.product_color_id')
             ->join('products as p',             'p.id',  '=', 'pc.product_id')
-            ->leftJoin('product_sizes as ps',   'ps.id', '=', 'pv.product_size_id')
             ->select(
                 's.client_id',
                 DB::raw("
                     SUM(
                         CASE
-                            WHEN p.unit = 'm2' AND ps.id IS NOT NULL
-                                THEN si.price * ps.length * ps.width * si.quantity / 10000.0
+                            WHEN p.unit = 'm2' AND pv.length IS NOT NULL AND pv.width IS NOT NULL
+                                THEN si.price * pv.length * pv.width * si.quantity / 10000.0
                             ELSE
                                 si.quantity * si.price
                         END
@@ -86,7 +85,6 @@ class ClientDebitService
         // ── Collect shipment entries ──────────────────────────────────────
         $shipments = Shipment::with([
                 'items.variant.productColor.product',
-                'items.variant.productSize',
             ])
             ->where('client_id', $client->id)
             ->orderBy('shipment_datetime')
@@ -99,9 +97,10 @@ class ClientDebitService
             foreach ($shipment->items as $item) {
                 $unit = $item->variant?->productColor?->product?->unit ?? 'piece';
                 if ($unit === 'm2') {
-                    $size = $item->variant?->productSize;
-                    if ($size) {
-                        $total += (float) $item->price * $size->length * $size->width * $item->quantity / 10000.0;
+                    $l = $item->variant?->length;
+                    $w = $item->variant?->width;
+                    if ($l && $w) {
+                        $total += (float) $item->price * $l * $w * $item->quantity / 10000.0;
                     } else {
                         $total += (float) $item->quantity * (float) $item->price;
                     }

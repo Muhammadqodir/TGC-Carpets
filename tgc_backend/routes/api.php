@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductColorController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductQualityController;
-use App\Http\Controllers\Api\V1\ProductSizeController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\MachineController;
@@ -56,9 +55,6 @@ Route::prefix('v1')->group(function (): void {
 
         // Product qualities
         Route::apiResource('product-qualities', ProductQualityController::class)->except(['show']);
-
-        // Product sizes
-        Route::apiResource('product-sizes', ProductSizeController::class);
 
         // Colors (reference list)
         Route::get('colors', [ColorController::class, 'index'])->name('colors.index');

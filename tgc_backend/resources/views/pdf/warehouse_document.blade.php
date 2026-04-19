@@ -317,16 +317,17 @@
                         $quality = $product?->productQuality;
                         $type = $product?->productType;
                         $color = $variant?->productColor?->color;
-                        $size = $variant?->productSize;
+                        $sizeLength = $variant?->length;
+                        $sizeWidth  = $variant?->width;
 
-                        $sizeLabel = $size ? $size->length . ' × ' . $size->width : '—';
+                        $sizeLabel = ($sizeLength && $sizeWidth) ? $sizeLength . ' × ' . $sizeWidth : '—';
                         $sizePerUnit =
-                            $size && $size->length && $size->width
-                                ? number_format(($size->length * $size->width) / 10000, 4)
+                            $sizeLength && $sizeWidth
+                                ? number_format(($sizeLength * $sizeWidth) / 10000, 4)
                                 : null;
                         $sqm =
-                            $size && $size->length && $size->width
-                                ? round(($size->length * $size->width * $item->quantity) / 10000, 4)
+                            $sizeLength && $sizeWidth
+                                ? round(($sizeLength * $sizeWidth * $item->quantity) / 10000, 4)
                                 : null;
 
                         $grandTotalQty += $item->quantity;

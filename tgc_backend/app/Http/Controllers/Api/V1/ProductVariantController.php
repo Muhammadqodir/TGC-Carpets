@@ -19,7 +19,7 @@ class ProductVariantController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $variants = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color', 'productSize'])
+        $variants = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color'])
             ->when($request->filled('product_color_id'), fn ($q) => $q->where('product_color_id', $request->integer('product_color_id')))
             ->when($request->filled('barcode'),          fn ($q) => $q->where('barcode_value', $request->barcode))
             ->latest()
@@ -36,7 +36,7 @@ class ProductVariantController extends Controller
      */
     public function findByBarcode(string $barcode): JsonResponse
     {
-        $variant = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color', 'productSize'])
+        $variant = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color'])
             ->where('barcode_value', $barcode)
             ->firstOrFail();
 

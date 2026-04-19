@@ -25,7 +25,6 @@ import '../../features/products/domain/repositories/product_repository.dart';
 import '../../features/products/domain/usecases/get_products_usecase.dart';
 import '../../features/products/domain/usecases/get_product_types_usecase.dart';
 import '../../features/products/domain/usecases/get_product_qualities_usecase.dart';
-import '../../features/products/domain/usecases/get_product_sizes_usecase.dart';
 import '../../features/products/domain/usecases/create_product_usecase.dart';
 import '../../features/products/domain/usecases/update_product_usecase.dart';
 import '../../features/products/domain/usecases/delete_product_usecase.dart';
@@ -209,7 +208,6 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetProductsUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => GetProductTypesUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => GetProductQualitiesUseCase(sl<ProductRepository>()));
-  sl.registerLazySingleton(() => GetProductSizesUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => CreateProductUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => UpdateProductUseCase(sl<ProductRepository>()));
   sl.registerLazySingleton(() => DeleteProductUseCase(sl<ProductRepository>()));

@@ -17,7 +17,6 @@ class ProductionBatchService
         'items.variant.productColor.product.productType',
         'items.variant.productColor.product.productQuality',
         'items.variant.productColor.color',
-        'items.variant.productSize',
         'items.sourceOrderItem.order.client',
     ];
 
@@ -168,7 +167,6 @@ class ProductionBatchService
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
-            'variant.productSize',
             'sourceOrderItem.order.client',
         ]);
     }
@@ -188,7 +186,6 @@ class ProductionBatchService
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
-            'variant.productSize',
             'sourceOrderItem.order.client',
         ]);
     }
@@ -214,7 +211,8 @@ class ProductionBatchService
             } else {
                 $variantId = $this->variantService->findOrCreate(
                     (int) $itemData['product_color_id'],
-                    !empty($itemData['product_size_id']) ? (int) $itemData['product_size_id'] : null,
+                    !empty($itemData['length']) ? (int) $itemData['length'] : null,
+                    !empty($itemData['width']) ? (int) $itemData['width'] : null,
                 )->id;
             }
 

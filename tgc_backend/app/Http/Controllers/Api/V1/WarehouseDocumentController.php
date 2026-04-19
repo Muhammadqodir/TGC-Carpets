@@ -19,7 +19,7 @@ class WarehouseDocumentController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $documents = WarehouseDocument::with(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos'])
+        $documents = WarehouseDocument::with(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'photos'])
             ->when($request->filled('type'),      fn ($q) => $q->where('type', $request->type))
             ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))
             ->when($request->filled('date_from'),   fn ($q) => $q->whereDate('document_date', '>=', $request->date_from))
@@ -41,7 +41,7 @@ class WarehouseDocumentController extends Controller
 
     public function show(WarehouseDocument $warehouseDocument): JsonResponse
     {
-        $warehouseDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+        $warehouseDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'photos']);
 
         return response()->json(['data' => new WarehouseDocumentResource($warehouseDocument)]);
     }

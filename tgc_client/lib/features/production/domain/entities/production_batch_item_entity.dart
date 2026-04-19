@@ -32,7 +32,6 @@ class ProductionBatchItemEntity extends Equatable {
   final int? sizeWidth;
   final String? productUnit;
   final int? productColorId;
-  final int? productSizeId;
   final int? productTypeId;
   final String? qualityName;
   final String? productTypeName;
@@ -61,7 +60,6 @@ class ProductionBatchItemEntity extends Equatable {
     this.sizeWidth,
     this.productUnit,
     this.productColorId,
-    this.productSizeId,
     this.productTypeId,
     this.qualityName,
     this.productTypeName,
@@ -104,7 +102,6 @@ class ProductionBatchItemEntity extends Equatable {
         sizeWidth,
         productUnit,
         productColorId,
-        productSizeId,
         productTypeId,
         qualityName,
         productTypeName,

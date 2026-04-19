@@ -30,7 +30,7 @@ class WarehouseDocumentService
         if (! empty($data['external_uuid'])) {
             $existing = WarehouseDocument::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+                return $existing->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'photos']);
             }
         }
 
@@ -54,7 +54,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($document);
             $document->update(['pdf_path' => $pdfPath]);
 
-            return $document->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $document->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'photos']);
         });
     }
 
@@ -90,7 +90,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($freshDocument);
             $freshDocument->update(['pdf_path' => $pdfPath]);
 
-            return $freshDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $freshDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'photos']);
         });
     }
 
@@ -135,7 +135,8 @@ class WarehouseDocumentService
         foreach ($items as $itemData) {
             $variant = $this->variantService->findOrCreate(
                 $itemData['product_color_id'],
-                $itemData['product_size_id'] ?? null,
+                $itemData['length'] ?? null,
+                $itemData['width'] ?? null,
             );
 
             $item = $document->items()->create([
@@ -194,13 +195,19 @@ class WarehouseDocumentService
 
         foreach ($items as $index => $itemData) {
             $productColorId = $itemData['product_color_id'];
-            $sizeId         = $itemData['product_size_id'] ?? null;
+            $length         = $itemData['length'] ?? null;
+            $width          = $itemData['width'] ?? null;
 
             $variant = ProductVariant::where('product_color_id', $productColorId)
                 ->when(
-                    $sizeId !== null,
-                    fn ($q) => $q->where('product_size_id', $sizeId),
-                    fn ($q) => $q->whereNull('product_size_id'),
+                    $length !== null,
+                    fn ($q) => $q->where('length', $length),
+                    fn ($q) => $q->whereNull('length'),
+                )
+                ->when(
+                    $width !== null,
+                    fn ($q) => $q->where('width', $width),
+                    fn ($q) => $q->whereNull('width'),
                 )
                 ->first();
 
@@ -210,7 +217,7 @@ class WarehouseDocumentService
                 $pc = \App\Models\ProductColor::with('product', 'color')->find($productColorId);
                 $productName = $pc?->product?->name ?? "Product color #{$productColorId}";
                 $colorName   = $pc?->color?->name   ?? '';
-                $sizeLabel   = $sizeId ? " (size #{$sizeId})" : '';
+                $sizeLabel   = ($length && $width) ? " ({$length}x{$width})" : '';
 
                 $errors["items.{$index}.quantity"] = [
                     "Insufficient stock for '{$productName} ({$colorName})'{$sizeLabel}. Available: {$currentStock}, Requested: {$itemData['quantity']}.",

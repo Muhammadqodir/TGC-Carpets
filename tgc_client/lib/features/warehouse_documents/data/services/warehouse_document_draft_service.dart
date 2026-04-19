@@ -5,11 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../products/data/models/product_color_model.dart';
 import '../../../products/data/models/product_model.dart';
 
-import '../../../products/data/models/product_size_model.dart';
 
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
-import '../../../products/domain/entities/product_size_entity.dart';
 import '../../presentation/widgets/warehouse_document_form_controller.dart';
 import '../../presentation/widgets/warehouse_item_row.dart';
 
@@ -38,12 +36,12 @@ class WarehouseDocumentDraftService {
                     r.selectedProduct != null ? _productToJson(r.selectedProduct!) : null,
                 'color':
                     r.selectedColor != null ? _colorToJson(r.selectedColor!) : null,
-                'size': r.selectedSize != null ? _sizeToJson(r.selectedSize!) : null,
+                'selected_length': r.selectedLength,
+                'selected_width': r.selectedWidth,
                 'quantity': r.quantityCtrl.text,
                 'notes': r.notesCtrl.text,
                 // Prefill fields (batch-imported rows)
                 'prefilled_color_id': r.prefilledColorId,
-                'prefilled_size_id': r.prefilledSizeId,
                 'prefilled_product_id': r.prefilledProductId,
                 'prefilled_product_name': r.prefilledProductName,
                 'prefilled_color_name': r.prefilledColorName,
@@ -83,7 +81,6 @@ class WarehouseDocumentDraftService {
 
         final row = WarehouseItemRow(
           prefilledColorId: item['prefilled_color_id'] as int?,
-          prefilledSizeId: item['prefilled_size_id'] as int?,
           prefilledProductId: item['prefilled_product_id'] as int?,
           prefilledProductName: item['prefilled_product_name'] as String?,
           prefilledColorName: item['prefilled_color_name'] as String?,
@@ -112,10 +109,8 @@ class WarehouseDocumentDraftService {
           row.selectedColor = ProductColorModel.fromJson(rawColor);
         }
 
-        final rawSize = item['size'] as Map<String, dynamic>?;
-        if (rawSize != null) {
-          row.selectedSize = ProductSizeModel.fromJson(rawSize);
-        }
+        row.selectedLength = item['selected_length'] as int?;
+        row.selectedWidth = item['selected_width'] as int?;
 
         row.quantityCtrl.text = (item['quantity'] as String?) ?? '';
         row.notesCtrl.text = (item['notes'] as String?) ?? '';
@@ -166,13 +161,6 @@ class WarehouseDocumentDraftService {
         'id': c.id,
         'color': {'id': c.colorId, 'name': c.colorName},
         'image_url': c.imageUrl,
-      };
-
-  static Map<String, dynamic> _sizeToJson(ProductSizeEntity s) => {
-        'id': s.id,
-        'length': s.length,
-        'width': s.width,
-        'product_type_id': s.productTypeId,
       };
 
   static ProductEntity _productFromJson(Map<String, dynamic> json) =>

@@ -33,11 +33,11 @@ class DefectDocumentItemResource extends JsonResource
                     'image_url'        => $item->relationLoaded('variant') && $item->variant?->relationLoaded('productColor') && $item->variant->productColor?->image
                         ? Storage::disk('public')->url($item->variant->productColor->image)
                         : null,
-                    'size_length'      => $item->relationLoaded('variant') && $item->variant?->relationLoaded('productSize')
-                        ? $item->variant->productSize?->length
+                    'size_length'      => $item->relationLoaded('variant')
+                        ? $item->variant?->length
                         : null,
-                    'size_width'       => $item->relationLoaded('variant') && $item->variant?->relationLoaded('productSize')
-                        ? $item->variant->productSize?->width
+                    'size_width'       => $item->relationLoaded('variant')
+                        ? $item->variant?->width
                         : null,
                 ];
             }),

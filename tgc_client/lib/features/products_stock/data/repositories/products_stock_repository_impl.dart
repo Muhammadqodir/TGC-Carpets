@@ -15,16 +15,14 @@ class ProductsStockRepositoryImpl implements ProductsStockRepository {
   Future<Either<Failure, PaginatedResponse<StockVariantEntity>>> getStockVariants({
     int? productTypeId,
     int? productQualityId,
-    int? productSizeId,
     String? search,
     int page = 1,
     int perPage = 20,
   }) async {
     try {
-      final result = await remoteDataSource.getStockVariants(
+      final result = await _remoteDataSource.getStockVariants(
         productTypeId:    productTypeId,
         productQualityId: productQualityId,
-        productSizeId:    productSizeId,
         search:           search,
         page:             page,
         perPage:          perPage,

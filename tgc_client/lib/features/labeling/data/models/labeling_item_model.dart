@@ -25,7 +25,6 @@ class LabelingItemModel extends LabelingItemEntity {
     final colorMap       = variantMap?['product_color'] as Map<String, dynamic>?;
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;
     final colorInfoMap   = colorMap?['color']           as Map<String, dynamic>?;
-    final sizeMap        = variantMap?['product_size']  as Map<String, dynamic>?;
     final productTypeMap = productMap?['product_type']  as Map<String, dynamic>?;
 
     return LabelingItemModel(
@@ -41,8 +40,8 @@ class LabelingItemModel extends LabelingItemEntity {
       productName:     productMap?['name'] as String? ?? '',
       colorName:       colorInfoMap?['name'] as String?,
       colorImageUrl:   colorMap?['image_url'] as String?,
-      sizeLength:      sizeMap?['length'] as int?,
-      sizeWidth:       sizeMap?['width']  as int?,
+      sizeLength:      variantMap?['length'] as int?,
+      sizeWidth:       variantMap?['width']  as int?,
       qualityName:     productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
     );

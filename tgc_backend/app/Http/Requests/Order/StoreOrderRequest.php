@@ -22,7 +22,8 @@ class StoreOrderRequest extends FormRequest
             'external_uuid'   => ['nullable', 'string', 'max:255'],
             'items'                    => ['required', 'array', 'min:1'],
             'items.*.product_color_id'  => ['required', 'integer', 'exists:product_colors,id'],
-            'items.*.product_size_id'   => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.length'             => ['nullable', 'integer', 'min:1'],
+            'items.*.width'              => ['nullable', 'integer', 'min:1'],
             'items.*.quantity'          => ['required', 'integer', 'min:1'],
         ];
     }

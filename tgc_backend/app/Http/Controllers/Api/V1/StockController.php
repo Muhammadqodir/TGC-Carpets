@@ -120,7 +120,6 @@ class StockController extends Controller
             ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
             ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
             ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
-            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
             ->whereNull('products.deleted_at')
             ->select([
                 'product_variants.id',
@@ -129,8 +128,8 @@ class StockController extends Controller
                 'product_colors.image as color_image',
                 'product_qualities.quality_name',
                 'product_types.type as type_name',
-                'product_sizes.length',
-                'product_sizes.width',
+                'product_variants.length',
+                'product_variants.width',
             ])
             ->selectSub($qtyWarehouse, 'quantity_warehouse')
             ->selectSub($qtyReceivedForActiveOrders, 'qty_received')
@@ -142,10 +141,6 @@ class StockController extends Controller
             ->when(
                 $request->filled('product_quality_id'),
                 fn ($q) => $q->where('products.product_quality_id', $request->integer('product_quality_id'))
-            )
-            ->when(
-                $request->filled('product_size_id'),
-                fn ($q) => $q->where('product_variants.product_size_id', $request->integer('product_size_id'))
             )
             ->when(
                 $request->filled('search'),
@@ -196,7 +191,7 @@ class StockController extends Controller
      */
     public function movements(Request $request): AnonymousResourceCollection
     {
-        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'variant.productSize', 'user'])
+        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'user'])
             ->when($request->filled('product_id'),    fn ($q) => $q->whereHas('variant.productColor', fn ($q2) => $q2->where('product_id', $request->product_id)))
             ->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
             ->when($request->filled('warehouse_document_item_id'), fn ($q) => $q->where('warehouse_document_item_id', $request->warehouse_document_item_id))

@@ -2,30 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
-import '../../../products/domain/entities/product_size_entity.dart';
 
 /// View-layer model that holds the mutable state for a single line item
 /// in the add/edit order form.
 ///
 /// In edit mode, rows are pre-populated with [prefilledColorId] /
-/// [prefilledSizeId] etc. so existing items can be displayed and edited
-/// without fetching full entity objects upfront.
+/// [prefilledSizeLength]/[prefilledSizeWidth] etc. so existing items can be
+/// displayed and edited without fetching full entity objects upfront.
 class OrderItemRow {
   static int _counter = 0;
   final int id = ++_counter;
 
   ProductEntity? selectedProduct;
   ProductColorEntity? selectedColor;
-  ProductSizeEntity? selectedSize;
+  int? selectedLength;
+  int? selectedWidth;
   final TextEditingController quantityCtrl;
 
   // ── Prefill data (edit mode, from server) ─────────────────────────────────
 
   /// product_color.id – used for submission when no entity has been picked yet.
   final int? prefilledColorId;
-
-  /// product_size.id – used for submission when no entity has been picked yet.
-  final int? prefilledSizeId;
 
   final String? prefilledProductName;
   final String? prefilledColorName;
@@ -46,7 +43,6 @@ class OrderItemRow {
 
   OrderItemRow({
     this.prefilledColorId,
-    this.prefilledSizeId,
     this.prefilledProductName,
     this.prefilledColorName,
     this.prefilledColorImageUrl,
@@ -64,23 +60,31 @@ class OrderItemRow {
   /// Either new entity data or pre-existing server IDs.
   bool get isFilled => selectedProduct != null || prefilledColorId != null;
 
-  /// Display string for size, derived from prefill integers.
-  String? get prefilledSizeDimensions =>
-      prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength' 'x' '$prefilledSizeWidth'
-          : null;
+  /// Effective length (selected takes priority over prefilled).
+  int? get effectiveLength => selectedLength ?? prefilledSizeLength;
+
+  /// Effective width (selected takes priority over prefilled).
+  int? get effectiveWidth => selectedWidth ?? prefilledSizeWidth;
+
+  /// Display string for size, derived from effective integers.
+  String? get sizeDimensions {
+    final l = effectiveLength;
+    final w = effectiveWidth;
+    return (l != null && w != null) ? '${l}x$w' : null;
+  }
 
   String get label {
     if (selectedProduct != null) {
       final parts = <String>[selectedProduct!.name];
       if (selectedColor != null) parts.add(selectedColor!.colorName);
-      if (selectedSize != null) parts.add(selectedSize!.dimensions);
+      final dim = sizeDimensions;
+      if (dim != null) parts.add(dim);
       return parts.join(' / ');
     }
     if (prefilledProductName != null) {
       final parts = <String>[prefilledProductName!];
       if (prefilledColorName != null) parts.add(prefilledColorName!);
-      final dim = prefilledSizeDimensions;
+      final dim = sizeDimensions;
       if (dim != null) parts.add(dim);
       return parts.join(' / ');
     }

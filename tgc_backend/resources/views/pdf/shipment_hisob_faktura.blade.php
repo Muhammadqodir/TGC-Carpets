@@ -213,16 +213,17 @@
                 @endphp
                 @foreach ($shipment->items as $index => $item)
                     @php
-                        $product = $item->variant?->productColor?->product;
-                        $color   = $item->variant?->productColor?->color;
-                        $quality = $product?->productQuality;
-                        $size    = $item->variant?->productSize;
-                        $unit    = $product?->unit ?? 'piece';
-                        $qty     = $item->quantity;
-                        $price   = (float) $item->price;
+                        $product    = $item->variant?->productColor?->product;
+                        $color      = $item->variant?->productColor?->color;
+                        $quality    = $product?->productQuality;
+                        $sizeLength = $item->variant?->length;
+                        $sizeWidth  = $item->variant?->width;
+                        $unit       = $product?->unit ?? 'piece';
+                        $qty        = $item->quantity;
+                        $price      = (float) $item->price;
 
-                        $sqm = ($size && $unit === 'm2')
-                            ? round(($size->length * $size->width * $qty) / 10000, 4)
+                        $sqm = ($sizeLength && $sizeWidth && $unit === 'm2')
+                            ? round(($sizeLength * $sizeWidth * $qty) / 10000, 4)
                             : 0;
 
                         $lineTotal = ($unit === 'm2' && $sqm > 0)
@@ -239,8 +240,8 @@
                         <td>{{ $color?->name ?? '—' }}</td>
                         <td>{{ $quality?->quality_name ?? '—' }}</td>
                         <td>
-                            @if ($size)
-                                {{ $size->length }} × {{ $size->width }}
+                            @if ($sizeLength && $sizeWidth)
+                                {{ $sizeLength }} × {{ $sizeWidth }}
                             @else
                                 —
                             @endif

@@ -10,7 +10,6 @@ class ApiEndpoints {
   static const String products = '/products';
   static String productById(int id) => '/products/$id';
   static const String productTypes = '/product-types';
-  static const String productSizes = '/product-sizes';
   static const String productQualities = '/product-qualities';
   static const String productColors = '/product-colors';
   static String productColorById(int id) => '/product-colors/$id';

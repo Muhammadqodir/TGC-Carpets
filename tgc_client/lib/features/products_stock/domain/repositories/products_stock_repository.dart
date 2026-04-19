@@ -7,7 +7,6 @@ abstract class ProductsStockRepository {
   Future<Either<Failure, PaginatedResponse<StockVariantEntity>>> getStockVariants({
     int? productTypeId,
     int? productQualityId,
-    int? productSizeId,
     String? search,
     int page = 1,
     int perPage = 20,

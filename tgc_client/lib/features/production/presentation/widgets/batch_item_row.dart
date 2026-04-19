@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../orders/domain/entities/order_item_entity.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
-import '../../../products/domain/entities/product_size_entity.dart';
 import '../../domain/entities/production_batch_item_entity.dart';
 
 /// View-layer model for a single item row in the production batch form.
@@ -17,12 +16,12 @@ class BatchItemRow {
 
   ProductEntity?      selectedProduct;
   ProductColorEntity? selectedColor;
-  ProductSizeEntity?  selectedSize;
+  int?                selectedLength;
+  int?                selectedWidth;
   final TextEditingController quantityCtrl;
 
   // ── Prefill (edit mode) ───────────────────────────────────────────────────
   final int?    prefilledColorId;
-  final int?    prefilledSizeId;
   final String? prefilledProductName;
   final String? prefilledColorName;
   final String? prefilledColorImageUrl;
@@ -41,7 +40,6 @@ class BatchItemRow {
 
   BatchItemRow({
     this.prefilledColorId,
-    this.prefilledSizeId,
     this.prefilledProductName,
     this.prefilledColorName,
     this.prefilledColorImageUrl,
@@ -64,7 +62,6 @@ class BatchItemRow {
   }) =>
       BatchItemRow(
         prefilledColorId: item.productColorId,
-        prefilledSizeId: item.productSizeId,
         prefilledProductName: item.productName,
         prefilledColorName: item.colorName,
         prefilledColorImageUrl: item.colorImageUrl,
@@ -84,7 +81,6 @@ class BatchItemRow {
   factory BatchItemRow.fromBatchItem(ProductionBatchItemEntity item) =>
       BatchItemRow(
         prefilledColorId: item.productColorId,
-        prefilledSizeId: item.productSizeId,
         prefilledProductName: item.productName,
         prefilledColorName: item.colorName,
         prefilledColorImageUrl: item.colorImageUrl,
@@ -111,22 +107,27 @@ class BatchItemRow {
 
   bool get isFilled => selectedProduct != null || prefilledColorId != null;
 
-  String? get prefilledSizeDimensions =>
-      prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength×$prefilledSizeWidth'
-          : null;
+  int? get effectiveLength => selectedLength ?? prefilledSizeLength;
+  int? get effectiveWidth  => selectedWidth  ?? prefilledSizeWidth;
+
+  String? get sizeDimensions {
+    final l = effectiveLength;
+    final w = effectiveWidth;
+    return (l != null && w != null) ? '$l×$w' : null;
+  }
 
   String get label {
     if (selectedProduct != null) {
       final parts = <String>[selectedProduct!.name];
       if (selectedColor != null) parts.add(selectedColor!.colorName);
-      if (selectedSize != null) parts.add(selectedSize!.dimensions);
+      final dim = sizeDimensions;
+      if (dim != null) parts.add(dim);
       return parts.join(' / ');
     }
     if (prefilledProductName != null) {
       final parts = <String>[prefilledProductName!];
       if (prefilledColorName != null) parts.add(prefilledColorName!);
-      final dim = prefilledSizeDimensions;
+      final dim = sizeDimensions;
       if (dim != null) parts.add(dim);
       return parts.join(' / ');
     }

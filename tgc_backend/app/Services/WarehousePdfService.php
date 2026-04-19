@@ -20,7 +20,6 @@ class WarehousePdfService
             'items.variant.productColor.product.productType',
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
-            'items.variant.productSize',
         ]);
 
         $shipmentInfo = $document->isOutgoing() ? $this->resolveShipmentInfo($document) : null;

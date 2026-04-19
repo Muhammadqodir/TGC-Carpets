@@ -22,7 +22,6 @@ class WarehouseItemPreviewRow {
   final String? type;
   final String? color;
   final int? productColorId;
-  final int? productSizeId;
   final String? sizeLabel;
   final int? sizeLength;
   final int? sizeWidth;
@@ -40,7 +39,6 @@ class WarehouseItemPreviewRow {
     this.type,
     this.color,
     this.productColorId,
-    this.productSizeId,
     this.sizeLabel,
     this.sizeLength,
     this.sizeWidth,

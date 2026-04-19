@@ -25,10 +25,9 @@ class ProductionBatchController extends Controller
     {
         $batches = ProductionBatch::select('production_batches.*')
             ->addSelect(DB::raw('(
-                SELECT COALESCE(SUM(pbi.planned_quantity * ps.length * ps.width), 0) / 10000.0
+                SELECT COALESCE(SUM(pbi.planned_quantity * pv.length * pv.width), 0) / 10000.0
                 FROM production_batch_items pbi
                 INNER JOIN product_variants pv ON pv.id = pbi.product_variant_id
-                INNER JOIN product_sizes ps ON ps.id = pv.product_size_id
                 WHERE pbi.production_batch_id = production_batches.id
             ) AS total_sqm'))
             ->with(['machine', 'creator'])
@@ -64,7 +63,6 @@ class ProductionBatchController extends Controller
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
-            'variant.productSize',
             'sourceOrderItem.order.client',
         ]);
 
@@ -160,7 +158,6 @@ class ProductionBatchController extends Controller
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
-            'variant.productSize',
             'sourceOrderItem.order.client',
         ]);
 
@@ -196,7 +193,6 @@ class ProductionBatchController extends Controller
                 'variant.productColor.product.productType',
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',
-                'variant.productSize',
             ])
             ->whereHas('order', fn ($q) => $q->whereIn('status', ['pending', 'planned', 'on_production']))
             ->get()
@@ -220,6 +216,8 @@ class ProductionBatchController extends Controller
                         'id'            => $oi->variant->id,
                         'barcode_value' => $oi->variant->barcode_value,
                         'sku_code'      => $oi->variant->sku_code,
+                        'length'        => $oi->variant->length,
+                        'width'         => $oi->variant->width,
                         'product_color' => $oi->variant->productColor ? [
                             'id'        => $oi->variant->productColor->id,
                             'image_url' => $oi->variant->productColor->image
@@ -239,9 +237,6 @@ class ProductionBatchController extends Controller
                                 ]
                                 : null,
                         ] : null,
-                        'product_size' => $oi->variant->productSize
-                            ? ['id' => $oi->variant->productSize->id, 'length' => $oi->variant->productSize->length, 'width' => $oi->variant->productSize->width]
-                            : null,
                     ],
                 ];
             })
@@ -262,7 +257,6 @@ class ProductionBatchController extends Controller
                 'variant.productColor.product.productType',
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',
-                'variant.productSize',
             ])
             ->whereHas('productionBatch', fn ($q) => $q->where('status', ProductionBatch::STATUS_IN_PROGRESS))
             ->get();

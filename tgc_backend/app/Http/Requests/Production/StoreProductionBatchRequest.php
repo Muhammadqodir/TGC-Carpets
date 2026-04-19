@@ -27,7 +27,8 @@ class StoreProductionBatchRequest extends FormRequest
             'items.*.source_order_item_id'   => ['nullable', 'integer', 'exists:order_items,id'],
             'items.*.product_variant_id'     => ['nullable', 'integer', 'exists:product_variants,id'],
             'items.*.product_color_id'       => ['nullable', 'integer', 'exists:product_colors,id'],
-            'items.*.product_size_id'        => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.length'                 => ['nullable', 'integer', 'min:1'],
+            'items.*.width'                  => ['nullable', 'integer', 'min:1'],
             'items.*.planned_quantity'       => ['required_with:items', 'integer', 'min:1'],
             'items.*.notes'                  => ['nullable', 'string', 'max:1000'],
         ];

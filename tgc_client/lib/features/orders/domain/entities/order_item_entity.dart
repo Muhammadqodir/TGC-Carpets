@@ -16,8 +16,6 @@ class OrderItemEntity extends Equatable {
   final int quantity;
   /// The product_color.id — required when re-submitting an edit.
   final int productColorId;
-  /// The product_size.id — required when the variant has a size.
-  final int? productSizeId;
   /// product.product_type_id — needed to open the size picker in edit mode.
   final int? productTypeId;
   /// product.productQuality.quality_name — shown in the Sifat column.
@@ -51,7 +49,6 @@ class OrderItemEntity extends Equatable {
     this.productUnit,
     required this.quantity,
     required this.productColorId,
-    this.productSizeId,
     this.productTypeId,
     this.qualityName,
     this.productTypeName,
@@ -86,7 +83,6 @@ class OrderItemEntity extends Equatable {
         productUnit,
         quantity,
         productColorId,
-        productSizeId,
         plannedQuantity,
         producedQuantity,
         remainingQuantity,

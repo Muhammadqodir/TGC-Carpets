@@ -9,7 +9,6 @@ class ProductVariantEntity extends Equatable {
   final String? productName;
   final String? colorName;
   final String? productUnit;
-  final int? productSizeId;
   final int? sizeLength;
   final int? sizeWidth;
 
@@ -22,7 +21,6 @@ class ProductVariantEntity extends Equatable {
     this.productName,
     this.colorName,
     this.productUnit,
-    this.productSizeId,
     this.sizeLength,
     this.sizeWidth,
   });
@@ -40,5 +38,5 @@ class ProductVariantEntity extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, barcodeValue, skuCode, productColorId, productSizeId];
+  List<Object?> get props => [id, barcodeValue, skuCode, productColorId, sizeLength, sizeWidth];
 }

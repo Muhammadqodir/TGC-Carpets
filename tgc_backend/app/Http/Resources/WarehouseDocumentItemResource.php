@@ -25,11 +25,8 @@ class WarehouseDocumentItemResource extends JsonResource
                 'id'   => $this->variant->productColor->color->id,
                 'name' => $this->variant->productColor->color->name,
             ] : null),
-            'product_size' => $this->whenLoaded('variant', fn () => $this->variant->productSize ? [
-                'id'     => $this->variant->productSize->id,
-                'length' => $this->variant->productSize->length,
-                'width'  => $this->variant->productSize->width,
-            ] : null),
+            'length'       => $this->whenLoaded('variant', fn () => $this->variant->length),
+            'width'        => $this->whenLoaded('variant', fn () => $this->variant->width),
             'quantity'     => $this->quantity,
             'notes'        => $this->notes,
         ];

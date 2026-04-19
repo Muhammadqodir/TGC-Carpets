@@ -10,7 +10,7 @@ import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
 import '../../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
@@ -107,7 +107,7 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
     }
 
     final hasUnpickedSize = filledItems.any(
-      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+      (r) => r.selectedProduct?.productTypeId != null && r.effectiveLength == null,
     );
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,9 +122,8 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
     final items = filledItems
         .map((r) => {
               'product_color_id': r.selectedColor?.id ?? r.prefilledColorId!,
-              if (r.selectedSize != null ||
-                  (r.selectedProduct == null && r.prefilledSizeId != null))
-                'product_size_id': r.selectedSize?.id ?? r.prefilledSizeId,
+              if (r.effectiveLength != null) 'length': r.effectiveLength,
+              if (r.effectiveWidth != null) 'width': r.effectiveWidth,
               'quantity': int.tryParse(r.quantityCtrl.text.trim()) ?? 1,
             })
         .toList();
@@ -385,18 +384,10 @@ class _AddOrderDesktopPageState extends State<AddOrderDesktopPage> {
                     );
                     final totalSqm = filled.fold(0.0, (sum, r) {
                       final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
-                      if (r.selectedSize != null) {
+                      if (r.effectiveLength != null && r.effectiveWidth != null) {
                         return sum +
-                            r.selectedSize!.length *
-                                r.selectedSize!.width *
-                                qty /
-                                10000.0;
-                      }
-                      if (r.prefilledSizeLength != null &&
-                          r.prefilledSizeWidth != null) {
-                        return sum +
-                            r.prefilledSizeLength! *
-                                r.prefilledSizeWidth! *
+                            r.effectiveLength! *
+                                r.effectiveWidth! *
                                 qty /
                                 10000.0;
                       }
@@ -629,43 +620,25 @@ class _DesktopItemTableRow extends StatelessWidget {
             ),
           ),
 
-          // Size column — entity picker when product is loaded, prefill text otherwise
+          // Size column
           Expanded(
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: product != null && product.productTypeId != null
+              child: (product != null && product.productTypeId != null) ||
+                      row.prefilledProductTypeId != null
                   ? _DesktopSizePickerCell(
                       row: row,
                       allItems: allItems,
-                      productTypeId: product.productTypeId!,
                       onChanged: onChanged,
                     )
-                  : row.prefilledProductTypeId != null
-                      ? _DesktopSizePickerCell(
-                          row: row,
-                          allItems: allItems,
-                          productTypeId: row.prefilledProductTypeId!,
-                          onChanged: onChanged,
-                        )
-                      : row.prefilledSizeDimensions != null
-                          ? Text(
-                              row.prefilledSizeDimensions!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            )
-                          : Text(
-                              '—',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
+                  : Text(
+                      '—',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
             ),
           ),
 
@@ -755,7 +728,8 @@ class _DesktopProductPickerCell extends StatelessWidget {
           }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -817,35 +791,34 @@ class _DesktopProductPickerCell extends StatelessWidget {
 class _DesktopSizePickerCell extends StatelessWidget {
   final OrderItemRow row;
   final List<OrderItemRow> allItems;
-  final int productTypeId;
   final VoidCallback onChanged;
 
   const _DesktopSizePickerCell({
     required this.row,
     required this.allItems,
-    required this.productTypeId,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final displayDimensions = row.sizeDimensions;
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
-          // Use effective IDs so prefilled rows are included in the check.
+          // Use effective values so prefilled rows are included in the check.
           final effectiveColorId =
               row.selectedColor?.id ?? row.prefilledColorId;
           final isDuplicate = allItems.any((r) {
             if (r.id == row.id) return false;
             final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
-            final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
-            return rColorId == effectiveColorId && rSizeId == picked.id;
+            return rColorId == effectiveColorId &&
+                r.effectiveLength == picked.length &&
+                r.effectiveWidth == picked.width;
           });
           if (isDuplicate) {
             if (context.mounted) {
@@ -858,7 +831,8 @@ class _DesktopSizePickerCell extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },

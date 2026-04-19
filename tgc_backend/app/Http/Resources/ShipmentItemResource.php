@@ -25,11 +25,8 @@ class ShipmentItemResource extends JsonResource
                 'id'   => $this->variant->productColor->color->id,
                 'name' => $this->variant->productColor->color->name,
             ] : null),
-            'product_size' => $this->whenLoaded('variant', fn () => $this->variant->productSize ? [
-                'id'     => $this->variant->productSize->id,
-                'length' => $this->variant->productSize->length,
-                'width'  => $this->variant->productSize->width,
-            ] : null),
+            'length'       => $this->whenLoaded('variant', fn () => $this->variant->length),
+            'width'        => $this->whenLoaded('variant', fn () => $this->variant->width),
             'quantity'     => $this->quantity,
             'price'        => $this->price,
             'total'        => $this->computeTotal(),
@@ -47,9 +44,10 @@ class ShipmentItemResource extends JsonResource
         $unit  = $this->variant?->productColor?->product?->unit ?? 'piece';
 
         if ($unit === 'm2') {
-            $size = $this->variant?->productSize;
-            if ($size) {
-                $sqm = $size->length * $size->width * $qty / 10000.0;
+            $l = $this->variant?->length;
+            $w = $this->variant?->width;
+            if ($l && $w) {
+                $sqm = $l * $w * $qty / 10000.0;
                 return round($price * $sqm, 2);
             }
         }

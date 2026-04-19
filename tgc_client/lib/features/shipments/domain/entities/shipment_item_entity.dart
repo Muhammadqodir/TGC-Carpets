@@ -10,7 +10,6 @@ class ShipmentItemEntity extends Equatable {
   final int? productId;
   final String? productName;
   final String? productUnit; // 'piece' | 'm2'
-  final int? productSizeId;
   final String? productSizeLabel;
   final int? sizeLength;
   final int? sizeWidth;
@@ -29,7 +28,6 @@ class ShipmentItemEntity extends Equatable {
     this.productId,
     this.productName,
     this.productUnit,
-    this.productSizeId,
     this.productSizeLabel,
     this.sizeLength,
     this.sizeWidth,
@@ -63,7 +61,6 @@ class ShipmentItemEntity extends Equatable {
         productId,
         productName,
         productUnit,
-        productSizeId,
         productSizeLabel,
         sizeLength,
         sizeWidth,

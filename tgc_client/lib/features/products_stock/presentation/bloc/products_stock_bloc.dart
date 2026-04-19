@@ -11,7 +11,6 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
 
   int? _filterTypeId;
   int? _filterQualityId;
-  int? _filterSizeId;
   String _searchQuery = '';
   Timer? _debounce;
 
@@ -52,7 +51,6 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
   ) {
     _filterTypeId    = event.productTypeId;
     _filterQualityId = event.productQualityId;
-    _filterSizeId    = event.productSizeId;
     add(const ProductsStockLoadRequested());
   }
 
@@ -89,7 +87,6 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
     final result = await getStockVariantsUseCase(
       productTypeId:    _filterTypeId,
       productQualityId: _filterQualityId,
-      productSizeId:    _filterSizeId,
       search:           _searchQuery.isNotEmpty ? _searchQuery : null,
       page:             page,
     );
@@ -110,7 +107,6 @@ class ProductsStockBloc extends Bloc<ProductsStockEvent, ProductsStockState> {
           total:           paginated.total,
           filterTypeId:    _filterTypeId,
           filterQualityId: _filterQualityId,
-          filterSizeId:    _filterSizeId,
         ));
       },
     );

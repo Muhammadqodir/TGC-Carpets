@@ -4,9 +4,7 @@ import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/appbar_search.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
-import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
-import 'package:tgc_client/features/products/domain/usecases/get_product_sizes_usecase.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
@@ -40,17 +38,13 @@ class _MobileBody extends StatefulWidget {
 class _MobileBodyState extends State<_MobileBody> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
-  final _getSizes = sl<GetProductSizesUseCase>();
 
   int? _selectedTypeId;
   int? _selectedQualityId;
-  int? _selectedSizeId;
-  List<ProductSizeEntity> _sizes = [];
 
   bool get _hasActiveFilters =>
       _selectedTypeId != null ||
-      _selectedQualityId != null ||
-      _selectedSizeId != null;
+      _selectedQualityId != null;
 
   @override
   void initState() {
@@ -77,20 +71,15 @@ class _MobileBodyState extends State<_MobileBody> {
   void _applyFilters({
     required int? typeId,
     required int? qualityId,
-    required int? sizeId,
-    required List<ProductSizeEntity> sizes,
   }) {
     setState(() {
       _selectedTypeId = typeId;
       _selectedQualityId = qualityId;
-      _selectedSizeId = sizeId;
-      _sizes = sizes;
     });
     context.read<ProductsStockBloc>().add(
           ProductsStockFilterChanged(
             productTypeId: typeId,
             productQualityId: qualityId,
-            productSizeId: sizeId,
           ),
         );
   }
@@ -108,11 +97,8 @@ class _MobileBodyState extends State<_MobileBody> {
       builder: (_) => _FilterBottomSheet(
         types: types,
         qualities: qualities,
-        getSizes: _getSizes,
         initialTypeId: _selectedTypeId,
         initialQualityId: _selectedQualityId,
-        initialSizeId: _selectedSizeId,
-        initialSizes: _sizes,
         onApply: _applyFilters,
       ),
     );
@@ -243,26 +229,18 @@ class _FilterBottomSheet extends StatefulWidget {
   const _FilterBottomSheet({
     required this.types,
     required this.qualities,
-    required this.getSizes,
     required this.initialTypeId,
     required this.initialQualityId,
-    required this.initialSizeId,
-    required this.initialSizes,
     required this.onApply,
   });
 
   final List<ProductTypeEntity> types;
   final List<ProductQualityEntity> qualities;
-  final GetProductSizesUseCase getSizes;
   final int? initialTypeId;
   final int? initialQualityId;
-  final int? initialSizeId;
-  final List<ProductSizeEntity> initialSizes;
   final void Function({
     required int? typeId,
     required int? qualityId,
-    required int? sizeId,
-    required List<ProductSizeEntity> sizes,
   }) onApply;
 
   @override
@@ -272,36 +250,12 @@ class _FilterBottomSheet extends StatefulWidget {
 class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   late int? _typeId;
   late int? _qualityId;
-  late int? _sizeId;
-  late List<ProductSizeEntity> _sizes;
-  bool _loadingSizes = false;
 
   @override
   void initState() {
     super.initState();
     _typeId = widget.initialTypeId;
     _qualityId = widget.initialQualityId;
-    _sizeId = widget.initialSizeId;
-    _sizes = List.of(widget.initialSizes);
-  }
-
-  Future<void> _onTypeChanged(int? typeId) async {
-    setState(() {
-      _typeId = typeId;
-      _sizeId = null;
-      _sizes = [];
-    });
-    if (typeId == null) return;
-    setState(() => _loadingSizes = true);
-    final result = await widget.getSizes(productTypeId: typeId);
-    if (!mounted) return;
-    result.fold(
-      (_) => setState(() => _loadingSizes = false),
-      (sizes) => setState(() {
-        _sizes = sizes;
-        _loadingSizes = false;
-      }),
-    );
   }
 
   @override
@@ -327,8 +281,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   setState(() {
                     _typeId = null;
                     _qualityId = null;
-                    _sizeId = null;
-                    _sizes = [];
                   });
                 },
                 child: const Text('Tozalash'),
@@ -350,7 +302,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 (t) => DropdownMenuItem(value: t.id, child: Text(t.type)),
               ),
             ],
-            onChanged: _onTypeChanged,
+            onChanged: (v) => setState(() => _typeId = v),
           ),
           const SizedBox(height: 12),
           // Quality
@@ -377,48 +329,11 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             onChanged: (v) => setState(() => _qualityId = v),
           ),
           const SizedBox(height: 12),
-          // Size — only shown when a type is selected
-          if (_typeId != null) ...[
-            _loadingSizes
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  )
-                : DropdownButtonFormField<int>(
-                    value: _sizeId,
-                    decoration: const InputDecoration(
-                      labelText: 'O\'lcham',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('Barchasi')),
-                      ..._sizes.map(
-                        (s) => DropdownMenuItem(
-                          value: s.id,
-                          child: Text(s.dimensions),
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _sizeId = v),
-                  ),
-            const SizedBox(height: 12),
-          ],
           FilledButton(
             onPressed: () {
               widget.onApply(
                 typeId: _typeId,
                 qualityId: _qualityId,
-                sizeId: _sizeId,
-                sizes: _sizes,
               );
               Navigator.of(context).pop();
             },

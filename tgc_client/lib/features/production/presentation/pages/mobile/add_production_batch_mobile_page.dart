@@ -7,7 +7,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../../../domain/entities/production_batch_entity.dart';
 import '../../bloc/production_batch_form_bloc.dart';
 import '../../bloc/production_batch_form_event.dart';
@@ -697,7 +697,8 @@ class _ProductPickerButton extends StatelessWidget {
         if (result != null) {
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -811,22 +812,23 @@ class _SizePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final displayDimensions = row.sizeDimensions;
     final hasSize = displayDimensions != null;
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
           final isDuplicate = allItems.any(
             (r) =>
                 r.id != row.id &&
-                r.selectedProduct?.id == row.selectedProduct?.id &&
-                r.selectedColor?.id == row.selectedColor?.id &&
-                r.selectedSize?.id == picked.id,
+                (r.selectedColor?.id ?? r.prefilledColorId) ==
+                    (row.selectedColor?.id ?? row.prefilledColorId) &&
+                r.effectiveLength == picked.length &&
+                r.effectiveWidth == picked.width,
           );
           if (isDuplicate) {
             if (context.mounted) {
@@ -839,7 +841,8 @@ class _SizePicker extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },

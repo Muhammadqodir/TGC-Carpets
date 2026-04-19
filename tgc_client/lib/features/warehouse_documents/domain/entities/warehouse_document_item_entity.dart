@@ -6,8 +6,9 @@ class WarehouseDocumentItemEntity extends Equatable {
   final String productName;
   final String? productSkuCode;
   final String? productUnit;
-  final int? productSizeId;
   final String? productSizeLabel;
+  final int? sizeLength;
+  final int? sizeWidth;
   final int? colorId;
   final String? colorName;
   final int quantity;
@@ -21,8 +22,9 @@ class WarehouseDocumentItemEntity extends Equatable {
     required this.productName,
     this.productSkuCode,
     this.productUnit,
-    this.productSizeId,
     this.productSizeLabel,
+    this.sizeLength,
+    this.sizeWidth,
     this.colorId,
     this.colorName,
     required this.quantity,
@@ -44,8 +46,9 @@ class WarehouseDocumentItemEntity extends Equatable {
         productName,
         productSkuCode,
         productUnit,
-        productSizeId,
         productSizeLabel,
+        sizeLength,
+        sizeWidth,
         colorId,
         colorName,
         quantity,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../production/domain/entities/production_batch_item_entity.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
-import '../../../products/domain/entities/product_size_entity.dart';
 
 /// View-layer model that holds the mutable state for a single line item in
 /// the "add warehouse document" form (both mobile and desktop variants).
@@ -17,13 +16,13 @@ class WarehouseItemRow {
 
   ProductEntity? selectedProduct;
   ProductColorEntity? selectedColor;
-  ProductSizeEntity? selectedSize;
+  int?               selectedLength;
+  int?               selectedWidth;
   final TextEditingController quantityCtrl;
   final TextEditingController notesCtrl;
 
-  // ── Prefill (batch import) ────────────────────────────────────────────────
+  // ── Prefill (batch import) ────────────────────────────────────────────
   final int?    prefilledColorId;
-  final int?    prefilledSizeId;
   final int?    prefilledProductId;
   final String? prefilledProductName;
   final String? prefilledColorName;
@@ -47,7 +46,6 @@ class WarehouseItemRow {
 
   WarehouseItemRow({
     this.prefilledColorId,
-    this.prefilledSizeId,
     this.prefilledProductId,
     this.prefilledProductName,
     this.prefilledColorName,
@@ -80,7 +78,6 @@ class WarehouseItemRow {
     final qty = initialQuantity ?? (item.producedQuantity ?? item.plannedQuantity);
     return WarehouseItemRow(
       prefilledColorId: item.productColorId,
-      prefilledSizeId: item.productSizeId,
       prefilledProductId: item.productId,
       prefilledProductName: item.productName,
       prefilledColorName: item.colorName,
@@ -114,11 +111,14 @@ class WarehouseItemRow {
   String? get typeName =>
       selectedProduct?.productType?.type ?? prefilledTypeName;
 
-  /// Formatted size dimensions from prefill.
-  String? get prefilledSizeDimensions =>
-      prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength×$prefilledSizeWidth'
-          : null;
+  int? get effectiveLength => selectedLength ?? prefilledSizeLength;
+  int? get effectiveWidth  => selectedWidth  ?? prefilledSizeWidth;
+
+  String? get sizeDimensions {
+    final l = effectiveLength;
+    final w = effectiveWidth;
+    return (l != null && w != null) ? '$l×$w' : null;
+  }
 
   void dispose() {
     quantityCtrl.dispose();

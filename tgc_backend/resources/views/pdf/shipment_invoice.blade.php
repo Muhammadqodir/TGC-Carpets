@@ -218,10 +218,11 @@
                     @php
                         $product = $item->variant?->productColor?->product;
                         $quality = $product?->productQuality;
-                        $size = $item->variant?->productSize;
+                        $sizeLength = $item->variant?->length;
+                        $sizeWidth  = $item->variant?->width;
                         $sqm =
-                            $size && $product?->unit === 'm2'
-                                ? round(($size->length * $size->width * $item->quantity) / 10000, 2)
+                            $sizeLength && $sizeWidth && $product?->unit === 'm2'
+                                ? round(($sizeLength * $sizeWidth * $item->quantity) / 10000, 2)
                                 : 0;
                         $totalNumber = $item->quantity;
                         $grandTotalSqm += $sqm;
@@ -232,15 +233,15 @@
                         <td>{{ $product?->name ?? '—' }}</td>
                         <td>{{ $quality?->quality_name ?? '—' }}</td>
                         <td>
-                            @if ($size)
-                                {{ $size->length }} × {{ $size->width }}
+                            @if ($sizeLength && $sizeWidth)
+                                {{ $sizeLength }} × {{ $sizeWidth }}
                             @else
                                 —
                             @endif
                         </td>
                         <td class="right">
-                            @if ($size)
-                                {{ number_format(($size->length * $size->width) / 10000, 2) }} m²
+                            @if ($sizeLength && $sizeWidth)
+                                {{ number_format(($sizeLength * $sizeWidth) / 10000, 2) }} m²
                             @else
                                 —
                             @endif

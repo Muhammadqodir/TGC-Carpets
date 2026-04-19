@@ -9,7 +9,7 @@ import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
 import '../../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
 import '../../../../products/presentation/widgets/product_picker_bottom_sheet.dart';
-import '../../../../products/presentation/widgets/product_size_picker_sheet.dart';
+import '../../../../products/presentation/widgets/size_input_sheet.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../bloc/order_form_bloc.dart';
 import '../../bloc/order_form_event.dart';
@@ -108,7 +108,7 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
 
     // Only rows where the user has just picked a new entity need a size check.
     final hasUnpickedSize = filledItems.any(
-      (r) => r.selectedProduct?.productTypeId != null && r.selectedSize == null,
+      (r) => r.selectedProduct?.productTypeId != null && r.effectiveLength == null,
     );
     if (hasUnpickedSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,11 +123,8 @@ class _AddOrderMobilePageState extends State<AddOrderMobilePage> {
     final items = filledItems
         .map((r) => {
               'product_color_id': r.selectedColor?.id ?? r.prefilledColorId!,
-              // include size only when: entity size picked, OR prefill has a
-              // size AND no new entity has been picked for this row yet.
-              if (r.selectedSize != null ||
-                  (r.selectedProduct == null && r.prefilledSizeId != null))
-                'product_size_id': r.selectedSize?.id ?? r.prefilledSizeId,
+              if (r.effectiveLength != null) 'length': r.effectiveLength,
+              if (r.effectiveWidth != null) 'width': r.effectiveWidth,
               'quantity': int.tryParse(r.quantityCtrl.text.trim()) ?? 1,
             })
         .toList();
@@ -535,7 +532,8 @@ class _ProductPickerButton extends StatelessWidget {
           }
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
-          row.selectedSize = null;
+          row.selectedLength = null;
+          row.selectedWidth = null;
           onChanged();
         }
       },
@@ -654,23 +652,22 @@ class _SizePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = row.selectedSize;
-    // Fall back to prefilled dimensions if no entity has been picked yet.
-    final displayDimensions = size?.dimensions ?? row.prefilledSizeDimensions;
+    final displayDimensions = row.sizeDimensions;
     final hasSize = displayDimensions != null;
     return InkWell(
       onTap: () async {
-        final picked = await ProductSizePickerSheet.show(
+        final picked = await SizeInputSheet.show(
           context,
-          productTypeId: productTypeId,
+          initialLength: row.effectiveLength,
+          initialWidth: row.effectiveWidth,
         );
         if (picked != null) {
           final isDuplicate = allItems.any(
             (r) =>
                 r.id != row.id &&
-                r.selectedProduct?.id == row.selectedProduct?.id &&
                 r.selectedColor?.id == row.selectedColor?.id &&
-                r.selectedSize?.id == picked.id,
+                r.effectiveLength == picked.length &&
+                r.effectiveWidth == picked.width,
           );
           if (isDuplicate) {
             if (context.mounted) {
@@ -683,7 +680,8 @@ class _SizePicker extends StatelessWidget {
             }
             return;
           }
-          row.selectedSize = picked;
+          row.selectedLength = picked.length;
+          row.selectedWidth = picked.width;
           onChanged();
         }
       },

@@ -11,7 +11,6 @@ class ShipmentItemModel extends ShipmentItemEntity {
     super.productId,
     super.productName,
     super.productUnit,
-    super.productSizeId,
     super.productSizeLabel,
     super.sizeLength,
     super.sizeWidth,
@@ -25,7 +24,8 @@ class ShipmentItemModel extends ShipmentItemEntity {
     final variantMap  = json['variant']      as Map<String, dynamic>?;
     final productMap  = json['product']      as Map<String, dynamic>?;
     final colorMap    = json['color']        as Map<String, dynamic>?;
-    final sizeMap     = json['product_size'] as Map<String, dynamic>?;
+    final sizeLength  = variantMap?['length'] as int?;
+    final sizeWidth   = variantMap?['width']  as int?;
 
     return ShipmentItemModel(
       id:               json['id'] as int,
@@ -37,12 +37,11 @@ class ShipmentItemModel extends ShipmentItemEntity {
       productId:        productMap?['id'] as int?,
       productName:      productMap?['name'] as String?,
       productUnit:      productMap?['unit'] as String?,
-      productSizeId:    sizeMap?['id'] as int?,
-      productSizeLabel: sizeMap != null
-          ? '${sizeMap['length']}x${sizeMap['width']}'
+      productSizeLabel: (sizeLength != null && sizeWidth != null)
+          ? '${sizeLength}x${sizeWidth}'
           : null,
-      sizeLength:       sizeMap?['length'] as int?,
-      sizeWidth:        sizeMap?['width'] as int?,
+      sizeLength:       sizeLength,
+      sizeWidth:        sizeWidth,
       colorId:   colorMap?['id'] as int?,
       colorName: colorMap?['name'] as String?,
       orderId:   (json['order'] as Map<String, dynamic>?)?['id'] as int?,

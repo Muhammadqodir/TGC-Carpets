@@ -14,7 +14,6 @@ class EditOrderFormController extends OrderFormController {
               .map(
                 (item) => OrderItemRow(
                   prefilledColorId: item.productColorId,
-                  prefilledSizeId: item.productSizeId,
                   prefilledProductName: item.productName,
                   prefilledColorName: item.colorName,
                   prefilledColorImageUrl: item.colorImageUrl,

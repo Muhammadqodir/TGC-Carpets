@@ -12,7 +12,6 @@ class GetStockVariantsUseCase {
   Future<Either<Failure, PaginatedResponse<StockVariantEntity>>> call({
     int? productTypeId,
     int? productQualityId,
-    int? productSizeId,
     String? search,
     int page = 1,
     int perPage = 20,
@@ -20,7 +19,6 @@ class GetStockVariantsUseCase {
       _repository.getStockVariants(
         productTypeId:    productTypeId,
         productQualityId: productQualityId,
-        productSizeId:    productSizeId,
         search:           search,
         page:             page,
         perPage:          perPage,

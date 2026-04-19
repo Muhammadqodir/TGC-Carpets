@@ -15,7 +15,6 @@ class OrderItemModel extends OrderItemEntity {
     super.productUnit,
     required super.quantity,
     required super.productColorId,
-    super.productSizeId,
     super.productTypeId,
     super.qualityName,
     super.productTypeName,
@@ -31,7 +30,6 @@ class OrderItemModel extends OrderItemEntity {
     final colorMap       = variantMap?['product_color'] as Map<String, dynamic>?;
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;
     final colorInfoMap   = colorMap?['color']            as Map<String, dynamic>?;
-    final sizeMap        = variantMap?['product_size']   as Map<String, dynamic>?;
     final productTypeMap = productMap?['product_type']   as Map<String, dynamic>?;
 
     return OrderItemModel(
@@ -43,12 +41,11 @@ class OrderItemModel extends OrderItemEntity {
       productName:    productMap?['name'] as String? ?? '',
       colorName:      colorInfoMap?['name'] as String?,
       colorImageUrl:  colorMap?['image_url'] as String?,
-      sizeLength:     sizeMap?['length'] as int?,
-      sizeWidth:      sizeMap?['width']  as int?,
+      sizeLength:     variantMap?['length'] as int?,
+      sizeWidth:      variantMap?['width']  as int?,
       productUnit:    productMap?['unit'] as String?,
       quantity:       json['quantity'] as int,
       productColorId: colorMap?['id'] as int? ?? 0,
-      productSizeId:  sizeMap?['id'] as int?,
       productTypeId:  productMap?['product_type_id'] as int?,
       qualityName:    productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,

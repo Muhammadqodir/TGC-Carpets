@@ -6,7 +6,6 @@ import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_color_entity.dart';
 import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
-import '../../domain/entities/product_size_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -85,20 +84,6 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       final qualities = await remoteDataSource.getProductQualities();
       return Right(qualities);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException {
-      return const Left(UnauthorizedFailure());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message, statusCode: e.statusCode));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<ProductSizeEntity>>> getProductSizes({int? productTypeId}) async {
-    try {
-      final sizes = await remoteDataSource.getProductSizes(productTypeId: productTypeId);
-      return Right(sizes);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on UnauthorizedException {

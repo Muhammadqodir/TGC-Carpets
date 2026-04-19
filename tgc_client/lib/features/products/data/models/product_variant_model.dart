@@ -10,7 +10,6 @@ class ProductVariantModel extends ProductVariantEntity {
     super.productName,
     super.colorName,
     super.productUnit,
-    super.productSizeId,
     super.sizeLength,
     super.sizeWidth,
   });
@@ -19,7 +18,6 @@ class ProductVariantModel extends ProductVariantEntity {
     final pcMap      = json['product_color'] as Map<String, dynamic>?;
     final productMap = pcMap?['product']     as Map<String, dynamic>?;
     final colorMap   = pcMap?['color']       as Map<String, dynamic>?;
-    final sizeMap    = json['product_size']  as Map<String, dynamic>?;
     return ProductVariantModel(
       id:             json['id'] as int,
       barcodeValue:   json['barcode_value'] as String?,
@@ -29,9 +27,8 @@ class ProductVariantModel extends ProductVariantEntity {
       productName:    productMap?['name'] as String?,
       colorName:      colorMap?['name'] as String?,
       productUnit:    productMap?['unit'] as String?,
-      productSizeId:  sizeMap?['id'] as int?,
-      sizeLength:     sizeMap?['length'] as int?,
-      sizeWidth:      sizeMap?['width'] as int?,
+      sizeLength:     json['length'] as int?,
+      sizeWidth:      json['width'] as int?,
     );
   }
 }
