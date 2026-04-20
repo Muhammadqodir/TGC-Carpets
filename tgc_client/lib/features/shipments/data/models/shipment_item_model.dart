@@ -24,8 +24,8 @@ class ShipmentItemModel extends ShipmentItemEntity {
     final variantMap  = json['variant']      as Map<String, dynamic>?;
     final productMap  = json['product']      as Map<String, dynamic>?;
     final colorMap    = json['color']        as Map<String, dynamic>?;
-    final sizeLength  = variantMap?['length'] as int?;
-    final sizeWidth   = variantMap?['width']  as int?;
+    final sizeLength  = (json['length'] ?? variantMap?['length']) as int?;
+    final sizeWidth   = (json['width']  ?? variantMap?['width'])  as int?;
 
     return ShipmentItemModel(
       id:               json['id'] as int,

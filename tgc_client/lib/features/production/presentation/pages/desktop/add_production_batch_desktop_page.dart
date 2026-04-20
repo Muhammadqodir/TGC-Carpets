@@ -43,6 +43,8 @@ class _AddProductionBatchDesktopPageState
   ProductionBatchMachine? _selectedMachine;
   DateTime? _plannedDate;
   TimeOfDay? _plannedTime;
+  String? _importedClientName;
+  String? _autofilledTitle;
   bool get _isEditMode => widget.initialBatch != null;
 
   ProductionBatchMachine? get _effectiveMachine =>
@@ -70,9 +72,33 @@ class _AddProductionBatchDesktopPageState
     }
   }
 
+  void _autofillTitle() {
+    if (_isEditMode) return;
+    final clientName = _importedClientName;
+    final machineName = _effectiveMachine?.name;
+    final String newTitle;
+    if (clientName != null && machineName != null) {
+      newTitle = '$clientName | $machineName';
+    } else if (clientName != null) {
+      newTitle = clientName;
+    } else if (machineName != null) {
+      newTitle = machineName;
+    } else {
+      return;
+    }
+    final current = widget.controller.titleCtrl.text;
+    if (current.isEmpty || current == _autofilledTitle) {
+      widget.controller.titleCtrl.text = newTitle;
+      _autofilledTitle = newTitle;
+    }
+  }
+
   Future<void> _pickMachine() async {
     final machine = await MachinePickerBottomSheet.show(context);
-    if (machine != null && mounted) setState(() => _selectedMachine = machine);
+    if (machine != null && mounted) {
+      setState(() => _selectedMachine = machine);
+      _autofillTitle();
+    }
   }
 
   Future<void> _pickDate() async {
@@ -414,7 +440,14 @@ class _AddProductionBatchDesktopPageState
                             final result =
                                 await OrderPickerBottomSheet.show(context);
                             if (result != null && mounted) {
-                              ctrl.addRowsFromOrder(result.order, result.items);
+                              ctrl.addRowsFromOrder(
+                                  result.order, result.items);
+                              setState(() {
+                                _importedClientName =
+                                    result.order.clientShopName ??
+                                        result.order.userName;
+                              });
+                              _autofillTitle();
                             }
                           },
                           icon: const Icon(Icons.download_rounded, size: 16),

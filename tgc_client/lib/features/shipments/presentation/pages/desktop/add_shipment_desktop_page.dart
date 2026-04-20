@@ -9,6 +9,7 @@ import '../../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../../core/ui/widgets/count_input.dart';
 import '../../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../../../../clients/domain/entities/client_entity.dart';
+import '../../../../clients/domain/repositories/client_repository.dart';
 import '../../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
 import '../../bloc/shipment_form_bloc.dart';
 import '../../bloc/shipment_form_event.dart';
@@ -79,6 +80,18 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
     );
     if (result == null || !mounted) return;
 
+    // Auto-fill client from the selected order when none is chosen yet.
+    if (_selectedClient == null && result.order.clientId != null) {
+      final clientResult = await sl<ClientRepository>().getClient(result.order.clientId!);
+      if (mounted) {
+        clientResult.fold(
+          (_) {},
+          (client) => setState(() => _selectedClient = client),
+        );
+      }
+    }
+
+    if (!mounted) return;
     final lastPrices = await _fetchLastPrices(
       result,
       clientId: _selectedClient?.id ?? result.order.clientId,
