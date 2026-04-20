@@ -218,7 +218,9 @@ class _ClientDebitCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${client.contactName} • ${client.region}',
+                client.contactName != null
+                    ? '${client.contactName} • ${client.region}'
+                    : client.region,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),

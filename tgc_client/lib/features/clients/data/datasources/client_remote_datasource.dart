@@ -15,8 +15,8 @@ abstract class ClientRemoteDataSource {
   Future<ClientModel> getClient(int id);
 
   Future<ClientModel> createClient({
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -25,8 +25,8 @@ abstract class ClientRemoteDataSource {
 
   Future<ClientModel> updateClient({
     required int id,
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -93,8 +93,8 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
 
   @override
   Future<ClientModel> createClient({
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -104,8 +104,8 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
       final response = await _dio.post(
         ApiEndpoints.clients,
         data: {
-          'contact_name': contactName,
-          'phone': phone,
+          if (contactName != null && contactName.isNotEmpty) 'contact_name': contactName,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
           'shop_name': shopName,
           'region': region,
           if (address != null && address.isNotEmpty) 'address': address,
@@ -124,8 +124,8 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
   @override
   Future<ClientModel> updateClient({
     required int id,
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -135,8 +135,8 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
       final response = await _dio.put(
         ApiEndpoints.clientById(id),
         data: {
-          'contact_name': contactName,
-          'phone': phone,
+          if (contactName != null && contactName.isNotEmpty) 'contact_name': contactName,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
           'shop_name': shopName,
           'region': region,
           if (address != null && address.isNotEmpty) 'address': address,

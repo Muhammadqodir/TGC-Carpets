@@ -8,16 +8,16 @@ abstract class ClientFormEvent extends Equatable {
 }
 
 class ClientFormSubmitted extends ClientFormEvent {
-  final String contactName;
-  final String phone;
+  final String? contactName;
+  final String? phone;
   final String shopName;
   final String region;
   final String? address;
   final String? notes;
 
   const ClientFormSubmitted({
-    required this.contactName,
-    required this.phone,
+    this.contactName,
+    this.phone,
     required this.shopName,
     required this.region,
     this.address,
@@ -30,8 +30,8 @@ class ClientFormSubmitted extends ClientFormEvent {
 
 class ClientFormUpdateSubmitted extends ClientFormEvent {
   final int clientId;
-  final String contactName;
-  final String phone;
+  final String? contactName;
+  final String? phone;
   final String shopName;
   final String region;
   final String? address;
@@ -39,8 +39,8 @@ class ClientFormUpdateSubmitted extends ClientFormEvent {
 
   const ClientFormUpdateSubmitted({
     required this.clientId,
-    required this.contactName,
-    required this.phone,
+    this.contactName,
+    this.phone,
     required this.shopName,
     required this.region,
     this.address,

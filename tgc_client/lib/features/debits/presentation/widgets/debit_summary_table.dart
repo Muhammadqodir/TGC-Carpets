@@ -76,7 +76,7 @@ class DebitSummaryTable extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                client.contactName,
+                client.contactName ?? '—',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

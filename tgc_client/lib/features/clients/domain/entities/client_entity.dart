@@ -3,8 +3,8 @@ import 'package:equatable/equatable.dart';
 class ClientEntity extends Equatable {
   final int id;
   final String uuid;
-  final String contactName;
-  final String phone;
+  final String? contactName;
+  final String? phone;
   final String shopName;
   final String region;
   final String? address;
@@ -15,8 +15,8 @@ class ClientEntity extends Equatable {
   const ClientEntity({
     required this.id,
     required this.uuid,
-    required this.contactName,
-    required this.phone,
+    this.contactName,
+    this.phone,
     required this.shopName,
     required this.region,
     this.address,
@@ -25,7 +25,8 @@ class ClientEntity extends Equatable {
     required this.updatedAt,
   });
 
-  String get displayName => '$shopName ($contactName)';
+  String get displayName =>
+      contactName != null ? '$shopName ($contactName)' : shopName;
 
   @override
   List<Object?> get props => [

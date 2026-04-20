@@ -51,8 +51,8 @@ class ClientFormBodyState extends State<ClientFormBody> {
       _shopNameCtrl.text = c.shopName;
       _regionCtrl.text = c.region;
       _addressCtrl.text = c.address ?? '';
-      _contactNameCtrl.text = c.contactName;
-      _phoneCtrl.text = c.phone;
+      _contactNameCtrl.text = c.contactName ?? '';
+      _phoneCtrl.text = c.phone ?? '';
       _notesCtrl.text = c.notes ?? '';
     }
   }
@@ -72,15 +72,18 @@ class ClientFormBodyState extends State<ClientFormBody> {
   bool submitToBloc() {
     if (!_formKey.currentState!.validate()) return false;
 
-    final clientId = widget.initialClient?.id;
-    final contactName = _contactNameCtrl.text.trim();
-    final phone = _phoneCtrl.text.trim();
+    final contactName =
+        _contactNameCtrl.text.trim().isEmpty ? null : _contactNameCtrl.text.trim();
+    final phone =
+        _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim();
     final shopName = _shopNameCtrl.text.trim();
     final region = _regionCtrl.text.trim();
     final address =
         _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim();
     final notes =
         _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
+
+    final clientId = widget.initialClient?.id;
 
     if (clientId != null) {
       context.read<ClientFormBloc>().add(ClientFormUpdateSubmitted(
@@ -138,17 +141,15 @@ class ClientFormBodyState extends State<ClientFormBody> {
           const SizedBox(height: 12),
           _FormField(
             controller: _contactNameCtrl,
-            label: 'Ism-familiya',
+            label: 'Ism-familiya (ixtiyoriy)',
             hint: 'masalan: Firdavs Toshmatov',
-            validator: _required,
           ),
           const SizedBox(height: 12),
           _FormField(
             controller: _phoneCtrl,
-            label: 'Telefon raqam',
+            label: 'Telefon raqam (ixtiyoriy)',
             hint: '+998901234567',
             keyboardType: TextInputType.phone,
-            validator: _requiredPhone,
           ),
           const SizedBox(height: 24),
           _FormSectionHeader(title: 'Qo\'shimcha'),
@@ -166,12 +167,6 @@ class ClientFormBodyState extends State<ClientFormBody> {
 
   String? _required(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Bu maydon to\'ldirilishi shart.' : null;
-
-  String? _requiredPhone(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Telefon raqam majburiy.';
-    if (v.trim().length < 9) return 'To\'g\'ri telefon raqam kiriting.';
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------

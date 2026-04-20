@@ -9,8 +9,8 @@ class CreateClientUseCase {
   const CreateClientUseCase(this._repository);
 
   Future<Either<Failure, ClientEntity>> call({
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,

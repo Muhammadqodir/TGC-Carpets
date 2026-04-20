@@ -14,8 +14,8 @@ abstract class ClientRepository {
   Future<Either<Failure, ClientEntity>> getClient(int id);
 
   Future<Either<Failure, ClientEntity>> createClient({
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
@@ -24,8 +24,8 @@ abstract class ClientRepository {
 
   Future<Either<Failure, ClientEntity>> updateClient({
     required int id,
-    required String contactName,
-    required String phone,
+    String? contactName,
+    String? phone,
     required String shopName,
     required String region,
     String? address,
