@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
 import '../../domain/usecases/create_product_usecase.dart';
+import '../../domain/usecases/get_colors_usecase.dart';
 import '../../domain/usecases/get_product_qualities_usecase.dart';
 import '../../domain/usecases/get_product_types_usecase.dart';
 import '../../domain/usecases/update_product_usecase.dart';
@@ -13,12 +15,14 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
   final UpdateProductUseCase updateProductUseCase;
   final GetProductTypesUseCase getProductTypesUseCase;
   final GetProductQualitiesUseCase getProductQualitiesUseCase;
+  final GetColorsUseCase getColorsUseCase;
 
   ProductFormBloc({
     required this.createProductUseCase,
     required this.updateProductUseCase,
     required this.getProductTypesUseCase,
     required this.getProductQualitiesUseCase,
+    required this.getColorsUseCase,
   }) : super(const ProductFormInitial()) {
     on<ProductFormStarted>(_onStarted);
     on<ProductFormSubmitted>(_onSubmitted);
@@ -34,12 +38,14 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
     final results = await Future.wait([
       getProductTypesUseCase(),
       getProductQualitiesUseCase(),
+      getColorsUseCase(),
     ]);
 
     final types = results[0].fold((_) => <ProductTypeEntity>[], (v) => v as List<ProductTypeEntity>);
     final qualities = results[1].fold((_) => <ProductQualityEntity>[], (v) => v as List<ProductQualityEntity>);
+    final colors = results[2].fold((_) => <ColorEntity>[], (v) => v as List<ColorEntity>);
 
-    emit(ProductFormReady(types, productQualities: qualities));
+    emit(ProductFormReady(types, productQualities: qualities, colors: colors));
   }
 
   Future<void> _onSubmitted(
@@ -48,8 +54,9 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
   ) async {
     final currentTypes = _currentTypes();
     final currentQualities = _currentQualities();
+    final currentColors = _currentColors();
 
-    emit(ProductFormSubmitting(currentTypes, productQualities: currentQualities));
+    emit(ProductFormSubmitting(currentTypes, productQualities: currentQualities, colors: currentColors));
 
     final result = await createProductUseCase(
       name: event.name,
@@ -64,6 +71,7 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
         failure.message,
         productTypes: currentTypes,
         productQualities: currentQualities,
+        colors: currentColors,
       )),
       (product) => emit(ProductFormSuccess(product)),
     );
@@ -85,13 +93,22 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
     return const [];
   }
 
+  List<ColorEntity> _currentColors() {
+    final s = state;
+    if (s is ProductFormReady) return s.colors;
+    if (s is ProductFormSubmitting) return s.colors;
+    if (s is ProductFormFailure) return s.colors;
+    return const [];
+  }
+
   Future<void> _onUpdateSubmitted(
     ProductFormUpdateSubmitted event,
     Emitter<ProductFormState> emit,
   ) async {
     final currentTypes = _currentTypes();
     final currentQualities = _currentQualities();
-    emit(ProductFormSubmitting(currentTypes, productQualities: currentQualities));
+    final currentColors = _currentColors();
+    emit(ProductFormSubmitting(currentTypes, productQualities: currentQualities, colors: currentColors));
 
     final result = await updateProductUseCase(
       id: event.productId,
@@ -107,6 +124,7 @@ class ProductFormBloc extends Bloc<ProductFormEvent, ProductFormState> {
         failure.message,
         productTypes: currentTypes,
         productQualities: currentQualities,
+        colors: currentColors,
       )),
       (product) => emit(ProductFormSuccess(product)),
     );

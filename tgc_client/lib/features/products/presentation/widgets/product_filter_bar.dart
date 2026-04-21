@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/ui/widgets/filter_bar.dart';
 import '../../../../core/ui/widgets/filter_dropdown.dart';
 import '../../../../core/ui/widgets/filter_search_field.dart';
+import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
 
@@ -15,11 +16,14 @@ class ProductFilterBar extends StatelessWidget {
     required this.onSearchChanged,
     required this.productTypes,
     required this.productQualities,
+    required this.colors,
     required this.selectedTypeId,
     required this.selectedQualityId,
+    required this.selectedColorId,
     required this.selectedStatus,
     required this.onTypeChanged,
     required this.onQualityChanged,
+    required this.onColorChanged,
     required this.onStatusChanged,
     required this.onRefresh,
   });
@@ -29,13 +33,16 @@ class ProductFilterBar extends StatelessWidget {
 
   final List<ProductTypeEntity> productTypes;
   final List<ProductQualityEntity> productQualities;
+  final List<ColorEntity> colors;
 
   final int? selectedTypeId;
   final int? selectedQualityId;
+  final int? selectedColorId;
   final String? selectedStatus;
 
   final ValueChanged<int?> onTypeChanged;
   final ValueChanged<int?> onQualityChanged;
+  final ValueChanged<int?> onColorChanged;
   final ValueChanged<String?> onStatusChanged;
 
   final VoidCallback onRefresh;
@@ -43,6 +50,7 @@ class ProductFilterBar extends StatelessWidget {
   bool get _hasActiveFilters =>
       selectedTypeId != null ||
       selectedQualityId != null ||
+      selectedColorId != null ||
       selectedStatus != null;
 
   @override
@@ -52,6 +60,7 @@ class ProductFilterBar extends StatelessWidget {
       onClearFilters: () {
         onTypeChanged(null);
         onQualityChanged(null);
+        onColorChanged(null);
         onStatusChanged(null);
       },
       onRefresh: onRefresh,
@@ -82,6 +91,15 @@ class ProductFilterBar extends StatelessWidget {
                   ))
               .toList(),
           onChanged: onQualityChanged,
+        ),
+        const SizedBox(width: 8),
+        FilterDropdown<int>(
+          hint: 'Rang',
+          value: selectedColorId,
+          items: colors
+              .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+              .toList(),
+          onChanged: onColorChanged,
         ),
         const SizedBox(width: 8),
         FilterDropdown<String>(

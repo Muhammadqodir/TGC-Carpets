@@ -32,16 +32,18 @@ class ProductsRefreshRequested extends ProductsEvent {
 class ProductsFilterChanged extends ProductsEvent {
   final int? productTypeId;
   final int? productQualityId;
+  final int? colorId;
   final String? status;
 
   const ProductsFilterChanged({
     this.productTypeId,
     this.productQualityId,
+    this.colorId,
     this.status,
   });
 
   @override
-  List<Object?> get props => [productTypeId, productQualityId, status];
+  List<Object?> get props => [productTypeId, productQualityId, colorId, status];
 }
 
 class ProductArchiveToggleRequested extends ProductsEvent {

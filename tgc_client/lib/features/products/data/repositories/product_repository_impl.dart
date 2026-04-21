@@ -22,6 +22,7 @@ class ProductRepositoryImpl implements ProductRepository {
     String? status,
     int? productTypeId,
     int? productQualityId,
+    int? colorId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -31,6 +32,7 @@ class ProductRepositoryImpl implements ProductRepository {
         status: status,
         productTypeId: productTypeId,
         productQualityId: productQualityId,
+        colorId: colorId,
         page: page,
         perPage: perPage,
       );

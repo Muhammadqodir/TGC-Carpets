@@ -14,6 +14,7 @@ abstract class ProductRepository {
     String? status,
     int? productTypeId,
     int? productQualityId,
+    int? colorId,
     int page = 1,
     int perPage = 20,
   });

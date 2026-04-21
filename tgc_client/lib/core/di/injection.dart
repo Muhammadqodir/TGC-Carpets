@@ -241,6 +241,7 @@ Future<void> initDependencies() async {
       updateProductUseCase: sl<UpdateProductUseCase>(),
       getProductTypesUseCase: sl<GetProductTypesUseCase>(),
       getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
+      getColorsUseCase: sl<GetColorsUseCase>(),
     ),
   );
   sl.registerFactory(

@@ -57,6 +57,7 @@ class ProductsLoaded extends ProductsState {
   final int total;
   final int? filterTypeId;
   final int? filterQualityId;
+  final int? filterColorId;
   final String? filterStatus;
   final ProductActionStatus actionStatus;
 
@@ -68,6 +69,7 @@ class ProductsLoaded extends ProductsState {
     required this.total,
     this.filterTypeId,
     this.filterQualityId,
+    this.filterColorId,
     this.filterStatus,
     this.actionStatus = const ProductActionIdle(),
   });
@@ -81,6 +83,7 @@ class ProductsLoaded extends ProductsState {
     ProductActionStatus? actionStatus,
     Object? filterTypeId = _sentinel,
     Object? filterQualityId = _sentinel,
+    Object? filterColorId = _sentinel,
     Object? filterStatus = _sentinel,
   }) =>
       ProductsLoaded(
@@ -94,13 +97,15 @@ class ProductsLoaded extends ProductsState {
             filterTypeId == _sentinel ? this.filterTypeId : filterTypeId as int?,
         filterQualityId:
             filterQualityId == _sentinel ? this.filterQualityId : filterQualityId as int?,
+        filterColorId:
+            filterColorId == _sentinel ? this.filterColorId : filterColorId as int?,
         filterStatus:
             filterStatus == _sentinel ? this.filterStatus : filterStatus as String?,
       );
 
   @override
   List<Object?> get props =>
-      [products, hasNextPage, isLoadingMore, currentPage, total, filterTypeId, filterQualityId, filterStatus, actionStatus];
+      [products, hasNextPage, isLoadingMore, currentPage, total, filterTypeId, filterQualityId, filterColorId, filterStatus, actionStatus];
 }
 
 const _sentinel = Object();

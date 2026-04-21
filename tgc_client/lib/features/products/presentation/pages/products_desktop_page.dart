@@ -4,6 +4,7 @@ import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/features/products/domain/entities/color_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_quality_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_type_entity.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
@@ -46,6 +47,7 @@ class _DesktopViewState extends State<_DesktopView> {
 
   int? _selectedTypeId;
   int? _selectedQualityId;
+  int? _selectedColorId;
   String? _selectedStatus;
 
   @override
@@ -71,17 +73,20 @@ class _DesktopViewState extends State<_DesktopView> {
   void _applyFilters({
     int? typeId,
     int? qualityId,
+    int? colorId,
     String? status,
   }) {
     setState(() {
       _selectedTypeId = typeId;
       _selectedQualityId = qualityId;
+      _selectedColorId = colorId;
       _selectedStatus = status;
     });
     context.read<ProductsBloc>().add(
           ProductsFilterChanged(
             productTypeId: typeId,
             productQualityId: qualityId,
+            colorId: colorId,
             status: status,
           ),
         );
@@ -125,6 +130,7 @@ class _DesktopViewState extends State<_DesktopView> {
               builder: (context, formState) {
                 final types = _typesFromFormState(formState);
                 final qualities = _qualitiesFromFormState(formState);
+                final colors = _colorsFromFormState(formState);
                 return ProductFilterBar(
                   searchController: _searchController,
                   onSearchChanged: (v) {
@@ -132,22 +138,33 @@ class _DesktopViewState extends State<_DesktopView> {
                   },
                   productTypes: types,
                   productQualities: qualities,
+                  colors: colors,
                   selectedTypeId: _selectedTypeId,
                   selectedQualityId: _selectedQualityId,
+                  selectedColorId: _selectedColorId,
                   selectedStatus: _selectedStatus,
                   onTypeChanged: (v) => _applyFilters(
                     typeId: v,
                     qualityId: _selectedQualityId,
+                    colorId: _selectedColorId,
                     status: _selectedStatus,
                   ),
                   onQualityChanged: (v) => _applyFilters(
                     typeId: _selectedTypeId,
                     qualityId: v,
+                    colorId: _selectedColorId,
+                    status: _selectedStatus,
+                  ),
+                  onColorChanged: (v) => _applyFilters(
+                    typeId: _selectedTypeId,
+                    qualityId: _selectedQualityId,
+                    colorId: v,
                     status: _selectedStatus,
                   ),
                   onStatusChanged: (v) => _applyFilters(
                     typeId: _selectedTypeId,
                     qualityId: _selectedQualityId,
+                    colorId: _selectedColorId,
                     status: v,
                   ),
                   onRefresh: () => context
@@ -329,6 +346,14 @@ class _DesktopViewState extends State<_DesktopView> {
         ProductFormReady r => r.productQualities,
         ProductFormSubmitting r => r.productQualities,
         ProductFormFailure r => r.productQualities,
+        _ => const [],
+      };
+
+  List<ColorEntity> _colorsFromFormState(ProductFormState s) =>
+      switch (s) {
+        ProductFormReady r => r.colors,
+        ProductFormSubmitting r => r.colors,
+        ProductFormFailure r => r.colors,
         _ => const [],
       };
 }

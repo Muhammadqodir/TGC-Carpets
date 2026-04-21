@@ -15,6 +15,7 @@ abstract class ProductRemoteDataSource {
     String? status,
     int? productTypeId,
     int? productQualityId,
+    int? colorId,
     int page = 1,
     int perPage = 20,
   });
@@ -71,6 +72,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     String? status,
     int? productTypeId,
     int? productQualityId,
+    int? colorId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -82,6 +84,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
         if (status != null && status.isNotEmpty) 'status': status,
         if (productTypeId != null) 'product_type_id': productTypeId,
         if (productQualityId != null) 'product_quality_id': productQualityId,
+        if (colorId != null) 'color_id': colorId,
       };
 
       final response = await _dio.get(

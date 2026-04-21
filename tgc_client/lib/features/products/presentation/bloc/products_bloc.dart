@@ -14,6 +14,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   String _searchQuery = '';
   int? _filterTypeId;
   int? _filterQualityId;
+  int? _filterColorId;
   String? _filterStatus;
   Timer? _debounce;
 
@@ -64,6 +65,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   ) {
     _filterTypeId = event.productTypeId;
     _filterQualityId = event.productQualityId;
+    _filterColorId = event.colorId;
     _filterStatus = event.status;
     add(const ProductsLoadRequested());
   }
@@ -89,6 +91,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
       search: _searchQuery.isEmpty ? null : _searchQuery,
       productTypeId: _filterTypeId,
       productQualityId: _filterQualityId,
+      colorId: _filterColorId,
       status: _filterStatus,
       page: page,
     );
@@ -106,6 +109,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
           total: paginated.total,
           filterTypeId: _filterTypeId,
           filterQualityId: _filterQualityId,
+          filterColorId: _filterColorId,
           filterStatus: _filterStatus,
         ));
       },

@@ -23,6 +23,7 @@ class ProductController extends Controller
             ->when($request->filled('product_quality_id'), fn ($q) => $q->where('product_quality_id', $request->product_quality_id))
             ->when($request->filled('status'),             fn ($q) => $q->where('status',   $request->status))
             ->when($request->filled('product_type_id'),    fn ($q) => $q->where('product_type_id', $request->product_type_id))
+            ->when($request->filled('color_id'),           fn ($q) => $q->whereHas('productColors', fn ($pc) => $pc->where('color_id', $request->integer('color_id'))))
             ->latest()
             ->paginate($request->integer('per_page', 20));
 
