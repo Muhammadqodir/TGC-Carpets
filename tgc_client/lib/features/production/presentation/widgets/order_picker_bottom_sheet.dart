@@ -21,9 +21,12 @@ class OrderImportResult {
 ///
 /// Returns [OrderImportResult] or null if dismissed.
 class OrderPickerBottomSheet extends StatefulWidget {
-  const OrderPickerBottomSheet({super.key});
+  const OrderPickerBottomSheet({super.key, this.clientId});
 
-  static Future<OrderImportResult?> show(BuildContext context) {
+  /// When set, only orders belonging to this client are shown.
+  final int? clientId;
+
+  static Future<OrderImportResult?> show(BuildContext context, {int? clientId}) {
     return showModalBottomSheet<OrderImportResult>(
       context: context,
       isScrollControlled: true,
@@ -32,7 +35,7 @@ class OrderPickerBottomSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const OrderPickerBottomSheet(),
+      builder: (_) => OrderPickerBottomSheet(clientId: clientId),
     );
   }
 
@@ -81,7 +84,11 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
     final useCase = sl<GetOrdersUseCase>();
     // Load all orders that have at least one item still available for production
     // (pending, planned, or on_production with uncovered items, incl. from cancelled batches).
-    final result = await useCase(forProduction: true, perPage: 100);
+    final result = await useCase(
+      forProduction: true,
+      perPage: 100,
+      clientId: widget.clientId,
+    );
     if (!mounted) return;
     result.fold(
       (failure) => setState(() {

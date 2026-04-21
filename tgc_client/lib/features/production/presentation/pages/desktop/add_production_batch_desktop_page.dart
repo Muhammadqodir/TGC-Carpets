@@ -43,6 +43,12 @@ class _AddProductionBatchDesktopPageState
   ProductionBatchMachine? _selectedMachine;
   DateTime? _plannedDate;
   TimeOfDay? _plannedTime;
+
+  // ── Client (derived from imported order) ────────────────────────────────
+  int? _selectedClientId;
+  String? _selectedClientName;
+  String? _autoFilledTitle;
+
   bool get _isEditMode => widget.initialBatch != null;
 
   ProductionBatchMachine? get _effectiveMachine =>
@@ -72,7 +78,38 @@ class _AddProductionBatchDesktopPageState
 
   Future<void> _pickMachine() async {
     final machine = await MachinePickerBottomSheet.show(context);
-    if (machine != null && mounted) setState(() => _selectedMachine = machine);
+    if (machine != null && mounted) {
+      setState(() => _selectedMachine = machine);
+      _tryAutoFillTitle();
+    }
+  }
+
+  void _tryAutoFillTitle() {
+    final current = widget.controller.titleCtrl.text;
+    if (current.isNotEmpty && current != _autoFilledTitle) return; // user manually edited
+    final machineName = _effectiveMachine?.name;
+    final clientPart = _selectedClientName ?? 'Omborga';
+    final newTitle = machineName != null ? '$clientPart | $machineName' : '';
+    _autoFilledTitle = newTitle;
+    widget.controller.titleCtrl.text = newTitle;
+  }
+
+  /// Re-derives client from the current filled rows that were imported from an
+  /// order. If no such rows remain, clears the client so the title resets to
+  /// "Omborga | machine".
+  void _syncClientFromItems() {
+    final orderRows = widget.controller.items
+        .where((r) => r.isFilled && r.sourceClientName != null)
+        .toList();
+    setState(() {
+      if (orderRows.isEmpty) {
+        _selectedClientId = null;
+        _selectedClientName = null;
+      } else {
+        _selectedClientName = orderRows.first.sourceClientName;
+      }
+    });
+    _tryAutoFillTitle();
   }
 
   Future<void> _pickDate() async {
@@ -309,8 +346,10 @@ class _AddProductionBatchDesktopPageState
                                   ),
                                   if (_selectedMachine != null)
                                     GestureDetector(
-                                      onTap: () => setState(
-                                          () => _selectedMachine = null),
+                                      onTap: () {
+                                        setState(() => _selectedMachine = null);
+                                        _tryAutoFillTitle();
+                                      },
                                       child: const Icon(Icons.close,
                                           size: 18,
                                           color: AppColors.textSecondary),
@@ -411,10 +450,19 @@ class _AddProductionBatchDesktopPageState
                         padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
                         child: TextButton.icon(
                           onPressed: () async {
-                            final result =
-                                await OrderPickerBottomSheet.show(context);
+                            final result = await OrderPickerBottomSheet.show(
+                              context,
+                              clientId: _selectedClientId,
+                            );
                             if (result != null && mounted) {
                               ctrl.addRowsFromOrder(result.order, result.items);
+                              setState(() {
+                                _selectedClientId = result.order.clientId;
+                                _selectedClientName =
+                                    result.order.clientShopName ??
+                                        result.order.userName;
+                              });
+                              _tryAutoFillTitle();
                             }
                           },
                           icon: const Icon(Icons.download_rounded, size: 16),
@@ -442,7 +490,10 @@ class _AddProductionBatchDesktopPageState
                           row: row,
                           allItems: ctrl.items,
                           index: index,
-                          onRemove: () => ctrl.removeRow(row),
+                          onRemove: () {
+                            ctrl.removeRow(row);
+                            _syncClientFromItems();
+                          },
                           onChanged: () {
                             ctrl.promoteIfSentinel(row);
                             ctrl.updateRow(row);

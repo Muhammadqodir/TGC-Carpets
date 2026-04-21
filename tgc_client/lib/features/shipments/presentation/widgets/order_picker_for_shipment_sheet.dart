@@ -92,7 +92,6 @@ class _OrderPickerForShipmentSheetState
     });
 
     final result = await sl<GetOrdersForShipmentUseCase>()(
-      clientId: widget.clientId,
       perPage: 50,
     );
 
@@ -104,15 +103,24 @@ class _OrderPickerForShipmentSheetState
       }),
       (page) {
         final query = _searchCtrl.text.trim().toLowerCase();
-        final filtered = query.isEmpty
+        var orders = query.isEmpty
             ? page.data
             : page.data
                 .where((o) =>
                     '#${o.id}'.contains(query) ||
                     (o.clientShopName ?? '').toLowerCase().contains(query))
                 .toList();
+
+        // Sort: preferred client's orders appear first in the list
+        if (widget.clientId != null) {
+          orders = [
+            ...orders.where((o) => o.clientId == widget.clientId),
+            ...orders.where((o) => o.clientId != widget.clientId),
+          ];
+        }
+
         setState(() {
-          _orders = filtered;
+          _orders = orders;
           _isLoadingOrders = false;
         });
       },

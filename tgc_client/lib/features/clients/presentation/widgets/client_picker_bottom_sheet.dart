@@ -70,9 +70,7 @@ class _ClientPickerTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  [client.contactName, client.phone]
-                      .where((s) => s != null && s.isNotEmpty)
-                      .join(' · '),
+                  "${client.contactName ?? '—'} | ${client.phone ?? '—'}",
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),

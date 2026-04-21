@@ -79,6 +79,21 @@ class _AddShipmentDesktopPageState extends State<AddShipmentDesktopPage> {
     );
     if (result == null || !mounted) return;
 
+    // Autofill client from the imported order when none is selected yet
+    if (_selectedClient == null && result.order.clientId != null) {
+      setState(() {
+        _selectedClient = ClientEntity(
+          id: result.order.clientId!,
+          uuid: '',
+          shopName: result.order.clientShopName ?? 'Noma\'lum',
+          region: result.order.clientRegion ?? '',
+          phone: result.order.clientPhone,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      });
+    }
+
     final lastPrices = await _fetchLastPrices(
       result,
       clientId: _selectedClient?.id ?? result.order.clientId,
