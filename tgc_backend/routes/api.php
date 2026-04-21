@@ -51,18 +51,21 @@ Route::prefix('v1')->group(function (): void {
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);
 
-        // Product types (read-only reference list)
-        Route::get('product-types', [ProductTypeController::class, 'index'])->name('product-types.index');
+        // Product types
+        Route::get('product-types/{productType}/usage', [ProductTypeController::class, 'usage']);
+        Route::apiResource('product-types', ProductTypeController::class)->except(['show']);
 
         // Product qualities
+        Route::get('product-qualities/{productQuality}/usage', [ProductQualityController::class, 'usage']);
         Route::apiResource('product-qualities', ProductQualityController::class)->except(['show']);
 
         // Product sizes
+        Route::get('product-sizes/{productSize}/usage', [ProductSizeController::class, 'usage']);
         Route::apiResource('product-sizes', ProductSizeController::class);
 
-        // Colors (reference list)
-        Route::get('colors', [ColorController::class, 'index'])->name('colors.index');
-        Route::post('colors', [ColorController::class, 'store'])->name('colors.store');
+        // Colors
+        Route::get('colors/{color}/usage', [ColorController::class, 'usage']);
+        Route::apiResource('colors', ColorController::class)->except(['show']);
 
         // Product colors (color+image per product)
         Route::apiResource('product-colors', ProductColorController::class)->except(['show']);

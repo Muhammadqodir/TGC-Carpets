@@ -135,6 +135,17 @@ import '../../features/payments/domain/usecases/delete_payment_usecase.dart';
 import '../../features/payments/presentation/bloc/payments_bloc.dart';
 import '../../features/payments/presentation/bloc/payment_form_bloc.dart';
 
+// Product Attributes feature
+import '../../features/product_attributes/data/datasources/product_attributes_remote_datasource.dart';
+import '../../features/product_attributes/data/repositories/product_attributes_repository_impl.dart';
+import '../../features/product_attributes/domain/repositories/product_attributes_repository.dart';
+import '../../features/product_attributes/domain/usecases/load_product_attributes_usecase.dart';
+import '../../features/product_attributes/domain/usecases/color_usecases.dart';
+import '../../features/product_attributes/domain/usecases/product_type_usecases.dart';
+import '../../features/product_attributes/domain/usecases/product_quality_usecases.dart';
+import '../../features/product_attributes/domain/usecases/product_size_usecases.dart';
+import '../../features/product_attributes/presentation/bloc/product_attributes_bloc.dart';
+
 // Debits feature
 import '../../features/debits/data/datasources/debit_remote_datasource.dart';
 import '../../features/debits/data/repositories/debit_repository_impl.dart';
@@ -470,6 +481,72 @@ Future<void> initDependencies() async {
   sl.registerFactory(
     () => DebitLedgerBloc(
       getClientDebitLedgerUseCase: sl<GetClientDebitLedgerUseCase>(),
+    ),
+  );
+
+  // ─── Product Attributes Feature ───────────────────────────────────────────
+  sl.registerLazySingleton<ProductAttributesRemoteDataSource>(
+    () => ProductAttributesRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ProductAttributesRepository>(
+    () => ProductAttributesRepositoryImpl(
+      remoteDataSource: sl<ProductAttributesRemoteDataSource>(),
+    ),
+  );
+  sl.registerLazySingleton(
+    () => LoadProductAttributesUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateColorUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateColorUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteColorUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateProductTypeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateProductTypeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteProductTypeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateProductQualityUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateProductQualityUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteProductQualityUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateProductSizeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateProductSizeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteProductSizeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerFactory(
+    () => ProductAttributesBloc(
+      loadUseCase: sl<LoadProductAttributesUseCase>(),
+      createColorUseCase: sl<CreateColorUseCase>(),
+      updateColorUseCase: sl<UpdateColorUseCase>(),
+      deleteColorUseCase: sl<DeleteColorUseCase>(),
+      createProductTypeUseCase: sl<CreateProductTypeUseCase>(),
+      updateProductTypeUseCase: sl<UpdateProductTypeUseCase>(),
+      deleteProductTypeUseCase: sl<DeleteProductTypeUseCase>(),
+      createProductQualityUseCase: sl<CreateProductQualityUseCase>(),
+      updateProductQualityUseCase: sl<UpdateProductQualityUseCase>(),
+      deleteProductQualityUseCase: sl<DeleteProductQualityUseCase>(),
+      createProductSizeUseCase: sl<CreateProductSizeUseCase>(),
+      updateProductSizeUseCase: sl<UpdateProductSizeUseCase>(),
+      deleteProductSizeUseCase: sl<DeleteProductSizeUseCase>(),
     ),
   );
 }

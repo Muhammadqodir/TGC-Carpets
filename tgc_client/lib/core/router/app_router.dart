@@ -33,6 +33,7 @@ import '../../features/payments/presentation/pages/payments_page.dart';
 import '../../features/payments/presentation/pages/add_payment_page.dart';
 import '../../features/debits/domain/entities/client_debit_entity.dart';
 import '../../features/debits/presentation/pages/debits_page.dart';
+import '../../features/product_attributes/presentation/pages/product_attributes_page.dart';
 import '../../features/debits/presentation/pages/client_debit_detail_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
@@ -207,6 +208,11 @@ class AppRouter {
             path: AppRoutes.debits,
             name: AppRoutes.debitsName,
             builder: (context, state) => const DebitsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.productAttributes,
+            name: AppRoutes.productAttributesName,
+            builder: (context, state) => const ProductAttributesPage(),
           ),
           GoRoute(
             path: AppRoutes.clientDebitDetail,

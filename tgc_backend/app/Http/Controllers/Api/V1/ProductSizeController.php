@@ -7,9 +7,11 @@ use App\Http\Requests\ProductSize\StoreProductSizeRequest;
 use App\Http\Requests\ProductSize\UpdateProductSizeRequest;
 use App\Http\Resources\ProductSizeResource;
 use App\Models\ProductSize;
+use App\Models\ProductVariant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 
 class ProductSizeController extends Controller
 {
@@ -50,8 +52,24 @@ class ProductSizeController extends Controller
         return response()->json(['data' => new ProductSizeResource($productSize)]);
     }
 
-    public function destroy(ProductSize $productSize): JsonResponse
+    public function usage(ProductSize $productSize): JsonResponse
     {
+        return response()->json(['count' => $productSize->variants()->count()]);
+    }
+
+    public function destroy(Request $request, ProductSize $productSize): JsonResponse
+    {
+        $usageCount = $productSize->variants()->count();
+
+        if ($usageCount > 0) {
+            $request->validate([
+                'replace_with_id' => ['required', 'integer', Rule::exists('product_sizes', 'id')],
+            ]);
+
+            ProductVariant::where('product_size_id', $productSize->id)
+                ->update(['product_size_id' => $request->replace_with_id]);
+        }
+
         $productSize->delete();
 
         return response()->json(['message' => 'Product size deleted successfully.']);

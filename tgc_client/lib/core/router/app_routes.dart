@@ -88,6 +88,9 @@ class AppRoutes {
   static const String debits     = '/debits';
   static const String debitsName = 'debits';
 
+  static const String productAttributes     = '/product-attributes';
+  static const String productAttributesName = 'productAttributes';
+
   static const String clientDebitDetail     = '/debits/detail';
   static const String clientDebitDetailName = 'clientDebitDetail';
 

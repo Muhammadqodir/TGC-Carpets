@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductQualityResource;
+use App\Models\Product;
 use App\Models\ProductQuality;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,10 +44,29 @@ class ProductQualityController extends Controller
         return response()->json(['data' => new ProductQualityResource($productQuality)]);
     }
 
-    public function destroy(ProductQuality $productQuality): JsonResponse
+    public function usage(ProductQuality $productQuality): JsonResponse
     {
+        return response()->json(['count' => $productQuality->products()->count()]);
+    }
+
+    public function destroy(Request $request, ProductQuality $productQuality): JsonResponse
+    {
+        $usageCount = $productQuality->products()->count();
+
+        if ($usageCount > 0) {
+            $request->validate([
+                'replace_with_id' => ['required', 'integer', Rule::exists('product_qualities', 'id')],
+            ]);
+
+            Product::where('product_quality_id', $productQuality->id)
+                ->update(['product_quality_id' => $request->replace_with_id]);
+        }
+
         $productQuality->delete();
 
         return response()->json(['message' => 'Product quality deleted successfully.']);
+    }
+}
+
     }
 }

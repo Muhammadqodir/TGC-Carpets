@@ -258,6 +258,12 @@ class _DashboardViewState extends State<_DashboardView> {
                                   onTap: () => context
                                       .pushNamed(AppRoutes.employeesName),
                                 ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedPaintBoard,
+                                  label: 'Atributlar',
+                                  onTap: () => context.pushNamed(
+                                      AppRoutes.productAttributesName),
+                                ),
                               ],
                             ),
                             SizedBox(height: 12),

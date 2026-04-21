@@ -10,11 +10,19 @@ class ApiEndpoints {
   static const String products = '/products';
   static String productById(int id) => '/products/$id';
   static const String productTypes = '/product-types';
+  static String productTypeById(int id) => '/product-types/$id';
   static const String productSizes = '/product-sizes';
+  static String productSizeById(int id) => '/product-sizes/$id';
   static const String productQualities = '/product-qualities';
+  static String productQualityById(int id) => '/product-qualities/$id';
   static const String productColors = '/product-colors';
   static String productColorById(int id) => '/product-colors/$id';
   static const String colors = '/colors';
+  static String colorById(int id) => '/colors/$id';
+  static String colorUsage(int id) => '/colors/$id/usage';
+  static String productTypeUsage(int id) => '/product-types/$id/usage';
+  static String productQualityUsage(int id) => '/product-qualities/$id/usage';
+  static String productSizeUsage(int id) => '/product-sizes/$id/usage';
 
   // Clients
   static const String clients = '/clients';
