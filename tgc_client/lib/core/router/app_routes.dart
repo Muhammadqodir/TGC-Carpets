@@ -79,6 +79,15 @@ class AppRoutes {
   static const String productsStock     = '/products-stock';
   static const String productsStockName = 'productsStock';
 
+  static const String rawMaterials     = '/raw-materials';
+  static const String rawMaterialsName = 'rawMaterials';
+
+  static const String addRawMaterial     = '/raw-materials/add';
+  static const String addRawMaterialName = 'addRawMaterial';
+
+  static const String rawMaterialBatchMovement     = '/raw-materials/batch-movement';
+  static const String rawMaterialBatchMovementName = 'rawMaterialBatchMovement';
+
   static const String payments     = '/payments';
   static const String paymentsName = 'payments';
 

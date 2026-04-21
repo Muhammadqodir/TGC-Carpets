@@ -35,6 +35,9 @@ import '../../features/debits/domain/entities/client_debit_entity.dart';
 import '../../features/debits/presentation/pages/debits_page.dart';
 import '../../features/product_attributes/presentation/pages/product_attributes_page.dart';
 import '../../features/debits/presentation/pages/client_debit_detail_page.dart';
+import '../../features/raw_materials/presentation/pages/raw_materials_page.dart';
+import '../../features/raw_materials/presentation/pages/add_raw_material_page.dart';
+import '../../features/raw_materials/presentation/pages/raw_material_batch_movement_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -221,6 +224,21 @@ class AppRouter {
               final client = state.extra as ClientDebitEntity;
               return ClientDebitDetailPage(client: client);
             },
+          ),
+          GoRoute(
+            path: AppRoutes.rawMaterials,
+            name: AppRoutes.rawMaterialsName,
+            builder: (context, state) => const RawMaterialsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.addRawMaterial,
+            name: AppRoutes.addRawMaterialName,
+            builder: (context, state) => const AddRawMaterialPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.rawMaterialBatchMovement,
+            name: AppRoutes.rawMaterialBatchMovementName,
+            builder: (context, state) => const RawMaterialBatchMovementPage(),
           ),
         ],
       ),

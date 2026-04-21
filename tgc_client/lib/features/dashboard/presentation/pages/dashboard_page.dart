@@ -264,6 +264,12 @@ class _DashboardViewState extends State<_DashboardView> {
                                   onTap: () => context.pushNamed(
                                       AppRoutes.productAttributesName),
                                 ),
+                                _DashboardCard(
+                                  icon: HugeIcons.strokeRoundedNaturalFood,
+                                  label: 'Xom ashyo ombori',
+                                  onTap: () => context
+                                      .pushNamed(AppRoutes.rawMaterialsName),
+                                ),
                               ],
                             ),
                             SizedBox(height: 12),

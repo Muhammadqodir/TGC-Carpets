@@ -155,6 +155,17 @@ import '../../features/debits/domain/usecases/get_client_debit_ledger_usecase.da
 import '../../features/debits/presentation/bloc/debits_bloc.dart';
 import '../../features/debits/presentation/bloc/debit_ledger_bloc.dart';
 
+// Raw Materials feature
+import '../../features/raw_materials/data/datasources/raw_material_remote_datasource.dart';
+import '../../features/raw_materials/data/repositories/raw_material_repository_impl.dart';
+import '../../features/raw_materials/domain/repositories/raw_material_repository.dart';
+import '../../features/raw_materials/domain/usecases/get_raw_materials_usecase.dart';
+import '../../features/raw_materials/domain/usecases/create_raw_material_usecase.dart';
+import '../../features/raw_materials/domain/usecases/store_batch_movement_usecase.dart';
+import '../../features/raw_materials/presentation/bloc/raw_materials_bloc.dart';
+import '../../features/raw_materials/presentation/bloc/raw_material_form_bloc.dart';
+import '../../features/raw_materials/presentation/bloc/batch_movement_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -548,6 +559,39 @@ Future<void> initDependencies() async {
       createProductSizeUseCase: sl<CreateProductSizeUseCase>(),
       updateProductSizeUseCase: sl<UpdateProductSizeUseCase>(),
       deleteProductSizeUseCase: sl<DeleteProductSizeUseCase>(),
+    ),
+  );
+
+  // ─── Raw Materials Feature ────────────────────────────────────────────────
+  sl.registerLazySingleton<RawMaterialRemoteDataSource>(
+    () => RawMaterialRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<RawMaterialRepository>(
+    () => RawMaterialRepositoryImpl(remoteDataSource: sl<RawMaterialRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetRawMaterialsUseCase(sl<RawMaterialRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => CreateRawMaterialUseCase(sl<RawMaterialRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => StoreBatchMovementUseCase(sl<RawMaterialRepository>()),
+  );
+  sl.registerFactory(
+    () => RawMaterialsBloc(
+      getRawMaterialsUseCase: sl<GetRawMaterialsUseCase>(),
+      repository: sl<RawMaterialRepository>(),
+    ),
+  );
+  sl.registerFactory(
+    () => RawMaterialFormBloc(
+      createRawMaterialUseCase: sl<CreateRawMaterialUseCase>(),
+    ),
+  );
+  sl.registerFactory(
+    () => BatchMovementBloc(
+      storeBatchMovementUseCase: sl<StoreBatchMovementUseCase>(),
     ),
   );
 }

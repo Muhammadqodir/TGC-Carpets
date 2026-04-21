@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\MachineController;
 use App\Http\Controllers\Api\V1\DefectDocumentController;
 use App\Http\Controllers\Api\V1\ProductionBatchController;
+use App\Http\Controllers\Api\V1\RawMaterialController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ShipmentController;
@@ -152,6 +153,14 @@ Route::prefix('v1')->group(function (): void {
         // Shipments (read-only list + show)
         Route::get('shipments',          [ShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+
+        // Raw Materials Warehouse
+        Route::prefix('raw-materials')->name('raw-materials.')->group(function (): void {
+            // Literal sub-routes must precede the apiResource wildcard
+            Route::get('movements',              [RawMaterialController::class, 'movements'])->name('movements.index');
+            Route::post('movements/batch',       [RawMaterialController::class, 'storeBatchMovement'])->name('movements.batch');
+        });
+        Route::apiResource('raw-materials', RawMaterialController::class);
 
     });
 

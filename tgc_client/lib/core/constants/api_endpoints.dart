@@ -95,4 +95,10 @@ class ApiEndpoints {
   // Debits (client debit/credit ledger)
   static const String clientDebits = '/clients/debits';
   static String clientDebitLedger(int clientId) => '/clients/$clientId/debit-ledger';
+
+  // Raw Materials Warehouse
+  static const String rawMaterials = '/raw-materials';
+  static String rawMaterialById(int id) => '/raw-materials/$id';
+  static const String rawMaterialMovements = '/raw-materials/movements';
+  static const String rawMaterialMovementsBatch = '/raw-materials/movements/batch';
 }
