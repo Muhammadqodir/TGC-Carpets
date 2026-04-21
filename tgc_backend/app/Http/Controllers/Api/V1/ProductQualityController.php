@@ -67,6 +67,3 @@ class ProductQualityController extends Controller
         return response()->json(['message' => 'Product quality deleted successfully.']);
     }
 }
-
-    }
-}
