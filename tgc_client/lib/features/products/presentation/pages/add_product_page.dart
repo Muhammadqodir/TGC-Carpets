@@ -3,25 +3,30 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_form_state.dart';
 import 'package:tgc_client/features/products/presentation/widgets/product_form_body.dart';
 
 class AddProductPage extends StatelessWidget {
-  const AddProductPage({super.key});
+  const AddProductPage({super.key, this.product});
+
+  final ProductEntity? product;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<ProductFormBloc>()..add(const ProductFormStarted()),
-      child: const _AddProductView(),
+      child: _AddProductView(product: product),
     );
   }
 }
 
 class _AddProductView extends StatefulWidget {
-  const _AddProductView();
+  const _AddProductView({this.product});
+
+  final ProductEntity? product;
 
   @override
   State<_AddProductView> createState() => _AddProductViewState();
@@ -32,6 +37,8 @@ class _AddProductViewState extends State<_AddProductView> {
 
   void _submit() => _bodyKey.currentState?.submitToBloc();
 
+  bool get _isEditing => widget.product != null;
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<ProductFormBloc, ProductFormState>(
@@ -39,11 +46,15 @@ class _AddProductViewState extends State<_AddProductView> {
         if (state is ProductFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('"${state.product.name}" mahsuloti yaratildi.'),
+              content: Text(
+                _isEditing
+                    ? '"${state.product.name}" yangilandi.'
+                    : '"${state.product.name}" mahsuloti yaratildi.',
+              ),
               backgroundColor: AppColors.success,
             ),
           );
-          context.pop();
+          context.pop(true);
         } else if (state is ProductFormFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -55,7 +66,7 @@ class _AddProductViewState extends State<_AddProductView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Mahsulot qo\'shish'),
+          title: Text(_isEditing ? 'Mahsulotni tahrirlash' : 'Mahsulot qo\'shish'),
           titleSpacing: 0,
           leading: IconButton(
             onPressed: () => context.pop(),
@@ -65,6 +76,7 @@ class _AddProductViewState extends State<_AddProductView> {
         body: ProductFormBody(
           key: _bodyKey,
           contentPadding: const EdgeInsets.all(16),
+          initialProduct: widget.product,
         ),
         bottomNavigationBar: SafeArea(
           child: Padding(

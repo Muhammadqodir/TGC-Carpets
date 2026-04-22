@@ -49,34 +49,40 @@ class FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          ...filters,
-          if (hasActiveFilters && onClearFilters != null) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: 'Filtrlarni tozalash',
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedFilterRemove,
-                strokeWidth: 1.5,
-              ),
-              color: AppColors.error,
-              onPressed: onClearFilters,
-            ),
-          ],
-          const Spacer(),
-          if (onRefresh != null)
-            IconButton(
-              tooltip: 'Yangilash',
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedReload,
-                strokeWidth: 2.5,
-              ),
-              onPressed: onRefresh,
-            ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              ...filters,
+              if (hasActiveFilters && onClearFilters != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Filtrlarni tozalash',
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedFilterRemove,
+                    strokeWidth: 1.5,
+                  ),
+                  color: AppColors.error,
+                  onPressed: onClearFilters,
+                ),
+              ],
+              // const Spacer(),
+              if (onRefresh != null)
+                IconButton(
+                  tooltip: 'Yangilash',
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedReload,
+                    strokeWidth: 2.5,
+                  ),
+                  onPressed: onRefresh,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

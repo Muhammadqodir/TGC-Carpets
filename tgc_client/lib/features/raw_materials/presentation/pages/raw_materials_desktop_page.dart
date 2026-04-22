@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -8,8 +9,10 @@ import '../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../bloc/raw_materials_bloc.dart';
 import '../bloc/raw_materials_event.dart';
 import '../bloc/raw_materials_state.dart';
+import '../widgets/raw_material_data_table.dart';
+import '../widgets/raw_material_filter_bar.dart';
 
-/// Desktop list view for Raw Materials.
+/// Full-width desktop view for Raw Materials: filter bar + scrollable data table.
 class RawMaterialsDesktopPage extends StatefulWidget {
   const RawMaterialsDesktopPage({super.key});
 
@@ -32,7 +35,9 @@ class _RawMaterialsDesktopPageState extends State<RawMaterialsDesktopPage> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      context.read<RawMaterialsBloc>().add(const RawMaterialsNextPageRequested());
+      context
+          .read<RawMaterialsBloc>()
+          .add(const RawMaterialsNextPageRequested());
     }
   }
 
@@ -51,15 +56,21 @@ class _RawMaterialsDesktopPageState extends State<RawMaterialsDesktopPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Xom ashyo ombori'),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(24),
-          child: DesktopStatusBar(child: SizedBox.shrink()),
+        titleSpacing: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
         actions: [
           TextButton.icon(
-            icon: const Icon(Icons.swap_horiz),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedArrowDataTransferHorizontal,
+              strokeWidth: 2,
+              size: 18,
+            ),
             label: const Text('Kirim/Chiqim'),
             onPressed: () async {
               final ok = await context.pushNamed(
@@ -77,7 +88,8 @@ class _RawMaterialsDesktopPageState extends State<RawMaterialsDesktopPage> {
             icon: const Icon(Icons.add),
             label: const Text('Yangi xom ashyo'),
             onPressed: () async {
-              final ok = await context.pushNamed(AppRoutes.addRawMaterialName);
+              final ok =
+                  await context.pushNamed(AppRoutes.addRawMaterialName);
               if (ok == true && context.mounted) {
                 context
                     .read<RawMaterialsBloc>()
@@ -89,75 +101,47 @@ class _RawMaterialsDesktopPageState extends State<RawMaterialsDesktopPage> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Filter bar ────────────────────────────────────────────────────
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: 38,
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (q) => context
-                          .read<RawMaterialsBloc>()
-                          .add(RawMaterialsSearchChanged(q)),
-                      decoration: InputDecoration(
-                        hintText: 'Xom ashyo qidirish...',
-                        prefixIcon: const Icon(Icons.search, size: 18),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE0E0E0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE0E0E0)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                BlocBuilder<RawMaterialsBloc, RawMaterialsState>(
-                  builder: (_, state) {
-                    final types = <String>{};
-                    if (state is RawMaterialsLoaded) {
-                      for (final m in state.materials) {
-                        types.add(m.type);
-                      }
-                    }
-                    return _DesktopTypeFilter(
-                      types: types.toList(),
-                      selected: _selectedType,
-                      onChanged: _applyTypeFilter,
-                    );
-                  },
-                ),
-              ],
-            ),
+          // ── Filter bar ──────────────────────────────────────────────────
+          BlocBuilder<RawMaterialsBloc, RawMaterialsState>(
+            builder: (_, state) {
+              final types = <String>{};
+              if (state is RawMaterialsLoaded) {
+                for (final m in state.materials) {
+                  types.add(m.type);
+                }
+              }
+              return RawMaterialFilterBar(
+                types: types.toList()..sort(),
+                selectedType: _selectedType,
+                onTypeChanged: _applyTypeFilter,
+                searchController: _searchController,
+                onSearchChanged: (v) => context
+                    .read<RawMaterialsBloc>()
+                    .add(RawMaterialsSearchChanged(v)),
+                onRefresh: () => context
+                    .read<RawMaterialsBloc>()
+                    .add(const RawMaterialsRefreshRequested()),
+              );
+            },
           ),
-          const Divider(height: 1),
-          // ── Table ─────────────────────────────────────────────────────────
+          const Divider(height: 1, color: AppColors.divider),
+
+          // ── Table / states ──────────────────────────────────────────────
           Expanded(
             child: BlocBuilder<RawMaterialsBloc, RawMaterialsState>(
               builder: (context, state) {
                 if (state is RawMaterialsLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
+
                 if (state is RawMaterialsError) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(state.message),
+                        Text(state.message, textAlign: TextAlign.center),
                         const SizedBox(height: 12),
                         FilledButton(
                           onPressed: () => context
@@ -169,128 +153,49 @@ class _RawMaterialsDesktopPageState extends State<RawMaterialsDesktopPage> {
                     ),
                   );
                 }
+
                 if (state is RawMaterialsLoaded) {
                   if (state.materials.isEmpty) {
-                    return const Center(child: Text('Xom ashyo topilmadi.'));
+                    return const Center(
+                      child: Text(
+                        'Xom ashyo topilmadi',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    );
                   }
-                  return RefreshIndicator(
-                    onRefresh: () async => context
-                        .read<RawMaterialsBloc>()
-                        .add(const RawMaterialsRefreshRequested()),
-                    child: _DesktopTable(
-                      state: state,
-                      scrollController: _scrollController,
-                    ),
+
+                  return RawMaterialDataTable(
+                    materials: state.materials,
+                    isLoadingMore: state.isLoadingMore,
+                    scrollController: _scrollController,
                   );
                 }
+
                 return const SizedBox.shrink();
               },
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
 
-// ── Desktop data table ─────────────────────────────────────────────────────
+          const Divider(height: 1, color: AppColors.divider),
 
-class _DesktopTable extends StatelessWidget {
-  final RawMaterialsLoaded state;
-  final ScrollController scrollController;
-
-  const _DesktopTable({required this.state, required this.scrollController});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      child: DataTable(
-        headingRowColor: WidgetStateProperty.all(AppColors.background),
-        columns: const [
-          DataColumn(label: Text('Nomi')),
-          DataColumn(label: Text('Turi')),
-          DataColumn(label: Text('Birlik')),
-          DataColumn(label: Text('Qoldiq'), numeric: true),
-        ],
-        rows: [
-          for (final m in state.materials)
-            DataRow(cells: [
-              DataCell(Text(m.name)),
-              DataCell(Text(m.type)),
-              DataCell(Text(_unitLabel(m.unit))),
-              DataCell(
-                Text(
-                  _formatQty(m.stockQuantity),
-                  style: TextStyle(
-                    color: m.stockQuantity > 0
-                        ? AppColors.success
-                        : AppColors.error,
-                    fontWeight: FontWeight.w600,
-                  ),
+          // ── Status bar ──────────────────────────────────────────────────
+          BlocBuilder<RawMaterialsBloc, RawMaterialsState>(
+            builder: (context, state) {
+              final count =
+                  state is RawMaterialsLoaded ? state.materials.length : null;
+              return DesktopStatusBar(
+                child: Text(
+                  count != null
+                      ? '$count ta xom ashyo ko\'rsatilmoqda'
+                      : '',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                 ),
-              ),
-            ]),
-          if (state.isLoadingMore)
-            DataRow(cells: [
-              const DataCell(
-                Padding(
-                  padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-              ...List.generate(3, (_) => const DataCell(SizedBox.shrink())),
-            ]),
-        ],
-      ),
-    );
-  }
-
-  String _formatQty(double qty) =>
-      qty == qty.truncateToDouble()
-          ? qty.toInt().toString()
-          : qty.toStringAsFixed(2);
-
-  String _unitLabel(String unit) => switch (unit) {
-        'sqm'   => 'm²',
-        'kg'    => 'kg',
-        'piece' => 'dona',
-        _       => unit,
-      };
-}
-
-// ── Desktop type filter dropdown ───────────────────────────────────────────
-
-class _DesktopTypeFilter extends StatelessWidget {
-  final List<String> types;
-  final String? selected;
-  final ValueChanged<String?> onChanged;
-
-  const _DesktopTypeFilter({
-    required this.types,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<String?>(
-        value: selected,
-        hint: const Text('Barcha turlar'),
-        items: [
-          const DropdownMenuItem<String?>(
-            value: null,
-            child: Text('Barcha turlar'),
-          ),
-          ...types.map(
-            (t) => DropdownMenuItem<String?>(
-              value: t,
-              child: Text(t),
-            ),
+              );
+            },
           ),
         ],
-        onChanged: onChanged,
       ),
     );
   }
