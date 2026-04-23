@@ -27,18 +27,27 @@ class OrderController extends Controller
             ->when($request->boolean('for_production'), function ($q) {
                 // Return orders that are not yet fully in production:
                 // status is pending, planned, or on_production AND at least one item
-                // still has quantity not covered by non-cancelled production batches.
+                // still has quantity (including defects) not covered by non-cancelled batches.
                 $q->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED, Order::STATUS_ON_PRODUCTION])
                   ->whereHas('items', function ($iq) {
                       $iq->whereRaw(
-                          'quantity > COALESCE((
+                          'quantity + COALESCE((
+                              SELECT SUM(pbi.defect_quantity)
+                              FROM production_batch_items pbi
+                              INNER JOIN production_batches pb ON pb.id = pbi.production_batch_id
+                              WHERE pbi.source_order_item_id = order_items.id
+                                AND pb.status != ?
+                          ), 0) > COALESCE((
                               SELECT SUM(pbi.planned_quantity)
                               FROM production_batch_items pbi
                               INNER JOIN production_batches pb ON pb.id = pbi.production_batch_id
                               WHERE pbi.source_order_item_id = order_items.id
                                 AND pb.status != ?
                           ), 0)',
-                          [\App\Models\ProductionBatch::STATUS_CANCELLED]
+                          [
+                              \App\Models\ProductionBatch::STATUS_CANCELLED,
+                              \App\Models\ProductionBatch::STATUS_CANCELLED,
+                          ]
                       );
                   });
             })

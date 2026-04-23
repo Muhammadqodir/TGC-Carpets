@@ -39,6 +39,15 @@ class OrderItemResource extends JsonResource
                 ->sum('warehouse_received_quantity');
         }, 0);
 
+        // Defective items must be re-produced, so they count toward remaining.
+        $defectQty = $this->whenLoaded('productionBatchItems', function () {
+            return (int) $this->productionBatchItems
+                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
+                    ? $pbi->productionBatch->status !== 'cancelled'
+                    : true)
+                ->sum('defect_quantity');
+        }, 0);
+
         return [
             'id'                          => $this->id,
             'quantity'                    => $this->quantity,
@@ -46,7 +55,7 @@ class OrderItemResource extends JsonResource
             'produced_quantity'           => $producedQty,
             'shipped_quantity'            => $shippedQty,
             'warehouse_received_quantity' => $warehouseReceivedQty,
-            'remaining_quantity'          => max(0, $this->quantity - $plannedQty),
+            'remaining_quantity'          => max(0, $this->quantity - $plannedQty + $defectQty),
             'variant'  => $this->whenLoaded('variant', fn () => [
                 'id'            => $this->variant->id,
                 'barcode_value' => $this->variant->barcode_value,

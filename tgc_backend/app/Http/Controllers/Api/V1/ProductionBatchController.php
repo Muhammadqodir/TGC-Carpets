@@ -40,8 +40,9 @@ class ProductionBatchController extends Controller
             ->when($request->filled('date_from'),  fn ($q) => $q->whereDate('planned_datetime', '>=', $request->date_from))
             ->when($request->filled('date_to'),    fn ($q) => $q->whereDate('planned_datetime', '<=', $request->date_to))
             // Exclude batches where every produced item has already been received into the warehouse.
+            // Note: produced_quantity is already net good units (excludes defects), so no need to subtract defect_quantity.
             ->when($request->boolean('exclude_warehouse_received'), fn ($q) => $q->whereHas('items', fn ($iq) =>
-                $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(defect_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
+                $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
             ))
             ->latest('production_batches.id')
             ->paginate($request->integer('per_page', 20));
@@ -69,9 +70,10 @@ class ProductionBatchController extends Controller
         ]);
 
         // When requested, exclude items already fully received into the warehouse.
+        // Note: produced_quantity is already net good units (excludes defects), so no need to subtract defect_quantity.
         if ($request->boolean('exclude_warehouse_received')) {
             $itemsQuery->whereRaw(
-                '(COALESCE(produced_quantity, 0) - COALESCE(defect_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0'
+                '(COALESCE(produced_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0'
             );
         }
 

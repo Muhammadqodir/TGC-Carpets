@@ -250,7 +250,7 @@ class WarehouseDocumentService
 
         $batchItems = ProductionBatchItem::where('product_variant_id', $variantId)
             ->whereHas('productionBatch', fn ($q) => $q->whereIn('status', ['completed', 'in_progress']))
-            ->whereRaw('(produced_quantity - defect_quantity - warehouse_received_quantity) > 0')
+            ->whereRaw('(produced_quantity - warehouse_received_quantity) > 0')
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
@@ -260,7 +260,7 @@ class WarehouseDocumentService
             if ($remaining <= 0) {
                 break;
             }
-            $receivable = $batchItem->produced_quantity - $batchItem->defect_quantity - $batchItem->warehouse_received_quantity;
+            $receivable = $batchItem->produced_quantity - $batchItem->warehouse_received_quantity;
             $credit     = min($remaining, $receivable);
             $batchItem->increment('warehouse_received_quantity', $credit);
             $remaining -= $credit;

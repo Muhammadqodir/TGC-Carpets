@@ -11,7 +11,6 @@ import '../../features/warehouse_documents/presentation/pages/warehouse_document
 import '../../features/warehouse_documents/presentation/pages/add_warehouse_document_page.dart';
 import '../../features/warehouse_documents/presentation/pages/warehouse_document_preview_page.dart';
 import '../../features/warehouse_documents/presentation/pages/args/warehouse_document_preview_args.dart';
-import '../../features/warehouse_documents/presentation/pages/print_labels_page.dart';
 import '../../features/labeling/presentation/args/print_labels_args.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/employees/presentation/pages/add_employee_page.dart';
@@ -244,14 +243,6 @@ class AppRouter {
             builder: (context, state) => const RawMaterialBatchMovementPage(),
           ),
         ],
-      ),
-      GoRoute(
-        path: AppRoutes.printLabels,
-        name: AppRoutes.printLabelsName,
-        builder: (context, state) {
-          final args = state.extra as PrintLabelsArgs;
-          return PrintLabelsPage(args: args);
-        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

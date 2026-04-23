@@ -379,14 +379,6 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                                 ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                          child: TextButton.icon(
-                            onPressed: () async {},
-                            icon: const Icon(Icons.download_rounded, size: 16),
-                            label: const Text('Exceldan import'),
-                          ),
-                        ),
                       ],
                     ),
                   ),

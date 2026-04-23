@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 
@@ -158,7 +159,11 @@ class _ProductionBatchPickerBottomSheetState
       }),
       (detail) {
         final items = detail.items
-            .where((i) => (i.producedQuantity ?? 0) > 0)
+            .where((i) {
+              final available = (i.producedQuantity ?? 0) -
+                  (i.warehouseReceivedQuantity ?? 0);
+              return available > 0;
+            })
             .toList();
         setState(() {
           _batchItems = items;
@@ -190,10 +195,11 @@ class _ProductionBatchPickerBottomSheetState
     if (items.isEmpty) return;
     final quantities = <int, int>{
       for (final item in items)
-        item.id: ((item.producedQuantity ?? 0) -
-                (item.defectQuantity ?? 0) -
-                (item.warehouseReceivedQuantity ?? 0))
-            .clamp(1, (item.producedQuantity ?? 1)),
+        item.id: max(
+          0,
+          (item.producedQuantity ?? 0) -
+              (item.warehouseReceivedQuantity ?? 0),
+        ),
     };
     Navigator.of(context).pop(
       BatchImportResult(batch: batch, items: items, quantities: quantities),
@@ -625,8 +631,10 @@ class _BatchItemTile extends StatelessWidget {
     final defect = item.defectQuantity ?? 0;
     final received = item.warehouseReceivedQuantity ?? 0;
     final inRow = existingQty ?? 0;
-    // available = produced - defect - already warehouse-received - qty already in this form
-    final available = (produced - defect - received - inRow).clamp(0, produced);
+    // produced_quantity is already net good units; defect is shown separately for info only.
+    final maxAvailable = (produced - received).clamp(0, produced);
+    // available = produced - already warehouse-received - qty already in this form
+    final available = (maxAvailable - inRow).clamp(0, maxAvailable);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

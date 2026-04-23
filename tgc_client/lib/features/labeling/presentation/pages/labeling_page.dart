@@ -6,11 +6,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../widgets/print_label.dart';
+import '../widgets/print_label_60_40.dart';
 import '../widgets/batch_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
@@ -51,7 +52,7 @@ class _LabelingView extends StatefulWidget {
 
 class _LabelingViewState extends State<_LabelingView> {
   // ── Label config ──────────────────────────────────────────────────────────
-  static const _config = LabelConfig.preset58x40;
+  static const _config = LabelConfig.preset60x60;
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -213,7 +214,7 @@ class _LabelingViewState extends State<_LabelingView> {
                     height: _config.heightPx.toDouble(),
                     child: RepaintBoundary(
                       key: key,
-                      child: PrintLabel(
+                      child: PrintLabel60(
                         config: _config,
                         productName: item.productName,
                         quality: item.qualityName,
