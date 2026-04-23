@@ -131,7 +131,7 @@ class _AppTableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.primary.withValues(alpha: 0.04),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           for (var col in columns)
@@ -210,7 +210,7 @@ class _AppTableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: isEven ? AppColors.surface : AppColors.background,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           for (var i = 0; i < columns.length; i++)

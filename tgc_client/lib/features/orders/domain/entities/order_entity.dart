@@ -65,6 +65,10 @@ class OrderEntity extends Equatable {
   double get productionProgress =>
       totalQuantity == 0 ? 0.0 : (totalProducedQuantity / totalQuantity).clamp(0.0, 1.0);
 
+  /// Sum of shipped quantities across all line items.
+  int get totalShippedQuantity =>
+      items.fold(0, (sum, i) => sum + (i.shippedQuantity ?? 0));
+
   /// Total square metres: Σ(length × width × quantity) / 10 000.
   /// Items without a size contribute 0.
   double get totalSqm => items.fold(0.0, (sum, i) {

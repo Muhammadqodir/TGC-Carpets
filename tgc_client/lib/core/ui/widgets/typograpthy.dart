@@ -6,9 +6,11 @@ class BodyText extends StatelessWidget {
     super.key,
     required this.text,
     this.fontWeight = FontWeight.w500,
+    this.textAlign = TextAlign.start,
   });
   final String text;
   final FontWeight fontWeight;
+  final TextAlign textAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +20,7 @@ class BodyText extends StatelessWidget {
           .textTheme
           .bodyMedium
           ?.copyWith(fontWeight: fontWeight),
+      textAlign: textAlign,
       overflow: TextOverflow.ellipsis,
     );
   }

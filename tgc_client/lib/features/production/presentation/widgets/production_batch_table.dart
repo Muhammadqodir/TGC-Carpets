@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
-
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
+import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_data_table.dart';
 import '../../domain/entities/production_batch_entity.dart';
@@ -22,31 +24,55 @@ class ProductionBatchTable extends StatelessWidget {
   final void Function(ProductionBatchEntity)? onEdit;
 
   static const _columns = <AppTableColumn>[
-    AppTableColumn(label: 'ID',          fixedWidth: 68,  alignment: Alignment.center),
-    AppTableColumn(label: 'Batch nomi',  flex: 3,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Tur',         flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Stanok',      flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Holat',       flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Reja sanasi', flex: 2,         alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mahsulotlar', flex: 1,         alignment: Alignment.center),
-    AppTableColumn(label: 'Jami dona',   fixedWidth: 90,  alignment: Alignment.center),
-    AppTableColumn(label: 'Jami m²',     fixedWidth: 100, alignment: Alignment.center),
-    AppTableColumn(label: 'Amallar',     fixedWidth: 100, alignment: Alignment.center),
+    AppTableColumn(label: 'ID', fixedWidth: 40, alignment: Alignment.centerLeft),
+    AppTableColumn(
+        label: 'Partiya nomi', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Tur', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Stanok', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Holat', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(
+        label: 'Reja sanasi', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Mahsulotlar', flex: 1, alignment: Alignment.center),
+    AppTableColumn(
+        label: 'Jami dona', fixedWidth: 90, alignment: Alignment.center),
+    AppTableColumn(
+        label: 'Jami m²', fixedWidth: 100, alignment: Alignment.center),
+    AppTableColumn(
+        label: 'Amallar', fixedWidth: 100, alignment: Alignment.center),
+  ];
+
+  static const _columnsMobile = <AppTableColumn>[
+    AppTableColumn(label: 'Partiya', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Holat', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: '', fixedWidth: 40, alignment: Alignment.center),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return AppDataTable<ProductionBatchEntity>(
-      items:            batches,
-      columns:          _columns,
-      scrollController: scrollController,
-      isLoadingMore:    isLoadingMore,
-      cellBuilder: (context, batch, colIndex) =>
-          _buildCell(context, batch, colIndex),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      final isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
+      final columns = isDesktop ? _columns : _columnsMobile;
+
+      return AppDataTable<ProductionBatchEntity>(
+        items: batches,
+        columns: columns,
+        scrollController: scrollController,
+        isLoadingMore: isLoadingMore,
+        cellBuilder: (context, batch, colIndex) =>
+            _buildCell(context, batch, colIndex, isDesktop),
+      );
+    });
   }
 
-  Widget _buildCell(
+  Widget _buildCell(BuildContext context, ProductionBatchEntity batch,
+      int colIndex, bool isDesktop) {
+    if (!isDesktop) {
+      return _buildMobileCell(context, batch, colIndex);
+    }
+    return _buildDesktopCell(context, batch, colIndex);
+  }
+
+  Widget _buildDesktopCell(
       BuildContext context, ProductionBatchEntity batch, int colIndex) {
     switch (colIndex) {
       case 0:
@@ -141,7 +167,9 @@ class ProductionBatchTable extends StatelessWidget {
                 : '—',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: batch.totalSqm > 0 ? AppColors.primary : AppColors.textSecondary,
+                  color: batch.totalSqm > 0
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                 ),
           ),
         );
@@ -180,6 +208,82 @@ class ProductionBatchTable extends StatelessWidget {
     }
   }
 
+  Widget _buildMobileCell(
+    BuildContext context,
+    ProductionBatchEntity batch,
+    int colIndex,
+  ) {
+    switch (colIndex) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            BodyText(
+              text: '#${batch.id} · ${batch.batchTitle}',
+              fontWeight: FontWeight.bold,
+            ),
+            SubBodyText(
+              text: [
+                if (batch.plannedDatetime != null)
+                  _formatDate(batch.plannedDatetime!),
+                if (batch.machine != null) batch.machine!.name,
+                batch.typeLabel,
+              ].join(' · '),
+            ),
+          ],
+        );
+
+      case 1:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _StatusChip(status: batch.status),
+            SubBodyText(
+              text: '${batch.totalPlannedQuantity} dona'
+                  '${batch.totalSqm > 0 ? ' · ${batch.totalSqm.toStringAsFixed(1)} m²' : ''}',
+            ),
+          ],
+        );
+
+      case 2:
+        return PopupMenuButton<String>(
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedMoreVertical,
+            size: 20,
+          ),
+          surfaceTintColor: AppColors.surface,
+          color: AppColors.surface,
+          onSelected: (value) {
+            switch (value) {
+              case 'view':
+                onView?.call(batch);
+                break;
+              case 'edit':
+                onEdit?.call(batch);
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            if (onView != null)
+              const PopupMenuItem(
+                value: 'view',
+                child: Text('Tafsilotlar'),
+              ),
+            if (batch.status == 'planned' && onEdit != null)
+              const PopupMenuItem(
+                value: 'edit',
+                child: Text('Tahrirlash'),
+              ),
+          ],
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   String _formatDate(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
 }
@@ -203,28 +307,16 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'planned'     => ('Rejalashtirilgan',     AppColors.textSecondary),
+      'planned' => ('Rejalashtirilgan', AppColors.textSecondary),
       'in_progress' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
-      'completed'   => ('Bajarildi',            AppColors.success),
-      'cancelled'   => ('Bekor qilindi',        AppColors.error),
-      _             => (status,                 AppColors.textSecondary),
+      'completed' => ('Bajarildi', AppColors.success),
+      'cancelled' => ('Bekor qilindi', AppColors.error),
+      _ => (status, AppColors.textSecondary),
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withAlpha(100)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
+    return AppBadge(
+      label: label,
+      color: color,
     );
   }
 }
