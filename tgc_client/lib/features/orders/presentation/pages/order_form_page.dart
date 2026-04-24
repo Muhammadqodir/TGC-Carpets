@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -139,6 +140,38 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
     final notes =
         ctrl.notesCtrl.text.trim().isEmpty ? null : ctrl.notesCtrl.text.trim();
 
+    // ── Matrix mode ───────────────────────────────────────────────────────────
+    if (ctrl.isMatrixMode) {
+      final matrixItems = ctrl.sheetMatrixFilledItems;
+      if (matrixItems.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Kamida bitta miqdor kiritilishi shart."),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+      if (_isEditMode) {
+        context.read<OrderFormBloc>().add(OrderFormUpdateSubmitted(
+              orderId: widget.initialOrder!.id,
+              orderDate: dateStr,
+              items: matrixItems,
+              clientId: _effectiveClientId!,
+              notes: notes,
+            ));
+      } else {
+        context.read<OrderFormBloc>().add(OrderFormSubmitted(
+              orderDate: dateStr,
+              items: matrixItems,
+              clientId: _effectiveClientId!,
+              notes: notes,
+            ));
+      }
+      return;
+    }
+
+    // ── Classic row-by-row mode ───────────────────────────────────────────────
     final filledItems = ctrl.filledItems;
     if (filledItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -382,29 +415,32 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                       ],
                     ),
                   ),
-                  // ── Table header ───────────────────────────────────────────
-                  const _FormTableHeader(),
-                  const Divider(height: 1, color: AppColors.divider),
-                  // ── Table rows ─────────────────────────────────────────────
                   Expanded(
-                    child: ListView.separated(
-                      padding: EdgeInsets.zero,
-                      itemCount: ctrl.items.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: AppColors.divider),
-                      itemBuilder: (context, index) {
-                        final row = ctrl.items[index];
-                        return _FormItemRow(
-                          key: ValueKey(row.id),
-                          row: row,
-                          allItems: ctrl.items,
-                          index: index,
-                          onRemove: () => ctrl.removeItem(index),
-                          onChanged: ctrl.notifyChanged,
-                        );
-                      },
-                    ),
+                    child: OrderItemsSheet(ctrl: ctrl),
                   ),
+                  // // ── Table header ───────────────────────────────────────────
+                  // const _FormTableHeader(),
+                  // const Divider(height: 1, color: AppColors.divider),
+                  // // // ── Table rows ─────────────────────────────────────────────
+                  // Expanded(
+                  //   child: ListView.separated(
+                  //     padding: EdgeInsets.zero,
+                  //     itemCount: ctrl.items.length,
+                  //     separatorBuilder: (_, __) =>
+                  //         const Divider(height: 1, color: AppColors.divider),
+                  //     itemBuilder: (context, index) {
+                  //       final row = ctrl.items[index];
+                  //       return _FormItemRow(
+                  //         key: ValueKey(row.id),
+                  //         row: row,
+                  //         allItems: ctrl.items,
+                  //         index: index,
+                  //         onRemove: () => ctrl.removeItem(index),
+                  //         onChanged: ctrl.notifyChanged,
+                  //       );
+                  //     },
+                  //   ),
+                  // ),
                   const Divider(height: 1, color: AppColors.divider),
                   // ── Notes at bottom ────────────────────────────────────────
                   Container(

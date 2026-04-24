@@ -4,17 +4,26 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/datasources/product_remote_datasource.dart';
 import '../../domain/entities/product_size_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
+
+class _SizePickerData {
+  final List<ProductSizeEntity> sizes;
+  final List<ProductTypeEntity> types;
+
+  const _SizePickerData({required this.sizes, required this.types});
+}
 
 /// A bottom sheet that loads sizes for a given [productTypeId] and lets
-/// the user select one.  Returns the chosen [ProductSizeEntity] or null.
+/// the user select one.  When [productTypeId] is null, all sizes are shown
+/// grouped by type.  Returns the chosen [ProductSizeEntity] or null.
 class ProductSizePickerSheet extends StatefulWidget {
-  final int productTypeId;
+  final int? productTypeId;
 
-  const ProductSizePickerSheet({super.key, required this.productTypeId});
+  const ProductSizePickerSheet({super.key, this.productTypeId});
 
   static Future<ProductSizeEntity?> show(
     BuildContext context, {
-    required int productTypeId,
+    int? productTypeId,
   }) {
     return showModalBottomSheet<ProductSizeEntity>(
       context: context,
@@ -29,13 +38,28 @@ class ProductSizePickerSheet extends StatefulWidget {
 }
 
 class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
-  late Future<List<ProductSizeEntity>> _future;
+  late Future<_SizePickerData> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = sl<ProductRemoteDataSource>()
-        .getProductSizes(productTypeId: widget.productTypeId);
+    _future = _load();
+  }
+
+  Future<_SizePickerData> _load() async {
+    final ds = sl<ProductRemoteDataSource>();
+    if (widget.productTypeId != null) {
+      final sizes = await ds.getProductSizes(productTypeId: widget.productTypeId);
+      return _SizePickerData(sizes: sizes, types: const []);
+    }
+    final results = await Future.wait([
+      ds.getProductSizes(),
+      ds.getProductTypes(),
+    ]);
+    return _SizePickerData(
+      sizes: results[0] as List<ProductSizeEntity>,
+      types: results[1] as List<ProductTypeEntity>,
+    );
   }
 
   @override
@@ -74,7 +98,7 @@ class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
                 ),
           ),
           const SizedBox(height: 16),
-          FutureBuilder<List<ProductSizeEntity>>(
+          FutureBuilder<_SizePickerData>(
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -83,43 +107,78 @@ class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
-              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data!.sizes.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: Text(
-                      'Ushbu turdagi o\'lchamlar topilmadi.',
+                      'O\'lchamlar topilmadi.',
                       textAlign: TextAlign.center,
                     ),
                   ),
                 );
               }
-              final sizes = snapshot.data!;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: sizes.map((size) {
-                  return InkWell(
-                    onTap: () => Navigator.of(context).pop(size),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.primary, width: 1.5),
-                        borderRadius: BorderRadius.circular(10),
-                        color: AppColors.primary.withValues(alpha: 0.06),
-                      ),
-                      child: Text(
-                        size.dimensions,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
+
+              final data = snapshot.data!;
+
+              // Flat list when a specific type is pre-selected
+              if (widget.productTypeId != null) {
+                return _SizeWrap(sizes: data.sizes, onTap: _pop);
+              }
+
+              // Grouped by type when showing all
+              final typeMap = {for (final t in data.types) t.id: t.type};
+              final grouped = <int, List<ProductSizeEntity>>{};
+              for (final s in data.sizes) {
+                grouped.putIfAbsent(s.productTypeId, () => []).add(s);
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: grouped.entries.map((entry) {
+                  final typeName =
+                      typeMap[entry.key] ?? 'Tur #${entry.key}';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Divider(
+                                color: AppColors.divider,
+                                thickness: 1,
+                                endIndent: 8,
+                              ),
                             ),
+                            Text(
+                              typeName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                            Expanded(
+                              child: Divider(
+                                color: AppColors.divider,
+                                thickness: 1,
+                                indent: 8,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      _SizeWrap(sizes: entry.value, onTap: _pop),
+                      const SizedBox(height: 16),
+                    ],
                   );
                 }).toList(),
               );
@@ -128,6 +187,44 @@ class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  void _pop(ProductSizeEntity size) => Navigator.of(context).pop(size);
+}
+
+class _SizeWrap extends StatelessWidget {
+  final List<ProductSizeEntity> sizes;
+  final void Function(ProductSizeEntity) onTap;
+
+  const _SizeWrap({required this.sizes, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: sizes.map((size) {
+        return InkWell(
+          onTap: () => onTap(size),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.primary, width: 1.5),
+              borderRadius: BorderRadius.circular(10),
+              color: AppColors.primary.withValues(alpha: 0.06),
+            ),
+            child: Text(
+              size.dimensions,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
