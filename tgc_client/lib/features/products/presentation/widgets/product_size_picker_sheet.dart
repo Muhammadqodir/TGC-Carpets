@@ -13,6 +13,10 @@ class _SizePickerData {
   const _SizePickerData({required this.sizes, required this.types});
 }
 
+/// In-memory cache: `null` key = all sizes+types; int key = filtered by type.
+/// Lives for the app session so repeated opens skip the network round-trip.
+final _cache = <Object?, _SizePickerData>{};
+
 /// A bottom sheet that loads sizes for a given [productTypeId] and lets
 /// the user select one.  When [productTypeId] is null, all sizes are shown
 /// grouped by type.  Returns the chosen [ProductSizeEntity] or null.
@@ -33,6 +37,15 @@ class ProductSizePickerSheet extends StatefulWidget {
     );
   }
 
+  /// Clears the in-memory cache (e.g. after adding/deleting a size on the backend).
+  static void clearCache([int? productTypeId]) {
+    if (productTypeId != null) {
+      _cache.remove(productTypeId);
+    } else {
+      _cache.clear();
+    }
+  }
+
   @override
   State<ProductSizePickerSheet> createState() => _ProductSizePickerSheetState();
 }
@@ -47,19 +60,26 @@ class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
   }
 
   Future<_SizePickerData> _load() async {
+    final cacheKey = widget.productTypeId as Object?;
+    if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!;
+
     final ds = sl<ProductRemoteDataSource>();
+    late _SizePickerData data;
     if (widget.productTypeId != null) {
       final sizes = await ds.getProductSizes(productTypeId: widget.productTypeId);
-      return _SizePickerData(sizes: sizes, types: const []);
+      data = _SizePickerData(sizes: sizes, types: const []);
+    } else {
+      final results = await Future.wait([
+        ds.getProductSizes(),
+        ds.getProductTypes(),
+      ]);
+      data = _SizePickerData(
+        sizes: results[0] as List<ProductSizeEntity>,
+        types: results[1] as List<ProductTypeEntity>,
+      );
     }
-    final results = await Future.wait([
-      ds.getProductSizes(),
-      ds.getProductTypes(),
-    ]);
-    return _SizePickerData(
-      sizes: results[0] as List<ProductSizeEntity>,
-      types: results[1] as List<ProductTypeEntity>,
-    );
+    _cache[cacheKey] = data;
+    return data;
   }
 
   @override

@@ -396,25 +396,25 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                     ),
                   ),
                   // ── Items section label ────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Mahsulotlar',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  //   child: Row(
+                  //     children: [
+                  //       Expanded(
+                  //         child: Text(
+                  //           'Mahsulotlar',
+                  //           style: Theme.of(context)
+                  //               .textTheme
+                  //               .titleSmall
+                  //               ?.copyWith(
+                  //                 color: AppColors.primary,
+                  //                 fontWeight: FontWeight.w600,
+                  //               ),
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
                   Expanded(
                     child: OrderItemsSheet(ctrl: ctrl),
                   ),

@@ -27,23 +27,59 @@ class OrderTable extends StatelessWidget {
   final void Function(OrderEntity)? onEdit;
 
   static const _columns = <AppTableColumn>[
-    AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.centerLeft),
     AppTableColumn(
-        label: 'Sana', fixedWidth: 90, alignment: Alignment.centerLeft),
+      label: 'ID',
+      fixedWidth: 68,
+      alignment: Alignment.centerLeft,
+    ),
     AppTableColumn(
-        label: 'Holati', fixedWidth: 70, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mijoz', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Hajmi', flex: 1, alignment: Alignment.centerLeft),
+      label: 'Sana',
+      fixedWidth: 90,
+      alignment: Alignment.centerLeft,
+    ),
     AppTableColumn(
-        label: 'Ishlab chiqarish', flex: 2, alignment: Alignment.centerLeft),
+      label: 'Mijoz',
+      flex: 2,
+      alignment: Alignment.centerLeft,
+    ),
     AppTableColumn(
-        label: 'Amallar', fixedWidth: 100, alignment: Alignment.center),
+      label: 'Hajmi',
+      flex: 1,
+      alignment: Alignment.centerLeft,
+    ),
+    AppTableColumn(
+      label: 'Holati',
+      fixedWidth: 150,
+      alignment: Alignment.centerLeft,
+    ),
+    AppTableColumn(
+      label: 'Ishlab chiqarish',
+      flex: 2,
+      alignment: Alignment.centerLeft,
+    ),
+    AppTableColumn(
+      label: 'Amallar',
+      fixedWidth: 100,
+      alignment: Alignment.center,
+    ),
   ];
 
   static const _columnsMobile = <AppTableColumn>[
-    AppTableColumn(label: 'Buyurtma', flex: 3, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Holati', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: '', fixedWidth: 40, alignment: Alignment.center),
+    AppTableColumn(
+      label: 'Buyurtma',
+      flex: 3,
+      alignment: Alignment.centerLeft,
+    ),
+    AppTableColumn(
+      label: 'Holati',
+      flex: 2,
+      alignment: Alignment.centerLeft,
+    ),
+    AppTableColumn(
+      label: '',
+      fixedWidth: 40,
+      alignment: Alignment.center,
+    ),
   ];
 
   @override
@@ -81,21 +117,21 @@ class OrderTable extends StatelessWidget {
         return BodyText(text: _formatDate(order.orderDate));
 
       case 2:
-        return _StatusChip(status: order.status);
-
-      case 3:
         return BodyText(
           text: "${order.clientShopName ?? '—'} / ${order.clientRegion ?? '—'}",
         );
 
-      case 4:
+      case 3:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BodyText(text: '${order.totalPlannedQuantity} ta'),
+            BodyText(text: '${order.totalQuantity} ta'),
             BodyText(text: '${order.totalSqm.toStringAsFixed(2)} m²'),
           ],
         );
+
+      case 4:
+        return _StatusChip(status: order.status);
 
       case 5:
         return _ProductionProgressCell(order: order);

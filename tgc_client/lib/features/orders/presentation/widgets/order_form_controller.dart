@@ -1,19 +1,9 @@
-import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
-import 'package:tgc_client/features/products/data/models/product_size_model.dart';
 import 'package:tgc_client/features/products/domain/entities/product_color_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 
 import 'order_item_row.dart';
-
-/// A product + colour pairing that represents one row in the matrix order form.
-class MatrixProductRow {
-  final ProductEntity product;
-  final ProductColorEntity color;
-
-  const MatrixProductRow({required this.product, required this.color});
-}
 
 /// Shared form state for the "add order" flow.
 ///
@@ -100,12 +90,23 @@ class OrderFormController extends ChangeNotifier {
   /// Iterates every filled product+colour row in [items] against every size
   /// column and collects cells where quantity > 0.  The result is ready to
   /// pass directly to [OrderFormSubmitted.items].
+  /// Total quantity across all product rows for a given size column.
+  int totalQtyForSize(int sizeId) {
+    var total = 0;
+    for (final colorId in _uniqueColorIds) {
+      total += _matrixQty[_matrixKey(colorId, sizeId)] ?? 0;
+    }
+    return total;
+  }
+
   List<Map<String, dynamic>> get sheetMatrixFilledItems {
+    final seen = <int>{};
     final result = <Map<String, dynamic>>[];
     for (final row in items) {
       if (_isRowEmpty(row)) continue;
       final colorId = row.selectedColor?.id ?? row.prefilledColorId;
       if (colorId == null) continue;
+      if (!seen.add(colorId)) continue; // skip duplicate color rows (edit mode)
       for (final size in matrixSizeColumns) {
         final qty = _matrixQty[_matrixKey(colorId, size.id)] ?? 0;
         if (qty > 0) {
@@ -136,39 +137,22 @@ class OrderFormController extends ChangeNotifier {
     super.dispose();
   }
 
-  List<ProductSizeEntity> getUniqueSizesList() {
-    List<ProductSizeEntity> sizes = [];
-    for (final item in items) {
-      if (item.prefilledSizeId != null) {
-        if (!sizes.any((s) => s.id == item.prefilledSizeId)) {
-          sizes.add(item.selectedSize!);
-        }
-      }
-    }
-    return sizes.toList();
-  }
-
+  /// Returns one representative [OrderItemRow] per unique (product, color)
+  /// combination, skipping empty/sentinel rows.
   List<OrderItemRow> getUniqueItems() {
-    List<OrderItemRow> uniqueItems = [];
+    final seen = <String>{};
+    final result = <OrderItemRow>[];
     for (final item in items) {
-      bool isUnique = true;
-      for (final uniqueItem in uniqueItems) {
-        if (item.selectedProduct?.id == uniqueItem.selectedProduct?.id &&
-            item.selectedColor?.id == uniqueItem.selectedColor?.id) {
-          isUnique = false;
-          break;
-        }
-      }
-      if (isUnique) {
-        uniqueItems.add(item);
-      }
+      if (_isRowEmpty(item)) continue;
+      final colorId = item.selectedColor?.id ?? item.prefilledColorId;
+      final productId = item.selectedProduct?.id;
+      if (seen.add('${productId}_$colorId')) result.add(item);
     }
-    return uniqueItems.toList();
+    return result;
   }
 
   // ── Matrix mode ─────────────────────────────────────────────────────────────
 
-  final List<MatrixProductRow> matrixProductRows = [];
   final List<ProductSizeEntity> matrixSizeColumns = [];
   final Map<String, TextEditingController> _matrixCellCtrls = {};
 
@@ -191,12 +175,106 @@ class OrderFormController extends ChangeNotifier {
     });
   }
 
-  /// Adds a product+colour row. Returns false if the colour is already a row.
-  bool addMatrixProductRow(ProductEntity product, ProductColorEntity color) {
-    if (matrixProductRows.any((r) => r.color.id == color.id)) return false;
-    matrixProductRows.add(MatrixProductRow(product: product, color: color));
+  /// Seeds [matrixSizeColumns] and pre-fills [_matrixQty] / cell controllers
+  /// from the existing [items] rows that carry prefill data (edit mode).
+  ///
+  /// Must be called **after** the super-constructor has populated [items].
+  void seedMatrixFromPrefill() {
+    for (final row in items) {
+      final sizeId = row.prefilledSizeId;
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (sizeId == null || colorId == null) continue;
+      if (row.prefilledSizeLength == null || row.prefilledSizeWidth == null) continue;
+      final productTypeId = row.selectedProduct?.productTypeId ?? row.prefilledProductTypeId;
+      if (productTypeId == null) continue;
+
+      // Add the size column if not already present.
+      if (!matrixSizeColumns.any((s) => s.id == sizeId)) {
+        matrixSizeColumns.add(ProductSizeEntity(
+          id: sizeId,
+          length: row.prefilledSizeLength!,
+          width: row.prefilledSizeWidth!,
+          productTypeId: productTypeId,
+        ));
+      }
+
+      // Pre-fill the quantity cell.
+      final qty = int.tryParse(row.quantityCtrl.text.trim()) ?? 0;
+      if (qty > 0) {
+        final key = _matrixKey(colorId, sizeId);
+        final ctrl = matrixCellCtrl(colorId, sizeId);
+        ctrl.text = '$qty';
+        _matrixQty[key] = qty;
+      }
+    }
+  }
+
+  /// Color IDs of all currently filled unique product rows.
+  List<int> get _uniqueColorIds => getUniqueItems()
+      .map((r) => r.selectedColor?.id ?? r.prefilledColorId)
+      .whereType<int>()
+      .toList();
+
+  /// Adds a new product+color row to the matrix. Returns false if the color is
+  /// already present.
+  bool addMatrixColorRow(ProductEntity product, ProductColorEntity color) {
+    if (_uniqueColorIds.contains(color.id)) return false;
+    final row = OrderItemRow()
+      ..selectedProduct = product
+      ..selectedColor = color;
+    row.quantityCtrl.addListener(notifyListeners);
+    items.add(row);
     for (final s in matrixSizeColumns) {
       matrixCellCtrl(color.id, s.id);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Removes all rows for [colorId] and clears their cell data.
+  void removeMatrixColorRow(int colorId) {
+    final toRemove = items
+        .where((r) => (r.selectedColor?.id ?? r.prefilledColorId) == colorId)
+        .toList();
+    for (final r in toRemove) {
+      r.quantityCtrl.removeListener(notifyListeners);
+      r.dispose();
+      items.remove(r);
+    }
+    for (final s in matrixSizeColumns) {
+      _disposeMatrixCell(_matrixKey(colorId, s.id));
+    }
+    notifyListeners();
+  }
+
+  /// Updates the product+color for all rows identified by [oldColorId].
+  /// Migrates cell quantities when the color changes.
+  /// Returns false if [newColor] is already in use by another row.
+  bool updateMatrixProductRow(
+    int oldColorId,
+    ProductEntity newProduct,
+    ProductColorEntity newColor,
+  ) {
+    if (newColor.id != oldColorId && _uniqueColorIds.contains(newColor.id)) {
+      return false;
+    }
+    for (final r in items) {
+      if ((r.selectedColor?.id ?? r.prefilledColorId) == oldColorId) {
+        r.selectedProduct = newProduct;
+        r.selectedColor = newColor;
+      }
+    }
+    if (newColor.id != oldColorId) {
+      for (final s in matrixSizeColumns) {
+        final oldKey = _matrixKey(oldColorId, s.id);
+        final qty = _matrixQty[oldKey] ?? 0;
+        _disposeMatrixCell(oldKey);
+        if (qty > 0) {
+          final ctrl = matrixCellCtrl(newColor.id, s.id);
+          ctrl.text = '$qty';
+          _matrixQty[_matrixKey(newColor.id, s.id)] = qty;
+        }
+      }
     }
     notifyListeners();
     return true;
@@ -206,27 +284,38 @@ class OrderFormController extends ChangeNotifier {
   bool addMatrixSizeColumn(ProductSizeEntity size) {
     if (matrixSizeColumns.any((s) => s.id == size.id)) return false;
     matrixSizeColumns.add(size);
-    for (final r in matrixProductRows) {
-      matrixCellCtrl(r.color.id, size.id);
+    for (final colorId in _uniqueColorIds) {
+      matrixCellCtrl(colorId, size.id);
     }
     notifyListeners();
     return true;
   }
 
-  /// Removes the product+colour row and disposes its cell controllers.
-  void removeMatrixProductRow(int colorId) {
-    matrixProductRows.removeWhere((r) => r.color.id == colorId);
-    for (final s in matrixSizeColumns) {
-      _disposeMatrixCell(_matrixKey(colorId, s.id));
+  /// Replaces a size column, migrating existing cell quantities to the new size.
+  void replaceMatrixSizeColumn(int oldSizeId, ProductSizeEntity newSize) {
+    if (newSize.id == oldSizeId) return;
+    if (matrixSizeColumns.any((s) => s.id == newSize.id)) return;
+    final idx = matrixSizeColumns.indexWhere((s) => s.id == oldSizeId);
+    if (idx == -1) return;
+    matrixSizeColumns[idx] = newSize;
+    for (final colorId in _uniqueColorIds) {
+      final oldKey = _matrixKey(colorId, oldSizeId);
+      final qty = _matrixQty[oldKey] ?? 0;
+      _disposeMatrixCell(oldKey);
+      if (qty > 0) {
+        final ctrl = matrixCellCtrl(colorId, newSize.id);
+        ctrl.text = '$qty';
+        _matrixQty[_matrixKey(colorId, newSize.id)] = qty;
+      }
     }
     notifyListeners();
   }
 
-  /// Removes the size column and disposes its cell controllers.
+  /// Removes a size column and disposes its cell controllers.
   void removeMatrixSizeColumn(int sizeId) {
     matrixSizeColumns.removeWhere((s) => s.id == sizeId);
-    for (final r in matrixProductRows) {
-      _disposeMatrixCell(_matrixKey(r.color.id, sizeId));
+    for (final colorId in _uniqueColorIds) {
+      _disposeMatrixCell(_matrixKey(colorId, sizeId));
     }
     notifyListeners();
   }
@@ -237,21 +326,5 @@ class OrderFormController extends ChangeNotifier {
     _matrixQty.remove(key);
   }
 
-  /// Item maps ready for submission — only cells with quantity > 0.
-  List<Map<String, dynamic>> get matrixFilledItems {
-    final result = <Map<String, dynamic>>[];
-    for (final row in matrixProductRows) {
-      for (final size in matrixSizeColumns) {
-        final qty = _matrixQty[_matrixKey(row.color.id, size.id)] ?? 0;
-        if (qty > 0) {
-          result.add({
-            'product_color_id': row.color.id,
-            'product_size_id': size.id,
-            'quantity': qty,
-          });
-        }
-      }
-    }
-    return result;
-  }
 }
+

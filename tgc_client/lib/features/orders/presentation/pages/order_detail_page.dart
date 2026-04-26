@@ -368,7 +368,7 @@ class _OrderItemsTable extends StatelessWidget {
           SizedBox(
             width: 60,
             child: BodyText(
-              text: '${item.plannedQuantity}',
+              text: '${item.quantity}',
               fontWeight: FontWeight.bold,
             ),
           ),

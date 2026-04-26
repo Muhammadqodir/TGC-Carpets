@@ -27,5 +27,7 @@ class EditOrderFormController extends OrderFormController {
                 ),
               )
               .toList(),
-        );
+        ) {
+    seedMatrixFromPrefill();
+  }
 }
