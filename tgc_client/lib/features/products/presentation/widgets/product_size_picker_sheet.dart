@@ -118,91 +118,96 @@ class _ProductSizePickerSheetState extends State<ProductSizePickerSheet> {
                 ),
           ),
           const SizedBox(height: 16),
-          FutureBuilder<_SizePickerData>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError ||
-                  !snapshot.hasData ||
-                  snapshot.data!.sizes.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text(
-                      'O\'lchamlar topilmadi.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              }
-
-              final data = snapshot.data!;
-
-              // Flat list when a specific type is pre-selected
-              if (widget.productTypeId != null) {
-                return _SizeWrap(sizes: data.sizes, onTap: _pop);
-              }
-
-              // Grouped by type when showing all
-              final typeMap = {for (final t in data.types) t.id: t.type};
-              final grouped = <int, List<ProductSizeEntity>>{};
-              for (final s in data.sizes) {
-                grouped.putIfAbsent(s.productTypeId, () => []).add(s);
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: grouped.entries.map((entry) {
-                  final typeName =
-                      typeMap[entry.key] ?? 'Tur #${entry.key}';
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: FutureBuilder<_SizePickerData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      snapshot.data!.sizes.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'O\'lchamlar topilmadi.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+              
+                  final data = snapshot.data!;
+              
+                  // Flat list when a specific type is pre-selected
+                  if (widget.productTypeId != null) {
+                    return _SizeWrap(sizes: data.sizes, onTap: _pop);
+                  }
+              
+                  // Grouped by type when showing all
+                  final typeMap = {for (final t in data.types) t.id: t.type};
+                  final grouped = <int, List<ProductSizeEntity>>{};
+                  for (final s in data.sizes) {
+                    grouped.putIfAbsent(s.productTypeId, () => []).add(s);
+                  }
+              
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Divider(
-                                color: AppColors.divider,
-                                thickness: 1,
-                                endIndent: 8,
-                              ),
-                            ),
-                            Text(
-                              typeName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w600,
+                    children: grouped.entries.map((entry) {
+                      final typeName =
+                          typeMap[entry.key] ?? 'Tur #${entry.key}';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.divider,
+                                    thickness: 1,
+                                    endIndent: 8,
                                   ),
+                                ),
+                                Text(
+                                  typeName,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    color: AppColors.divider,
+                                    thickness: 1,
+                                    indent: 8,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Expanded(
-                              child: Divider(
-                                color: AppColors.divider,
-                                thickness: 1,
-                                indent: 8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _SizeWrap(sizes: entry.value, onTap: _pop),
-                      const SizedBox(height: 16),
-                    ],
+                          ),
+                          _SizeWrap(sizes: entry.value, onTap: _pop),
+                          const SizedBox(height: 16),
+                        ],
+                      );
+                    }).toList(),
                   );
-                }).toList(),
-              );
-            },
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 8),
         ],

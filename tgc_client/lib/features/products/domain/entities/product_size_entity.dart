@@ -13,7 +13,7 @@ class ProductSizeEntity extends Equatable {
     required this.productTypeId,
   });
 
-  String get dimensions => '${length}x$width';
+  String get dimensions => '${width}x$length';
 
   @override
   List<Object?> get props => [id, length, width, productTypeId];
