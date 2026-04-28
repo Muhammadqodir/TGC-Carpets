@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\StockMovement;
+use App\Models\WarehouseDocument;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -48,6 +50,11 @@ class OrderItemResource extends JsonResource
                 ->sum('defect_quantity');
         }, 0);
 
+        // Calculate current warehouse stock for this variant
+        $stockAvailable = $this->whenLoaded('variant', function () {
+            return $this->getStockForVariant($this->variant->id);
+        }, 0);
+
         return [
             'id'                          => $this->id,
             'quantity'                    => $this->quantity,
@@ -56,6 +63,7 @@ class OrderItemResource extends JsonResource
             'shipped_quantity'            => $shippedQty,
             'warehouse_received_quantity' => $warehouseReceivedQty,
             'remaining_quantity'          => max(0, $this->quantity - $plannedQty + $defectQty),
+            'stock_available'             => $stockAvailable,
             'variant'  => $this->whenLoaded('variant', fn () => [
                 'id'            => $this->variant->id,
                 'barcode_value' => $this->variant->barcode_value,
@@ -97,5 +105,24 @@ class OrderItemResource extends JsonResource
                     : null,
             ]),
         ];
+    }
+
+    /**
+     * Calculate available warehouse stock for a variant.
+     * Uses the same logic as ShipmentService::getStock.
+     */
+    private function getStockForVariant(int $variantId): int
+    {
+        $base = StockMovement::where('product_variant_id', $variantId);
+
+        $in = (clone $base)
+            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->sum('quantity');
+
+        $out = (clone $base)
+            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->sum('quantity');
+
+        return (int) ($in - $out);
     }
 }

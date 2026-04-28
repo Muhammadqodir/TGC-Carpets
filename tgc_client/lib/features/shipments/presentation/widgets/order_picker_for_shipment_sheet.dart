@@ -362,12 +362,22 @@ class _OrderPickerForShipmentSheetState
 
   Widget _buildItemStep() {
     final order = _selectedOrder!;
+    
+    // Items with available stock in warehouse
     final shippable = order.items
-        .where((i) => (i.shippedQuantity ?? 0) < i.quantity)
+        .where((i) => (i.shippedQuantity ?? 0) < i.quantity && (i.stockAvailable ?? 0) > 0)
         .toList();
+    
+    // Items not yet shipped but no stock available
+    final noStock = order.items
+        .where((i) => (i.shippedQuantity ?? 0) < i.quantity && (i.stockAvailable ?? 0) <= 0)
+        .toList();
+    
+    // Items fully shipped
     final fullyShipped = order.items
         .where((i) => (i.shippedQuantity ?? 0) >= i.quantity)
         .toList();
+    
     final allSelected = shippable.isNotEmpty &&
         _selectedItemIds.length == shippable.length;
 
@@ -380,7 +390,7 @@ class _OrderPickerForShipmentSheetState
             child: Row(
               children: [
                 Text(
-                  'Barcha yuborilmaganlar (${shippable.length})',
+                  'Omborda mavjud (${shippable.length})',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -400,7 +410,7 @@ class _OrderPickerForShipmentSheetState
             child: ListView(
               padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
               children: [
-                // Shippable items
+                // Shippable items (with stock)
                 ...shippable.map((item) => InkWell(
                       onTap: () => _toggleItem(item.id),
                       child: _OrderItemTile(
@@ -409,6 +419,27 @@ class _OrderPickerForShipmentSheetState
                         isDisabled: false,
                       ),
                     )),
+                
+                // Items without stock (not selectable)
+                if (noStock.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Text(
+                      'Omborda yo\'q (${noStock.length})',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.error,
+                          ),
+                    ),
+                  ),
+                  const Divider(height: 1, color: AppColors.divider),
+                  ...noStock.map((item) => _OrderItemTile(
+                        item: item,
+                        isSelected: false,
+                        isDisabled: true,
+                        noStock: true,
+                      )),
+                ],
+                
                 // Fully-shipped items (greyed out, not selectable)
                 if (fullyShipped.isNotEmpty) ...[
                   Padding(
@@ -546,17 +577,19 @@ class _OrderItemTile extends StatelessWidget {
     required this.item,
     required this.isSelected,
     required this.isDisabled,
+    this.noStock = false,
   });
 
   final OrderItemEntity item;
   final bool isSelected;
   final bool isDisabled;
+  final bool noStock;
 
   @override
   Widget build(BuildContext context) {
     final remaining = item.quantity - (item.shippedQuantity ?? 0);
-    final textColor =
-        isDisabled ? AppColors.textSecondary : null;
+    final stockAvailable = item.stockAvailable ?? 0;
+    final textColor = isDisabled ? AppColors.textSecondary : null;
 
     return Opacity(
       opacity: isDisabled ? 0.5 : 1.0,
@@ -570,8 +603,13 @@ class _OrderItemTile extends StatelessWidget {
               width: 24,
               height: 24,
               child: isDisabled
-                  ? const Icon(Icons.check_circle_outline_rounded,
-                      size: 20, color: AppColors.success)
+                  ? Icon(
+                      noStock 
+                        ? Icons.cancel_outlined 
+                        : Icons.check_circle_outline_rounded,
+                      size: 20, 
+                      color: noStock ? AppColors.error : AppColors.success,
+                    )
                   : Checkbox(
                       value: isSelected,
                       onChanged: null, // handled by parent InkWell
@@ -621,23 +659,54 @@ class _OrderItemTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  isDisabled
-                      ? '${item.quantity} / ${item.quantity}'
-                      : '$remaining / ${item.quantity}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: isDisabled
-                            ? AppColors.success
-                            : AppColors.primary,
-                      ),
-                ),
-                Text(
-                  isDisabled ? 'yuborildi' : 'qolgan',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
+                if (noStock) ...[
+                  // Show no stock message
+                  Text(
+                    'Omborda yo\'q',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.error,
+                        ),
+                  ),
+                  Text(
+                    'kerak: $remaining ta',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ] else if (isDisabled) ...[
+                  // Fully shipped
+                  Text(
+                    '${item.quantity} / ${item.quantity}',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.success,
+                        ),
+                  ),
+                  Text(
+                    'yuborildi',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ] else ...[
+                  // Available to ship
+                  Text(
+                    'Ombor: $stockAvailable',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: stockAvailable >= remaining 
+                            ? AppColors.success 
+                            : AppColors.warning,
+                        ),
+                  ),
+                  Text(
+                    'kerak: $remaining ta',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
               ],
             ),
           ],

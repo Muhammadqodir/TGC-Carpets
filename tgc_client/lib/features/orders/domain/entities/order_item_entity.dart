@@ -36,6 +36,9 @@ class OrderItemEntity extends Equatable {
   final int? shippedQuantity;
   /// How many units have been received into the warehouse from production.
   final int? warehouseReceivedQuantity;
+  /// Current available stock in the warehouse for this variant.
+  /// This is the actual stock that can be shipped.
+  final int? stockAvailable;
 
   const OrderItemEntity({
     required this.id,
@@ -60,6 +63,7 @@ class OrderItemEntity extends Equatable {
     this.remainingQuantity,
     this.shippedQuantity,
     this.warehouseReceivedQuantity,
+    this.stockAvailable,
   });
 
   String get variantLabel {
@@ -97,5 +101,6 @@ class OrderItemEntity extends Equatable {
         productTypeName,
         remainingQuantity,
         shippedQuantity,
+        stockAvailable,
       ];
 }

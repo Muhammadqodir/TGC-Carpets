@@ -54,7 +54,11 @@ class ShipmentItemRow {
     double? lastPrice,
   }) {
     final alreadyShipped = item.shippedQuantity ?? 0;
-    final available = (item.quantity - alreadyShipped).clamp(1, item.quantity);
+    final remaining = item.quantity - alreadyShipped;
+    final stockAvailable = item.stockAvailable ?? 0;
+    
+    // Available quantity is the minimum of what's remaining from order and what's in stock
+    final available = remaining.clamp(0, stockAvailable).clamp(0, item.quantity);
 
     return ShipmentItemRow(
       orderItemId: item.id,
@@ -68,7 +72,7 @@ class ShipmentItemRow {
       sizeWidth: item.sizeWidth,
       productUnit: item.productUnit,
       availableQuantity: available,
-      initialQuantity: available,
+      initialQuantity: available > 0 ? available : 1,
       initialPrice: lastPrice,
     );
   }
