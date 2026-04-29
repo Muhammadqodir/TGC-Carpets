@@ -8,7 +8,6 @@ import 'batch_item_row.dart';
 /// Holds mutable UI state for the production batch form.
 /// Mirrors the sentinel-row pattern from [OrderFormController].
 class ProductionBatchFormController extends ChangeNotifier {
-  final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController notesCtrl = TextEditingController();
 
   final List<BatchItemRow> _items = [BatchItemRow()];
@@ -131,7 +130,6 @@ class ProductionBatchFormController extends ChangeNotifier {
 
   @override
   void dispose() {
-    titleCtrl.dispose();
     notesCtrl.dispose();
     for (final row in _items) {
       row.dispose();

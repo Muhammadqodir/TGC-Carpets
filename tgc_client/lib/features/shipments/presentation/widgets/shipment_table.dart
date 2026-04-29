@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
+import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 
 import '../../domain/entities/shipment_entity.dart';
 
@@ -35,16 +37,81 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(label: '', fixedWidth: 100, alignment: Alignment.center),
   ];
 
+  static const _mobileColumns = <AppTableColumn>[
+    AppTableColumn(label: 'Yuk', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(
+        label: 'Hajm', flex: 1, alignment: Alignment.centerRight),
+    AppTableColumn(
+        label: 'Jami (\$)', flex: 1, alignment: Alignment.centerRight),
+    AppTableColumn(label: '', fixedWidth: 40, alignment: Alignment.center),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return AppDataTable<ShipmentEntity>(
-      items: shipments,
-      columns: _columns,
-      scrollController: scrollController,
-      isLoadingMore: isLoadingMore,
-      cellBuilder: (context, shipment, colIndex) =>
-          _buildCell(context, shipment, colIndex),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < AppConstants.desktopBreakpoint;
+      final columns = isMobile ? _mobileColumns : _columns;
+
+      return AppDataTable<ShipmentEntity>(
+        items: shipments,
+        columns: columns,
+        scrollController: scrollController,
+        isLoadingMore: isLoadingMore,
+        cellBuilder: (context, shipment, colIndex) => isMobile
+            ? _buildMobileCell(context, shipment, colIndex)
+            : _buildCell(context, shipment, colIndex),
+      );
+    });
+  }
+
+  Widget _buildMobileCell(
+    BuildContext context,
+    ShipmentEntity shipment,
+    int colIndex,
+  ) {
+    switch (colIndex) {
+      case 0: // ID
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            BodyText(
+              text:
+                  "${shipment.clientShopName ?? '—'}/${shipment.clientRegion ?? '—'}",
+              textAlign: TextAlign.left,
+            ),
+            BodyText(
+              text: _formatDateTime(shipment.shipmentDatetime),
+            ),
+          ],
+        );
+
+      case 1: // Total m²
+        final m2 = shipment.totalM2;
+        final totalQty = shipment.totalQuantity;
+        return Text(
+          '$totalQty dona\n${m2 > 0 ? '${m2.toStringAsFixed(1)} m²' : '—'}',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+          textAlign: TextAlign.left,
+        );
+
+      case 2: // Total $
+        return Text(
+          '\$${shipment.grandTotal.toStringAsFixed(2)}',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.success,
+              ),
+          textAlign: TextAlign.right,
+        );
+
+      case 3: // PDF actions
+        return _buildActions(context, shipment, isMobile: true);
+
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildCell(
@@ -136,45 +203,7 @@ class ShipmentTable extends StatelessWidget {
               );
 
       case 8: // PDF actions
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              tooltip: 'Yuk xati',
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice01, size: 24),
-              color: shipment.pdfUrl != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-              onPressed: shipment.pdfUrl != null
-                  ? () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (_) => PdfViewerPage(
-                            title: 'Yuk xati ${shipment.id}',
-                            pdfUrl: shipment.pdfUrl!,
-                          ),
-                        ),
-                      )
-                  : null,
-            ),
-            IconButton(
-              tooltip: 'Hisob-faktura',
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice02, size: 24),
-              color: shipment.invoiceUrl != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-              onPressed: shipment.invoiceUrl != null
-                  ? () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (_) => PdfViewerPage(
-                            title: 'Hisob-faktura ${shipment.id}',
-                            pdfUrl: shipment.invoiceUrl!,
-                          ),
-                        ),
-                      )
-                  : null,
-            ),
-          ],
-        );
+        return _buildActions(context, shipment, isMobile: false);
 
       default:
         return const SizedBox.shrink();
@@ -187,6 +216,135 @@ class ShipmentTable extends StatelessWidget {
     final d = date.day.toString().padLeft(2, '0');
     final mo = date.month.toString().padLeft(2, '0');
     return '$d.$mo.${date.year} $h:$m';
+  }
+
+  Widget _buildActions(
+    BuildContext context,
+    ShipmentEntity shipment, {
+    required bool isMobile,
+  }) {
+    if (isMobile) {
+      return PopupMenuButton<String>(
+        icon: const HugeIcon(
+          icon: HugeIcons.strokeRoundedMoreVertical,
+        ),
+        surfaceTintColor: AppColors.surface,
+        color: AppColors.surface,
+        enabled: shipment.pdfUrl != null || shipment.invoiceUrl != null,
+        onSelected: (value) {
+          switch (value) {
+            case 'pdf':
+              if (shipment.pdfUrl != null) {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (_) => PdfViewerPage(
+                      title: 'Yuk xati ${shipment.id}',
+                      pdfUrl: shipment.pdfUrl!,
+                    ),
+                  ),
+                );
+              }
+              break;
+            case 'invoice':
+              if (shipment.invoiceUrl != null) {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (_) => PdfViewerPage(
+                      title: 'Hisob-faktura ${shipment.id}',
+                      pdfUrl: shipment.invoiceUrl!,
+                    ),
+                  ),
+                );
+              }
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          if (shipment.pdfUrl != null)
+            PopupMenuItem(
+              value: 'pdf',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedInvoice01,
+                    color: AppColors.primary,
+                    size: 18,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Yuk xati'),
+                ],
+              ),
+            ),
+          if (shipment.invoiceUrl != null)
+            PopupMenuItem(
+              value: 'invoice',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedInvoice02,
+                    color: AppColors.primary,
+                    strokeWidth: 2,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Hisob-faktura'),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionButton(
+          icon: HugeIcon(
+            icon: HugeIcons.strokeRoundedInvoice01,
+            color: shipment.pdfUrl != null
+                ? AppColors.primary
+                : AppColors.textSecondary,
+            size: 22,
+            strokeWidth: 1.5,
+          ),
+          tooltip: 'Yuk xati',
+          color: AppColors.primary,
+          onTap: shipment.pdfUrl != null
+              ? () => Navigator.of(context).push(
+                    CupertinoPageRoute(
+                      builder: (_) => PdfViewerPage(
+                        title: 'Yuk xati ${shipment.id}',
+                        pdfUrl: shipment.pdfUrl!,
+                      ),
+                    ),
+                  )
+              : null,
+        ),
+        _ActionButton(
+          icon: HugeIcon(
+            icon: HugeIcons.strokeRoundedInvoice02,
+            color: shipment.invoiceUrl != null
+                ? AppColors.primary
+                : AppColors.textSecondary,
+            size: 22,
+            strokeWidth: 1.5,
+          ),
+          tooltip: 'Hisob-faktura',
+          color: AppColors.primary,
+          onTap: shipment.invoiceUrl != null
+              ? () => Navigator.of(context).push(
+                    CupertinoPageRoute(
+                      builder: (_) => PdfViewerPage(
+                        title: 'Hisob-faktura ${shipment.id}',
+                        pdfUrl: shipment.invoiceUrl!,
+                      ),
+                    ),
+                  )
+              : null,
+        ),
+      ],
+    );
   }
 }
 
@@ -251,6 +409,37 @@ class _VolumeCell extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onTap,
+  });
+
+  final Widget icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: icon,
+        ),
+      ),
     );
   }
 }

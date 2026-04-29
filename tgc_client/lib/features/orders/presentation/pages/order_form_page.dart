@@ -771,7 +771,6 @@ class _FormItemRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: CountInput(
                   controller: row.quantityCtrl,
-                  dense: true,
                   validator: (v) {
                     if (!row.isFilled) return null;
                     if (v == null || v.trim().isEmpty) return 'Kiriting';

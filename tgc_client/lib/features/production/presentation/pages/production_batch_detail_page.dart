@@ -603,7 +603,7 @@ class _ItemsTable extends StatelessWidget {
               children: [
                 BodyText(
                   text: item.sizeLength != null && item.sizeWidth != null
-                      ? '${item.sizeLength}×${item.sizeWidth}'
+                      ? '${item.sizeWidth}×${item.sizeLength}'
                       : '—',
                   fontWeight: FontWeight.bold,
                 ),

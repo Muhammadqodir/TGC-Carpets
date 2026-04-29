@@ -509,17 +509,16 @@ class _OrderItemTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Builder(builder: (context) {
                   final parts = <String>[
-                    if (item.colorName != null) item.colorName!,
+                    if (item.colorName != null) item.colorName!.toUpperCase(),
                     if (item.sizeLength != null && item.sizeWidth != null)
                       '${item.sizeLength}×${item.sizeWidth}',
                   ];
                   if (parts.isEmpty) return const SizedBox.shrink();
                   return Text(
                     parts.join('  ·  '),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                   );

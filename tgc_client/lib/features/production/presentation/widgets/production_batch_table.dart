@@ -32,7 +32,6 @@ class ProductionBatchTable extends StatelessWidget {
     AppTableColumn(label: 'Holat', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(
         label: 'Reja sanasi', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Mahsulotlar', flex: 1, alignment: Alignment.center),
     AppTableColumn(
         label: 'Jami dona', fixedWidth: 90, alignment: Alignment.center),
     AppTableColumn(
@@ -144,14 +143,6 @@ class ProductionBatchTable extends StatelessWidget {
       case 6:
         return Center(
           child: Text(
-            '${batch.itemsCount}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        );
-
-      case 7:
-        return Center(
-          child: Text(
             '${batch.totalPlannedQuantity}',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
@@ -159,7 +150,7 @@ class ProductionBatchTable extends StatelessWidget {
           ),
         );
 
-      case 8:
+      case 7:
         return Center(
           child: Text(
             batch.totalSqm > 0
@@ -174,7 +165,7 @@ class ProductionBatchTable extends StatelessWidget {
           ),
         );
 
-      case 9:
+      case 8:
         return Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -223,7 +214,7 @@ class ProductionBatchTable extends StatelessWidget {
               text: '#${batch.id} · ${batch.batchTitle}',
               fontWeight: FontWeight.bold,
             ),
-            SubBodyText(
+            BodyText(
               text: [
                 if (batch.plannedDatetime != null)
                   _formatDate(batch.plannedDatetime!),

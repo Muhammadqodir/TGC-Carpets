@@ -18,7 +18,7 @@ class CountInput extends StatelessWidget {
     this.max,
     this.onChanged,
     this.validator,
-    this.dense = false,
+    this.height = 36,
   });
 
   final TextEditingController controller;
@@ -35,8 +35,8 @@ class CountInput extends StatelessWidget {
   /// Optional form validator forwarded to the inner [TextFormField].
   final String? Function(String?)? validator;
 
-  /// When true, renders at 36 px (suitable for data-table rows).
-  final bool dense;
+  //Height
+  final double height;
 
   int get _current => int.tryParse(controller.text) ?? min;
 
@@ -50,11 +50,8 @@ class CountInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = dense ? 36.0 : 38.0;
-    final iconSize = dense ? 14.0 : 18.0;
-
     return Container(
-      height: h,
+      height: height,
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.divider),
         borderRadius: BorderRadius.circular(8),
@@ -67,10 +64,10 @@ class CountInput extends StatelessWidget {
           InkWell(
             onTap: () => _step(-1),
             child: SizedBox(
-              width: h,
+              width: height,
               child: Icon(
                 Icons.remove_rounded,
-                size: iconSize,
+                size: height * 0.5,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -82,7 +79,7 @@ class CountInput extends StatelessWidget {
           // ── Value field ───────────────────────────────────────────────
           Expanded(
             child: Container(
-              height: h,
+              height: height,
               alignment: Alignment.center,
               child: TextFormField(
                 controller: controller,
@@ -94,7 +91,6 @@ class CountInput extends StatelessWidget {
                     ),
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -102,8 +98,7 @@ class CountInput extends StatelessWidget {
                   focusedErrorBorder: InputBorder.none,
                   // In dense / table rows suppress the inline error text;
                   // the parent form's snackbar handles validation feedback.
-                  errorStyle:
-                      dense ? const TextStyle(height: 0, fontSize: 0) : null,
+                  errorStyle: const TextStyle(height: 0, fontSize: 0),
                 ),
                 onChanged: (_) => onChanged?.call(),
                 validator: validator,
@@ -118,10 +113,10 @@ class CountInput extends StatelessWidget {
           InkWell(
             onTap: () => _step(1),
             child: SizedBox(
-              width: h,
+              width: height,
               child: Icon(
                 Icons.add_rounded,
-                size: iconSize,
+                size: height * 0.5,
                 color: AppColors.primary,
               ),
             ),
