@@ -1,13 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 
 import '../../domain/entities/warehouse_document_entity.dart';
 
-/// Warehouse Documents data table that wraps the generic [AppDataTable].
+/// Adaptive warehouse documents table with desktop and mobile layouts.
 class WarehouseDocumentTable extends StatelessWidget {
   const WarehouseDocumentTable({
     super.key,
@@ -31,19 +33,41 @@ class WarehouseDocumentTable extends StatelessWidget {
     AppTableColumn(label: 'PDF', fixedWidth: 80),
   ];
 
+  static const _columnsMobile = <AppTableColumn>[
+    AppTableColumn(label: 'Hujjat', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Hajm', flex: 2, alignment: Alignment.centerLeft),
+    AppTableColumn(label: '', fixedWidth: 40, alignment: Alignment.center),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return AppDataTable<WarehouseDocumentEntity>(
-      items: documents,
-      columns: _columns,
-      scrollController: scrollController,
-      isLoadingMore: isLoadingMore,
-      cellBuilder: (context, document, colIndex) =>
-          _buildCell(context, document, colIndex),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop =
+            constraints.maxWidth >= AppConstants.desktopBreakpoint;
+        final columns = isDesktop ? _columns : _columnsMobile;
+
+        return AppDataTable<WarehouseDocumentEntity>(
+          items: documents,
+          columns: columns,
+          scrollController: scrollController,
+          isLoadingMore: isLoadingMore,
+          cellBuilder: (context, document, colIndex) =>
+              _buildCell(context, document, colIndex, isDesktop),
+        );
+      },
     );
   }
 
-  Widget _buildCell(
+  Widget _buildCell(BuildContext context, WarehouseDocumentEntity document,
+      int colIndex, bool isDesktop) {
+    if (!isDesktop) {
+      return _buildMobileCell(context, document, colIndex);
+    }
+    return _buildDesktopCell(context, document, colIndex);
+  }
+
+  Widget _buildDesktopCell(
       BuildContext context, WarehouseDocumentEntity document, int colIndex) {
     switch (colIndex) {
       case 0: // ID
@@ -132,6 +156,69 @@ class WarehouseDocumentTable extends StatelessWidget {
     }
   }
 
+  Widget _buildMobileCell(
+      BuildContext context, WarehouseDocumentEntity document, int colIndex) {
+    switch (colIndex) {
+      case 0: // Document info
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                _TypeChip(type: document.type),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDateTime(document.documentDate),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              document.userName,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+
+      case 1: // Volume
+        return _VolumeCell(document: document);
+
+      case 2: // PDF icon
+        return Center(
+          child: document.pdfUrl != null
+              ? IconButton(
+                  onPressed: () => Navigator.of(context).push(
+                    CupertinoPageRoute(
+                      builder: (_) => PdfViewerPage(
+                        pdfUrl: document.pdfUrl!,
+                        title: 'Hujjat №${document.id}',
+                      ),
+                    ),
+                  ),
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedPdf01,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                )
+              : const SizedBox.shrink(),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   String _formatDateTime(DateTime date) {
     final timeStr =
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -153,19 +240,9 @@ class _TypeChip extends StatelessWidget {
       _ => (type, AppColors.textSecondary),
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
+    return AppBadge(
+      label: label,
+      color: color,
     );
   }
 }
@@ -179,27 +256,14 @@ class _VolumeCell extends StatelessWidget {
   Widget build(BuildContext context) {
     // Calculate total pieces and square meters
     int totalPieces = 0;
-    double totalM2 = 0;
+    double totalSqm = 0;
 
     for (final item in document.items) {
-      if (item.productUnit == 'piece') {
-        totalPieces += item.quantity;
-      } else if (item.productUnit == 'm2') {
-        totalM2 += item.quantity;
+      totalPieces += item.quantity;
+      // Calculate sqm only if dimensions are available (length and width in cm)
+      if (item.length != null && item.width != null) {
+        totalSqm += item.quantity * item.length! * item.width! / 10000.0;
       }
-    }
-
-    final parts = <String>[];
-    if (totalPieces > 0) parts.add('$totalPieces dona');
-    if (totalM2 > 0) parts.add('${totalM2.toStringAsFixed(1)} m²');
-
-    if (parts.isEmpty) {
-      return Text(
-        '—',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-      );
     }
 
     return Column(
@@ -207,14 +271,14 @@ class _VolumeCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          parts.join(' • '),
+          '${totalSqm.toStringAsFixed(2)} m²',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
         ),
         const SizedBox(height: 2),
         Text(
-          '${document.items.length} mahsulot',
+          "${totalPieces} dona",
           style: Theme.of(context).textTheme.bodySmall?.copyWith(),
         ),
       ],

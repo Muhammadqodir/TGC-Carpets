@@ -117,7 +117,7 @@ class WarehouseItemRow {
   /// Formatted size dimensions from prefill.
   String? get prefilledSizeDimensions =>
       prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength×$prefilledSizeWidth'
+          ? '$prefilledSizeWidth×$prefilledSizeLength'
           : null;
 
   void dispose() {

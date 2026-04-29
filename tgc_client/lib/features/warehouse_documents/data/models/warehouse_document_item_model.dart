@@ -9,6 +9,8 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
     super.productUnit,
     super.productSizeId,
     super.productSizeLabel,
+    super.length,
+    super.width,
     super.colorId,
     super.colorName,
     required super.quantity,
@@ -32,6 +34,8 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
       productSizeLabel: sizeMap != null
           ? '${sizeMap['length']}x${sizeMap['width']}'
           : null,
+      length: sizeMap?['length'] as int?,
+      width: sizeMap?['width'] as int?,
       colorId: colorMap?['id'] as int?,
       colorName: colorMap?['name'] as String?,
       quantity: json['quantity'] as int,

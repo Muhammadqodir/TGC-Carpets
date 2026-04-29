@@ -11,7 +11,6 @@ import '../../features/warehouse_documents/presentation/pages/warehouse_document
 import '../../features/warehouse_documents/presentation/pages/add_warehouse_document_page.dart';
 import '../../features/warehouse_documents/presentation/pages/warehouse_document_preview_page.dart';
 import '../../features/warehouse_documents/presentation/pages/args/warehouse_document_preview_args.dart';
-import '../../features/labeling/presentation/args/print_labels_args.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/employees/presentation/pages/add_employee_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';

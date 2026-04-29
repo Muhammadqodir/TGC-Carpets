@@ -91,6 +91,7 @@ class CountInput extends StatelessWidget {
                     ),
                 decoration: InputDecoration(
                   isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
