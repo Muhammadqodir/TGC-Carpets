@@ -138,7 +138,8 @@ class _PreviewViewState extends State<_PreviewView> {
                 right: 12,
                 child: SafeArea(
                   top: false,
-                  child: Expanded(
+                  child: SizedBox(
+                    width: double.infinity,
                     child: FilledButton(
                       onPressed: _isProcessing ? null : _submit,
                       style: FilledButton.styleFrom(
@@ -170,7 +171,9 @@ class _PreviewViewState extends State<_PreviewView> {
               // ── Processing overlay ─────────────────────────────────────
               if (_isProcessing)
                 const ModalBarrier(
-                    dismissible: false, color: Colors.transparent),
+                  dismissible: false,
+                  color: Colors.transparent,
+                ),
             ],
           ),
         ),
@@ -516,6 +519,7 @@ class _TableRow extends StatelessWidget {
           ),
           !isDesktop
               ? Expanded(
+                  flex: 3,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

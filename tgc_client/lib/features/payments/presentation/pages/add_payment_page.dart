@@ -14,19 +14,23 @@ import '../bloc/payment_form_state.dart';
 
 /// Full-screen dialog for logging a new payment.
 class AddPaymentPage extends StatelessWidget {
-  const AddPaymentPage({super.key});
+  const AddPaymentPage({super.key, this.initialClient});
+
+  final ClientEntity? initialClient;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<PaymentFormBloc>(),
-      child: const _AddPaymentView(),
+      child: _AddPaymentView(initialClient: initialClient),
     );
   }
 }
 
 class _AddPaymentView extends StatefulWidget {
-  const _AddPaymentView();
+  const _AddPaymentView({this.initialClient});
+
+  final ClientEntity? initialClient;
 
   @override
   State<_AddPaymentView> createState() => _AddPaymentViewState();
@@ -41,6 +45,15 @@ class _AddPaymentViewState extends State<_AddPaymentView> {
   OrderEntity? _selectedOrder;
   List<OrderEntity> _clientOrders = [];
   bool _loadingOrders = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialClient != null) {
+      _selectedClient = widget.initialClient;
+      _loadOrders(widget.initialClient!.id);
+    }
+  }
 
   @override
   void dispose() {

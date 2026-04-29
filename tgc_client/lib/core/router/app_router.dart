@@ -209,7 +209,10 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.addPayment,
             name: AppRoutes.addPaymentName,
-            builder: (context, state) => const AddPaymentPage(),
+            builder: (context, state) {
+              final client = state.extra as ClientEntity?;
+              return AddPaymentPage(initialClient: client);
+            },
           ),
           GoRoute(
             path: AppRoutes.debits,
