@@ -67,7 +67,7 @@ class DebitSummaryTable extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                client.shopName,
+                client.shopName ?? '—',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -89,7 +89,7 @@ class DebitSummaryTable extends StatelessWidget {
 
       case 2:
         return Text(
-          client.region,
+          client.region ?? '—',
           style: theme.textTheme.bodyMedium,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

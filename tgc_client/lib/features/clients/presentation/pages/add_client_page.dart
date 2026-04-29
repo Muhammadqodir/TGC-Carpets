@@ -3,24 +3,33 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/client_form_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/client_form_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/client_form_state.dart';
 
+/// Full-screen page for adding or editing a client.
 class AddClientPage extends StatelessWidget {
-  const AddClientPage({super.key});
+  const AddClientPage({super.key, this.client});
+
+  final ClientEntity? client;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<ClientFormBloc>(),
-      child: const _AddClientView(),
+      child: _AddClientView(
+        key: client != null ? ValueKey(client!.id) : null,
+        client: client,
+      ),
     );
   }
 }
 
 class _AddClientView extends StatefulWidget {
-  const _AddClientView();
+  const _AddClientView({super.key, this.client});
+
+  final ClientEntity? client;
 
   @override
   State<_AddClientView> createState() => _AddClientViewState();
@@ -37,6 +46,20 @@ class _AddClientViewState extends State<_AddClientView> {
   final _notesCtrl = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    final c = widget.client;
+    if (c != null) {
+      _shopNameCtrl.text = c.shopName;
+      _regionCtrl.text = c.region;
+      _addressCtrl.text = c.address ?? '';
+      _contactNameCtrl.text = c.contactName ?? '';
+      _phoneCtrl.text = c.phone ?? '';
+      _notesCtrl.text = c.notes ?? '';
+    }
+  }
+
+  @override
   void dispose() {
     _contactNameCtrl.dispose();
     _phoneCtrl.dispose();
@@ -50,30 +73,64 @@ class _AddClientViewState extends State<_AddClientView> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    context.read<ClientFormBloc>().add(
-          ClientFormSubmitted(
-            contactName: _contactNameCtrl.text.trim(),
-            phone: _phoneCtrl.text.trim(),
-            shopName: _shopNameCtrl.text.trim(),
-            region: _regionCtrl.text.trim(),
-            address: _addressCtrl.text.trim().isEmpty
-                ? null
-                : _addressCtrl.text.trim(),
-            notes:
-                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-          ),
-        );
+    final clientId = widget.client?.id;
+
+    if (clientId != null) {
+      context.read<ClientFormBloc>().add(
+            ClientFormUpdateSubmitted(
+              clientId: clientId,
+              contactName: _contactNameCtrl.text.trim().isEmpty
+                  ? null
+                  : _contactNameCtrl.text.trim(),
+              phone: _phoneCtrl.text.trim().isEmpty
+                  ? null
+                  : _phoneCtrl.text.trim(),
+              shopName: _shopNameCtrl.text.trim(),
+              region: _regionCtrl.text.trim(),
+              address: _addressCtrl.text.trim().isEmpty
+                  ? null
+                  : _addressCtrl.text.trim(),
+              notes: _notesCtrl.text.trim().isEmpty
+                  ? null
+                  : _notesCtrl.text.trim(),
+            ),
+          );
+    } else {
+      context.read<ClientFormBloc>().add(
+            ClientFormSubmitted(
+              contactName: _contactNameCtrl.text.trim().isEmpty
+                  ? null
+                  : _contactNameCtrl.text.trim(),
+              phone: _phoneCtrl.text.trim().isEmpty
+                  ? null
+                  : _phoneCtrl.text.trim(),
+              shopName: _shopNameCtrl.text.trim(),
+              region: _regionCtrl.text.trim(),
+              address: _addressCtrl.text.trim().isEmpty
+                  ? null
+                  : _addressCtrl.text.trim(),
+              notes: _notesCtrl.text.trim().isEmpty
+                  ? null
+                  : _notesCtrl.text.trim(),
+            ),
+          );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.client != null;
+
     return BlocListener<ClientFormBloc, ClientFormState>(
       listener: (context, state) {
         if (state is ClientFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  '"${state.client.shopName}" mijozi muvaffaqiyatli qo\'shildi.'),
+                isEditing
+                    ? '"${state.client.shopName}" yangilandi.'
+                    : '"${state.client.shopName}" mijozi yaratildi.',
+              ),
               backgroundColor: AppColors.success,
             ),
           );
@@ -89,7 +146,7 @@ class _AddClientViewState extends State<_AddClientView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Mijoz qo\'shish'),
+          title: Text(isEditing ? 'Mijozni tahrirlash' : 'Mijoz qo\'shish'),
           leading: IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
@@ -126,17 +183,15 @@ class _AddClientViewState extends State<_AddClientView> {
               const SizedBox(height: 12),
               _Field(
                 controller: _contactNameCtrl,
-                label: 'Ism-familiya',
+                label: 'Ism-familiya (ixtiyoriy)',
                 hint: 'masalan: Firdavs Toshmatov',
-                validator: _required,
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _phoneCtrl,
-                label: 'Telefon raqam',
+                label: 'Telefon raqam (ixtiyoriy)',
                 hint: '+998901234567',
                 keyboardType: TextInputType.phone,
-                validator: _requiredPhone,
               ),
               const SizedBox(height: 24),
               _SectionHeader(title: 'Qo\'shimcha'),
@@ -180,16 +235,6 @@ class _AddClientViewState extends State<_AddClientView> {
   String? _required(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Bu maydon majburiy.';
-    }
-    return null;
-  }
-
-  String? _requiredPhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Telefon raqam majburiy.';
-    }
-    if (value.trim().length < 9) {
-      return 'To\'g\'ri telefon raqam kiriting.';
     }
     return null;
   }

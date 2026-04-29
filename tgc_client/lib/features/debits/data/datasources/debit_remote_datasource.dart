@@ -86,14 +86,14 @@ class DebitRemoteDataSourceImpl implements DebitRemoteDataSource {
       // so we synthesise them from the summary.
       final clientModel = ClientDebitModel(
         id:          rawClient['id'] as int,
-        uuid:        rawClient['uuid'] as String,
-        contactName: rawClient['contact_name'] as String,
-        phone:       rawClient['phone'] as String,
-        shopName:    rawClient['shop_name'] as String,
-        region:      rawClient['region'] as String,
-        totalDebit:  (rawSummary['total_debit'] as num).toDouble(),
-        totalCredit: (rawSummary['total_credit'] as num).toDouble(),
-        balance:     (rawSummary['balance'] as num).toDouble(),
+        uuid:        rawClient['uuid'] as String?,
+        contactName: rawClient['contact_name'] as String?,
+        phone:       rawClient['phone'] as String?,
+        shopName:    rawClient['shop_name'] as String?,
+        region:      rawClient['region'] as String?,
+        totalDebit:  (rawSummary['total_debit'] as num?)?.toDouble() ?? 0.0,
+        totalCredit: (rawSummary['total_credit'] as num?)?.toDouble() ?? 0.0,
+        balance:     (rawSummary['balance'] as num?)?.toDouble() ?? 0.0,
       );
 
       final summary = <String, double>{

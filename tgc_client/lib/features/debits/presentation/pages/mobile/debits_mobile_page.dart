@@ -191,7 +191,7 @@ class _ClientDebitCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      client.shopName,
+                      client.shopName ?? '—',
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -219,8 +219,8 @@ class _ClientDebitCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 client.contactName != null
-                    ? '${client.contactName} • ${client.region}'
-                    : client.region,
+                    ? '${client.contactName} • ${client.region ?? "—"}'
+                    : client.region ?? '—',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),

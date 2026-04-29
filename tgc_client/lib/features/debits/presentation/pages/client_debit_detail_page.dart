@@ -38,7 +38,7 @@ class _ClientDebitDetailView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(client.shopName),
+        title: Text(client.shopName ?? '—'),
         titleSpacing: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
@@ -259,7 +259,7 @@ class _ClientInfoBar extends StatelessWidget {
               size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Text(
-            client.shopName,
+            client.shopName ?? '—',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
@@ -279,7 +279,7 @@ class _ClientInfoBar extends StatelessWidget {
           Icon(Icons.location_on_outlined,
               size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(client.region,
+          Text(client.region ?? '—',
               style: theme.textTheme.bodyMedium),
         ],
       ),

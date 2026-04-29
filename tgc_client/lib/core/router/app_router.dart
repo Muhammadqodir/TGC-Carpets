@@ -5,6 +5,7 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/products/domain/entities/product_entity.dart';
 import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/products/presentation/pages/add_product_page.dart';
+import '../../features/clients/domain/entities/client_entity.dart';
 import '../../features/clients/presentation/pages/clients_page.dart';
 import '../../features/clients/presentation/pages/add_client_page.dart';
 import '../../features/warehouse_documents/presentation/pages/warehouse_documents_page.dart';
@@ -83,7 +84,9 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.addClient,
             name: AppRoutes.addClientName,
-            builder: (context, state) => const AddClientPage(),
+            builder: (context, state) => AddClientPage(
+              client: state.extra as ClientEntity?,
+            ),
           ),
           GoRoute(
             path: AppRoutes.warehouse,
