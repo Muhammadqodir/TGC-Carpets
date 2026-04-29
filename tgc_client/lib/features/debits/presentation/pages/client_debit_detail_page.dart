@@ -98,16 +98,17 @@ class _ClientDebitDetailView extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+
+                // ── Client info ─────────────────────────────────────────
+                _ClientInfoBar(client: client),
+                const Divider(height: 1, color: AppColors.divider),
+                
                 // ── Summary cards ───────────────────────────────────────
                 _SummaryRow(
                   totalDebit:  data.totalDebit,
                   totalCredit: data.totalCredit,
                   balance:     data.balance,
                 ),
-                const Divider(height: 1, color: AppColors.divider),
-
-                // ── Client info ─────────────────────────────────────────
-                _ClientInfoBar(client: client),
                 const Divider(height: 1, color: AppColors.divider),
 
                 // ── Ledger table ────────────────────────────────────────

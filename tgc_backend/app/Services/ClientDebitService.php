@@ -113,13 +113,13 @@ class ClientDebitService
             $entries[] = [
                 'type'      => 'shipment',
                 'date'      => $shipment->shipment_datetime?->toISOString(),
-                'reference' => 'Shipment #'.$shipment->id,
+                'reference' => 'Hisob faktura #'.$shipment->id,
                 'notes'     => $shipment->notes,
                 'debit'     => round($total, 2),
                 'credit'    => 0.0,
                 'source_id' => $shipment->id,
-                'pdf_url'   => $shipment->pdf_path
-                    ? Storage::disk('public')->url($shipment->pdf_path)
+                'pdf_url'   => $shipment->invoice_path
+                    ? Storage::disk('public')->url($shipment->invoice_path)
                     : null,
             ];
         }
@@ -133,7 +133,7 @@ class ClientDebitService
             $entries[] = [
                 'type'      => 'payment',
                 'date'      => $payment->created_at?->toISOString(),
-                'reference' => 'Payment #'.$payment->id,
+                'reference' => 'To\'lov #'.$payment->id,
                 'notes'     => $payment->notes,
                 'debit'     => 0.0,
                 'credit'    => round((float) $payment->amount, 2),

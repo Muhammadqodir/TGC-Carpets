@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
+import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 
 import '../../domain/entities/debit_ledger_entry_entity.dart';
 
@@ -74,7 +75,7 @@ class _HeaderRow extends StatelessWidget {
         children: [
           Expanded(flex: 2, child: Text('Sana', style: style)),
           Expanded(flex: 1, child: Text('Tur', style: style)),
-          Expanded(flex: 3, child: Text('Ma\'lumoт', style: style)),
+          Expanded(flex: 3, child: Text('Ma\'lumot', style: style)),
           Expanded(
               flex: 2,
               child: Text('Yuklama (\$)',
@@ -140,25 +141,25 @@ class _LedgerRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (entry.pdfUrl != null)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: HugeIcon(
-                      icon: HugeIcons.strokeRoundedPdf01,
-                      size: 16,
-                    ),
-                    label: Text(
-                      entry.reference,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onPressed: () {
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    // padding: EdgeInsets.zero,
+                    // minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedPdf01,
+                    size: 16,
+                  ),
+                  label: Text(
+                    entry.reference,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () {
+                    if (isShipment) {
                       Navigator.of(context).push(
                         CupertinoPageRoute(
                           builder: (context) => PdfViewerPage(
@@ -167,26 +168,9 @@ class _LedgerRow extends StatelessWidget {
                           ),
                         ),
                       );
-                    },
-                  )
-                else
-                  Text(
-                    entry.reference,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (entry.notes != null && entry.notes!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    entry.notes!,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    }
+                  },
+                )
               ],
             ),
           ),
@@ -245,21 +229,13 @@ class _TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: (isShipment ? AppColors.error : AppColors.success)
-            .withOpacity(0.12),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        isShipment ? 'Yuklama' : "To'lov",
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isShipment ? AppColors.error : AppColors.success,
-              fontWeight: FontWeight.w700,
-            ),
-        textAlign: TextAlign.center,
-      ),
+    return Row(
+      children: [
+        AppBadge(
+          color: isShipment ? AppColors.error : AppColors.success,
+          label: isShipment ? 'Yuklama' : "To'lov",
+        )
+      ],
     );
   }
 }
