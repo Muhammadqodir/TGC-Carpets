@@ -332,8 +332,12 @@ class WarehouseDocumentService
 
         foreach ($eligibleOrders as $order) {
             // An order is fulfilled when every order_item has enough warehouse_received_quantity
+            // Sum ALL productionBatchItems (including from cancelled batches) because
+            // physical items exist regardless of batch status.
             $allFulfilled = $order->items->every(function (OrderItem $orderItem): bool {
-                $received = $orderItem->productionBatchItems->sum('warehouse_received_quantity');
+                // Explicitly load all production batch items without filters
+                $received = ProductionBatchItem::where('source_order_item_id', $orderItem->id)
+                    ->sum('warehouse_received_quantity');
 
                 return $received >= $orderItem->quantity;
             });

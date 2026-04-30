@@ -104,7 +104,9 @@ class _ProductionBatchPickerBottomSheetState
       _batchesError = null;
     });
     final useCase = sl<GetProductionBatchesUseCase>();
-    // Only completed and in_progress batches have produced quantities.
+    // Fetch batches that have unreceived produced items.
+    // Backend already filters with exclude_warehouse_received=true.
+    // Includes cancelled batches because their produced items still exist physically.
     final result = await useCase(
       perPage: 100,
       excludeWarehouseReceived: true,
@@ -116,9 +118,7 @@ class _ProductionBatchPickerBottomSheetState
         _isLoadingBatches = false;
       }),
       (page) {
-        var data = page.data
-            .where((b) => b.status == 'completed' || b.status == 'in_progress')
-            .toList();
+        var data = page.data;
         if (query.isNotEmpty) {
           final q = query.toLowerCase();
           data = data

@@ -60,6 +60,8 @@ class ShipmentController extends Controller
     /**
      * Return orders with status on_production or done, with their items
      * and current warehouse stock per variant. Used to pre-fill shipment form.
+     * Also includes pending/planned orders that have warehouse-received items
+     * (handles cancelled batches with received production).
      */
     public function ordersForShipment(Request $request): AnonymousResourceCollection
     {
@@ -72,7 +74,18 @@ class ShipmentController extends Controller
                 'items.shipmentItems',
                 'items.productionBatchItems.productionBatch',
             ])
-            ->whereIn('status', [Order::STATUS_ON_PRODUCTION, Order::STATUS_DONE])
+            ->where(function ($q) {
+                // Include on_production and done orders
+                $q->whereIn('status', [Order::STATUS_ON_PRODUCTION, Order::STATUS_DONE])
+                  // Also include pending/planned orders that have warehouse-received items
+                  // (e.g., when batch was cancelled but items were produced and received)
+                  ->orWhere(function ($subQ) {
+                      $subQ->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED])
+                           ->whereHas('items.productionBatchItems', fn ($pq) =>
+                               $pq->where('warehouse_received_quantity', '>', 0)
+                           );
+                  });
+            })
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->latest('order_date')
             ->paginate($request->integer('per_page', 50));
