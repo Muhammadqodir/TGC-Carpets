@@ -105,21 +105,24 @@ class ShipmentService
         });
 
         // Generate PDFs outside transaction to avoid memory buildup
+        // Clear loaded relations before PDF generation to prevent memory issues
         try {
-            $this->generateAndStoreInvoice($shipment);
+            $this->generateAndStoreInvoice($shipment->id);
         } catch (\Exception $e) {
             \Log::error('Failed to generate shipment invoice', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
 
         try {
-            $this->generateAndStoreHisobFaktura($shipment);
+            $this->generateAndStoreHisobFaktura($shipment->id);
         } catch (\Exception $e) {
             \Log::error('Failed to generate hisob faktura', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
 
@@ -137,81 +140,105 @@ class ShipmentService
             }
         }
 
-        return $shipment->refresh()->load([
-            'client',
-            'user',
-            'items.variant.productColor.product.productQuality',
-            'items.variant.productColor.color',
-            'items.variant.productSize',
-        ]);
+        // Return fresh instance with minimal relations to avoid memory issues
+        return Shipment::with([
+            'client:id,name,phone',
+            'user:id,name',
+        ])->find($shipment->id);
     }
 
     /**
      * Generate the shipment invoice PDF, persist it to storage, and update
      * the shipment record with the stored path.
      */
-    public function generateAndStoreInvoice(Shipment $shipment): void
+    public function generateAndStoreInvoice(int $shipmentId): void
     {
-        // Reload only necessary relations to avoid memory issues
-        $shipment->loadMissing([
-            'client',
-            'items.variant.productColor.product.productQuality',
-            'items.variant.productSize',
-        ]);
+        // Load fresh instance with only minimal required data to avoid memory issues
+        $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
+            ->with([
+                'client:id,name,phone,address',
+                'items' => function ($q) {
+                    $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
+                },
+                'items.variant:id,product_color_id,product_size_id',
+                'items.variant.productColor:id,product_id,color_id',
+                'items.variant.productColor.product:id,name,product_quality_id',
+                'items.variant.productColor.product.productQuality:id,name',
+                'items.variant.productSize:id,name',
+            ])
+            ->findOrFail($shipmentId);
 
         $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'dpi' => 130,
+                'dpi' => 96, // Reduced DPI to save memory
                 'defaultFont' => 'sans-serif',
-                'isRemoteEnabled' => false, // Prevent remote resource loading
+                'isRemoteEnabled' => false,
+                'chroot' => storage_path('app'),
             ]);
 
-        $relativePath = 'shipments/invoices/invoice_' . $shipment->id . '.pdf';
+        $relativePath = 'shipments/invoices/invoice_' . $shipmentId . '.pdf';
 
         Storage::disk('public')->put($relativePath, $pdf->output());
 
-        $shipment->update(['pdf_path' => $relativePath]);
+        Shipment::where('id', $shipmentId)->update(['pdf_path' => $relativePath]);
+
+        // Clear memory
+        unset($shipment, $pdf);
+        gc_collect_cycles();
     }
 
     /**
      * Generate the hisob-faktura (price invoice) PDF with price_per_unit and
      * total price columns, persist it, and update invoice_path on the shipment.
      */
-    public function generateAndStoreHisobFaktura(Shipment $shipment): void
+    public function generateAndStoreHisobFaktura(int $shipmentId): void
     {
-        // Reload only necessary relations to avoid memory issues
-        $shipment->loadMissing([
-            'client',
-            'items.variant.productColor.product.productQuality',
-            'items.variant.productColor.color',
-            'items.variant.productSize',
-        ]);
-
         // Check if view exists
         if (!view()->exists('pdf.shipment_hisob_faktura')) {
-            \Log::error('Hisob faktura view not found', ['shipment_id' => $shipment->id]);
+            \Log::error('Hisob faktura view not found', ['shipment_id' => $shipmentId]);
             throw new \Exception('Hisob faktura template not found');
         }
+
+        // Load fresh instance with only minimal required data to avoid memory issues
+        $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
+            ->with([
+                'client:id,name,phone,address',
+                'items' => function ($q) {
+                    $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
+                },
+                'items.variant:id,product_color_id,product_size_id',
+                'items.variant.productColor:id,product_id,color_id',
+                'items.variant.productColor.product:id,name,product_quality_id',
+                'items.variant.productColor.product.productQuality:id,name',
+                'items.variant.productColor.color:id,name',
+                'items.variant.productSize:id,name',
+            ])
+            ->findOrFail($shipmentId);
 
         $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'dpi' => 130,
+                'dpi' => 96, // Reduced DPI to save memory
                 'defaultFont' => 'sans-serif',
-                'isRemoteEnabled' => false, // Prevent remote resource loading
+                'isRemoteEnabled' => false,
+                'chroot' => storage_path('app'),
             ]);
 
-        $relativePath = 'shipments/hisob_faktura/faktura_' . $shipment->id . '.pdf';
+        $relativePath = 'shipments/hisob_faktura/faktura_' . $shipmentId . '.pdf';
 
         Storage::disk('public')->put($relativePath, $pdf->output());
 
-        $shipment->update(['invoice_path' => $relativePath]);
+        Shipment::where('id', $shipmentId)->update(['invoice_path' => $relativePath]);
 
         \Log::info('Hisob faktura generated successfully', [
-            'shipment_id' => $shipment->id,
+            'shipment_id' => $shipmentId,
             'path' => $relativePath,
         ]);
+
+        // Clear memory
+        unset($shipment, $pdf);
+        gc_collect_cycles();
     }
 
     /**
