@@ -13,6 +13,7 @@ class OrderItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Calculate how much of this item is already planned in non-cancelled batches.
+        // Only exclude cancelled batches from planning (future items).
         $plannedQty = $this->whenLoaded('productionBatchItems', function () {
             return (int) $this->productionBatchItems
                 ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
@@ -25,29 +26,22 @@ class OrderItemResource extends JsonResource
             return (int) $this->shipmentItems->sum('quantity');
         }, 0);
 
+        // Include ALL produced items, even from cancelled batches.
+        // These are physical items that exist and should be accounted for.
         $producedQty = $this->whenLoaded('productionBatchItems', function () {
-            return (int) $this->productionBatchItems
-                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
-                    ? $pbi->productionBatch->status !== 'cancelled'
-                    : true)
-                ->sum('produced_quantity');
+            return (int) $this->productionBatchItems->sum('produced_quantity');
         }, 0);
 
+        // Include ALL warehouse-received items, even from cancelled batches.
+        // These are physical items in the warehouse.
         $warehouseReceivedQty = $this->whenLoaded('productionBatchItems', function () {
-            return (int) $this->productionBatchItems
-                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
-                    ? $pbi->productionBatch->status !== 'cancelled'
-                    : true)
-                ->sum('warehouse_received_quantity');
+            return (int) $this->productionBatchItems->sum('warehouse_received_quantity');
         }, 0);
 
-        // Defective items must be re-produced, so they count toward remaining.
+        // Include ALL defects, even from cancelled batches.
+        // These are physical defective items that were produced.
         $defectQty = $this->whenLoaded('productionBatchItems', function () {
-            return (int) $this->productionBatchItems
-                ->filter(fn ($pbi) => $pbi->relationLoaded('productionBatch')
-                    ? $pbi->productionBatch->status !== 'cancelled'
-                    : true)
-                ->sum('defect_quantity');
+            return (int) $this->productionBatchItems->sum('defect_quantity');
         }, 0);
 
         // Calculate current warehouse stock for this variant

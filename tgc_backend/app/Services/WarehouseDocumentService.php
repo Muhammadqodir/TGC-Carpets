@@ -240,7 +240,8 @@ class WarehouseDocumentService
 
     /**
      * FIFO: distribute received quantity across production batch items for a variant.
-     * Only targets completed/in_progress batches that still have unaccounted produced goods.
+     * Targets batches with produced items that haven't been received yet.
+     * Includes cancelled batches because produced items still exist physically.
      */
     private function creditProductionBatchItems(int $variantId, int $quantity): void
     {
@@ -249,8 +250,7 @@ class WarehouseDocumentService
         }
 
         $batchItems = ProductionBatchItem::where('product_variant_id', $variantId)
-            ->whereHas('productionBatch', fn ($q) => $q->whereIn('status', ['completed', 'in_progress']))
-            ->whereRaw('(produced_quantity - warehouse_received_quantity) > 0')
+            ->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
