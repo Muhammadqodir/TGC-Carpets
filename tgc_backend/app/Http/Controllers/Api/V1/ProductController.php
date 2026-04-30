@@ -53,7 +53,7 @@ class ProductController extends Controller
         return DB::table('stock_movements')
             ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
             ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
-            ->selectRaw('COALESCE(SUM(CASE WHEN movement_type IN ("in", "return") THEN quantity ELSE -quantity END), 0)')
+            ->selectRaw('COALESCE(SUM(CASE WHEN movement_type = "in" THEN quantity ELSE -quantity END), 0)')
             ->whereColumn('product_colors.product_id', 'products.id');
     }
 

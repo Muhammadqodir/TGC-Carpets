@@ -286,11 +286,11 @@ class ShipmentService
         $base = StockMovement::where('product_variant_id', $variantId);
 
         $in  = (clone $base)
-            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->where('movement_type', StockMovement::TYPE_IN)
             ->sum('quantity');
 
         $out = (clone $base)
-            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->where('movement_type', StockMovement::TYPE_OUT)
             ->sum('quantity');
 
         return (int) ($in - $out);

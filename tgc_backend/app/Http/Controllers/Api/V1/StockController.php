@@ -25,14 +25,14 @@ class StockController extends Controller
             ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
             ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
             ->selectRaw('COALESCE(SUM(quantity), 0)')
-            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->where('movement_type', StockMovement::TYPE_IN)
             ->whereColumn('product_colors.product_id', 'products.id');
 
         $stockOut = DB::table('stock_movements')
             ->join('product_variants', 'product_variants.id', '=', 'stock_movements.product_variant_id')
             ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
             ->selectRaw('COALESCE(SUM(quantity), 0)')
-            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->where('movement_type', StockMovement::TYPE_OUT)
             ->whereColumn('product_colors.product_id', 'products.id');
 
         $query = Product::withTrashed(false)
@@ -90,8 +90,8 @@ class StockController extends Controller
         // Correlated sub-query: net warehouse stock per variant
         $qtyWarehouse = DB::table('stock_movements as sm')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN sm.movement_type IN (?, ?) THEN sm.quantity ELSE -sm.quantity END), 0)',
-                [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN]
+                'COALESCE(SUM(CASE WHEN sm.movement_type = ? THEN sm.quantity ELSE -sm.quantity END), 0)',
+                [StockMovement::TYPE_IN]
             )
             ->whereColumn('sm.product_variant_id', 'product_variants.id');
 

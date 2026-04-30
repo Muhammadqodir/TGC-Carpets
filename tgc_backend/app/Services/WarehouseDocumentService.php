@@ -146,11 +146,23 @@ class WarehouseDocumentService
                 'notes'              => $itemData['notes'] ?? null,
             ]);
 
+            // Map warehouse document types to stock movement types
+            // 'in' → 'in' (stock coming into warehouse)
+            // 'out' → 'out' (stock leaving warehouse)
+            // 'return' → 'in' (returned items add back to stock)
+            // 'adjustment' → 'in' (inventory corrections typically add stock)
+            $movementType = match ($document->type) {
+                WarehouseDocument::TYPE_IN,
+                WarehouseDocument::TYPE_RETURN,
+                WarehouseDocument::TYPE_ADJUSTMENT => StockMovement::TYPE_IN,
+                WarehouseDocument::TYPE_OUT        => StockMovement::TYPE_OUT,
+            };
+
             StockMovement::create([
                 'product_variant_id'         => $variant->id,
                 'warehouse_document_item_id' => $item->id,
                 'user_id'                    => $userId,
-                'movement_type'              => $document->type,
+                'movement_type'              => $movementType,
                 'quantity'                   => $itemData['quantity'],
                 'movement_date'              => $document->document_date,
                 'notes'                      => $document->notes,
@@ -164,12 +176,18 @@ class WarehouseDocumentService
 
     private function reverseMovements(WarehouseDocument $document, int $userId): void
     {
-        $reverseType = match ($document->type) {
-            WarehouseDocument::TYPE_IN         => WarehouseDocument::TYPE_OUT,
-            WarehouseDocument::TYPE_OUT        => WarehouseDocument::TYPE_IN,
-            WarehouseDocument::TYPE_RETURN     => WarehouseDocument::TYPE_OUT,
-            WarehouseDocument::TYPE_ADJUSTMENT => WarehouseDocument::TYPE_ADJUSTMENT,
+        // Determine the original movement type that was created
+        $originalMovementType = match ($document->type) {
+            WarehouseDocument::TYPE_IN,
+            WarehouseDocument::TYPE_RETURN,
+            WarehouseDocument::TYPE_ADJUSTMENT => StockMovement::TYPE_IN,
+            WarehouseDocument::TYPE_OUT        => StockMovement::TYPE_OUT,
         };
+
+        // Reverse: 'in' becomes 'out' and vice versa
+        $reverseType = $originalMovementType === StockMovement::TYPE_IN
+            ? StockMovement::TYPE_OUT
+            : StockMovement::TYPE_IN;
 
         foreach ($document->items as $item) {
             StockMovement::create([
@@ -228,11 +246,11 @@ class WarehouseDocumentService
         $base = StockMovement::where('product_variant_id', $variantId);
 
         $in  = (clone $base)
-            ->whereIn('movement_type', [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN])
+            ->where('movement_type', StockMovement::TYPE_IN)
             ->sum('quantity');
 
         $out = (clone $base)
-            ->where('movement_type', WarehouseDocument::TYPE_OUT)
+            ->where('movement_type', StockMovement::TYPE_OUT)
             ->sum('quantity');
 
         return (int) ($in - $out);

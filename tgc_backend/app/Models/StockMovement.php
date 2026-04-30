@@ -11,16 +11,12 @@ class StockMovement extends Model
 {
     use HasFactory;
 
-    const TYPE_IN         = 'in';
-    const TYPE_OUT        = 'out';
-    const TYPE_ADJUSTMENT = 'adjustment';
-    const TYPE_RETURN     = 'return';
+    const TYPE_IN  = 'in';
+    const TYPE_OUT = 'out';
 
     const TYPES = [
         self::TYPE_IN,
         self::TYPE_OUT,
-        self::TYPE_ADJUSTMENT,
-        self::TYPE_RETURN,
     ];
 
     protected $fillable = [
@@ -61,7 +57,7 @@ class StockMovement extends Model
      */
     public function isIncoming(): bool
     {
-        return in_array($this->movement_type, [self::TYPE_IN, self::TYPE_RETURN], true);
+        return $this->movement_type === self::TYPE_IN;
     }
 
     /**

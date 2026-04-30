@@ -39,8 +39,8 @@ class DashboardController extends Controller
         // Current warehouse stock: net of all stock movements
         $warehouseStock = DB::table('stock_movements')
             ->selectRaw(
-                'COALESCE(SUM(CASE WHEN movement_type IN (?, ?) THEN quantity ELSE -quantity END), 0) as net',
-                [WarehouseDocument::TYPE_IN, WarehouseDocument::TYPE_RETURN]
+                'COALESCE(SUM(CASE WHEN movement_type = ? THEN quantity ELSE -quantity END), 0) as net',
+                [StockMovement::TYPE_IN]
             )
             ->value('net') ?? 0;
 
