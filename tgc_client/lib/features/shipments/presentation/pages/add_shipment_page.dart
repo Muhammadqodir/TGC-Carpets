@@ -161,7 +161,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     _ctrl.notifyChanged();
   }
 
-  void _submit() {
+  void _submit(BuildContext context) {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_hasClient) {
@@ -274,7 +274,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                         );
                       }
                       return FilledButton.icon(
-                        onPressed: _submit,
+                        onPressed: () => _submit(context),
                         icon: const Icon(Icons.check_rounded, size: 18),
                         label: const Text('Saqlash'),
                       );

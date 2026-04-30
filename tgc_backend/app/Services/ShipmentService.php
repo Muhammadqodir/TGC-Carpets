@@ -104,14 +104,37 @@ class ShipmentService
             ]);
         });
 
-        $this->generateAndStoreInvoice($shipment);
-        $this->generateAndStoreHisobFaktura($shipment);
+        // Generate PDFs outside transaction to avoid memory buildup
+        try {
+            $this->generateAndStoreInvoice($shipment);
+        } catch (\Exception $e) {
+            \Log::error('Failed to generate shipment invoice', [
+                'shipment_id' => $shipment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $this->generateAndStoreHisobFaktura($shipment);
+        } catch (\Exception $e) {
+            \Log::error('Failed to generate hisob faktura', [
+                'shipment_id' => $shipment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Generate warehouse document PDF after the transaction so all items are committed
         if ($warehouseDocId !== null) {
-            $warehouseDoc = WarehouseDocument::findOrFail($warehouseDocId);
-            $pdfPath = $this->warehousePdfService->generatePdf($warehouseDoc);
-            $warehouseDoc->update(['pdf_path' => $pdfPath]);
+            try {
+                $warehouseDoc = WarehouseDocument::findOrFail($warehouseDocId);
+                $pdfPath = $this->warehousePdfService->generatePdf($warehouseDoc);
+                $warehouseDoc->update(['pdf_path' => $pdfPath]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to generate warehouse document PDF', [
+                    'warehouse_doc_id' => $warehouseDocId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $shipment->refresh()->load([
@@ -129,6 +152,7 @@ class ShipmentService
      */
     public function generateAndStoreInvoice(Shipment $shipment): void
     {
+        // Reload only necessary relations to avoid memory issues
         $shipment->loadMissing([
             'client',
             'items.variant.productColor.product.productQuality',
@@ -136,7 +160,12 @@ class ShipmentService
         ]);
 
         $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
-            ->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'dpi' => 130,
+                'defaultFont' => 'sans-serif',
+                'isRemoteEnabled' => false, // Prevent remote resource loading
+            ]);
 
         $relativePath = 'shipments/invoices/invoice_' . $shipment->id . '.pdf';
 
@@ -151,6 +180,7 @@ class ShipmentService
      */
     public function generateAndStoreHisobFaktura(Shipment $shipment): void
     {
+        // Reload only necessary relations to avoid memory issues
         $shipment->loadMissing([
             'client',
             'items.variant.productColor.product.productQuality',
@@ -158,14 +188,30 @@ class ShipmentService
             'items.variant.productSize',
         ]);
 
+        // Check if view exists
+        if (!view()->exists('pdf.shipment_hisob_faktura')) {
+            \Log::error('Hisob faktura view not found', ['shipment_id' => $shipment->id]);
+            throw new \Exception('Hisob faktura template not found');
+        }
+
         $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])
-            ->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'dpi' => 130,
+                'defaultFont' => 'sans-serif',
+                'isRemoteEnabled' => false, // Prevent remote resource loading
+            ]);
 
         $relativePath = 'shipments/hisob_faktura/faktura_' . $shipment->id . '.pdf';
 
         Storage::disk('public')->put($relativePath, $pdf->output());
 
         $shipment->update(['invoice_path' => $relativePath]);
+
+        \Log::info('Hisob faktura generated successfully', [
+            'shipment_id' => $shipment->id,
+            'path' => $relativePath,
+        ]);
     }
 
     /**

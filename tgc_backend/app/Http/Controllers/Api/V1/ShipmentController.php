@@ -72,7 +72,8 @@ class ShipmentController extends Controller
                 'items.variant.productColor.color',
                 'items.variant.productSize',
                 'items.shipmentItems',
-                'items.productionBatchItems.productionBatch',
+                // Note: productionBatchItems loaded without nested productionBatch to avoid circular reference
+                'items.productionBatchItems',
             ])
             ->where(function ($q) {
                 // Include on_production and done orders
