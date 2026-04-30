@@ -78,4 +78,18 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteEmployee({required int id}) async {
+    try {
+      await remoteDataSource.deleteEmployee(id: id);
+      return const Right(null);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

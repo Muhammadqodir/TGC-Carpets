@@ -31,3 +31,10 @@ class EmployeesRoleFilterChanged extends EmployeesEvent {
   @override
   List<Object?> get props => [role];
 }
+
+class EmployeeDeleteRequested extends EmployeesEvent {
+  final int employeeId;
+  const EmployeeDeleteRequested(this.employeeId);
+  @override
+  List<Object?> get props => [employeeId];
+}

@@ -28,7 +28,7 @@ class UserFactory extends Factory
             'name'           => fake()->name(),
             'email'          => fake()->unique()->safeEmail(),
             'phone'          => fake()->numerify('+99890#######'),
-            'role'           => User::ROLE_SELLER,
+            'role'           => User::ROLE_SALES_MANAGER,
             'password'       => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
@@ -39,13 +39,54 @@ class UserFactory extends Factory
         return $this->state(['role' => User::ROLE_ADMIN]);
     }
 
+    public function warehouseManager(): static
+    {
+        return $this->state(['role' => User::ROLE_WAREHOUSE_MANAGER]);
+    }
+
+    public function salesManager(): static
+    {
+        return $this->state(['role' => User::ROLE_SALES_MANAGER]);
+    }
+
+    public function rawWarehouseManager(): static
+    {
+        return $this->state(['role' => User::ROLE_RAW_WAREHOUSE_MANAGER]);
+    }
+
+    public function productManager(): static
+    {
+        return $this->state(['role' => User::ROLE_PRODUCT_MANAGER]);
+    }
+
+    public function machineManager(): static
+    {
+        return $this->state(['role' => User::ROLE_MACHINE_MANAGER]);
+    }
+
+    public function productionManager(): static
+    {
+        return $this->state(['role' => User::ROLE_PRODUCTION_MANAGER]);
+    }
+
+    public function orderManager(): static
+    {
+        return $this->state(['role' => User::ROLE_ORDER_MANAGER]);
+    }
+
+    public function labelManager(): static
+    {
+        return $this->state(['role' => User::ROLE_LABEL_MANAGER]);
+    }
+
+    // Legacy methods for backward compatibility
     public function warehouse(): static
     {
-        return $this->state(['role' => User::ROLE_WAREHOUSE]);
+        return $this->warehouseManager();
     }
 
     public function seller(): static
     {
-        return $this->state(['role' => User::ROLE_SELLER]);
+        return $this->salesManager();
     }
 }

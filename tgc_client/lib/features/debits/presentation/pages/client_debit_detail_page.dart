@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tgc_client/core/constants/app_constants.dart';
+import 'package:tgc_client/features/clients/domain/entities/client_entity.dart';
+import 'package:tgc_client/features/debits/presentation/bloc/debits_bloc.dart';
+import 'package:tgc_client/features/debits/presentation/bloc/debits_event.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
@@ -21,8 +25,8 @@ class ClientDebitDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<DebitLedgerBloc>()
-        ..add(DebitLedgerLoadRequested(client.id)),
+      create: (_) =>
+          sl<DebitLedgerBloc>()..add(DebitLedgerLoadRequested(client.id)),
       child: _ClientDebitDetailView(client: client),
     );
   }
@@ -32,6 +36,32 @@ class _ClientDebitDetailView extends StatelessWidget {
   const _ClientDebitDetailView({required this.client});
 
   final ClientDebitEntity client;
+
+  void _addPayment(BuildContext context, ClientDebitEntity client) async {
+    // Convert ClientDebitEntity to ClientEntity for AddPaymentPage
+    final clientEntity = ClientEntity(
+      id: client.id,
+      uuid: client.uuid ?? '',
+      shopName: client.shopName ?? '',
+      contactName: client.contactName,
+      phone: client.phone,
+      region: client.region ?? '',
+      address: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final result = await context.pushNamed<bool>(
+      AppRoutes.addPaymentName,
+      extra: clientEntity,
+    );
+
+    if (result == true && context.mounted) {
+      context
+          .read<DebitLedgerBloc>()
+          .add(DebitLedgerRefreshRequested(client.id));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,12 +78,7 @@ class _ClientDebitDetailView extends StatelessWidget {
           // Add payment shortcut
           FilledButton.icon(
             onPressed: () async {
-              final result = await context.pushNamed(AppRoutes.addPaymentName);
-              if (result == true && context.mounted) {
-                context
-                    .read<DebitLedgerBloc>()
-                    .add(DebitLedgerRefreshRequested(client.id));
-              }
+              _addPayment(context, client);
             },
             icon: const Icon(Icons.add_rounded, size: 18),
             label: const Text("To'lov qo'shish"),
@@ -98,16 +123,15 @@ class _ClientDebitDetailView extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-
                 // ── Client info ─────────────────────────────────────────
                 _ClientInfoBar(client: client),
                 const Divider(height: 1, color: AppColors.divider),
-                
+
                 // ── Summary cards ───────────────────────────────────────
                 _SummaryRow(
-                  totalDebit:  data.totalDebit,
+                  totalDebit: data.totalDebit,
                   totalCredit: data.totalCredit,
-                  balance:     data.balance,
+                  balance: data.balance,
                 ),
                 const Divider(height: 1, color: AppColors.divider),
 
@@ -146,43 +170,50 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryCard(
-              label: 'Jami Yuklama',
-              value: '-${totalDebit.toStringAsFixed(2)}',
-              color: AppColors.error,
-              icon: Icons.arrow_upward_rounded,
+    return LayoutBuilder(builder: (context, constraints) {
+      final isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
+      return Container(
+        color: AppColors.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SummaryCard(
+                label: 'Jami Yuklama',
+                value: '-${totalDebit.toStringAsFixed(2)}',
+                color: AppColors.error,
+                icon: Icons.arrow_upward_rounded,
+                isDesktop: isDesktop,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              label: "Jami To'lov",
-              value: '+${totalCredit.toStringAsFixed(2)}',
-              color: AppColors.success,
-              icon: Icons.arrow_downward_rounded,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SummaryCard(
+                label: "Jami To'lov",
+                value: '+${totalCredit.toStringAsFixed(2)}',
+                color: AppColors.success,
+                icon: Icons.arrow_downward_rounded,
+                isDesktop: isDesktop,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              label: 'Joriy Balans',
-              value: '${balance > 0 ? '-' : (balance < 0 ? '+' : '')}${balance.abs().toStringAsFixed(2)}',
-              color: balance >= 0 ? AppColors.error : AppColors.success,
-              icon: balance >= 0
-                  ? Icons.account_balance_wallet_outlined
-                  : Icons.check_circle_outline_rounded,
-              bold: true,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SummaryCard(
+                label: 'Joriy Balans',
+                value:
+                    '${balance > 0 ? '-' : (balance < 0 ? '+' : '')}${balance.abs().toStringAsFixed(2)}',
+                color: balance >= 0 ? AppColors.error : AppColors.success,
+                icon: balance >= 0
+                    ? Icons.account_balance_wallet_outlined
+                    : Icons.check_circle_outline_rounded,
+                bold: true,
+                isDesktop: isDesktop,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -193,6 +224,7 @@ class _SummaryCard extends StatelessWidget {
     required this.color,
     required this.icon,
     this.bold = false,
+    this.isDesktop = false,
   });
 
   final String label;
@@ -200,6 +232,7 @@ class _SummaryCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final bool bold;
+  final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
@@ -213,14 +246,18 @@ class _SummaryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
+          if (isDesktop) ...[
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
@@ -256,8 +293,7 @@ class _ClientInfoBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.store_outlined,
-              size: 16, color: AppColors.textSecondary),
+          Icon(Icons.store_outlined, size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Text(
             client.shopName ?? '—',
@@ -265,23 +301,24 @@ class _ClientInfoBar extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 16),
-          if (client.contactName != null) ...[Icon(Icons.person_outline,
-              size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(client.contactName!,
-              style: theme.textTheme.bodyMedium),
-          const SizedBox(width: 16),],
-          if (client.phone != null) ...[Icon(Icons.phone_outlined,
-              size: 16, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(client.phone!,
-              style: theme.textTheme.bodyMedium),
-          const SizedBox(width: 16),],
+          if (client.contactName != null) ...[
+            Icon(Icons.person_outline,
+                size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(client.contactName!, style: theme.textTheme.bodyMedium),
+            const SizedBox(width: 16),
+          ],
+          if (client.phone != null) ...[
+            Icon(Icons.phone_outlined,
+                size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(client.phone!, style: theme.textTheme.bodyMedium),
+            const SizedBox(width: 16),
+          ],
           Icon(Icons.location_on_outlined,
               size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(client.region ?? '—',
-              style: theme.textTheme.bodyMedium),
+          Text(client.region ?? '—', style: theme.textTheme.bodyMedium),
         ],
       ),
     );

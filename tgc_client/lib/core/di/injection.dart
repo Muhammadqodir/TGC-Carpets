@@ -106,6 +106,7 @@ import '../../features/employees/data/repositories/employee_repository_impl.dart
 import '../../features/employees/domain/repositories/employee_repository.dart';
 import '../../features/employees/domain/usecases/get_employees_usecase.dart';
 import '../../features/employees/domain/usecases/create_employee_usecase.dart';
+import '../../features/employees/domain/usecases/delete_employee_usecase.dart';
 import '../../features/employees/presentation/bloc/employees_bloc.dart';
 import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
 
@@ -377,8 +378,12 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(() => GetEmployeesUseCase(sl<EmployeeRepository>()));
   sl.registerLazySingleton(() => CreateEmployeeUseCase(sl<EmployeeRepository>()));
+  sl.registerLazySingleton(() => DeleteEmployeeUseCase(sl<EmployeeRepository>()));
   sl.registerFactory(
-    () => EmployeesBloc(getEmployeesUseCase: sl<GetEmployeesUseCase>()),
+    () => EmployeesBloc(
+      getEmployeesUseCase: sl<GetEmployeesUseCase>(),
+      deleteEmployeeUseCase: sl<DeleteEmployeeUseCase>(),
+    ),
   );
   sl.registerFactory(
     () => EmployeeFormBloc(createEmployeeUseCase: sl<CreateEmployeeUseCase>()),

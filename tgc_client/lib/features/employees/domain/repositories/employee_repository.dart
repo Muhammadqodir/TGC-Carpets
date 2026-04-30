@@ -27,4 +27,6 @@ abstract class EmployeeRepository {
     String? password,
     String? role,
   });
+
+  Future<Either<Failure, void>> deleteEmployee({required int id});
 }

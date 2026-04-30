@@ -28,6 +28,8 @@ abstract class EmployeeRemoteDataSource {
     String? password,
     String? role,
   });
+
+  Future<void> deleteEmployee({required int id});
 }
 
 class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
@@ -116,6 +118,15 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
       );
       return EmployeeModel.fromJson(
           (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteEmployee({required int id}) async {
+    try {
+      await _dio.delete(ApiEndpoints.employeeById(id));
     } on DioException catch (e) {
       _handleDioError(e);
     }

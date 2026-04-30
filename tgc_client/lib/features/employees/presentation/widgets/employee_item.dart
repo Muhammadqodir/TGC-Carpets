@@ -91,6 +91,15 @@ class _RoleBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = switch (role) {
       'admin' => ('Admin', AppColors.error),
+      'warehouse_manager' => ('Ombor Menejer', AppColors.primary),
+      'sales_manager' => ('Savdo Menejer', AppColors.accent),
+      'raw_warehouse_manager' => ('Xom Ashyo', Color(0xFF8B4513)),
+      'product_manager' => ('Mahsulot', Color(0xFF4CAF50)),
+      'machine_manager' => ('Stanok', Color(0xFF9C27B0)),
+      'production_manager' => ('Ishlab Chiqarish', Color(0xFF2196F3)),
+      'order_manager' => ('Buyurtma', Color(0xFFFF9800)),
+      'label_manager' => ('Yorliq', Color(0xFF009688)),
+      // Legacy role names
       'warehouse' => ('Ombor', AppColors.primary),
       'seller' => ('Sotuvchi', AppColors.accent),
       _ => (role, Colors.grey),

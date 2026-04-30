@@ -34,12 +34,18 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _passwordVisible = false;
-  String _selectedRole = 'seller';
+  String _selectedRole = 'sales_manager';
 
   static const _roles = [
-    (label: 'Sotuvchi', value: 'seller'),
-    (label: 'Ombor', value: 'warehouse'),
     (label: 'Admin', value: 'admin'),
+    (label: 'Ombor Menejer', value: 'warehouse_manager'),
+    (label: 'Savdo Menejer', value: 'sales_manager'),
+    (label: 'Xom Ashyo Menejer', value: 'raw_warehouse_manager'),
+    (label: 'Mahsulot Menejer', value: 'product_manager'),
+    (label: 'Stanok Menejer', value: 'machine_manager'),
+    (label: 'Ishlab Chiqarish Menejer', value: 'production_manager'),
+    (label: 'Buyurtma Menejer', value: 'order_manager'),
+    (label: 'Yorliq Menejer', value: 'label_manager'),
   ];
 
   @override

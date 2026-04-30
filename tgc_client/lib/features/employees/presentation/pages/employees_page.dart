@@ -5,11 +5,17 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
+import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/core/ui/widgets/filter_bar.dart';
+import 'package:tgc_client/core/ui/widgets/filter_dropdown.dart';
+import 'package:tgc_client/core/ui/widgets/filter_search_field.dart';
 import '../bloc/employees_bloc.dart';
 import '../bloc/employees_event.dart';
 import '../bloc/employees_state.dart';
-import '../widgets/employee_item.dart';
+import '../widgets/employee_table.dart';
 
+/// Employees page with adaptive table (desktop 6 columns, mobile 3 columns).
 class EmployeesPage extends StatelessWidget {
   const EmployeesPage({super.key});
 
@@ -22,6 +28,8 @@ class EmployeesPage extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+
 class _EmployeesView extends StatefulWidget {
   const _EmployeesView();
 
@@ -32,8 +40,6 @@ class _EmployeesView extends StatefulWidget {
 class _EmployeesViewState extends State<_EmployeesView> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _isSearching = false;
-  final _searchFocus = FocusNode();
 
   @override
   void initState() {
@@ -52,189 +58,285 @@ class _EmployeesViewState extends State<_EmployeesView> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
-    _searchFocus.dispose();
     super.dispose();
   }
 
-  void _toggleSearch() {
-    setState(() => _isSearching = !_isSearching);
-    if (!_isSearching) {
-      _searchController.clear();
-      _searchFocus.unfocus();
-      context.read<EmployeesBloc>().add(const EmployeesSearchChanged(''));
-    } else {
-      _searchFocus.requestFocus();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                focusNode: _searchFocus,
-                onChanged: (v) =>
-                    context.read<EmployeesBloc>().add(EmployeesSearchChanged(v)),
-                cursorColor: Colors.white,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: Colors.white),
-                decoration: const InputDecoration(
-                  fillColor: Colors.transparent,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-                  hintText: 'Qidirish...',
-                  hintStyle: TextStyle(color: Colors.white70),
-                  border: InputBorder.none,
-                ),
-              )
-            : const Text('Hodimlar'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        titleSpacing: 0,
-        actions: [
-          IconButton(
-            onPressed: _toggleSearch,
-            icon: HugeIcon(
-              icon: _isSearching
-                  ? HugeIcons.strokeRoundedCancel01
-                  : HugeIcons.strokeRoundedSearch01,
-              strokeWidth: 2,
-            ),
+    return BlocListener<EmployeesBloc, EmployeesState>(
+      listenWhen: (prev, curr) =>
+          curr is EmployeesLoaded &&
+          prev is EmployeesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: _onActionStatus,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Hodimlar'),
+          titleSpacing: 0,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
           ),
-          IconButton(
-            onPressed: () async {
-              final result = await context.pushNamed(AppRoutes.addEmployeeName);
-              if (result == true && context.mounted) {
-                context.read<EmployeesBloc>().add(const EmployeesRefreshRequested());
-              }
-            },
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedAdd01,
-              strokeWidth: 2,
-            ),
-          ),
-        ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(48),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: 8.0),
-            child: _RoleFilterBar(),
-          ),
-        ),
-      ),
-      body: BlocBuilder<EmployeesBloc, EmployeesState>(
-        builder: (context, state) {
-          if (state is EmployeesLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is EmployeesError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(state.message, textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () => context
-                        .read<EmployeesBloc>()
-                        .add(const EmployeesRefreshRequested()),
-                    child: const Text('Qayta urinish'),
-                  ),
-                ],
+          actions: [
+            IconButton(
+              onPressed: () async {
+                final result = await context.pushNamed(AppRoutes.addEmployeeName);
+                if (result == true && context.mounted) {
+                  context.read<EmployeesBloc>().add(const EmployeesRefreshRequested());
+                }
+              },
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedAdd01,
+                strokeWidth: 2,
               ),
-            );
-          }
+            ),
+            const SizedBox(width: 12),
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ---- Filter bar ----
+            BlocBuilder<EmployeesBloc, EmployeesState>(
+              buildWhen: (prev, curr) =>
+                  curr is EmployeesLoaded || prev is EmployeesLoaded,
+              builder: (context, state) {
+                final activeRole = state is EmployeesLoaded ? state.activeRole : null;
+                return FilterBar(
+                  hasActiveFilters: activeRole != null,
+                  onClearFilters: () => context
+                      .read<EmployeesBloc>()
+                      .add(const EmployeesRoleFilterChanged(null)),
+                  onRefresh: () => context
+                      .read<EmployeesBloc>()
+                      .add(const EmployeesRefreshRequested()),
+                  filters: [
+                    FilterSearchField(
+                      controller: _searchController,
+                      onChanged: (v) => context
+                          .read<EmployeesBloc>()
+                          .add(EmployeesSearchChanged(v)),
+                    ),
+                    const SizedBox(width: 12),
+                    FilterDropdown<String>(
+                      hint: 'Rol',
+                      value: activeRole,
+                      items: const [
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                        DropdownMenuItem(value: 'warehouse_manager', child: Text('Ombor Menejer')),
+                        DropdownMenuItem(value: 'sales_manager', child: Text('Savdo Menejer')),
+                        DropdownMenuItem(value: 'raw_warehouse_manager', child: Text('Xom Ashyo Menejer')),
+                        DropdownMenuItem(value: 'product_manager', child: Text('Mahsulot Menejer')),
+                        DropdownMenuItem(value: 'machine_manager', child: Text('Stanok Menejer')),
+                        DropdownMenuItem(value: 'production_manager', child: Text('Ishlab Chiqarish Menejer')),
+                        DropdownMenuItem(value: 'order_manager', child: Text('Buyurtma Menejer')),
+                        DropdownMenuItem(value: 'label_manager', child: Text('Yorliq Menejer')),
+                      ],
+                      onChanged: (v) => context
+                          .read<EmployeesBloc>()
+                          .add(EmployeesRoleFilterChanged(v)),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const Divider(height: 1, color: AppColors.divider),
 
-          if (state is EmployeesLoaded) {
-            if (state.employees.isEmpty) {
-              return const Center(child: Text('Hodimlar topilmadi.'));
-            }
+            // ---- Table / states ----
+            Expanded(
+              child: BlocBuilder<EmployeesBloc, EmployeesState>(
+                builder: (context, state) {
+                  if (state is EmployeesLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-            return RefreshIndicator(
-              onRefresh: () async =>
-                  context.read<EmployeesBloc>().add(const EmployeesRefreshRequested()),
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12),
-                itemCount: state.employees.length + (state.isLoadingMore ? 1 : 0),
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) {
-                  if (index >= state.employees.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator()),
+                  if (state is EmployeesError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(state.message, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () => context
+                                .read<EmployeesBloc>()
+                                .add(const EmployeesRefreshRequested()),
+                            child: const Text('Qayta urinish'),
+                          ),
+                        ],
+                      ),
                     );
                   }
-                  return EmployeeItem(employee: state.employees[index]);
+
+                  if (state is EmployeesLoaded) {
+                    if (state.employees.isEmpty) {
+                      return _EmptyState(
+                        onAdd: () async {
+                          final result = await context.pushNamed(AppRoutes.addEmployeeName);
+                          if (result == true && context.mounted) {
+                            context
+                                .read<EmployeesBloc>()
+                                .add(const EmployeesRefreshRequested());
+                          }
+                        },
+                      );
+                    }
+
+                    return EmployeeDataTable(
+                      employees: state.employees,
+                      isLoadingMore: state.isLoadingMore,
+                      scrollController: _scrollController,
+                      pendingEmployeeId: state.actionStatus is EmployeeActionPending
+                          ? (state.actionStatus as EmployeeActionPending).employeeId
+                          : null,
+                      onEdit: (e) async {
+                        // TODO: Navigate to edit employee page when created
+                        // For now, just show a snackbar
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Tahrirlash funksiyasi ishlab chiqilmoqda')),
+                        );
+                      },
+                      onDelete: (e) async {
+                        final confirmed = await ConfirmDialog.show(
+                          context: context,
+                          title: 'O\'chirishni tasdiqlang',
+                          content:
+                              '"${e.name}" o\'chirilsinmi? Bu amalni ortga qaytarib bo\'lmaydi.',
+                        );
+                        if (confirmed && context.mounted) {
+                          context
+                              .read<EmployeesBloc>()
+                              .add(EmployeeDeleteRequested(e.id));
+                        }
+                      },
+                    );
+                  }
+
+                  return const SizedBox.shrink();
                 },
               ),
-            );
-          }
+            ),
+            const Divider(height: 1, color: AppColors.divider),
 
-          return const SizedBox.shrink();
-        },
+            // ---- Status bar ----
+            BlocBuilder<EmployeesBloc, EmployeesState>(builder: (context, state) {
+              final loaded =
+                  state is EmployeesLoaded ? state.employees.length : null;
+              final total = state is EmployeesLoaded ? state.total : null;
+              return DesktopStatusBar(
+                child: Text(
+                  loaded != null && total != null
+                      ? '$loaded / $total ta hodim ko\'rsatilmoqda'
+                      : '',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onActionStatus(BuildContext context, EmployeesState state) {
+    if (state is! EmployeesLoaded) return;
+    final status = state.actionStatus;
+    final messenger = ScaffoldMessenger.of(context);
+    switch (status) {
+      case EmployeeActionPending():
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Yuklanmoqda...'),
+                ],
+              ),
+              duration: const Duration(seconds: 30),
+            ),
+          );
+      case EmployeeActionSuccess(message: final msg):
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+      case EmployeeActionFailure(message: final msg):
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+      case EmployeeActionIdle():
+        break;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.people_outline,
+            size: 56,
+            color: AppColors.textSecondary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Hodimlar topilmadi',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Yangi hodim qo\'shing yoki qidiruv soʻzini o\'zgartiring.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Hodim qo\'shish'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _RoleFilterBar extends StatelessWidget {
-  const _RoleFilterBar();
-
-  static const _filters = [
-    (label: 'Barchasi', value: null),
-    (label: 'Admin', value: 'admin'),
-    (label: 'Ombor', value: 'warehouse'),
-    (label: 'Sotuvchi', value: 'seller'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<EmployeesBloc, EmployeesState>(
-      buildWhen: (prev, curr) =>
-          curr is EmployeesLoaded || prev is EmployeesLoaded,
-      builder: (context, state) {
-        final activeRole = state is EmployeesLoaded ? state.activeRole : null;
-
-        return SizedBox(
-          height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            itemCount: _filters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final filter = _filters[index];
-              final isActive = activeRole == filter.value;
-              return FilterChip(
-                selectedColor: Colors.white,
-                backgroundColor: AppColors.primary,
-                label: Text(
-                  filter.label,
-                  style: TextStyle(
-                    color: isActive ? AppColors.primary : Colors.white,
-                  ),
-                ),
-                selected: isActive,
-                onSelected: (_) {
-                  context
-                      .read<EmployeesBloc>()
-                      .add(EmployeesRoleFilterChanged(filter.value));
-                },
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-}

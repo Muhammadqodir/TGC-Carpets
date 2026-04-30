@@ -7,6 +7,41 @@ abstract class EmployeesState extends Equatable {
   List<Object?> get props => [];
 }
 
+// ─── Action status ──────────────────────────────────────────────────────────
+
+sealed class EmployeeActionStatus extends Equatable {
+  const EmployeeActionStatus();
+}
+
+class EmployeeActionIdle extends EmployeeActionStatus {
+  const EmployeeActionIdle();
+  @override
+  List<Object?> get props => [];
+}
+
+class EmployeeActionPending extends EmployeeActionStatus {
+  final int employeeId;
+  const EmployeeActionPending(this.employeeId);
+  @override
+  List<Object?> get props => [employeeId];
+}
+
+class EmployeeActionSuccess extends EmployeeActionStatus {
+  final String message;
+  const EmployeeActionSuccess(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+class EmployeeActionFailure extends EmployeeActionStatus {
+  final String message;
+  const EmployeeActionFailure(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+// ─── Page states ─────────────────────────────────────────────────────────────
+
 class EmployeesInitial extends EmployeesState {
   const EmployeesInitial();
 }
@@ -21,6 +56,8 @@ class EmployeesLoaded extends EmployeesState {
   final bool isLoadingMore;
   final int currentPage;
   final String? activeRole;
+  final int total;
+  final EmployeeActionStatus actionStatus;
 
   const EmployeesLoaded({
     required this.employees,
@@ -28,6 +65,8 @@ class EmployeesLoaded extends EmployeesState {
     this.isLoadingMore = false,
     required this.currentPage,
     this.activeRole,
+    required this.total,
+    this.actionStatus = const EmployeeActionIdle(),
   });
 
   EmployeesLoaded copyWith({
@@ -37,6 +76,8 @@ class EmployeesLoaded extends EmployeesState {
     int? currentPage,
     String? activeRole,
     bool clearRole = false,
+    int? total,
+    EmployeeActionStatus? actionStatus,
   }) =>
       EmployeesLoaded(
         employees: employees ?? this.employees,
@@ -44,10 +85,12 @@ class EmployeesLoaded extends EmployeesState {
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         currentPage: currentPage ?? this.currentPage,
         activeRole: clearRole ? null : (activeRole ?? this.activeRole),
+        total: total ?? this.total,
+        actionStatus: actionStatus ?? this.actionStatus,
       );
 
   @override
-  List<Object?> get props => [employees, hasNextPage, isLoadingMore, currentPage, activeRole];
+  List<Object?> get props => [employees, hasNextPage, isLoadingMore, currentPage, activeRole, total, actionStatus];
 }
 
 class EmployeesError extends EmployeesState {

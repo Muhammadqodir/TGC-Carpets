@@ -110,7 +110,7 @@ class _DebitsViewState extends State<_DebitsView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Debitorlar'),
+        title: const Text('Buxgalteriya'),
         titleSpacing: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -130,11 +130,11 @@ class _DebitsViewState extends State<_DebitsView> {
                 width: 280,
               ),
               const SizedBox(width: 12),
-              FilterChip(
-                label: const Text('Qarzdorlar'),
-                selected: _hasBalance,
-                onSelected: (v) => _applyFilters(hasBalance: v),
-              ),
+              // FilterChip(
+              //   label: const Text('Qarzdorlar'),
+              //   selected: _hasBalance,
+              //   onSelected: (v) => _applyFilters(hasBalance: v),
+              // ),
             ],
             onRefresh: () =>
                 context.read<DebitsBloc>().add(const DebitsRefreshRequested()),

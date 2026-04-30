@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
@@ -68,29 +69,40 @@ class _HeaderRow extends StatelessWidget {
       fontWeight: FontWeight.w600,
     );
 
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text('Sana', style: style)),
-          Expanded(flex: 1, child: Text('Tur', style: style)),
-          Expanded(flex: 3, child: Text('Ma\'lumot', style: style)),
-          Expanded(
-              flex: 2,
-              child: Text('Yuklama (\$)',
-                  style: style, textAlign: TextAlign.right)),
-          Expanded(
-              flex: 2,
-              child: Text('To\'lov (\$)',
-                  style: style, textAlign: TextAlign.right)),
-          Expanded(
-              flex: 2,
-              child: Text('Balans (\$)',
-                  style: style, textAlign: TextAlign.right)),
-        ],
-      ),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      bool isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
+      return Container(
+        color: AppColors.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            if (isDesktop) ...[
+              Expanded(flex: 2, child: Text('Sana', style: style)),
+              Expanded(flex: 1, child: Text('Tur', style: style)),
+              Expanded(flex: 3, child: Text('Ma\'lumot', style: style)),
+              Expanded(
+                  flex: 2,
+                  child: Text('Yuklama (\$)',
+                      style: style, textAlign: TextAlign.right)),
+              Expanded(
+                  flex: 2,
+                  child: Text('To\'lov (\$)',
+                      style: style, textAlign: TextAlign.right)),
+            ] else ...[
+              Expanded(flex: 3, child: Text('Ma\'lumot', style: style)),
+              Expanded(
+                  flex: 2,
+                  child: Text('Yuklama / To\'lov',
+                      style: style, textAlign: TextAlign.right)),
+            ],
+            Expanded(
+                flex: 2,
+                child:
+                    Text('Balans', style: style, textAlign: TextAlign.right)),
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -113,112 +125,199 @@ class _LedgerRow extends StatelessWidget {
             ? AppColors.success
             : AppColors.textSecondary;
 
-    return Container(
-      color: rowColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Date
-          Expanded(
-            flex: 2,
-            child: Text(
-              _fmtDate(entry.date),
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
+    return LayoutBuilder(builder: (context, constraints) {
+      final isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
+      return Container(
+        color: rowColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (isDesktop) ...[
+              // Date
+              Expanded(
+                flex: 2,
+                child: Text(
+                  _fmtDate(entry.date),
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
 
-          // Type badge
-          Expanded(
-            flex: 1,
-            child: _TypeBadge(isShipment: isShipment),
-          ),
+              // Type badge
+              Expanded(
+                flex: 1,
+                child: _TypeBadge(isShipment: isShipment),
+              ),
 
-          // Reference + notes
-          Expanded(
-            flex: 3,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    // padding: EdgeInsets.zero,
-                    // minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              // Reference + notes
+              Expanded(
+                flex: 3,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        // padding: EdgeInsets.zero,
+                        // minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: HugeIcon(
+                        icon: HugeIcons.strokeRoundedPdf01,
+                        size: 16,
+                      ),
+                      label: Text(
+                        entry.reference,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onPressed: () {
+                        if (isShipment) {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (context) => PdfViewerPage(
+                                pdfUrl: entry.pdfUrl!,
+                                title: entry.reference,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    )
+                  ],
+                ),
+              ),
+              // Debit (shipment — shown with minus sign)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  entry.debit > 0 ? '-${_fmtMoney(entry.debit)}' : '—',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: entry.debit > 0
+                        ? AppColors.error
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
                   ),
-                  icon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedPdf01,
-                    size: 16,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+
+              // Credit (payment — shown with plus sign)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  entry.credit > 0 ? '+${_fmtMoney(entry.credit)}' : '—',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: entry.credit > 0
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
                   ),
-                  label: Text(
-                    entry.reference,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onPressed: () {
-                    if (isShipment) {
-                      Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => PdfViewerPage(
-                            pdfUrl: entry.pdfUrl!,
-                            title: entry.reference,
-                          ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ] else ...[
+              Expanded(
+                flex: 3,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _TypeBadge(isShipment: isShipment),
+                        const SizedBox(width: 4),
+                        Text(
+                          _fmtDate(entry.date),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    }
-                  },
-                )
-              ],
-            ),
-          ),
-
-          // Debit (shipment — shown with minus sign)
-          Expanded(
-            flex: 2,
-            child: Text(
-              entry.debit > 0 ? '-${_fmtMoney(entry.debit)}' : '—',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color:
-                    entry.debit > 0 ? AppColors.error : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        // padding: EdgeInsets.zero,
+                        // minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: HugeIcon(
+                        icon: HugeIcons.strokeRoundedPdf01,
+                        size: 16,
+                      ),
+                      label: Text(
+                        entry.reference,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onPressed: () {
+                        if (isShipment) {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (context) => PdfViewerPage(
+                                pdfUrl: entry.pdfUrl!,
+                                title: entry.reference,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    )
+                  ],
+                ),
               ),
-              textAlign: TextAlign.right,
-            ),
-          ),
-
-          // Credit (payment — shown with plus sign)
-          Expanded(
-            flex: 2,
-            child: Text(
-              entry.credit > 0 ? '+${_fmtMoney(entry.credit)}' : '—',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: entry.credit > 0
-                    ? AppColors.success
-                    : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+              // Credit Debit
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    Text(
+                      entry.credit > 0 ? '+${_fmtMoney(entry.credit)}' : '—',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: entry.credit > 0
+                            ? AppColors.success
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                    Text(
+                      entry.debit > 0 ? '-${_fmtMoney(entry.debit)}' : '—',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: entry.debit > 0
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.right,
-            ),
-          ),
+            ],
 
-          // Running balance (- = owes, + = in credit)
-          Expanded(
-            flex: 2,
-            child: Text(
-              _fmtBalance(entry.runningBalance),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: balanceColor,
-                fontWeight: FontWeight.w700,
+            // Running balance (- = owes, + = in credit)
+            Expanded(
+              flex: 2,
+              child: Text(
+                _fmtBalance(entry.runningBalance),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: balanceColor,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.right,
               ),
-              textAlign: TextAlign.right,
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
