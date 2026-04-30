@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\ProductVariant;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
 use App\Models\StockMovement;
@@ -12,6 +11,7 @@ use App\Models\WarehouseDocumentItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -109,7 +109,7 @@ class ShipmentService
         try {
             $this->generateAndStoreInvoice($shipment->id);
         } catch (\Exception $e) {
-            \Log::error('Failed to generate shipment invoice', [
+            Log::error('Failed to generate shipment invoice', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -119,7 +119,7 @@ class ShipmentService
         try {
             $this->generateAndStoreHisobFaktura($shipment->id);
         } catch (\Exception $e) {
-            \Log::error('Failed to generate hisob faktura', [
+            Log::error('Failed to generate hisob faktura', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -133,7 +133,7 @@ class ShipmentService
                 $pdfPath = $this->warehousePdfService->generatePdf($warehouseDoc);
                 $warehouseDoc->update(['pdf_path' => $pdfPath]);
             } catch (\Exception $e) {
-                \Log::error('Failed to generate warehouse document PDF', [
+                Log::error('Failed to generate warehouse document PDF', [
                     'warehouse_doc_id' => $warehouseDocId,
                     'error' => $e->getMessage(),
                 ]);
@@ -156,7 +156,7 @@ class ShipmentService
         // Load fresh instance with only minimal required data to avoid memory issues
         $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
             ->with([
-                'client:id,contact_name,shop_name,phone,address',
+                'client:id,contact_name,shop_name,phone,address,region',
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
@@ -196,14 +196,14 @@ class ShipmentService
     {
         // Check if view exists
         if (!view()->exists('pdf.shipment_hisob_faktura')) {
-            \Log::error('Hisob faktura view not found', ['shipment_id' => $shipmentId]);
+            Log::error('Hisob faktura view not found', ['shipment_id' => $shipmentId]);
             throw new \Exception('Hisob faktura template not found');
         }
 
         // Load fresh instance with only minimal required data to avoid memory issues
         $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
             ->with([
-                'client:id,contact_name,shop_name,phone,address',
+                'client:id,contact_name,shop_name,phone,address,region',
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
@@ -231,7 +231,7 @@ class ShipmentService
 
         Shipment::where('id', $shipmentId)->update(['invoice_path' => $relativePath]);
 
-        \Log::info('Hisob faktura generated successfully', [
+        Log::info('Hisob faktura generated successfully', [
             'shipment_id' => $shipmentId,
             'path' => $relativePath,
         ]);
