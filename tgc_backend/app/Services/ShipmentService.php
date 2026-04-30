@@ -142,7 +142,7 @@ class ShipmentService
 
         // Return fresh instance with minimal relations to avoid memory issues
         return Shipment::with([
-            'client:id,name,phone',
+            'client:id,contact_name,shop_name,phone',
             'user:id,name',
         ])->find($shipment->id);
     }
@@ -156,7 +156,7 @@ class ShipmentService
         // Load fresh instance with only minimal required data to avoid memory issues
         $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
             ->with([
-                'client:id,name,phone,address',
+                'client:id,contact_name,shop_name,phone,address',
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
@@ -203,7 +203,7 @@ class ShipmentService
         // Load fresh instance with only minimal required data to avoid memory issues
         $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
             ->with([
-                'client:id,name,phone,address',
+                'client:id,contact_name,shop_name,phone,address',
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
