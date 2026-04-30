@@ -163,7 +163,7 @@ class ShipmentService
                 'items.variant:id,product_color_id,product_size_id',
                 'items.variant.productColor:id,product_id,color_id',
                 'items.variant.productColor.product:id,name,product_quality_id',
-                'items.variant.productColor.product.productQuality:id,name',
+                'items.variant.productColor.product.productQuality:id,quality_name',
                 'items.variant.productSize:id,name',
             ])
             ->findOrFail($shipmentId);
@@ -210,7 +210,7 @@ class ShipmentService
                 'items.variant:id,product_color_id,product_size_id',
                 'items.variant.productColor:id,product_id,color_id',
                 'items.variant.productColor.product:id,name,product_quality_id',
-                'items.variant.productColor.product.productQuality:id,name',
+                'items.variant.productColor.product.productQuality:id,quality_name',
                 'items.variant.productColor.color:id,name',
                 'items.variant.productSize:id,name',
             ])
