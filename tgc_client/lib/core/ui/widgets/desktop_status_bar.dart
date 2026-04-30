@@ -9,23 +9,21 @@ class DesktopStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        bool isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
-        if (!isDesktop) return const SizedBox.shrink();
-        return Container(
-          color: AppColors.primary.withValues(alpha: 0.04),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          alignment: Alignment.centerLeft,
-          child: SafeArea(
-            child: SizedBox(
-              height: 32,
-              child: child,
-            ),
+    return LayoutBuilder(builder: (context, constraints) {
+      bool isDesktop = constraints.maxWidth >= AppConstants.desktopBreakpoint;
+      if (!isDesktop) return const SizedBox.shrink();
+      return Container(
+        color: AppColors.primary.withValues(alpha: 0.04),
+        child: SafeArea(
+          top: false,
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            alignment: Alignment.centerLeft,
+            child: child,
           ),
-        );
-      }
-    );
+        ),
+      );
+    });
   }
 }

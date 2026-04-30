@@ -28,7 +28,8 @@ class _LoginView extends StatelessWidget {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            context.goNamed(AppRoutes.dashboardName);
+            // Navigate to splash which will handle role-based routing
+            context.goNamed(AppRoutes.splashName);
           } else if (state is AuthFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

@@ -67,6 +67,9 @@ class DefectDocumentController extends Controller
                 }
             }
 
+            // Check if all items are processed (produced + defect = planned)
+            $this->checkAndCompleteProductionBatch($productionBatch);
+
             return $document;
         });
 
@@ -100,5 +103,34 @@ class DefectDocumentController extends Controller
         });
 
         return response()->json(['message' => 'Nuxson hujjati o\'chirildi.']);
+    }
+
+    /**
+     * Check if all items in the batch are processed and update status to completed
+     */
+    private function checkAndCompleteProductionBatch(ProductionBatch $productionBatch): void
+    {
+        // Only check if batch is in_progress
+        if ($productionBatch->status !== ProductionBatch::STATUS_IN_PROGRESS) {
+            return;
+        }
+
+        // Get fresh data for all items in the batch
+        $items = ProductionBatchItem::where('production_batch_id', $productionBatch->id)->get();
+
+        // Check if all items are processed (produced + defect = planned)
+        $allProcessed = $items->every(function ($item) {
+            $produced = $item->produced_quantity ?? 0;
+            $defect = $item->defect_quantity ?? 0;
+            return ($produced + $defect) >= $item->planned_quantity;
+        });
+
+        // If all items are processed, mark the batch as completed
+        if ($allProcessed) {
+            $productionBatch->update([
+                'status' => ProductionBatch::STATUS_COMPLETED,
+                'completed_datetime' => now(),
+            ]);
+        }
     }
 }

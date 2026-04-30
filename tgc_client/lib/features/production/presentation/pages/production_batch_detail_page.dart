@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -9,12 +10,13 @@ import '../../../../core/ui/widgets/app_badge.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../core/ui/widgets/info_section.dart';
 import '../../../../core/ui/widgets/typograpthy.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/datasources/defect_document_remote_datasource.dart';
 import '../../data/datasources/production_batch_remote_datasource.dart';
 import '../../domain/entities/defect_document_entity.dart';
 import '../../domain/entities/production_batch_entity.dart';
 import '../../domain/entities/production_batch_item_entity.dart';
-import '../widgets/employee_picker_bottom_sheet.dart';
 
 /// Fetches the full batch (with items) from the API on load.
 class ProductionBatchDetailPage extends StatefulWidget {
@@ -49,25 +51,27 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
   }
 
   Future<void> _onStart(ProductionBatchEntity batch) async {
-    final employee = await EmployeePickerBottomSheet.show(context);
-    if (!context.mounted) return;
-
-    if (employee == null) {
+    // Get authenticated user from AuthBloc
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mas\'ul hodimni tanlash majburiy.'),
+          content: Text('Foydalanuvchi autentifikatsiyadan o\'tmagan.'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
+    final currentUser = authState.user;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Ishlab chiqarishni boshlash'),
         content: Text(
-          'Mas\'ul hodim: ${employee.name}\n\nBatchni ishlab chiqarishga o\'tkazasizmi?',
+          'Mas\'ul hodim: ${currentUser.name}\n\nBatchni ishlab chiqarishga o\'tkazasizmi?',
         ),
         actions: [
           TextButton(
@@ -87,7 +91,7 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
     try {
       await sl<ProductionBatchRemoteDataSource>().startBatch(
         batch.id,
-        responsibleEmployeeId: employee.id,
+        responsibleEmployeeId: currentUser.id,
       );
       if (context.mounted) {
         setState(() {
@@ -95,7 +99,12 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
               .getProductionBatch(widget.batch.id);
           _isActing = false;
         });
-        context.pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ishlab chiqarish muvaffaqiyatli boshlandi.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -142,7 +151,12 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
               .getProductionBatch(widget.batch.id);
           _isActing = false;
         });
-        context.pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Batch bekor qilindi.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {

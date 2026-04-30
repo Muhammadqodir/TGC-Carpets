@@ -7,6 +7,8 @@ import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
+import 'package:tgc_client/core/ui/widgets/filter_bar.dart';
+import 'package:tgc_client/core/ui/widgets/filter_search_field.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';
@@ -80,7 +82,9 @@ class _ClientsViewState extends State<_ClientsView> {
               onPressed: () async {
                 await context.pushNamed(AppRoutes.addClientName);
                 if (context.mounted) {
-                  context.read<ClientsBloc>().add(const ClientsRefreshRequested());
+                  context
+                      .read<ClientsBloc>()
+                      .add(const ClientsRefreshRequested());
                 }
               },
               icon: const HugeIcon(
@@ -95,10 +99,14 @@ class _ClientsViewState extends State<_ClientsView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ---- Filter bar ----
-            _ClientFilterBar(
-              searchController: _searchController,
-              onSearchChanged: (v) =>
-                  context.read<ClientsBloc>().add(ClientsSearchChanged(v)),
+            FilterBar(
+              filters: [
+                FilterSearchField(
+                  controller: _searchController,
+                  onChanged: (v) =>
+                      context.read<ClientsBloc>().add(ClientsSearchChanged(v)),
+                ),
+              ],
               onRefresh: () => context
                   .read<ClientsBloc>()
                   .add(const ClientsRefreshRequested()),
@@ -261,67 +269,6 @@ class _ClientsViewState extends State<_ClientsView> {
 }
 
 // ---------------------------------------------------------------------------
-// Filter bar
-// ---------------------------------------------------------------------------
-
-class _ClientFilterBar extends StatelessWidget {
-  const _ClientFilterBar({
-    required this.searchController,
-    required this.onSearchChanged,
-    required this.onRefresh,
-  });
-
-  final TextEditingController searchController;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 240,
-            height: 38,
-            child: TextField(
-              controller: searchController,
-              onChanged: onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Qidirish...',
-                prefixIcon: const Icon(Icons.search, size: 18),
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.divider),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.divider),
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          // Refresh
-          IconButton(
-            tooltip: 'Yangilash',
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedReload,
-              strokeWidth: 2.5,
-            ),
-            onPressed: onRefresh,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Empty state
 // ---------------------------------------------------------------------------
 
@@ -366,6 +313,3 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
-
-

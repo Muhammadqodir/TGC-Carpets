@@ -25,7 +25,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider.value(value: sl<AuthBloc>()..add(AuthCheckRequested())),
+        BlocProvider.value(value: sl<AuthBloc>()),
         BlocProvider(
           create: (_) => sl<DashboardBloc>()
             ..add(DashboardStatsRequested(
@@ -122,17 +122,27 @@ class _DashboardViewState extends State<_DashboardView> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: HugeIcon(
-              icon: _panelVisible
-                  ? HugeIcons.strokeRoundedViewOff
-                  : HugeIcons.strokeRoundedView,
-              strokeWidth: 2,
-            ),
-            onPressed: () {
-              setState(() {
-                _panelVisible = !_panelVisible;
-              });
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state is! AuthAuthenticated) {
+                return const SizedBox.shrink();
+              }
+              if (state.user.role != 'admin') {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                icon: HugeIcon(
+                  icon: _panelVisible
+                      ? HugeIcons.strokeRoundedViewOff
+                      : HugeIcons.strokeRoundedView,
+                  strokeWidth: 2,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _panelVisible = !_panelVisible;
+                  });
+                },
+              );
             },
           ),
           IconButton(
@@ -146,26 +156,16 @@ class _DashboardViewState extends State<_DashboardView> {
       ),
       body: Stack(
         children: [
-          Positioned(
-            child: Container(
-              height: _scrollOffset,
-              decoration: BoxDecoration(color: AppColors.primary),
-            ),
-          ),
+          // Positioned(
+          //   child: Container(
+          //     height: _scrollOffset,
+          //     decoration: BoxDecoration(color: AppColors.primary),
+          //   ),
+          // ),
           BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthUnauthenticated) {
                 context.goNamed(AppRoutes.loginName);
-              } else if (state is AuthAuthenticated) {
-                // Check if user has access to only one feature
-                final singleFeatureRoute = 
-                    RolePermissions.getSingleFeatureRoute(state.user);
-                if (singleFeatureRoute != null) {
-                  // Redirect to single feature immediately
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    context.goNamed(singleFeatureRoute);
-                  });
-                }
               }
             },
             child: RefreshIndicator(
@@ -188,10 +188,20 @@ class _DashboardViewState extends State<_DashboardView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DashboardPanel(
-                        range: _range,
-                        onRangeChanged: _onRangeChanged,
-                        visible: _panelVisible,
+                      BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          if (state is! AuthAuthenticated) {
+                            return const SizedBox.shrink();
+                          }
+                          if (state.user.role != 'admin') {
+                            return const SizedBox.shrink();
+                          }
+                          return DashboardPanel(
+                            range: _range,
+                            onRangeChanged: _onRangeChanged,
+                            visible: _panelVisible,
+                          );
+                        },
                       ),
                       SizedBox(height: 16),
                       Padding(
@@ -326,45 +336,43 @@ class _DashboardViewState extends State<_DashboardView> {
                                   gap: 12,
                                   children: visibleCards,
                                 ),
-                                if (RolePermissions.canAccessSettings(user)) ...[
-                                  SizedBox(height: 12),
-                                  Card(
-                                    child: InkWell(
-                                      onTap: () => context
-                                          .pushNamed(AppRoutes.settingsName),
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 16),
-                                        alignment: Alignment.center,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            HugeIcon(
-                                              icon: HugeIcons
-                                                  .strokeRoundedSettings01,
-                                              size: 32,
-                                              strokeWidth: 2,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                                child: Text(
-                                              'Sozlamalar',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium!
-                                                  .copyWith(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                            ))
-                                          ],
-                                        ),
+                                SizedBox(height: 12),
+                                Card(
+                                  child: InkWell(
+                                    onTap: () => context
+                                        .pushNamed(AppRoutes.settingsName),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 16),
+                                      alignment: Alignment.center,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          HugeIcon(
+                                            icon: HugeIcons
+                                                .strokeRoundedSettings01,
+                                            size: 32,
+                                            strokeWidth: 2,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                              child: Text(
+                                            'Sozlamalar',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                          ))
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ],
-                                SizedBox(height: 32),
+                                ),
                               ],
+                              // SizedBox(height: 32),
                             );
                           },
                         ),

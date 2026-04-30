@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 import 'package:tgc_client/features/raw_materials/domain/entities/raw_material_entity.dart';
 
-/// Raw materials data table that wraps the generic [AppDataTable].
+/// Raw materials data table with adaptive layout (desktop 5 columns, mobile 3 columns).
 class RawMaterialDataTable extends StatelessWidget {
   const RawMaterialDataTable({
     super.key,
@@ -17,7 +18,7 @@ class RawMaterialDataTable extends StatelessWidget {
   final bool isLoadingMore;
   final ScrollController scrollController;
 
-  static const _columns = <AppTableColumn>[
+  static const _desktopColumns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 56),
     AppTableColumn(label: 'Nomi', flex: 4, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Turi', flex: 2, alignment: Alignment.centerLeft),
@@ -25,19 +26,31 @@ class RawMaterialDataTable extends StatelessWidget {
     AppTableColumn(label: 'Qoldiq', flex: 2),
   ];
 
+  static const _mobileColumns = <AppTableColumn>[
+    AppTableColumn(label: 'Nomi / Turi', flex: 4, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Birlik', flex: 2),
+    AppTableColumn(label: 'Qoldiq', flex: 2),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return AppDataTable<RawMaterialEntity>(
-      items: materials,
-      columns: _columns,
-      scrollController: scrollController,
-      isLoadingMore: isLoadingMore,
-      cellBuilder: (context, material, colIndex) =>
-          _buildCell(context, material, colIndex),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < AppConstants.desktopBreakpoint;
+        return AppDataTable<RawMaterialEntity>(
+          items: materials,
+          columns: isMobile ? _mobileColumns : _desktopColumns,
+          scrollController: scrollController,
+          isLoadingMore: isLoadingMore,
+          cellBuilder: (context, material, colIndex) => isMobile
+              ? _buildMobileCell(context, material, colIndex)
+              : _buildDesktopCell(context, material, colIndex),
+        );
+      },
     );
   }
 
-  Widget _buildCell(
+  Widget _buildDesktopCell(
       BuildContext context, RawMaterialEntity material, int colIndex) {
     switch (colIndex) {
       case 0: // ID
@@ -70,6 +83,45 @@ class RawMaterialDataTable extends StatelessWidget {
         );
 
       case 4: // Qoldiq
+        return _StockCell(value: material.stockQuantity);
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildMobileCell(
+      BuildContext context, RawMaterialEntity material, int colIndex) {
+    switch (colIndex) {
+      case 0: // Nomi / Turi
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              material.name,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            AppBadge(
+              label: material.type,
+              color: AppColors.primaryLight,
+            ),
+          ],
+        );
+
+      case 1: // Birlik
+        return Text(
+          _unitLabel(material.unit),
+          style: Theme.of(context).textTheme.bodyMedium,
+          textAlign: TextAlign.center,
+        );
+
+      case 2: // Qoldiq
         return _StockCell(value: material.stockQuantity);
 
       default:

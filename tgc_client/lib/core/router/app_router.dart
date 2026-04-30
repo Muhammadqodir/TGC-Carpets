@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../di/injection.dart';
 import '../../features/products/domain/entities/product_entity.dart';
 import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/products/presentation/pages/add_product_page.dart';
@@ -47,10 +52,18 @@ class AppRouter {
   AppRouter(this._tokenStorage);
 
   late final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     redirect: _handleRedirect,
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: AppRoutes.splashName,
+        builder: (context, state) => BlocProvider.value(
+          value: sl<AuthBloc>(),
+          child: const SplashPage(),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.login,
         name: AppRoutes.loginName,
@@ -259,12 +272,19 @@ class AppRouter {
     BuildContext context,
     GoRouterState state,
   ) async {
-    final token = await _tokenStorage.getToken();
-    final isLoggedIn = token != null && token.isNotEmpty;
+    final isOnSplash = state.matchedLocation == AppRoutes.splash;
     final isOnLogin = state.matchedLocation == AppRoutes.login;
 
-    if (!isLoggedIn && !isOnLogin) return AppRoutes.login;
-    if (isLoggedIn && isOnLogin) return AppRoutes.dashboard;
+    // Allow splash and login pages without redirect
+    if (isOnSplash || isOnLogin) return null;
+
+    // For all other routes, check authentication
+    final token = await _tokenStorage.getToken();
+    final isLoggedIn = token != null && token.isNotEmpty;
+
+    // If not logged in and trying to access protected route, redirect to login
+    if (!isLoggedIn) return AppRoutes.login;
+    
     return null;
   }
 }
@@ -275,5 +295,18 @@ class _MainShell extends StatelessWidget {
   const _MainShell({required this.child});
 
   @override
-  Widget build(BuildContext context) => child;
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: sl<AuthBloc>(),
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          // When user logs out, navigate to login page
+          if (state is AuthUnauthenticated) {
+            context.goNamed(AppRoutes.loginName);
+          }
+        },
+        child: child,
+      ),
+    );
+  }
 }
