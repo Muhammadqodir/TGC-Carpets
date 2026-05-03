@@ -171,7 +171,7 @@ class ShipmentService
         $pdf = Pdf::loadView('pdf.shipment_invoice', ['shipment' => $shipment])
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'dpi' => 96, // Reduced DPI to save memory
+                'dpi' => 130, // Increased DPI for better quality
                 'defaultFont' => 'sans-serif',
                 'isRemoteEnabled' => false,
                 'chroot' => storage_path('app'),
@@ -219,7 +219,7 @@ class ShipmentService
         $pdf = Pdf::loadView('pdf.shipment_hisob_faktura', ['shipment' => $shipment])
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'dpi' => 96, // Reduced DPI to save memory
+                'dpi' => 130, // Increased DPI for better quality
                 'defaultFont' => 'sans-serif',
                 'isRemoteEnabled' => false,
                 'chroot' => storage_path('app'),

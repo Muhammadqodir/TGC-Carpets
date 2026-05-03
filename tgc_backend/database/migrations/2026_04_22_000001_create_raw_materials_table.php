@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('type');
-            $table->enum('unit', ['piece', 'sqm', 'kg'])->default('piece');
+            $table->enum('unit', ['piece', 'sqm', 'kg', 'meter'])->default('piece');
             $table->timestamps();
 
             $table->unique(['name', 'type']);

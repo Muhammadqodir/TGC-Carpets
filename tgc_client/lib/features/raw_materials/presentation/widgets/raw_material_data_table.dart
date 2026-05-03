@@ -22,13 +22,11 @@ class RawMaterialDataTable extends StatelessWidget {
     AppTableColumn(label: 'ID', fixedWidth: 56),
     AppTableColumn(label: 'Nomi', flex: 4, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Turi', flex: 2, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Birlik', flex: 2),
     AppTableColumn(label: 'Qoldiq', flex: 2),
   ];
 
   static const _mobileColumns = <AppTableColumn>[
     AppTableColumn(label: 'Nomi / Turi', flex: 4, alignment: Alignment.centerLeft),
-    AppTableColumn(label: 'Birlik', flex: 2),
     AppTableColumn(label: 'Qoldiq', flex: 2),
   ];
 
@@ -75,15 +73,8 @@ class RawMaterialDataTable extends StatelessWidget {
       case 2: // Turi
         return AppBadge(label: material.type, color: AppColors.primaryLight);
 
-      case 3: // Birlik
-        return Text(
-          _unitLabel(material.unit),
-          style: Theme.of(context).textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        );
-
-      case 4: // Qoldiq
-        return _StockCell(value: material.stockQuantity);
+      case 3: // Qoldiq
+        return _StockCell(value: material.stockQuantity, unit: material.unit);
 
       default:
         return const SizedBox.shrink();
@@ -114,15 +105,8 @@ class RawMaterialDataTable extends StatelessWidget {
           ],
         );
 
-      case 1: // Birlik
-        return Text(
-          _unitLabel(material.unit),
-          style: Theme.of(context).textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        );
-
-      case 2: // Qoldiq
-        return _StockCell(value: material.stockQuantity);
+      case 1: // Qoldiq
+        return _StockCell(value: material.stockQuantity, unit: material.unit);
 
       default:
         return const SizedBox.shrink();
@@ -133,9 +117,10 @@ class RawMaterialDataTable extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _StockCell extends StatelessWidget {
-  const _StockCell({required this.value});
+  const _StockCell({required this.value, required this.unit});
 
   final double value;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +129,7 @@ class _StockCell extends StatelessWidget {
     final formatted = value == value.truncateToDouble()
         ? value.toInt().toString()
         : value.toStringAsFixed(2);
+    final unitLabel = _unitLabel(unit);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -152,7 +138,7 @@ class _StockCell extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        formatted,
+        '$formatted $unitLabel',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: color,
@@ -168,6 +154,7 @@ class _StockCell extends StatelessWidget {
 String _unitLabel(String unit) => switch (unit) {
       'sqm' => 'm²',
       'kg' => 'kg',
+      'meter' => 'm',
       'piece' => 'dona',
       _ => unit,
     };

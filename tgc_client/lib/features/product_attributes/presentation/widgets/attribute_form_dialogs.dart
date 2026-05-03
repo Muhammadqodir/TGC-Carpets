@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../products/domain/entities/product_type_entity.dart';
+import '../bloc/product_attributes_bloc.dart';
 import '../bloc/product_attributes_state.dart';
 
 /// Generic single-field attribute form dialog (Color, ProductType).
@@ -32,12 +34,15 @@ class SimpleAttributeFormDialog extends StatefulWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => SimpleAttributeFormDialog(
-        title: title,
-        fieldLabel: fieldLabel,
-        fieldHint: fieldHint,
-        initialValue: initialValue,
-        onSubmit: (ctx, value) => onSubmit(ctx, value),
+      builder: (_) => BlocProvider.value(
+        value: context.read<ProductAttributesBloc>(),
+        child: SimpleAttributeFormDialog(
+          title: title,
+          fieldLabel: fieldLabel,
+          fieldHint: fieldHint,
+          initialValue: initialValue,
+          onSubmit: (ctx, value) => onSubmit(ctx, value),
+        ),
       ),
     );
   }
@@ -71,36 +76,57 @@ class _SimpleAttributeFormDialogState extends State<SimpleAttributeFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 320,
-          child: TextFormField(
-            controller: _controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: widget.fieldLabel,
-              hintText: widget.fieldHint,
+    return BlocListener<ProductAttributesBloc, ProductAttributesState>(
+      listenWhen: (prev, curr) =>
+          curr is ProductAttributesLoaded &&
+          prev is ProductAttributesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: (context, state) {
+        if (state is ProductAttributesLoaded) {
+          final status = state.actionStatus;
+          if (status is AttributeActionSuccess) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          } else if (status is AttributeActionFailure) {
+            if (mounted) {
+              setState(() => _submitting = false);
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: AlertDialog(
+        title: Text(widget.title),
+        content: Form(
+          key: _formKey,
+          child: SizedBox(
+            width: 320,
+            child: TextFormField(
+              controller: _controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: widget.fieldLabel,
+                hintText: widget.fieldHint,
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
+              onFieldSubmitted: (_) => _submit(),
             ),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
-            onFieldSubmitted: (_) => _submit(),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Saqlash'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Bekor qilish'),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submit,
-          child: _submitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Saqlash'),
-        ),
-      ],
     );
   }
 }
@@ -130,10 +156,13 @@ class QualityFormDialog extends StatefulWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => QualityFormDialog(
-        initialName: initialName,
-        initialDensity: initialDensity,
-        onSubmit: onSubmit,
+      builder: (_) => BlocProvider.value(
+        value: context.read<ProductAttributesBloc>(),
+        child: QualityFormDialog(
+          initialName: initialName,
+          initialDensity: initialDensity,
+          onSubmit: onSubmit,
+        ),
       ),
     );
   }
@@ -173,56 +202,77 @@ class _QualityFormDialogState extends State<QualityFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.initialName != null ? 'Sifatni tahrirlash' : 'Sifat qo\'shish'),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Sifat nomi',
-                  hintText: 'masalan: Premium',
+    return BlocListener<ProductAttributesBloc, ProductAttributesState>(
+      listenWhen: (prev, curr) =>
+          curr is ProductAttributesLoaded &&
+          prev is ProductAttributesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: (context, state) {
+        if (state is ProductAttributesLoaded) {
+          final status = state.actionStatus;
+          if (status is AttributeActionSuccess) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          } else if (status is AttributeActionFailure) {
+            if (mounted) {
+              setState(() => _submitting = false);
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: AlertDialog(
+        title: Text(widget.initialName != null ? 'Sifatni tahrirlash' : 'Sifat qo\'shish'),
+        content: Form(
+          key: _formKey,
+          child: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Sifat nomi',
+                    hintText: 'masalan: Premium',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _densityCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Zichlik (ixtiyoriy)',
-                  hintText: 'masalan: 1200',
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _densityCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Zichlik (ixtiyoriy)',
+                    hintText: 'masalan: 1200',
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = int.tryParse(v.trim());
+                    if (n == null || n < 1) return 'Musbat son kiriting.';
+                    return null;
+                  },
                 ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return null;
-                  final n = int.tryParse(v.trim());
-                  if (n == null || n < 1) return 'Musbat son kiriting.';
-                  return null;
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Saqlash'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Bekor qilish'),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submit,
-          child: _submitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Saqlash'),
-        ),
-      ],
     );
   }
 }
@@ -258,12 +308,15 @@ class SizeFormDialog extends StatefulWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => SizeFormDialog(
-        initialLength: initialLength,
-        initialWidth: initialWidth,
-        initialProductTypeId: initialProductTypeId,
-        productTypes: productTypes,
-        onSubmit: onSubmit,
+      builder: (_) => BlocProvider.value(
+        value: context.read<ProductAttributesBloc>(),
+        child: SizeFormDialog(
+          initialLength: initialLength,
+          initialWidth: initialWidth,
+          initialProductTypeId: initialProductTypeId,
+          productTypes: productTypes,
+          onSubmit: onSubmit,
+        ),
       ),
     );
   }
@@ -312,72 +365,93 @@ class _SizeFormDialogState extends State<SizeFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.initialLength != null ? 'O\'lchamni tahrirlash' : 'O\'lcham qo\'shish'),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                value: _selectedTypeId,
-                decoration: const InputDecoration(labelText: 'Mahsulot turi'),
-                items: widget.productTypes
-                    .map((t) => DropdownMenuItem(value: t.id, child: Text(t.type)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedTypeId = v),
-                validator: (v) => v == null ? 'Tur tanlang.' : null,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lengthCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'Uzunlik (sm)'),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Majburiy.';
-                        if ((int.tryParse(v.trim()) ?? 0) < 1) return 'Musbat son.';
-                        return null;
-                      },
+    return BlocListener<ProductAttributesBloc, ProductAttributesState>(
+      listenWhen: (prev, curr) =>
+          curr is ProductAttributesLoaded &&
+          prev is ProductAttributesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: (context, state) {
+        if (state is ProductAttributesLoaded) {
+          final status = state.actionStatus;
+          if (status is AttributeActionSuccess) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          } else if (status is AttributeActionFailure) {
+            if (mounted) {
+              setState(() => _submitting = false);
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: AlertDialog(
+        title: Text(widget.initialLength != null ? 'O\'lchamni tahrirlash' : 'O\'lcham qo\'shish'),
+        content: Form(
+          key: _formKey,
+          child: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  value: _selectedTypeId,
+                  decoration: const InputDecoration(labelText: 'Mahsulot turi'),
+                  items: widget.productTypes
+                      .map((t) => DropdownMenuItem(value: t.id, child: Text(t.type)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedTypeId = v),
+                  validator: (v) => v == null ? 'Tur tanlang.' : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _widthCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: const InputDecoration(labelText: 'Kenglik (sm)'),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Majburiy.';
+                          if ((int.tryParse(v.trim()) ?? 0) < 1) return 'Musbat son.';
+                          return null;
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _widthCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'Kenglik (sm)'),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Majburiy.';
-                        if ((int.tryParse(v.trim()) ?? 0) < 1) return 'Musbat son.';
-                        return null;
-                      },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lengthCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: const InputDecoration(labelText: 'Uzunlik (sm)'),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Majburiy.';
+                          if ((int.tryParse(v.trim()) ?? 0) < 1) return 'Musbat son.';
+                          return null;
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Saqlash'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Bekor qilish'),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submit,
-          child: _submitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Saqlash'),
-        ),
-      ],
     );
   }
 }
@@ -387,7 +461,6 @@ class _SizeFormDialogState extends State<SizeFormDialog> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Call this from BlocListener to handle action status snackbars.
-/// Closes the dialog on success.
 void handleAttributeActionStatus(BuildContext context, ProductAttributesState state, {VoidCallback? onSuccess}) {
   if (state is! ProductAttributesLoaded) return;
   final status = state.actionStatus;
@@ -396,7 +469,6 @@ void handleAttributeActionStatus(BuildContext context, ProductAttributesState st
     case AttributeActionPending():
       break;
     case AttributeActionSuccess(message: final msg):
-      Navigator.of(context, rootNavigator: true).maybePop();
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
