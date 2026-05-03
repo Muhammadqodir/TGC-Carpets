@@ -70,7 +70,7 @@ class OrderItemEntity extends Equatable {
     final parts = <String>[productName];
     if (colorName != null) parts.add(colorName!);
     if (sizeLength != null && sizeWidth != null) {
-      parts.add('${sizeLength}x$sizeWidth');
+      parts.add('${sizeWidth}×$sizeLength');
     }
     return parts.join(' / ');
   }

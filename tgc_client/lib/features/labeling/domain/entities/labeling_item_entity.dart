@@ -42,7 +42,7 @@ class LabelingItemEntity extends Equatable {
 
   String get sizeLabel {
     if (sizeLength == null || sizeWidth == null) return '—';
-    return '$sizeLength×$sizeWidth';
+    return '${sizeWidth}×$sizeLength';
   }
 
   int get netTarget => (plannedQuantity - defectQuantity).clamp(0, plannedQuantity);

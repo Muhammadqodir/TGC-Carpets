@@ -962,7 +962,7 @@ class _DefectDocRow extends StatelessWidget {
     if (b.productName != null) parts.add(b.productName!);
     if (b.colorName != null) parts.add(b.colorName!);
     if (b.sizeLength != null && b.sizeWidth != null) {
-      parts.add('${b.sizeLength}×${b.sizeWidth}');
+      parts.add('${b.sizeWidth}×${b.sizeLength}');
     }
     return parts.isEmpty ? '#${item.productionBatchItemId}' : parts.join(' / ');
   }

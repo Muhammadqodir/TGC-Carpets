@@ -344,7 +344,7 @@ class _OrderItemsTable extends StatelessWidget {
               children: [
                 Text(
                   item.sizeLength != null && item.sizeWidth != null
-                      ? '${item.sizeLength}x${item.sizeWidth}'
+                      ? '${item.sizeWidth}×${item.sizeLength}'
                       : '—',
                   style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                         fontWeight: FontWeight.bold,

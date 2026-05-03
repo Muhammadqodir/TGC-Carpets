@@ -468,7 +468,7 @@ class _ItemRow extends StatelessWidget {
             flex: 2,
             child: Text(
               item.sizeLength != null && item.sizeWidth != null
-                  ? '${item.sizeLength}×${item.sizeWidth}'
+                  ? '${item.sizeWidth}×${item.sizeLength}'
                   : '—',
               style: Theme.of(context).textTheme.bodyMedium,
             ),

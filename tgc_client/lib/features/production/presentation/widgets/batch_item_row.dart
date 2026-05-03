@@ -113,7 +113,7 @@ class BatchItemRow {
 
   String? get prefilledSizeDimensions =>
       prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength×$prefilledSizeWidth'
+          ? '${prefilledSizeWidth}×${prefilledSizeLength}'
           : null;
 
   String get label {

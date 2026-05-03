@@ -78,7 +78,7 @@ class ShipmentItemRow {
   }
 
   String? get sizeLabel =>
-      sizeLength != null && sizeWidth != null ? '${sizeLength}×$sizeWidth' : null;
+      sizeLength != null && sizeWidth != null ? '${sizeWidth}×$sizeLength' : null;
 
   double get parsedPrice =>
       double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;

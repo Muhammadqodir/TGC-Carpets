@@ -29,7 +29,7 @@ class ProductVariantEntity extends Equatable {
 
   /// Human-readable size label, e.g. "200x300".
   String? get sizeDimensions =>
-      sizeLength != null && sizeWidth != null ? '${sizeLength}x$sizeWidth' : null;
+      sizeLength != null && sizeWidth != null ? '${sizeWidth}×${sizeLength}' : null;
 
   /// Full label combining product name, color, and size, e.g. "Carpet Pro (krem) 200x300".
   String get label {

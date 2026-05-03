@@ -67,7 +67,7 @@ class OrderItemRow {
   /// Display string for size, derived from prefill integers.
   String? get prefilledSizeDimensions =>
       prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '$prefilledSizeLength' 'x' '$prefilledSizeWidth'
+          ? '${prefilledSizeWidth}×$prefilledSizeLength'
           : null;
 
   String get label {
