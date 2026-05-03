@@ -51,7 +51,7 @@ class ProductVariant extends Model
         $sku .= '-' . strtoupper(Str::slug($colorName, '_'));
 
         if ($size) {
-            $sku .= '-' . $size->length . 'x' . $size->width;
+            $sku .= '-' . $size->width . 'x' . $size->length;
         }
 
         return $sku;
@@ -104,7 +104,7 @@ class ProductVariant extends Model
         $name = $pc?->product?->name ?? "Product #?";
         $color = $pc?->color?->name ?? '';
         $size = $this->productSize
-            ? " {$this->productSize->length}x{$this->productSize->width}"
+            ? " {$this->productSize->width}x{$this->productSize->length}"
             : '';
 
         return trim("{$name} ({$color}){$size}");

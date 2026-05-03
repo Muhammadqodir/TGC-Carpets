@@ -172,7 +172,7 @@ class StockController extends Controller
             'quality_name'       => $row->quality_name,
             'type_name'          => $row->type_name,
             'size'               => ($row->length && $row->width)
-                ? "{$row->length}x{$row->width}"
+                ? "{$row->width}x{$row->length}"
                 : null,
             'quantity_reserved'  => max(0, (int) $row->qty_received - (int) $row->qty_shipped),
             'quantity_warehouse' => (int) $row->quantity_warehouse,

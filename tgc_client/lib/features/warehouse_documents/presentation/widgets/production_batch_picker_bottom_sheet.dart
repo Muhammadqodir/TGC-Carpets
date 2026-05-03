@@ -673,7 +673,7 @@ class _BatchItemTile extends StatelessWidget {
                     ],
                     if (item.sizeLength != null && item.sizeWidth != null)
                       Text(
-                        '${item.sizeLength}×${item.sizeWidth}',
+                        '${item.sizeWidth}×${item.sizeLength}',
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall

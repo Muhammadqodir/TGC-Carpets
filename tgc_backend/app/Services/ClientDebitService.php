@@ -20,7 +20,7 @@ class ClientDebitService
     public function getSummaries(array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
         // Subquery: compute shipped amount per client.
-        // For m² products: price × (length × width × quantity / 10 000)
+        // For m² products: price × (width × length × quantity / 10 000)
         // For piece products: price × quantity
         $debitSub = DB::table('shipment_items as si')
             ->join('shipments as s',            's.id',  '=', 'si.shipment_id')

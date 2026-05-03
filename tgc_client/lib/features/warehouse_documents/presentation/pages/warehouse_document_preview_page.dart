@@ -524,7 +524,7 @@ class _TableRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${row.productName} | ${row.sizeLength}×${row.sizeWidth}',
+                        '${row.productName} | ${row.sizeWidth}×${row.sizeLength}',
                         style: textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

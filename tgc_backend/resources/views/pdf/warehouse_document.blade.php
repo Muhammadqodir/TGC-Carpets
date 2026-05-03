@@ -319,7 +319,7 @@
                         $color = $variant?->productColor?->color;
                         $size = $variant?->productSize;
 
-                        $sizeLabel = $size ? $size->length . ' × ' . $size->width : '—';
+                        $sizeLabel = $size ? $size->width . ' × ' . $size->length : '—';
                         $sizePerUnit =
                             $size && $size->length && $size->width
                                 ? number_format(($size->length * $size->width) / 10000, 4)

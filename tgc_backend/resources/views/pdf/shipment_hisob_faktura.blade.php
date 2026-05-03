@@ -240,7 +240,7 @@
                         <td>{{ $quality?->quality_name ?? '—' }}</td>
                         <td>
                             @if ($size)
-                                {{ $size->length }} × {{ $size->width }}
+                                {{ $size->width }} × {{ $size->length }}
                             @else
                                 —
                             @endif

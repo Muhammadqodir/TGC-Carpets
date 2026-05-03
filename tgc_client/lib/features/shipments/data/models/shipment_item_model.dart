@@ -39,7 +39,7 @@ class ShipmentItemModel extends ShipmentItemEntity {
       productUnit:      productMap?['unit'] as String?,
       productSizeId:    sizeMap?['id'] as int?,
       productSizeLabel: sizeMap != null
-          ? '${sizeMap['length']}x${sizeMap['width']}'
+          ? '${sizeMap['width']}x${sizeMap['length']}'
           : null,
       sizeLength:       sizeMap?['length'] as int?,
       sizeWidth:        sizeMap?['width'] as int?,

@@ -645,7 +645,7 @@ class _OrderItemTile extends StatelessWidget {
                         _SmallChip(label: item.productTypeName!),
                       if (item.sizeLength != null && item.sizeWidth != null)
                         _SmallChip(
-                          label: '${item.sizeLength}×${item.sizeWidth}',
+                          label: '${item.sizeWidth}×${item.sizeLength}',
                           color: AppColors.primary,
                         ),
                     ],

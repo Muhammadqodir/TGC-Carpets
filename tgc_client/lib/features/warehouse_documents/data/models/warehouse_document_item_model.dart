@@ -32,7 +32,7 @@ class WarehouseDocumentItemModel extends WarehouseDocumentItemEntity {
       productUnit: productMap?['unit'] as String?,
       productSizeId: sizeMap?['id'] as int?,
       productSizeLabel: sizeMap != null
-          ? '${sizeMap['length']}x${sizeMap['width']}'
+          ? '${sizeMap['width']}x${sizeMap['length']}'
           : null,
       length: sizeMap?['length'] as int?,
       width: sizeMap?['width'] as int?,
