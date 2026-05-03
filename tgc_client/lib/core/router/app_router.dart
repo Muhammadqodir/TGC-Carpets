@@ -31,6 +31,7 @@ import '../../features/production/presentation/pages/production_batch_detail_pag
 import '../../features/production/presentation/pages/defect_document_form_page.dart';
 import '../../features/production/domain/entities/production_batch_entity.dart';
 import '../../features/labeling/presentation/pages/labeling_page.dart';
+import '../../features/scanner/presentation/pages/scanner_page.dart';
 import '../../features/products_stock/presentation/pages/products_stock_page.dart';
 import '../../features/shipments/presentation/pages/shipments_page.dart';
 import '../../features/shipments/presentation/pages/add_shipment_page.dart';
@@ -198,6 +199,11 @@ class AppRouter {
             path: AppRoutes.labeling,
             name: AppRoutes.labelingName,
             builder: (context, state) => const LabelingPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.scanner,
+            name: AppRoutes.scannerName,
+            builder: (context, state) => const ScannerPage(),
           ),
           GoRoute(
             path: AppRoutes.productsStock,

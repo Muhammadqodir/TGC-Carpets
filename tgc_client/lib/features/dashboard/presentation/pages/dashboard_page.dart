@@ -130,18 +130,31 @@ class _DashboardViewState extends State<_DashboardView> {
               if (state.user.role != 'admin') {
                 return const SizedBox.shrink();
               }
-              return IconButton(
-                icon: HugeIcon(
-                  icon: _panelVisible
-                      ? HugeIcons.strokeRoundedViewOff
-                      : HugeIcons.strokeRoundedView,
-                  strokeWidth: 2,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _panelVisible = !_panelVisible;
-                  });
-                },
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedQrCode,
+                      strokeWidth: 2,
+                    ),
+                    tooltip: 'QR Skanerlash',
+                    onPressed: () => context.pushNamed(AppRoutes.scannerName),
+                  ),
+                  IconButton(
+                    icon: HugeIcon(
+                      icon: _panelVisible
+                          ? HugeIcons.strokeRoundedViewOff
+                          : HugeIcons.strokeRoundedView,
+                      strokeWidth: 2,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _panelVisible = !_panelVisible;
+                      });
+                    },
+                  ),
+                ],
               );
             },
           ),

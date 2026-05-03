@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductionBatchController extends Controller
 {
@@ -225,7 +226,7 @@ class ProductionBatchController extends Controller
                         'product_color' => $oi->variant->productColor ? [
                             'id'        => $oi->variant->productColor->id,
                             'image_url' => $oi->variant->productColor->image
-                                ? \Illuminate\Support\Facades\Storage::disk('public')->url($oi->variant->productColor->image)
+                                ? \Illuminate\Support\Facades\Storage::url($oi->variant->productColor->image)
                                 : null,
                             'color'   => $oi->variant->productColor->color
                                 ? ['id' => $oi->variant->productColor->color->id, 'name' => $oi->variant->productColor->color->name]
@@ -289,5 +290,94 @@ class ProductionBatchController extends Controller
         $updated = $this->service->incrementProducedQuantity($item);
 
         return response()->json(['data' => new ProductionBatchItemResource($updated)]);
+    }
+
+    /**
+     * GET /production-batches/scan?code={code}
+     * Scan QR/barcode in format: PB{batchId} PBI{itemId}
+     * Returns detailed info about the produced item.
+     */
+    public function scanItem(Request $request): JsonResponse
+    {
+        $code = $request->input('code');
+
+        // Parse format: "PB{123} PBI{456}"
+        if (!preg_match('/PB\{(\d+)\}\s+PBI\{(\d+)\}/', $code, $matches)) {
+            return response()->json(['message' => 'Invalid QR code format. Expected: PB{batchId} PBI{itemId}'], 400);
+        }
+
+        $batchId = (int) $matches[1];
+        $itemId = (int) $matches[2];
+
+        $item = ProductionBatchItem::with([
+                'productionBatch' => fn ($q) => $q->with(['machine', 'creator', 'responsibleEmployee']),
+                'variant.productColor.product.productType',
+                'variant.productColor.product.productQuality',
+                'variant.productColor.color',
+                'variant.productSize',
+                'sourceOrderItem.order.client',
+            ])
+            ->where('id', $itemId)
+            ->where('production_batch_id', $batchId)
+            ->first();
+
+        if (!$item) {
+            return response()->json(['message' => 'Production item not found.'], 404);
+        }
+
+        // Build response with all required data
+        $batch = $item->productionBatch;
+        $variant = $item->variant;
+        $productColor = $variant->productColor;
+        $product = $productColor->product;
+        $color = $productColor->color;
+        $size = $variant->productSize;
+        $orderItem = $item->sourceOrderItem;
+
+        return response()->json([
+            'data' => [
+                'item' => [
+                    'id'                          => $item->id,
+                    'planned_quantity'            => $item->planned_quantity,
+                    'produced_quantity'           => $item->produced_quantity,
+                    'defect_quantity'             => $item->defect_quantity,
+                    'warehouse_received_quantity' => $item->warehouse_received_quantity,
+                ],
+                'product' => [
+                    'name'          => $product->name,
+                    'quality'       => $product->productQuality?->quality_name,
+                    'type'          => $product->productType?->type,
+                    'color'         => $color?->name,
+                    'color_image'   => $productColor->image
+                        ? Storage::url($productColor->image)
+                        : null,
+                    'size_length'   => $size?->length,
+                    'size_width'    => $size?->width,
+                    'size_label'    => $size ? "{$size->width}×{$size->length}" : null,
+                    'barcode'       => $variant->barcode_value,
+                    'sku'           => $variant->sku_code,
+                ],
+                'production_batch' => [
+                    'id'                  => $batch->id,
+                    'batch_title'         => $batch->batch_title,
+                    'status'              => $batch->status,
+                    'type'                => $batch->type,
+                    'planned_datetime'    => $batch->planned_datetime?->toISOString(),
+                    'completed_datetime'  => $batch->completed_datetime?->toISOString(),
+                    'machine_id'          => $batch->machine_id,
+                    'machine_name'        => $batch->machine?->name,
+                    'employee_name'       => $batch->creator?->name,
+                    'responsible_employee_name' => $batch->responsibleEmployee?->name,
+                ],
+                'destination' => $orderItem?->order?->client ? [
+                    'type'        => 'client',
+                    'client_name' => $orderItem->order->client->shop_name,
+                    'region'      => $orderItem->order->client->region,
+                    'order_uuid'  => $orderItem->order->uuid,
+                ] : [
+                    'type' => 'warehouse',
+                ],
+            ],
+        ]);
     }
 }

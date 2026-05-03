@@ -79,6 +79,9 @@ class AppRoutes {
   static const String labeling     = '/labeling';
   static const String labelingName = 'labeling';
 
+  static const String scanner     = '/scanner';
+  static const String scannerName = 'scanner';
+
   static const String productsStock     = '/products-stock';
   static const String productsStockName = 'productsStock';
 

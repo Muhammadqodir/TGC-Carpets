@@ -116,6 +116,12 @@ import '../../features/labeling/data/repositories/labeling_repository_impl.dart'
 import '../../features/labeling/domain/repositories/labeling_repository.dart';
 import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
 
+// Scanner feature
+import '../../features/scanner/data/datasources/scanner_remote_datasource.dart';
+import '../../features/scanner/data/repositories/scanner_repository_impl.dart';
+import '../../features/scanner/domain/repositories/scanner_repository.dart';
+import '../../features/scanner/presentation/bloc/scanner_bloc.dart';
+
 // Shipments feature
 import '../../features/shipments/data/datasources/shipment_remote_datasource.dart';
 import '../../features/shipments/data/repositories/shipment_repository_impl.dart';
@@ -398,6 +404,17 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory(
     () => LabelingBloc(repository: sl<LabelingRepository>()),
+  );
+
+  // ─── Scanner Feature ──────────────────────────────────────────────────────
+  sl.registerLazySingleton<ScannerRemoteDataSource>(
+    () => ScannerRemoteDataSourceImpl(dio: sl<Dio>()),
+  );
+  sl.registerLazySingleton<ScannerRepository>(
+    () => ScannerRepositoryImpl(remoteDataSource: sl<ScannerRemoteDataSource>()),
+  );
+  sl.registerFactory(
+    () => ScannerBloc(repository: sl<ScannerRepository>()),
   );
 
   // ─── Shipments Feature ─────────────────────────────────────────────────────
