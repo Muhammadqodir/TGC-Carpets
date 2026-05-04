@@ -86,6 +86,29 @@ class AuthController extends Controller
         return response()->json(['message' => 'Parol muvaffaqiyatli o\'zgartirildi.']);
     }
 
+    /**
+     * Get list of label managers for label printing terminal login.
+     * Public endpoint (no auth required).
+     *
+     * GET /api/v1/auth/label-managers
+     */
+    public function labelManagers(): JsonResponse
+    {
+        $labelManagers = \App\Models\User::whereJsonContains('role', 'label_manager')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id'    => $user->id,
+                    'name'  => $user->name,
+                    'email' => $user->email,
+                    'role'  => $user->getRoles(),
+                ];
+            });
+
+        return response()->json(['data' => $labelManagers]);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function formatUser(\App\Models\User $user): array

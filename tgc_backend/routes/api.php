@@ -34,6 +34,7 @@ Route::prefix('v1')->group(function (): void {
     // ── Public ────────────────────────────────────────────────────────────
     Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::post('login', [AuthController::class, 'login'])->name('login');
+        Route::get('label-managers', [AuthController::class, 'labelManagers'])->name('label-managers');
     });
 
     // ── Authenticated ─────────────────────────────────────────────────────

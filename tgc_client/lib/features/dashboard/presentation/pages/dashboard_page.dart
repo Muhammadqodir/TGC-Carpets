@@ -67,12 +67,16 @@ class _DashboardViewState extends State<_DashboardView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('TGC Carpets'),
-                  Text(
-                    'Boshqaruv paneli',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall!
-                        .copyWith(color: Colors.white),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      return Text(
+                        'Xush kelibsiz, ${state is AuthAuthenticated ? state.user.name : 'Foydalanuvchi'}!',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall!
+                            .copyWith(color: Colors.white),
+                      );
+                    },
                   )
                 ],
               ),
@@ -80,41 +84,13 @@ class _DashboardViewState extends State<_DashboardView> {
           ],
         ),
         actions: [
-          BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, state) {
-              if (state is! AuthAuthenticated) {
-                return const SizedBox.shrink();
-              }
-              if (!state.user.isAdmin) {
-                return const SizedBox.shrink();
-              }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedQrCode,
-                      strokeWidth: 2,
-                    ),
-                    tooltip: 'QR Skanerlash',
-                    onPressed: () => context.pushNamed(AppRoutes.scannerName),
-                  ),
-                  IconButton(
-                    icon: HugeIcon(
-                      icon: _panelVisible
-                          ? HugeIcons.strokeRoundedViewOff
-                          : HugeIcons.strokeRoundedView,
-                      strokeWidth: 2,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _panelVisible = !_panelVisible;
-                      });
-                    },
-                  ),
-                ],
-              );
-            },
+          IconButton(
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedQrCode,
+              strokeWidth: 2,
+            ),
+            tooltip: 'QR Skanerlash',
+            onPressed: () => context.pushNamed(AppRoutes.scannerName),
           ),
           IconButton(
             icon: HugeIcon(

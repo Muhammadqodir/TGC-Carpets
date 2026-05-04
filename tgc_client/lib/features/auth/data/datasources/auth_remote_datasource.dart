@@ -13,6 +13,9 @@ abstract class AuthRemoteDataSource {
   Future<void> logout();
 
   Future<UserModel> getCurrentUser();
+
+  /// Get list of label managers (public endpoint, no auth required)
+  Future<List<UserModel>> getLabelManagers();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -54,6 +57,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return UserModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<UserModel>> getLabelManagers() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.labelManagers);
+      final data = (response.data as Map<String, dynamic>)['data'] as List;
+      return data
+          .map((json) => UserModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       _handleDioError(e);
     }
