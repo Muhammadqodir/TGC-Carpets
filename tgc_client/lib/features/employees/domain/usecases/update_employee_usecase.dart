@@ -3,18 +3,20 @@ import '../../../../core/error/failures.dart';
 import '../entities/employee_entity.dart';
 import '../repositories/employee_repository.dart';
 
-class CreateEmployeeUseCase {
+class UpdateEmployeeUseCase {
   final EmployeeRepository _repository;
-  const CreateEmployeeUseCase(this._repository);
+  const UpdateEmployeeUseCase(this._repository);
 
   Future<Either<Failure, EmployeeEntity>> call({
-    required String name,
-    required String email,
+    required int id,
+    String? name,
+    String? email,
     String? phone,
-    required String password,
-    required List<String> roles,
+    String? password,
+    List<String>? roles,
   }) =>
-      _repository.createEmployee(
+      _repository.updateEmployee(
+        id: id,
         name: name,
         email: email,
         phone: phone,

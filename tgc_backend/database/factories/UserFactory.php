@@ -28,7 +28,7 @@ class UserFactory extends Factory
             'name'           => fake()->name(),
             'email'          => fake()->unique()->safeEmail(),
             'phone'          => fake()->numerify('+99890#######'),
-            'role'           => User::ROLE_SALES_MANAGER,
+            'role'           => [User::ROLE_SALES_MANAGER],
             'password'       => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
@@ -36,42 +36,42 @@ class UserFactory extends Factory
 
     public function admin(): static
     {
-        return $this->state(['role' => User::ROLE_ADMIN]);
+        return $this->state(['role' => [User::ROLE_ADMIN]]);
     }
 
     public function warehouseManager(): static
     {
-        return $this->state(['role' => User::ROLE_WAREHOUSE_MANAGER]);
+        return $this->state(['role' => [User::ROLE_WAREHOUSE_MANAGER]]);
     }
 
     public function salesManager(): static
     {
-        return $this->state(['role' => User::ROLE_SALES_MANAGER]);
+        return $this->state(['role' => [User::ROLE_SALES_MANAGER]]);
     }
 
     public function rawWarehouseManager(): static
     {
-        return $this->state(['role' => User::ROLE_RAW_WAREHOUSE_MANAGER]);
+        return $this->state(['role' => [User::ROLE_RAW_WAREHOUSE_MANAGER]]);
     }
 
     public function productManager(): static
     {
-        return $this->state(['role' => User::ROLE_PRODUCT_MANAGER]);
+        return $this->state(['role' => [User::ROLE_PRODUCT_MANAGER]]);
     }
 
     public function machineManager(): static
     {
-        return $this->state(['role' => User::ROLE_MACHINE_MANAGER]);
+        return $this->state(['role' => [User::ROLE_MACHINE_MANAGER]]);
     }
 
     public function productionManager(): static
     {
-        return $this->state(['role' => User::ROLE_PRODUCTION_MANAGER]);
+        return $this->state(['role' => [User::ROLE_PRODUCTION_MANAGER]]);
     }
 
     public function orderManager(): static
     {
-        return $this->state(['role' => User::ROLE_ORDER_MANAGER]);
+        return $this->state(['role' => [User::ROLE_ORDER_MANAGER]]);
     }
 
     public function labelManager(): static

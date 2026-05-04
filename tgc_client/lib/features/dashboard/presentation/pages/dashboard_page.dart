@@ -85,7 +85,7 @@ class _DashboardViewState extends State<_DashboardView> {
               if (state is! AuthAuthenticated) {
                 return const SizedBox.shrink();
               }
-              if (state.user.role != 'admin') {
+              if (!state.user.isAdmin) {
                 return const SizedBox.shrink();
               }
               return Row(

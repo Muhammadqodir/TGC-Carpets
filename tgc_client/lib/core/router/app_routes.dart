@@ -46,6 +46,9 @@ class AppRoutes {
   static const String addEmployee     = '/employees/add';
   static const String addEmployeeName = 'addEmployee';
 
+  static const String editEmployee     = '/employees/edit';
+  static const String editEmployeeName = 'editEmployee';
+
   static const String settings     = '/settings';
   static const String settingsName = 'settings';
 

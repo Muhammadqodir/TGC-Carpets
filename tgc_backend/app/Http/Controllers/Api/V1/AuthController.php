@@ -95,7 +95,7 @@ class AuthController extends Controller
             'name'         => $user->name,
             'email'        => $user->email,
             'phone'        => $user->phone,
-            'role'         => $user->role,
+            'role'         => $user->getRoles(),
             'is_admin'     => $user->isAdmin(),
             'is_warehouse' => $user->isWarehouse(),
             'is_seller'    => $user->isSeller(),

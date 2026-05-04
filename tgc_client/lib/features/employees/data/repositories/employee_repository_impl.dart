@@ -42,11 +42,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     required String email,
     String? phone,
     required String password,
-    required String role,
+    required List<String> roles,
   }) async {
     try {
       return Right(await remoteDataSource.createEmployee(
-        name: name, email: email, phone: phone, password: password, role: role,
+        name: name, email: email, phone: phone, password: password, roles: roles,
       ));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
@@ -64,11 +64,11 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     String? email,
     String? phone,
     String? password,
-    String? role,
+    List<String>? roles,
   }) async {
     try {
       return Right(await remoteDataSource.updateEmployee(
-        id: id, name: name, email: email, phone: phone, password: password, role: role,
+        id: id, name: name, email: email, phone: phone, password: password, roles: roles,
       ));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));

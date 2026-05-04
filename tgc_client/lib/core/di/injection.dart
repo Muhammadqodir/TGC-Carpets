@@ -61,7 +61,6 @@ import '../../features/dashboard/data/datasources/dashboard_remote_datasource.da
 import '../../features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../../features/dashboard/domain/usecases/get_dashboard_stats_usecase.dart';
-import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 // Settings feature
 import '../../features/settings/data/datasources/settings_remote_datasource.dart';
@@ -106,6 +105,7 @@ import '../../features/employees/data/repositories/employee_repository_impl.dart
 import '../../features/employees/domain/repositories/employee_repository.dart';
 import '../../features/employees/domain/usecases/get_employees_usecase.dart';
 import '../../features/employees/domain/usecases/create_employee_usecase.dart';
+import '../../features/employees/domain/usecases/update_employee_usecase.dart';
 import '../../features/employees/domain/usecases/delete_employee_usecase.dart';
 import '../../features/employees/presentation/bloc/employees_bloc.dart';
 import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
@@ -384,6 +384,7 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(() => GetEmployeesUseCase(sl<EmployeeRepository>()));
   sl.registerLazySingleton(() => CreateEmployeeUseCase(sl<EmployeeRepository>()));
+  sl.registerLazySingleton(() => UpdateEmployeeUseCase(sl<EmployeeRepository>()));
   sl.registerLazySingleton(() => DeleteEmployeeUseCase(sl<EmployeeRepository>()));
   sl.registerFactory(
     () => EmployeesBloc(
@@ -392,7 +393,10 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerFactory(
-    () => EmployeeFormBloc(createEmployeeUseCase: sl<CreateEmployeeUseCase>()),
+    () => EmployeeFormBloc(
+      createEmployeeUseCase: sl<CreateEmployeeUseCase>(),
+      updateEmployeeUseCase: sl<UpdateEmployeeUseCase>(),
+    ),
   );
 
   // ─── Labeling Feature ─────────────────────────────────────────────────────
@@ -447,9 +451,6 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(
     () => GetDashboardStatsUseCase(sl<DashboardRepository>()),
-  );
-  sl.registerFactory(
-    () => DashboardBloc(getDashboardStatsUseCase: sl<GetDashboardStatsUseCase>()),
   );
 
   // ─── Settings Feature ──────────────────────────────────────────────────────

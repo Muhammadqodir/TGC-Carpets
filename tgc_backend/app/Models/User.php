@@ -54,54 +54,79 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
+            'role'              => 'array',
         ];
     }
 
     // ── Role helpers ──────────────────────────────────────────────────────────
 
+    /**
+     * Check if user has a specific role
+     */
+    public function hasRole(string $role): bool
+    {
+        return is_array($this->role) && in_array($role, $this->role);
+    }
+
+    /**
+     * Check if user has any of the given roles
+     */
+    public function hasAnyRole(array $roles): bool
+    {
+        return is_array($this->role) && !empty(array_intersect($this->role, $roles));
+    }
+
+    /**
+     * Get all roles as array
+     */
+    public function getRoles(): array
+    {
+        return is_array($this->role) ? $this->role : [];
+    }
+
     public function isAdmin(): bool
     {
-        return $this->role === self::ROLE_ADMIN;
+        return $this->hasRole(self::ROLE_ADMIN);
     }
 
     public function isWarehouseManager(): bool
     {
-        return $this->role === self::ROLE_WAREHOUSE_MANAGER;
+        return $this->hasRole(self::ROLE_WAREHOUSE_MANAGER);
     }
 
     public function isSalesManager(): bool
     {
-        return $this->role === self::ROLE_SALES_MANAGER;
+        return $this->hasRole(self::ROLE_SALES_MANAGER);
     }
 
     public function isRawWarehouseManager(): bool
     {
-        return $this->role === self::ROLE_RAW_WAREHOUSE_MANAGER;
+        return $this->hasRole(self::ROLE_RAW_WAREHOUSE_MANAGER);
     }
 
     public function isProductManager(): bool
     {
-        return $this->role === self::ROLE_PRODUCT_MANAGER;
+        return $this->hasRole(self::ROLE_PRODUCT_MANAGER);
     }
 
     public function isMachineManager(): bool
     {
-        return $this->role === self::ROLE_MACHINE_MANAGER;
+        return $this->hasRole(self::ROLE_MACHINE_MANAGER);
     }
 
     public function isProductionManager(): bool
     {
-        return $this->role === self::ROLE_PRODUCTION_MANAGER;
+        return $this->hasRole(self::ROLE_PRODUCTION_MANAGER);
     }
 
     public function isOrderManager(): bool
     {
-        return $this->role === self::ROLE_ORDER_MANAGER;
+        return $this->hasRole(self::ROLE_ORDER_MANAGER);
     }
 
     public function isLabelManager(): bool
     {
-        return $this->role === self::ROLE_LABEL_MANAGER;
+        return $this->hasRole(self::ROLE_LABEL_MANAGER);
     }
 
     // Legacy helpers (for backward compatibility)

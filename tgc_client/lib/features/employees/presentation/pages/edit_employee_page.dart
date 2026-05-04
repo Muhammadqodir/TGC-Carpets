@@ -3,37 +3,42 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
+import '../../domain/entities/employee_entity.dart';
 import '../bloc/employee_form_bloc.dart';
 import '../bloc/employee_form_event.dart';
 import '../bloc/employee_form_state.dart';
 
-class AddEmployeePage extends StatelessWidget {
-  const AddEmployeePage({super.key});
+class EditEmployeePage extends StatelessWidget {
+  final EmployeeEntity employee;
+
+  const EditEmployeePage({super.key, required this.employee});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<EmployeeFormBloc>(),
-      child: const _AddEmployeeView(),
+      child: _EditEmployeeView(employee: employee),
     );
   }
 }
 
-class _AddEmployeeView extends StatefulWidget {
-  const _AddEmployeeView();
+class _EditEmployeeView extends StatefulWidget {
+  final EmployeeEntity employee;
+
+  const _EditEmployeeView({required this.employee});
 
   @override
-  State<_AddEmployeeView> createState() => _AddEmployeeViewState();
+  State<_EditEmployeeView> createState() => _EditEmployeeViewState();
 }
 
-class _AddEmployeeViewState extends State<_AddEmployeeView> {
+class _EditEmployeeViewState extends State<_EditEmployeeView> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _phoneCtrl;
   final _passwordCtrl = TextEditingController();
   bool _passwordVisible = false;
-  Set<String> _selectedRoles = {};
+  late Set<String> _selectedRoles;
 
   static const _roles = [
     (label: 'Admin', value: 'admin'),
@@ -46,6 +51,15 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
     (label: 'Buyurtma Menejer', value: 'order_manager'),
     (label: 'Yorliq Menejer', value: 'label_manager'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.employee.name);
+    _emailCtrl = TextEditingController(text: widget.employee.email);
+    _phoneCtrl = TextEditingController(text: widget.employee.phone ?? '');
+    _selectedRoles = Set<String>.from(widget.employee.roles);
+  }
 
   @override
   void dispose() {
@@ -68,10 +82,11 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
       return;
     }
     context.read<EmployeeFormBloc>().add(EmployeeFormSubmitted(
+          id: widget.employee.id,
           name: _nameCtrl.text.trim(),
-          email: '${_emailCtrl.text.trim()}@tgc-carpets.uz',
+          email: _emailCtrl.text.trim(),
           phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-          password: _passwordCtrl.text,
+          password: _passwordCtrl.text.isEmpty ? null : _passwordCtrl.text,
           roles: _selectedRoles.toList(),
         ));
   }
@@ -83,7 +98,7 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
         if (state is EmployeeFormSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                '"${state.employee.name}" hodimi muvaffaqiyatli qo\'shildi.'),
+                '"${state.employee.name}" hodimi muvaffaqiyatli yangilandi.'),
             backgroundColor: AppColors.success,
           ));
           context.pop(true);
@@ -96,7 +111,7 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Hodim qo\'shish'),
+          title: const Text('Hodimni tahrirlash'),
           leading: IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
@@ -125,14 +140,11 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  hintText: 'jasur',
-                  suffixText: '@tgc-carpets.uz',
+                  hintText: 'jasur@tgc-carpets.uz',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Email majburiy.';
-                  final username = v.trim();
-                  if (username.contains('@') || username.contains(' '))
-                    return 'Faqat foydalanuvchi nomini kiriting.';
+                  if (!v.contains('@')) return 'Email noto\'g\'ri.';
                   return null;
                 },
               ),
@@ -146,14 +158,15 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
                 ),
               ),
               const SizedBox(height: 24),
-              const _SectionHeader(title: 'Kirish ma\'lumotlari'),
+              const _SectionHeader(title: 'Parolni o\'zgartirish (ixtiyoriy)'),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordCtrl,
                 obscureText: !_passwordVisible,
                 decoration: InputDecoration(
-                  labelText: 'Parol',
+                  labelText: 'Yangi parol',
                   hintText: 'Kamida 8 ta belgi',
+                  helperText: 'Bo\'sh qoldiring agar parolni o\'zgartirmoqchi bo\'lmasangiz',
                   suffixIcon: IconButton(
                     icon: Icon(_passwordVisible
                         ? Icons.visibility_off
@@ -163,9 +176,9 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Parol majburiy.';
-                  if (v.length < 8)
+                  if (v != null && v.isNotEmpty && v.length < 8) {
                     return 'Parol kamida 8 ta belgidan iborat bo\'lishi kerak.';
+                  }
                   return null;
                 },
               ),

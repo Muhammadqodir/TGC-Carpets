@@ -7,20 +7,22 @@ abstract class EmployeeFormEvent extends Equatable {
 }
 
 class EmployeeFormSubmitted extends EmployeeFormEvent {
+  final int? id; // null for create, set for update
   final String name;
   final String email;
   final String? phone;
-  final String password;
-  final String role;
+  final String? password; // nullable for update
+  final List<String> roles;
 
   const EmployeeFormSubmitted({
+    this.id,
     required this.name,
     required this.email,
     this.phone,
-    required this.password,
-    required this.role,
+    this.password,
+    required this.roles,
   });
 
   @override
-  List<Object?> get props => [name, email, phone, password, role];
+  List<Object?> get props => [id, name, email, phone, password, roles];
 }

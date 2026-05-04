@@ -191,11 +191,13 @@ class _EmployeesViewState extends State<_EmployeesView> {
                           ? (state.actionStatus as EmployeeActionPending).employeeId
                           : null,
                       onEdit: (e) async {
-                        // TODO: Navigate to edit employee page when created
-                        // For now, just show a snackbar
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Tahrirlash funksiyasi ishlab chiqilmoqda')),
+                        final result = await context.pushNamed(
+                          AppRoutes.editEmployeeName,
+                          extra: e,
                         );
+                        if (result == true && context.mounted) {
+                          context.read<EmployeesBloc>().add(const EmployeesRefreshRequested());
+                        }
                       },
                       onDelete: (e) async {
                         final confirmed = await ConfirmDialog.show(

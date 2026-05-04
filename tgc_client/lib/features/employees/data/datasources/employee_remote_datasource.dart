@@ -17,7 +17,7 @@ abstract class EmployeeRemoteDataSource {
     required String email,
     String? phone,
     required String password,
-    required String role,
+    required List<String> roles,
   });
 
   Future<EmployeeModel> updateEmployee({
@@ -26,7 +26,7 @@ abstract class EmployeeRemoteDataSource {
     String? email,
     String? phone,
     String? password,
-    String? role,
+    List<String>? roles,
   });
 
   Future<void> deleteEmployee({required int id});
@@ -76,7 +76,7 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
     required String email,
     String? phone,
     required String password,
-    required String role,
+    required List<String> roles,
   }) async {
     try {
       final response = await _dio.post(
@@ -86,7 +86,7 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
           'email': email,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
           'password': password,
-          'role': role,
+          'role': roles,
         },
       );
       return EmployeeModel.fromJson(
@@ -103,7 +103,7 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
     String? email,
     String? phone,
     String? password,
-    String? role,
+    List<String>? roles,
   }) async {
     try {
       final response = await _dio.put(
@@ -113,7 +113,7 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
           if (email != null) 'email': email,
           if (phone != null) 'phone': phone,
           if (password != null && password.isNotEmpty) 'password': password,
-          if (role != null) 'role': role,
+          if (roles != null) 'role': roles,
         },
       );
       return EmployeeModel.fromJson(

@@ -20,7 +20,8 @@ class UpdateEmployeeRequest extends FormRequest
             'email'    => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'phone'    => ['nullable', 'string', 'max:20'],
             'password' => ['nullable', 'string', Password::min(8)],
-            'role'     => ['sometimes', 'required', 'string', Rule::in(User::ROLES)],
+            'role'     => ['sometimes', 'required', 'array', 'min:1'],
+            'role.*'   => ['required', 'string', Rule::in(User::ROLES)],
         ];
     }
 }

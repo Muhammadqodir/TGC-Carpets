@@ -19,6 +19,8 @@ import '../../features/warehouse_documents/presentation/pages/warehouse_document
 import '../../features/warehouse_documents/presentation/pages/args/warehouse_document_preview_args.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/employees/presentation/pages/add_employee_page.dart';
+import '../../features/employees/presentation/pages/edit_employee_page.dart';
+import '../../features/employees/domain/entities/employee_entity.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/orders/presentation/pages/order_form_page.dart';
@@ -129,6 +131,14 @@ class AppRouter {
             path: AppRoutes.addEmployee,
             name: AppRoutes.addEmployeeName,
             builder: (context, state) => const AddEmployeePage(),
+          ),
+          GoRoute(
+            path: AppRoutes.editEmployee,
+            name: AppRoutes.editEmployeeName,
+            builder: (context, state) {
+              final employee = state.extra as EmployeeEntity;
+              return EditEmployeePage(employee: employee);
+            },
           ),
           GoRoute(
             path: AppRoutes.settings,

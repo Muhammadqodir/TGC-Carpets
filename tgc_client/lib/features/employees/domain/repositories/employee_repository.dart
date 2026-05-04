@@ -16,7 +16,7 @@ abstract class EmployeeRepository {
     required String email,
     String? phone,
     required String password,
-    required String role,
+    required List<String> roles,
   });
 
   Future<Either<Failure, EmployeeEntity>> updateEmployee({
@@ -25,7 +25,7 @@ abstract class EmployeeRepository {
     String? email,
     String? phone,
     String? password,
-    String? role,
+    List<String>? roles,
   });
 
   Future<Either<Failure, void>> deleteEmployee({required int id});
