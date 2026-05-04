@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/delete_product_usecase.dart';
+import '../../domain/usecases/delete_product_color_usecase.dart';
 import '../../domain/usecases/get_products_usecase.dart';
 import '../../domain/usecases/update_product_usecase.dart';
 import 'products_event.dart';
@@ -10,6 +11,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   final GetProductsUseCase getProductsUseCase;
   final UpdateProductUseCase updateProductUseCase;
   final DeleteProductUseCase deleteProductUseCase;
+  final DeleteProductColorUseCase deleteProductColorUseCase;
 
   String _searchQuery = '';
   int? _filterTypeId;
@@ -22,6 +24,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     required this.getProductsUseCase,
     required this.updateProductUseCase,
     required this.deleteProductUseCase,
+    required this.deleteProductColorUseCase,
   }) : super(const ProductsInitial()) {
     on<ProductsLoadRequested>(_onLoadRequested);
     on<ProductsSearchChanged>(_onSearchChanged);
@@ -30,6 +33,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     on<ProductsFilterChanged>(_onFilterChanged);
     on<ProductArchiveToggleRequested>(_onArchiveToggle);
     on<ProductDeleteRequested>(_onDelete);
+    on<ProductColorDeleteRequested>(_onDeleteColor);
   }
 
   Future<void> _onLoadRequested(
@@ -185,6 +189,33 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
         total: current.total > 0 ? current.total - 1 : 0,
         actionStatus: ProductActionSuccess('"${product.name}" o\'chirildi.'),
       )),
+    );
+  }
+
+  Future<void> _onDeleteColor(
+    ProductColorDeleteRequested event,
+    Emitter<ProductsState> emit,
+  ) async {
+    final current = state;
+    if (current is! ProductsLoaded) return;
+
+    emit(current.copyWith(actionStatus: const ProductActionPending(0)));
+
+    final result = await deleteProductColorUseCase(
+      productColorId: event.productColorId,
+    );
+
+    result.fold(
+      (failure) => emit(current.copyWith(
+        actionStatus: ProductActionFailure(failure.message),
+      )),
+      (_) {
+        // Refresh the products list to reflect the color removal
+        add(const ProductsRefreshRequested());
+        emit(current.copyWith(
+          actionStatus: const ProductActionSuccess('Rang o\'chirildi.'),
+        ));
+      },
     );
   }
 }

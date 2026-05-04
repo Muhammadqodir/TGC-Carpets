@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/color_entity.dart';
 import '../../domain/usecases/create_product_color_usecase.dart';
+import '../../domain/usecases/update_product_color_usecase.dart';
 import '../../domain/usecases/get_colors_usecase.dart';
 import 'product_color_form_event.dart';
 import 'product_color_form_state.dart';
@@ -9,13 +10,16 @@ class ProductColorFormBloc
     extends Bloc<ProductColorFormEvent, ProductColorFormState> {
   final GetColorsUseCase getColorsUseCase;
   final CreateProductColorUseCase createProductColorUseCase;
+  final UpdateProductColorUseCase updateProductColorUseCase;
 
   ProductColorFormBloc({
     required this.getColorsUseCase,
     required this.createProductColorUseCase,
+    required this.updateProductColorUseCase,
   }) : super(const ProductColorFormInitial()) {
     on<ProductColorFormStarted>(_onStarted);
     on<ProductColorFormSubmitted>(_onSubmitted);
+    on<ProductColorFormUpdated>(_onUpdated);
   }
 
   Future<void> _onStarted(
@@ -39,6 +43,27 @@ class ProductColorFormBloc
 
     final result = await createProductColorUseCase(
       productId: event.productId,
+      colorId: event.colorId,
+      imagePath: event.imagePath,
+    );
+
+    result.fold(
+      (failure) => emit(
+        ProductColorFormFailure(failure.message, colors: colors),
+      ),
+      (productColor) => emit(ProductColorFormSuccess(productColor)),
+    );
+  }
+
+  Future<void> _onUpdated(
+    ProductColorFormUpdated event,
+    Emitter<ProductColorFormState> emit,
+  ) async {
+    final colors = _currentColors();
+    emit(ProductColorFormSubmitting(colors));
+
+    final result = await updateProductColorUseCase(
+      productColorId: event.productColorId,
       colorId: event.colorId,
       imagePath: event.imagePath,
     );

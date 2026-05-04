@@ -25,3 +25,18 @@ class ProductColorFormSubmitted extends ProductColorFormEvent {
   @override
   List<Object?> get props => [productId, colorId, imagePath];
 }
+
+class ProductColorFormUpdated extends ProductColorFormEvent {
+  final int productColorId;
+  final int colorId;
+  final String? imagePath;
+
+  const ProductColorFormUpdated({
+    required this.productColorId,
+    required this.colorId,
+    this.imagePath,
+  });
+
+  @override
+  List<Object?> get props => [productColorId, colorId, imagePath];
+}

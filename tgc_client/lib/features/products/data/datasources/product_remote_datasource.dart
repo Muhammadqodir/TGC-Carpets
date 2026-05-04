@@ -54,6 +54,13 @@ abstract class ProductRemoteDataSource {
     String? imagePath,
   });
 
+  /// Updates an existing product-color entry.
+  Future<ProductColorModel> updateProductColor({
+    required int productColorId,
+    int? colorId,
+    String? imagePath,
+  });
+
   /// Deletes a product-color entry.
   Future<void> deleteProductColor({required int productColorId});
 
@@ -251,6 +258,36 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       final response = await _dio.post(
         ApiEndpoints.productColors,
         data: formData,
+      );
+
+      return ProductColorModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductColorModel> updateProductColor({
+    required int productColorId,
+    int? colorId,
+    String? imagePath,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        if (colorId != null) 'color_id': colorId,
+        if (imagePath != null)
+          'image': await MultipartFile.fromFile(
+            imagePath,
+            filename: imagePath.split('/').last,
+          ),
+      });
+
+      final response = await _dio.post(
+        ApiEndpoints.productColorById(productColorId),
+        data: formData,
+        queryParameters: {'_method': 'PUT'},
       );
 
       return ProductColorModel.fromJson(

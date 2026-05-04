@@ -7,6 +7,7 @@ import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
+import 'package:tgc_client/features/products/domain/entities/product_color_entity.dart';
 
 /// Product-specific data table that wraps the generic [AppDataTable].
 class ProductDataTable extends StatelessWidget {
@@ -19,6 +20,8 @@ class ProductDataTable extends StatelessWidget {
     required this.onArchiveToggle,
     required this.onDelete,
     required this.onAddColor,
+    required this.onEditColor,
+    required this.onRemoveColor,
     this.pendingProductId,
   });
 
@@ -29,6 +32,8 @@ class ProductDataTable extends StatelessWidget {
   final void Function(ProductEntity) onArchiveToggle;
   final void Function(ProductEntity) onDelete;
   final void Function(ProductEntity) onAddColor;
+  final void Function(ProductEntity, ProductColorEntity) onEditColor;
+  final void Function(ProductEntity, ProductColorEntity) onRemoveColor;
   final int? pendingProductId;
 
   static const _columns = <AppTableColumn>[
@@ -111,6 +116,8 @@ class ProductDataTable extends StatelessWidget {
         return _ColorsCell(
           product: product,
           onAddColor: () => onAddColor(product),
+          onEditColor: (color) => onEditColor(product, color),
+          onRemoveColor: (color) => onRemoveColor(product, color),
         );
       case 2: // quality
         if (isDesktop) {
@@ -129,6 +136,8 @@ class ProductDataTable extends StatelessWidget {
         return _ColorsCell(
           product: product,
           onAddColor: () => onAddColor(product),
+          onEditColor: (color) => onEditColor(product, color),
+          onRemoveColor: (color) => onRemoveColor(product, color),
         );
       case 5: // status
         return AppBadge(
@@ -273,10 +282,17 @@ class ProductDataTable extends StatelessWidget {
 
 /// Displays a horizontal strip of color thumbnails with an add-color button.
 class _ColorsCell extends StatelessWidget {
-  const _ColorsCell({required this.product, required this.onAddColor});
+  const _ColorsCell({
+    required this.product,
+    required this.onAddColor,
+    required this.onEditColor,
+    required this.onRemoveColor,
+  });
 
   final ProductEntity product;
   final VoidCallback onAddColor;
+  final void Function(ProductColorEntity) onEditColor;
+  final void Function(ProductColorEntity) onRemoveColor;
 
   @override
   Widget build(BuildContext context) {
@@ -287,9 +303,10 @@ class _ColorsCell extends StatelessWidget {
           ...product.productColors.take(5).map(
                 (pc) => Padding(
                   padding: const EdgeInsets.only(right: 4),
-                  child: Tooltip(
-                    message: pc.colorName,
-                    child: AppThumbnail(imageUrl: pc.imageUrl, size: 32),
+                  child: _ColorThumbnail(
+                    color: pc,
+                    onEdit: () => onEditColor(pc),
+                    onRemove: () => onRemoveColor(pc),
                   ),
                 ),
               ),
@@ -367,6 +384,85 @@ class _ActionButton extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           child: icon,
         ),
+      ),
+    );
+  }
+}
+
+class _ColorThumbnail extends StatelessWidget {
+  const _ColorThumbnail({
+    required this.color,
+    required this.onEdit,
+    required this.onRemove,
+  });
+
+  final ProductColorEntity color;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
+
+  void _showContextMenu(BuildContext context, Offset position) {
+    final RenderBox? overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        overlay?.size.width ?? position.dx,
+        overlay?.size.height ?? position.dy,
+      ),
+      surfaceTintColor: AppColors.surface,
+      color: AppColors.surface,
+      items: [
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedEdit02,
+                color: AppColors.primary,
+                size: 18,
+                strokeWidth: 2,
+              ),
+              const SizedBox(width: 8),
+              const Text('Tahrirlash'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'remove',
+          child: Row(
+            children: [
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedDelete02,
+                color: AppColors.error,
+                size: 18,
+                strokeWidth: 2,
+              ),
+              const SizedBox(width: 8),
+              const Text('O\'chirish'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'edit') {
+        onEdit();
+      } else if (value == 'remove') {
+        onRemove();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
+      onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
+      child: Tooltip(
+        message: color.colorName,
+        child: AppThumbnail(imageUrl: color.imageUrl, size: 32),
       ),
     );
   }

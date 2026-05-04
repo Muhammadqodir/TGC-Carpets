@@ -63,3 +63,12 @@ class ProductDeleteRequested extends ProductsEvent {
   @override
   List<Object?> get props => [productId];
 }
+
+class ProductColorDeleteRequested extends ProductsEvent {
+  final int productColorId;
+
+  const ProductColorDeleteRequested(this.productColorId);
+
+  @override
+  List<Object?> get props => [productColorId];
+}

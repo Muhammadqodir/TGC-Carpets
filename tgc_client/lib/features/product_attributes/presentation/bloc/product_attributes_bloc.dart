@@ -4,6 +4,8 @@ import '../../domain/usecases/load_product_attributes_usecase.dart';
 import '../../domain/usecases/product_quality_usecases.dart';
 import '../../domain/usecases/product_size_usecases.dart';
 import '../../domain/usecases/product_type_usecases.dart';
+import '../../../orders/presentation/widgets/order_product_size_multi_picker_sheet.dart';
+import '../../../products/presentation/widgets/product_size_picker_sheet.dart';
 import 'product_attributes_event.dart';
 import 'product_attributes_state.dart';
 
@@ -271,14 +273,19 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     );
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
-      (s) => emit(current.copyWith(
-        productSizes: [...current.productSizes, s]
-          ..sort((a, b) {
-            final cmp = a.length.compareTo(b.length);
-            return cmp != 0 ? cmp : a.width.compareTo(b.width);
-          }),
-        actionStatus: AttributeActionSuccess('"${s.dimensions}" o\'lcham qo\'shildi.'),
-      )),
+      (s) {
+        // Clear size picker caches
+        OrderProductSizeMultiPickerSheet.clearCache();
+        ProductSizePickerSheet.clearCache();
+        emit(current.copyWith(
+          productSizes: [...current.productSizes, s]
+            ..sort((a, b) {
+              final cmp = a.length.compareTo(b.length);
+              return cmp != 0 ? cmp : a.width.compareTo(b.width);
+            }),
+          actionStatus: AttributeActionSuccess('"${s.dimensions}" o\'lcham qo\'shildi.'),
+        ));
+      },
     );
   }
 
@@ -298,6 +305,9 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (s) {
+        // Clear size picker caches
+        OrderProductSizeMultiPickerSheet.clearCache();
+        ProductSizePickerSheet.clearCache();
         final updated = current.productSizes.map((e) => e.id == s.id ? s : e).toList()
           ..sort((a, b) {
             final cmp = a.length.compareTo(b.length);
@@ -321,10 +331,15 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final result = await deleteProductSizeUseCase(id: event.id, replaceWithId: event.replaceWithId);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
-      (_) => emit(current.copyWith(
-        productSizes: current.productSizes.where((s) => s.id != event.id).toList(),
-        actionStatus: const AttributeActionSuccess('O\'lcham o\'chirildi.'),
-      )),
+      (_) {
+        // Clear size picker caches
+        OrderProductSizeMultiPickerSheet.clearCache();
+        ProductSizePickerSheet.clearCache();
+        emit(current.copyWith(
+          productSizes: current.productSizes.where((s) => s.id != event.id).toList(),
+          actionStatus: const AttributeActionSuccess('O\'lcham o\'chirildi.'),
+        ));
+      },
     );
   }
   ProductAttributesLoaded? _requireLoaded(Emitter<ProductAttributesState> emit) {

@@ -266,6 +266,27 @@ class _ProductsViewState extends State<_ProductsView> {
                             .read<ProductsBloc>()
                             .add(const ProductsRefreshRequested()),
                       ),
+                      onEditColor: (p, c) => AddProductColorModal.show(
+                        context,
+                        product: p,
+                        existingColor: c,
+                        onColorAdded: () => context
+                            .read<ProductsBloc>()
+                            .add(const ProductsRefreshRequested()),
+                      ),
+                      onRemoveColor: (p, c) async {
+                        final confirmed = await ConfirmDialog.show(
+                          context: context,
+                          title: 'Rangni o\'chirishni tasdiqlang',
+                          content:
+                              '"${c.colorName}" rangini "${p.name}" mahsulotidan o\'chirilsinmi?',
+                        );
+                        if (confirmed && context.mounted) {
+                          context
+                              .read<ProductsBloc>()
+                              .add(ProductColorDeleteRequested(c.id));
+                        }
+                      },
                     );
                   }
 

@@ -201,6 +201,28 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<Either<Failure, ProductColorEntity>> updateProductColor({
+    required int productColorId,
+    int? colorId,
+    String? imagePath,
+  }) async {
+    try {
+      final pc = await remoteDataSource.updateProductColor(
+        productColorId: productColorId,
+        colorId: colorId,
+        imagePath: imagePath,
+      );
+      return Right(pc);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> deleteProductColor({required int productColorId}) async {
     try {
       await remoteDataSource.deleteProductColor(productColorId: productColorId);

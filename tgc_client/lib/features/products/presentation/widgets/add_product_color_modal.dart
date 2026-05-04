@@ -7,11 +7,12 @@ import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/products/domain/entities/color_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
+import 'package:tgc_client/features/products/domain/entities/product_color_entity.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_color_form_bloc.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_color_form_event.dart';
 import 'package:tgc_client/features/products/presentation/bloc/product_color_form_state.dart';
 
-/// Dialog for adding a new color variant to an existing product.
+/// Dialog for adding or editing a color variant to an existing product.
 class AddProductColorModal {
   const AddProductColorModal._();
 
@@ -19,6 +20,7 @@ class AddProductColorModal {
     BuildContext context, {
     required ProductEntity product,
     required VoidCallback onColorAdded,
+    ProductColorEntity? existingColor,
   }) {
     showDialog<void>(
       context: context,
@@ -30,6 +32,7 @@ class AddProductColorModal {
           product: product,
           onColorAdded: onColorAdded,
           onClose: () => Navigator.of(dialogCtx).pop(),
+          existingColor: existingColor,
         ),
       ),
     );
@@ -41,11 +44,13 @@ class _AddColorDialogContent extends StatefulWidget {
     required this.product,
     required this.onColorAdded,
     required this.onClose,
+    this.existingColor,
   });
 
   final ProductEntity product;
   final VoidCallback onColorAdded;
   final VoidCallback onClose;
+  final ProductColorEntity? existingColor;
 
   @override
   State<_AddColorDialogContent> createState() => _AddColorDialogContentState();
@@ -54,6 +59,13 @@ class _AddColorDialogContent extends StatefulWidget {
 class _AddColorDialogContentState extends State<_AddColorDialogContent> {
   ColorEntity? _selectedColor;
   XFile? _pickedImage;
+  bool _hasPreselectedColor = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Note: We'll pre-select the color when colors are loaded, not here
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final file = await ImagePicker().pickImage(
@@ -124,7 +136,8 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
       );
       return;
     }
-    if (_pickedImage == null) {
+    // For create: image is required. For update: image is optional
+    if (widget.existingColor == null && _pickedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Rang uchun rasm tanlang.'),
@@ -133,17 +146,31 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
       );
       return;
     }
-    context.read<ProductColorFormBloc>().add(
-          ProductColorFormSubmitted(
-            productId: widget.product.id,
-            colorId: colorId,
-            imagePath: _pickedImage!.path,
-          ),
-        );
+
+    if (widget.existingColor != null) {
+      // Update mode
+      context.read<ProductColorFormBloc>().add(
+            ProductColorFormUpdated(
+              productColorId: widget.existingColor!.id,
+              colorId: colorId,
+              imagePath: _pickedImage?.path,
+            ),
+          );
+    } else {
+      // Create mode
+      context.read<ProductColorFormBloc>().add(
+            ProductColorFormSubmitted(
+              productId: widget.product.id,
+              colorId: colorId,
+              imagePath: _pickedImage!.path,
+            ),
+          );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditMode = widget.existingColor != null;
     return BlocListener<ProductColorFormBloc, ProductColorFormState>(
       listener: (context, state) {
         if (state is ProductColorFormSuccess) {
@@ -152,7 +179,9 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '"${widget.product.name}" mahsulotiga rang qo\'shildi.',
+                isEditMode
+                    ? '"${widget.product.name}" rangі yangilandi.'
+                    : '"${widget.product.name}" mahsulotiga rang qo\'shildi.',
               ),
               backgroundColor: AppColors.success,
             ),
@@ -177,6 +206,20 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
           final isLoading = state is ProductColorFormLoading;
           final isSubmitting = state is ProductColorFormSubmitting;
 
+          // Pre-select color when editing and colors are loaded
+          if (!_hasPreselectedColor && 
+              colors.isNotEmpty && 
+              widget.existingColor != null) {
+            final matchingColor = colors.cast<ColorEntity?>().firstWhere(
+              (c) => c?.id == widget.existingColor!.colorId,
+              orElse: () => null,
+            );
+            if (matchingColor != null) {
+              _selectedColor = matchingColor;
+              _hasPreselectedColor = true;
+            }
+          }
+
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -194,7 +237,9 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
                       children: [
                         Expanded(
                           child: Text(
-                            '${widget.product.name} — Rang qo\'shish',
+                            isEditMode
+                                ? '${widget.product.name} — Rangni tahrirlash'
+                                : '${widget.product.name} — Rang qo\'shish',
                             style: Theme.of(context).textTheme.titleMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -242,7 +287,8 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
                                     decoration: BoxDecoration(
                                       color: AppColors.background,
                                       border: Border.all(
-                                        color: _pickedImage != null
+                                        color: _pickedImage != null ||
+                                                widget.existingColor != null
                                             ? AppColors.primaryLight
                                             : AppColors.divider,
                                         width: 1.5,
@@ -253,7 +299,12 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
                                     child: _pickedImage != null
                                         ? _ImagePreview(
                                             path: _pickedImage!.path)
-                                        : _ImagePlaceholder(context),
+                                        : widget.existingColor != null &&
+                                                widget.existingColor!.imageUrl != null
+                                            ? _NetworkImagePreview(
+                                                url: widget.existingColor!.imageUrl!,
+                                              )
+                                            : _ImagePlaceholder(context),
                                   ),
                                 ),
                               )
@@ -310,6 +361,44 @@ class _ImagePreview extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.file(File(path), fit: BoxFit.cover),
+        Positioned(
+          bottom: 8,
+          right: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.edit, color: Colors.white, size: 14),
+                SizedBox(width: 4),
+                Text(
+                  'O\'zgartirish',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NetworkImagePreview extends StatelessWidget {
+  const _NetworkImagePreview({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(url, fit: BoxFit.cover),
         Positioned(
           bottom: 8,
           right: 8,

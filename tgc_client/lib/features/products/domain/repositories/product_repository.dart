@@ -52,6 +52,12 @@ abstract class ProductRepository {
     String? imagePath,
   });
 
+  Future<Either<Failure, ProductColorEntity>> updateProductColor({
+    required int productColorId,
+    int? colorId,
+    String? imagePath,
+  });
+
   Future<Either<Failure, void>> deleteProductColor({required int productColorId});
 
   Future<Either<Failure, List<ColorEntity>>> getColors();
