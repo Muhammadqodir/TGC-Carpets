@@ -11,12 +11,14 @@ import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/services/print_history_service.dart';
 import '../widgets/batch_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
 import '../bloc/labeling_state.dart';
+import 'print_history_page.dart';
 
 class LabelingPage extends StatelessWidget {
   const LabelingPage({super.key});
@@ -73,6 +75,7 @@ class _LabelingViewState extends State<_LabelingView> {
 
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
+  final _historyService = sl<PrintHistoryService>();
 
   @override
   void initState() {
@@ -128,26 +131,45 @@ class _LabelingViewState extends State<_LabelingView> {
           LabelingPrintRequested(batchId: item.batchId, itemId: item.id),
         );
 
-    final path = await _renderLabel(key);
-    if (path == null) return;
-
     try {
-      if (_isPrintingPlatform) {
-        await _printerService.printFile(
-          filePath: path,
-          printerName: _selectedPrinter!,
-          config: _config,
-        );
-      } else {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(path, mimeType: 'image/png')],
-            text: item.productName,
-          ),
-        );
+      final path = await _renderLabel(key);
+      if (path == null) {
+        // If rendering failed, mark as completed to re-enable button
+        context.read<LabelingBloc>().add(
+              LabelingPrintCompleted(itemId: item.id),
+            );
+        return;
+      }
+
+      try {
+        if (_isPrintingPlatform) {
+          await _printerService.printFile(
+            filePath: path,
+            printerName: _selectedPrinter!,
+            config: _config,
+          );
+        } else {
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [XFile(path, mimeType: 'image/png')],
+              text: item.productName,
+            ),
+          );
+        }
+        
+        // Save to print history after successful print
+        await _historyService.addToHistory(item);
+        
+        // Refresh to get updated list (removes items with 0 remaining quantity)
+        context.read<LabelingBloc>().add(const LabelingRefreshRequested());
+      } finally {
+        _deleteTempFile(path);
       }
     } finally {
-      _deleteTempFile(path);
+      // Always mark printing as completed to re-enable button
+      context.read<LabelingBloc>().add(
+            LabelingPrintCompleted(itemId: item.id),
+          );
     }
   }
 
@@ -160,7 +182,26 @@ class _LabelingViewState extends State<_LabelingView> {
     return BlocConsumer<LabelingBloc, LabelingState>(
       listener: (context, state) {
         if (state is LabelingLoaded) {
+          final previousItemCount = _items.length;
           setState(() => _items = state.items);
+          
+          // If all items are now printed (list became empty), auto-refresh
+          if (previousItemCount > 0 && state.items.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Barcha mahsulotlar yorliqlandi! Sahifa yangilanmoqda...'),
+                backgroundColor: AppColors.success,
+                duration: Duration(seconds: 2),
+              ),
+            );
+            
+            // Auto-refresh after a short delay to check for new items
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                context.read<LabelingBloc>().add(const LabelingRefreshRequested());
+              }
+            });
+          }
         }
       },
       builder: (context, state) {
@@ -176,6 +217,32 @@ class _LabelingViewState extends State<_LabelingView> {
               ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
+            actions: [
+              IconButton(
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedClock01,
+                  strokeWidth: 2,
+                ),
+                tooltip: 'Chop etish tarixi',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PrintHistoryPage(
+                        historyService: _historyService,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedReload,
+                  strokeWidth: 2,
+                ),
+                tooltip: 'Yangilash',
+                onPressed: _refresh,
+              ),
+            ],
           ),
           body: Stack(
             // Clip.none ensures off-screen positioned labels are still painted
@@ -316,7 +383,7 @@ class _LabelingViewState extends State<_LabelingView> {
     // Group all items by size label (preserves insertion order)
     final sizeGroups = <String, List<LabelingItemEntity>>{};
     for (final item in items) {
-      final sizeLabel = item.sizeLabel ?? 'Noma\'lum';
+      final sizeLabel = item.sizeLabel;
       sizeGroups.putIfAbsent(sizeLabel, () => []).add(item);
     }
 
@@ -329,7 +396,7 @@ class _LabelingViewState extends State<_LabelingView> {
     }
     if (_selectedSize != null) {
       displayedItems = displayedItems
-          .where((item) => (item.sizeLabel ?? 'Noma\'lum') == _selectedSize)
+          .where((item) => item.sizeLabel == _selectedSize)
           .toList();
     }
 

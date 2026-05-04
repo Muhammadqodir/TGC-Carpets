@@ -29,7 +29,7 @@ class ClientDebitController extends Controller
                 'region'      => $request->input('region'),
                 'has_balance' => $request->boolean('has_balance'),
             ],
-            perPage: $request->integer('per_page', 20),
+            perPage: $request->integer('per_page', 50),
         );
 
         return ClientDebitSummaryResource::collection($paginator);

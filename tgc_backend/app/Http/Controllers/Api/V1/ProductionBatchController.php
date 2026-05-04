@@ -46,7 +46,7 @@ class ProductionBatchController extends Controller
                 $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
             ))
             ->latest('production_batches.id')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return ProductionBatchResource::collection($batches);
     }

@@ -25,7 +25,7 @@ class ProductController extends Controller
             ->when($request->filled('product_type_id'),    fn ($q) => $q->where('product_type_id', $request->product_type_id))
             ->when($request->filled('color_id'),           fn ($q) => $q->whereHas('productColors', fn ($pc) => $pc->where('color_id', $request->integer('color_id'))))
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return ProductResource::collection($products);
     }

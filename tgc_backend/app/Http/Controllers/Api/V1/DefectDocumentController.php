@@ -26,7 +26,7 @@ class DefectDocumentController extends Controller
         $documents = DefectDocument::with(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'photos'])
             ->where('production_batch_id', $productionBatch->id)
             ->latest('datetime')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return DefectDocumentResource::collection($documents);
     }

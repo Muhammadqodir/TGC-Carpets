@@ -24,7 +24,7 @@ class EmployeeController extends Controller
             }))
             ->when($request->filled('role'), fn ($q) => $q->where('role', $request->role))
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return UserResource::collection($employees);
     }

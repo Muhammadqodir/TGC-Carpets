@@ -20,7 +20,7 @@ class PaymentController extends Controller
             ->when($request->filled('date_from'),  fn ($q) => $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->filled('date_to'),    fn ($q) => $q->whereDate('created_at', '<=', $request->date_to))
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return PaymentResource::collection($payments);
     }

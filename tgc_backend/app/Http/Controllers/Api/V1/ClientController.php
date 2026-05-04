@@ -21,7 +21,7 @@ class ClientController extends Controller
             ->when($request->filled('phone'),        fn ($q) => $q->where('phone',        'like', '%'.$request->phone.'%'))
             ->when($request->filled('region'),       fn ($q) => $q->where('region',       $request->region))
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($request->integer('per_page', 50));
 
         return ClientResource::collection($clients);
     }

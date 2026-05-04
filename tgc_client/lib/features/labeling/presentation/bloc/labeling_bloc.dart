@@ -13,6 +13,7 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
     on<LabelingLoadRequested>(_onLoadRequested);
     on<LabelingRefreshRequested>(_onRefreshRequested);
     on<LabelingPrintRequested>(_onPrintRequested);
+    on<LabelingPrintCompleted>(_onPrintCompleted);
   }
 
   Future<void> _onLoadRequested(
@@ -57,7 +58,7 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
 
     result.fold(
       (failure) {
-        // Restore printing state without the failing item; surface error via SnackBar
+        // On API failure, remove from printing state immediately
         final updated = Map<int, bool>.from(current.printingItems)
           ..remove(event.itemId);
         emit(current.copyWith(printingItems: updated));
@@ -65,20 +66,30 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
         emit(current.copyWith(printingItems: updated));
       },
       (updatedItem) {
-        // Replace updated item in list; keep all items (fully labeled or not)
+        // Replace updated item in list; keep printing state until UI completes
         final updatedItems = current.items.map((i) {
           return i.id == updatedItem.id ? updatedItem : i;
         }).toList();
 
-        final updatedPrinting = Map<int, bool>.from(current.printingItems)
-          ..remove(event.itemId);
-
         emit(LabelingLoaded(
           items: updatedItems,
-          printingItems: updatedPrinting,
+          printingItems: current.printingItems,
         ));
       },
     );
+  }
+
+  Future<void> _onPrintCompleted(
+    LabelingPrintCompleted event,
+    Emitter<LabelingState> emit,
+  ) async {
+    final current = state;
+    if (current is! LabelingLoaded) return;
+
+    final updatedPrinting = Map<int, bool>.from(current.printingItems)
+      ..remove(event.itemId);
+
+    emit(current.copyWith(printingItems: updatedPrinting));
   }
 
   Future<void> _fetchItems(Emitter<LabelingState> emit) async {

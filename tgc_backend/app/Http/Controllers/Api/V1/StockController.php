@@ -154,7 +154,7 @@ class StockController extends Controller
             ->having('quantity_warehouse', '>', 0)
             ->orderByDesc('quantity_warehouse')
             ->paginate(
-                $request->integer('per_page', 20),
+                $request->integer('per_page', 50),
                 ['*'],
                 'page',
                 $request->integer('page', 1)

@@ -24,3 +24,12 @@ class LabelingPrintRequested extends LabelingEvent {
   @override
   List<Object?> get props => [batchId, itemId];
 }
+
+class LabelingPrintCompleted extends LabelingEvent {
+  final int itemId;
+
+  const LabelingPrintCompleted({required this.itemId});
+
+  @override
+  List<Object?> get props => [itemId];
+}

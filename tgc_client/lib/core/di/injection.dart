@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../network/api_client.dart';
 import '../network/interceptors/auth_interceptor.dart';
@@ -114,6 +115,7 @@ import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
 import '../../features/labeling/data/datasources/labeling_remote_datasource.dart';
 import '../../features/labeling/data/repositories/labeling_repository_impl.dart';
 import '../../features/labeling/domain/repositories/labeling_repository.dart';
+import '../../features/labeling/data/services/print_history_service.dart';
 import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
 
 // Scanner feature
@@ -183,6 +185,9 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
+  
+  final sharedPreferences = await SharedPreferences.getInstance();
+  sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 
   // ─── Core ─────────────────────────────────────────────────────────────────
   sl.registerLazySingleton<TokenStorage>(
@@ -405,6 +410,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<LabelingRepository>(
     () => LabelingRepositoryImpl(remoteDataSource: sl<LabelingRemoteDataSource>()),
+  );
+  sl.registerLazySingleton<PrintHistoryService>(
+    () => PrintHistoryService(sl<SharedPreferences>()),
   );
   sl.registerFactory(
     () => LabelingBloc(repository: sl<LabelingRepository>()),
