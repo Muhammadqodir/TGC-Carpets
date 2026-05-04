@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
-import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../products/presentation/widgets/product_picker_bottom_sheet.dart';

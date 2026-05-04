@@ -3,15 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/dialogs/confirm_dialog.dart';
-import 'package:tgc_client/core/ui/widgets/range_date_picker.dart';
 import 'package:tgc_client/core/ui/widgets/static_grid.dart';
 import 'package:tgc_client/core/utils/role_permissions.dart';
-import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_bloc.dart';
-import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_event.dart';
-import 'package:tgc_client/features/dashboard/presentation/bloc/dashboard_state.dart';
-import 'package:tgc_client/features/dashboard/presentation/widgets/dashboard_panel.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -23,17 +17,8 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider.value(value: sl<AuthBloc>()),
-        BlocProvider(
-          create: (_) => sl<DashboardBloc>()
-            ..add(DashboardStatsRequested(
-              from: RangeDatePicker.currentMonth.start,
-              to: RangeDatePicker.currentMonth.end,
-            )),
-        ),
-      ],
+    return BlocProvider.value(
+      value: sl<AuthBloc>(),
       child: const _DashboardView(),
     );
   }
@@ -47,22 +32,6 @@ class _DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<_DashboardView> {
-  late DateTimeRange _range;
-  bool _panelVisible = false;
-  double _scrollOffset = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _range = RangeDatePicker.currentMonth;
-  }
-
-  void _onRangeChanged(DateTimeRange range) {
-    setState(() => _range = range);
-    context.read<DashboardBloc>().add(
-          DashboardStatsRequested(from: range.start, to: range.end),
-        );
-  }
 
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await ConfirmDialog.show(
@@ -76,20 +45,6 @@ class _DashboardViewState extends State<_DashboardView> {
     if (confirmed == true && context.mounted) {
       context.read<AuthBloc>().add(AuthLogoutRequested());
     }
-  }
-
-  Future<void> _refresh() async {
-    final completer = Completer<void>();
-    final bloc = context.read<DashboardBloc>();
-    late StreamSubscription<DashboardState> sub;
-    sub = bloc.stream.listen((state) {
-      if (state is DashboardStatsLoaded || state is DashboardError) {
-        if (!completer.isCompleted) completer.complete();
-        sub.cancel();
-      }
-    });
-    bloc.add(DashboardStatsRequested(from: _range.start, to: _range.end));
-    return completer.future;
   }
 
   @override
@@ -130,31 +85,13 @@ class _DashboardViewState extends State<_DashboardView> {
               if (state.user.role != 'admin') {
                 return const SizedBox.shrink();
               }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedQrCode,
-                      strokeWidth: 2,
-                    ),
-                    tooltip: 'QR Skanerlash',
-                    onPressed: () => context.pushNamed(AppRoutes.scannerName),
-                  ),
-                  IconButton(
-                    icon: HugeIcon(
-                      icon: _panelVisible
-                          ? HugeIcons.strokeRoundedViewOff
-                          : HugeIcons.strokeRoundedView,
-                      strokeWidth: 2,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _panelVisible = !_panelVisible;
-                      });
-                    },
-                  ),
-                ],
+              return IconButton(
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedQrCode,
+                  strokeWidth: 2,
+                ),
+                tooltip: 'QR Skanerlash',
+                onPressed: () => context.pushNamed(AppRoutes.scannerName),
               );
             },
           ),
@@ -167,57 +104,21 @@ class _DashboardViewState extends State<_DashboardView> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Positioned(
-          //   child: Container(
-          //     height: _scrollOffset,
-          //     decoration: BoxDecoration(color: AppColors.primary),
-          //   ),
-          // ),
-          BlocListener<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if (state is AuthUnauthenticated) {
-                context.goNamed(AppRoutes.loginName);
-              }
-            },
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (scrollNotification) {
-                  if (scrollNotification is ScrollUpdateNotification) {
-                    if (scrollNotification.metrics.pixels <= 0) {
-                      setState(() {
-                        _scrollOffset = scrollNotification.metrics.pixels * -1;
-                      });
-                    }
-                  }
-                  return false;
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      BlocBuilder<AuthBloc, AuthState>(
-                        builder: (context, state) {
-                          if (state is! AuthAuthenticated) {
-                            return const SizedBox.shrink();
-                          }
-                          if (state.user.role != 'admin') {
-                            return const SizedBox.shrink();
-                          }
-                          return DashboardPanel(
-                            range: _range,
-                            onRangeChanged: _onRangeChanged,
-                            visible: _panelVisible,
-                          );
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      Padding(
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthUnauthenticated) {
+            context.goNamed(AppRoutes.loginName);
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 16),
+              Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: BlocBuilder<AuthBloc, AuthState>(
                           builder: (context, authState) {
@@ -341,6 +242,16 @@ class _DashboardViewState extends State<_DashboardView> {
                               ));
                             }
 
+                            // Analytics - Admin only
+                            if (user.role == 'admin') {
+                              visibleCards.add(_DashboardCard(
+                                icon: HugeIcons.strokeRoundedAnalytics02,
+                                label: 'Analitika',
+                                onTap: () =>
+                                    context.pushNamed(AppRoutes.analyticsName),
+                              ));
+                            }
+
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -385,20 +296,15 @@ class _DashboardViewState extends State<_DashboardView> {
                                   ),
                                 ),
                               ],
-                              // SizedBox(height: 32),
                             );
                           },
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-          )
-        ],
-      ),
-    );
+            );
   }
 }
 

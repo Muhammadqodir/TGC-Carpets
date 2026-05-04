@@ -11,7 +11,7 @@ import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../widgets/print_label_60_40.dart';
+
 import '../widgets/batch_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';

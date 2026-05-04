@@ -56,12 +56,15 @@ import '../../features/warehouse_documents/domain/usecases/create_warehouse_docu
 import '../../features/warehouse_documents/presentation/bloc/warehouse_docs_bloc.dart';
 import '../../features/warehouse_documents/presentation/bloc/warehouse_form_bloc.dart';
 
-// Dashboard feature
-import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
-import '../../features/dashboard/data/repositories/dashboard_repository_impl.dart';
-import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
-import '../../features/dashboard/domain/usecases/get_dashboard_stats_usecase.dart';
-import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
+// Analytics feature
+import '../../features/analytics/data/datasources/analytics_remote_datasource.dart';
+import '../../features/analytics/data/repositories/analytics_repository_impl.dart';
+import '../../features/analytics/domain/repositories/analytics_repository.dart';
+import '../../features/analytics/domain/usecases/get_sales_analytics_usecase.dart';
+import '../../features/analytics/domain/usecases/get_production_analytics_usecase.dart';
+import '../../features/analytics/domain/usecases/get_financial_analytics_usecase.dart';
+import '../../features/analytics/domain/usecases/get_client_analytics_usecase.dart';
+import '../../features/analytics/presentation/bloc/analytics_bloc.dart';
 
 // Settings feature
 import '../../features/settings/data/datasources/settings_remote_datasource.dart';
@@ -439,17 +442,28 @@ Future<void> initDependencies() async {
   sl.registerFactory(
     () => ShipmentFormBloc(createShipmentUseCase: sl<CreateShipmentUseCase>()),
   );
-  sl.registerLazySingleton<DashboardRemoteDataSource>(
-    () => DashboardRemoteDataSourceImpl(sl<Dio>()),
+  // ─── Dashboard Feature (Removed - See Analytics Feature) ─────────────────
+  // Dashboard panel removed from main dashboard page
+  // Use Analytics feature for detailed statistics and reports
+
+  // ─── Analytics Feature ────────────────────────────────────────────────────
+  sl.registerLazySingleton<AnalyticsRemoteDataSource>(
+    () => AnalyticsRemoteDataSourceImpl(sl<Dio>()),
   );
-  sl.registerLazySingleton<DashboardRepository>(
-    () => DashboardRepositoryImpl(remoteDataSource: sl<DashboardRemoteDataSource>()),
+  sl.registerLazySingleton<AnalyticsRepository>(
+    () => AnalyticsRepositoryImpl(remoteDataSource: sl<AnalyticsRemoteDataSource>()),
   );
-  sl.registerLazySingleton(
-    () => GetDashboardStatsUseCase(sl<DashboardRepository>()),
-  );
+  sl.registerLazySingleton(() => GetSalesAnalyticsUseCase(sl<AnalyticsRepository>()));
+  sl.registerLazySingleton(() => GetProductionAnalyticsUseCase(sl<AnalyticsRepository>()));
+  sl.registerLazySingleton(() => GetFinancialAnalyticsUseCase(sl<AnalyticsRepository>()));
+  sl.registerLazySingleton(() => GetClientAnalyticsUseCase(sl<AnalyticsRepository>()));
   sl.registerFactory(
-    () => DashboardBloc(getDashboardStatsUseCase: sl<GetDashboardStatsUseCase>()),
+    () => AnalyticsBloc(
+      getSalesAnalyticsUseCase: sl<GetSalesAnalyticsUseCase>(),
+      getProductionAnalyticsUseCase: sl<GetProductionAnalyticsUseCase>(),
+      getFinancialAnalyticsUseCase: sl<GetFinancialAnalyticsUseCase>(),
+      getClientAnalyticsUseCase: sl<GetClientAnalyticsUseCase>(),
+    ),
   );
 
   // ─── Settings Feature ──────────────────────────────────────────────────────

@@ -111,4 +111,7 @@ class AppRoutes {
 
   static const String shipmentInvoice     = '/shipping/invoice';
   static const String shipmentInvoiceName = 'shipmentInvoice';
+
+  static const String analytics     = '/analytics';
+  static const String analyticsName = 'analytics';
 }

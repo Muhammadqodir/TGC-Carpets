@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\ClientDebitController;
@@ -48,6 +49,16 @@ Route::prefix('v1')->group(function (): void {
 
         // Dashboard statistics
         Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+
+        // Analytics — comprehensive business analytics
+        Route::prefix('analytics')->name('analytics.')->group(function (): void {
+            Route::get('overview',    [AnalyticsController::class, 'overview'])->name('overview');
+            Route::get('sales',       [AnalyticsController::class, 'sales'])->name('sales');
+            Route::get('production',  [AnalyticsController::class, 'production'])->name('production');
+            Route::get('warehouse',   [AnalyticsController::class, 'warehouse'])->name('warehouse');
+            Route::get('financial',   [AnalyticsController::class, 'financial'])->name('financial');
+            Route::get('clients',     [AnalyticsController::class, 'clients'])->name('clients');
+        });
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);

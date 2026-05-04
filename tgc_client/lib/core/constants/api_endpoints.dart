@@ -101,4 +101,11 @@ class ApiEndpoints {
   static String rawMaterialById(int id) => '/raw-materials/$id';
   static const String rawMaterialMovements = '/raw-materials/movements';
   static const String rawMaterialMovementsBatch = '/raw-materials/movements/batch';
+
+  // Analytics
+  static const String analyticsSales = '/analytics/sales';
+  static const String analyticsProduction = '/analytics/production';
+  static const String analyticsFinancial = '/analytics/financial';
+  static const String analyticsClients = '/analytics/clients';
+  static const String analyticsOverview = '/analytics/overview';
 }

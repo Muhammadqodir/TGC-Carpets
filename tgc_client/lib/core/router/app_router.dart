@@ -44,6 +44,7 @@ import '../../features/debits/presentation/pages/client_debit_detail_page.dart';
 import '../../features/raw_materials/presentation/pages/raw_materials_page.dart';
 import '../../features/raw_materials/presentation/pages/add_raw_material_page.dart';
 import '../../features/raw_materials/presentation/pages/raw_material_batch_movement_page.dart';
+import '../../features/analytics/presentation/pages/analytics_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -265,6 +266,11 @@ class AppRouter {
             path: AppRoutes.rawMaterialBatchMovement,
             name: AppRoutes.rawMaterialBatchMovementName,
             builder: (context, state) => const RawMaterialBatchMovementPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.analytics,
+            name: AppRoutes.analyticsName,
+            builder: (context, state) => const AnalyticsPage(),
           ),
         ],
       ),

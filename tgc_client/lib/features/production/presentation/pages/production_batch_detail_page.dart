@@ -631,8 +631,7 @@ class _ItemsTable extends StatelessWidget {
             flex: 2,
             child: BodyText(
               text: item.sourceOrderId != null
-                  ? '${item.sourceClientShopName}/${item.sourceClientRegion}' ??
-                      '—'
+                  ? '${item.sourceClientShopName}/${item.sourceClientRegion}'
                   : 'Omborga',
             ),
           ),
