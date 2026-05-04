@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../core/di/injection.dart';
 import '../bloc/settings_bloc.dart';
 import '../bloc/settings_event.dart';
@@ -33,6 +34,23 @@ class _SettingsViewState extends State<_SettingsView> {
   bool _currentObscure = true;
   bool _newObscure = true;
   bool _confirmObscure = true;
+
+  String _version = '';
+  String _buildNumber = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = packageInfo.version;
+      _buildNumber = packageInfo.buildNumber;
+    });
+  }
 
   @override
   void dispose() {
@@ -136,6 +154,38 @@ class _SettingsViewState extends State<_SettingsView> {
                     );
                   },
                 ),
+                const SizedBox(height: 48),
+                // App Version
+                if (_version.isNotEmpty)
+                  Center(
+                    child: Column(
+                      children: [
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'TGC Carpets',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Versiya: $_version (Build $_buildNumber)',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color
+                                    ?.withOpacity(0.6),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
