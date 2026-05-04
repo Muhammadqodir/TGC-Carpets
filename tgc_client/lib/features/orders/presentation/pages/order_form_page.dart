@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/ui/widgets/desktop_status_bar.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../data/services/order_form_draft_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../core/ui/widgets/count_input.dart';
@@ -86,13 +88,20 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
   final _formKey = GlobalKey<FormState>();
 
   ClientEntity? _newClient;
+  // For draft restoration - store client details without full entity
+  int? _draftClientId;
+  String? _draftClientShopName;
   late DateTime _orderDate;
+  OrderFormDraftService? _draftService;
+  bool _isRestoringDraft = false;
+  bool _ready = false;
 
   bool get _isEditMode => widget.initialOrder != null;
   int? get _effectiveClientId =>
-      _newClient?.id ?? widget.initialOrder?.clientId;
+      _newClient?.id ?? _draftClientId ?? widget.initialOrder?.clientId;
   String get _clientDisplay =>
       _newClient?.shopName ??
+      _draftClientShopName ??
       widget.initialOrder?.clientShopName ??
       'Mijoz tanlash...';
   bool get _hasClient => _effectiveClientId != null;
@@ -104,6 +113,81 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
     if (widget.initialOrder != null) {
       widget.controller.notesCtrl.text = widget.initialOrder!.notes ?? '';
     }
+    if (!_isEditMode) {
+      // Only use draft in add mode, not edit mode
+      widget.controller.addListener(_onControllerChanged);
+      _initDraft();
+    } else {
+      _ready = true;
+    }
+  }
+
+  Future<void> _initDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    _draftService = OrderFormDraftService(prefs);
+    await _restoreDraft();
+    if (mounted) {
+      setState(() {
+        _ready = true;
+        print('DEBUG: _ready set to true');
+      });
+    }
+  }
+
+  Future<void> _restoreDraft() async {
+    if (_draftService == null) return;
+    print('DEBUG: Starting draft restoration');
+    _isRestoringDraft = true;
+    final draft = await _draftService!.restore();
+    if (draft != null && mounted) {
+      print('DEBUG: Draft found with ${draft.rows.length} rows');
+      widget.controller.restoreFrom(
+        newItems: draft.rows,
+        notes: draft.notes,
+        matrixSizes: draft.matrixSizeColumns,
+        matrixQty: draft.matrixQuantities,
+      );
+      if (draft.orderDate != null) {
+        _orderDate = draft.orderDate!;
+      }
+      // Restore client info from draft (display only, not full entity)
+      if (draft.clientId != null) {
+        _draftClientId = draft.clientId;
+        _draftClientShopName = draft.clientShopName;
+      }
+      if (mounted) {
+        setState(() {
+          _isRestoringDraft = false;
+        });
+      }
+      print('DEBUG: Draft restoration complete');
+    } else {
+      print('DEBUG: No draft found or not mounted');
+      _isRestoringDraft = false;
+    }
+  }
+
+  void _onControllerChanged() {
+    print('DEBUG: _onControllerChanged called - _ready=$_ready, _isRestoringDraft=$_isRestoringDraft');
+    if (_ready && !_isRestoringDraft && _draftService != null) {
+      print('DEBUG: Saving draft...');
+      _draftService!.save(
+        widget.controller,
+        orderDate: _orderDate,
+        clientId: _newClient?.id,
+        clientShopName: _newClient?.shopName,
+      );
+    } else {
+      print('DEBUG: Skipping save - conditions not met');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (!_isEditMode) {
+      widget.controller.removeListener(_onControllerChanged);
+    }
+    super.dispose();
   }
 
   Future<void> _pickDate() async {
@@ -113,12 +197,23 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null && mounted) setState(() => _orderDate = picked);
+    if (picked != null && mounted) {
+      setState(() => _orderDate = picked);
+      _onControllerChanged(); // Trigger draft save
+    }
   }
 
   Future<void> _pickClient() async {
     final client = await ClientPickerBottomSheet.show(context);
-    if (client != null && mounted) setState(() => _newClient = client);
+    if (client != null && mounted) {
+      setState(() {
+        _newClient = client;
+        // Clear draft client info when user picks a new client
+        _draftClientId = null;
+        _draftClientShopName = null;
+      });
+      _onControllerChanged(); // Trigger draft save
+    }
   }
 
   void _submit() {
@@ -232,6 +327,10 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
     return BlocListener<OrderFormBloc, OrderFormState>(
       listener: (context, state) {
         if (state is OrderFormSuccess) {
+          // Clear draft on successful submission (add mode only)
+          if (!_isEditMode && _draftService != null) {
+            _draftService!.clear();
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -253,6 +352,12 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
         listenable: widget.controller,
         builder: (context, _) {
           final ctrl = widget.controller;
+          // Show loading indicator while draft is being restored (add mode only)
+          if (!_isEditMode && !_ready) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
           return Scaffold(
             backgroundColor: AppColors.background,
             appBar: AppBar(
@@ -379,10 +484,15 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                                           ),
                                     ),
                                   ),
-                                  if (_newClient != null)
+                                  if (_newClient != null || _draftClientShopName != null)
                                     GestureDetector(
                                       onTap: () =>
-                                          setState(() => _newClient = null),
+                                          setState(() {
+                                            _newClient = null;
+                                            _draftClientId = null;
+                                            _draftClientShopName = null;
+                                            _onControllerChanged();
+                                          }),
                                       child: const Icon(Icons.close,
                                           size: 18,
                                           color: AppColors.textSecondary),

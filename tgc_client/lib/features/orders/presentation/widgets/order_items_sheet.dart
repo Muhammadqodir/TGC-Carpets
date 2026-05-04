@@ -127,7 +127,12 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                               .replaceMatrixSizeColumn(size.id, newSize),
                         ),
                       ),
-                      AddSize(onSizeAdded: widget.ctrl.addMatrixSizeColumn),
+                      AddSize(
+                        onSizeAdded: widget.ctrl.addMatrixSizeColumn,
+                        alreadySelectedSizeIds: widget.ctrl.matrixSizeColumns
+                            .map((s) => s.id)
+                            .toSet(),
+                      ),
                     ],
                   ),
                   Expanded(

@@ -170,6 +170,8 @@ class OrderFormController extends ChangeNotifier {
       final c = TextEditingController();
       c.addListener(() {
         _matrixQty[key] = int.tryParse(c.text.trim()) ?? 0;
+        // Notify listeners so the form page knows to save the draft
+        notifyListeners();
       });
       return c;
     });
@@ -324,6 +326,79 @@ class OrderFormController extends ChangeNotifier {
     _matrixCellCtrls[key]?.dispose();
     _matrixCellCtrls.remove(key);
     _matrixQty.remove(key);
+  }
+
+  // ── Draft restoration ──────────────────────────────────────────────────────
+
+  /// Restores the form state from a draft. Clears current items and replaces
+  /// them with the draft data without triggering listeners until complete.
+  /// Safe to call from an async context before the widget is shown.
+  void restoreFrom({
+    required List<OrderItemRow> newItems,
+    required String notes,
+    List<ProductSizeEntity>? matrixSizes,
+    Map<String, int>? matrixQty,
+  }) {
+    // Clear existing items
+    for (final row in items) {
+      row.quantityCtrl.removeListener(notifyListeners);
+      row.dispose();
+    }
+    items.clear();
+
+    // Update notes
+    notesCtrl.removeListener(notifyListeners);
+    notesCtrl.text = notes;
+    notesCtrl.addListener(notifyListeners);
+
+    // Add new items
+    print('DEBUG: restoreFrom - adding ${newItems.length} items');
+    for (final row in newItems) {
+      print('DEBUG: Adding row with quantity: ${row.quantityCtrl.text}');
+      row.quantityCtrl.addListener(notifyListeners);
+      items.add(row);
+    }
+    print('DEBUG: After adding items, items.length = ${items.length}');
+    for (int i = 0; i < items.length; i++) {
+      print('DEBUG: Item $i quantity: ${items[i].quantityCtrl.text}');
+    }
+
+    // Restore matrix mode if applicable
+    if (matrixSizes != null && matrixSizes.isNotEmpty) {
+      matrixSizeColumns.clear();
+      matrixSizeColumns.addAll(matrixSizes);
+
+      // Clear existing matrix data
+      for (final c in _matrixCellCtrls.values) {
+        c.dispose();
+      }
+      _matrixCellCtrls.clear();
+      _matrixQty.clear();
+
+      // Restore matrix quantities
+      if (matrixQty != null) {
+        for (final entry in matrixQty.entries) {
+          _matrixQty[entry.key] = entry.value;
+          final parts = entry.key.split('_');
+          if (parts.length == 2) {
+            final colorId = int.tryParse(parts[0]);
+            final sizeId = int.tryParse(parts[1]);
+            if (colorId != null && sizeId != null) {
+              final ctrl = matrixCellCtrl(colorId, sizeId);
+              ctrl.text = '${entry.value}';
+            }
+          }
+        }
+      }
+    }
+
+    _ensureEmptyRowAtEnd();
+    print('DEBUG: After _ensureEmptyRowAtEnd, items.length = ${items.length}');
+    for (int i = 0; i < items.length; i++) {
+      print('DEBUG: Final item $i quantity: "${items[i].quantityCtrl.text}"');
+    }
+    // Force a rebuild by notifying listeners AFTER everything is set up
+    notifyListeners();
   }
 
 }
