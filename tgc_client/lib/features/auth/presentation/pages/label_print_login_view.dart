@@ -239,15 +239,15 @@ class _LabelLoginViewState extends State<LabelLoginView> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          child: Text(
-            'Foydalanuvchini tanlang:',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
+        // Padding(
+        //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        //   child: Text(
+        //     'Foydalanuvchini tanlang:',
+        //     style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        //           fontWeight: FontWeight.bold,
+        //         ),
+        //   ),
+        // ),
         ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 400),
           child: SingleChildScrollView(

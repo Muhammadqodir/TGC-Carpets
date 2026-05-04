@@ -11,8 +11,8 @@ import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../widgets/print_label_60_40.dart';
 import '../widgets/batch_filter_sidebar.dart';
+import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
@@ -67,6 +67,9 @@ class _LabelingViewState extends State<_LabelingView> {
 
   // ── Selected batch filter (null = show all) ───────────────────────────────
   int? _selectedBatchId;
+
+  // ── Selected size filter (null = show all) ────────────────────────────────
+  String? _selectedSize;
 
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
@@ -305,15 +308,30 @@ class _LabelingViewState extends State<_LabelingView> {
         state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
     // Group all items by batchId (preserves insertion order)
-    final groups = <int, List<LabelingItemEntity>>{};
+    final batchGroups = <int, List<LabelingItemEntity>>{};
     for (final item in items) {
-      groups.putIfAbsent(item.batchId, () => []).add(item);
+      batchGroups.putIfAbsent(item.batchId, () => []).add(item);
     }
 
-    // Filter by selected batch
-    final displayedItems = _selectedBatchId == null
-        ? items
-        : groups[_selectedBatchId] ?? [];
+    // Group all items by size label (preserves insertion order)
+    final sizeGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in items) {
+      final sizeLabel = item.sizeLabel ?? 'Noma\'lum';
+      sizeGroups.putIfAbsent(sizeLabel, () => []).add(item);
+    }
+
+    // Filter by selected batch and size
+    var displayedItems = items;
+    if (_selectedBatchId != null) {
+      displayedItems = displayedItems
+          .where((item) => item.batchId == _selectedBatchId)
+          .toList();
+    }
+    if (_selectedSize != null) {
+      displayedItems = displayedItems
+          .where((item) => (item.sizeLabel ?? 'Noma\'lum') == _selectedSize)
+          .toList();
+    }
 
     final isDesktop = Theme.of(context).platform == TargetPlatform.macOS ||
         Theme.of(context).platform == TargetPlatform.windows ||
@@ -323,9 +341,15 @@ class _LabelingViewState extends State<_LabelingView> {
       children: [
         if (isDesktop)
           BatchFilterSidebar(
-            groups: groups,
+            groups: batchGroups,
             selectedBatchId: _selectedBatchId,
             onBatchSelected: (id) => setState(() => _selectedBatchId = id),
+          ),
+        if (isDesktop)
+          SizeFilterSidebar(
+            groups: sizeGroups,
+            selectedSize: _selectedSize,
+            onSizeSelected: (size) => setState(() => _selectedSize = size),
           ),
         Expanded(
           child: SizedBox(

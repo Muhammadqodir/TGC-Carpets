@@ -4,17 +4,17 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 
-class BatchFilterSidebar extends StatelessWidget {
-  const BatchFilterSidebar({
+class SizeFilterSidebar extends StatelessWidget {
+  const SizeFilterSidebar({
     super.key,
     required this.groups,
-    required this.selectedBatchId,
-    required this.onBatchSelected,
+    required this.selectedSize,
+    required this.onSizeSelected,
   });
 
-  final Map<int, List<LabelingItemEntity>> groups;
-  final int? selectedBatchId;
-  final ValueChanged<int?> onBatchSelected;
+  final Map<String, List<LabelingItemEntity>> groups;
+  final String? selectedSize;
+  final ValueChanged<String?> onSizeSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,7 @@ class BatchFilterSidebar extends StatelessWidget {
             color: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: const Text(
-              'Partiyalar',
+              'O\'lchamlar',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -39,29 +39,26 @@ class BatchFilterSidebar extends StatelessWidget {
               ),
             ),
           ),
-          _BatchTile(
+          _SizeTile(
             title: 'Barchasi',
             subtitle: '$totalItems ta mahsulot',
-            isSelected: selectedBatchId == null,
-            onTap: () => onBatchSelected(null),
+            isSelected: selectedSize == null,
+            onTap: () => onSizeSelected(null),
           ),
           const Divider(height: 1),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: groups.entries.map((entry) {
-                final batchId = entry.key;
-                final batchItems = entry.value;
-                final title =
-                    batchItems.first.batchTitle ?? 'Batch #$batchId';
+                final sizeLabel = entry.key;
+                final sizeItems = entry.value;
                 final remaining =
-                    batchItems.fold(0, (s, i) => s + i.remainingQuantity);
-                return _BatchTile(
-                  title: title,
-                  subtitle:
-                      '${batchItems.length} xil • $remaining qoldi',
-                  isSelected: selectedBatchId == batchId,
-                  onTap: () => onBatchSelected(batchId),
+                    sizeItems.fold(0, (s, i) => s + i.remainingQuantity);
+                return _SizeTile(
+                  title: sizeLabel,
+                  subtitle: '${sizeItems.length} xil • $remaining qoldi',
+                  isSelected: selectedSize == sizeLabel,
+                  onTap: () => onSizeSelected(sizeLabel),
                 );
               }).toList(),
             ),
@@ -72,8 +69,8 @@ class BatchFilterSidebar extends StatelessWidget {
   }
 }
 
-class _BatchTile extends StatelessWidget {
-  const _BatchTile({
+class _SizeTile extends StatelessWidget {
+  const _SizeTile({
     required this.title,
     required this.subtitle,
     required this.isSelected,
@@ -105,7 +102,7 @@ class _BatchTile extends StatelessWidget {
           child: Row(
             children: [
               HugeIcon(
-                icon: HugeIcons.strokeRoundedSetup01,
+                icon: HugeIcons.strokeRoundedRuler,
                 size: 20,
                 strokeWidth: 1.5,
                 color: isSelected
