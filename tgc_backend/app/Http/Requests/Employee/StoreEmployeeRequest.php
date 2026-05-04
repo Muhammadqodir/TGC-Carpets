@@ -17,7 +17,7 @@ class StoreEmployeeRequest extends FormRequest
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'phone'    => ['nullable', 'string', 'max:20'],
-            'password' => ['required', 'string', Password::min(8)],
+            'password' => ['required', 'string', Password::min(5)],
             'role'     => ['required', 'array', 'min:1'],
             'role.*'   => ['required', 'string', Rule::in(User::ROLES)],
         ];

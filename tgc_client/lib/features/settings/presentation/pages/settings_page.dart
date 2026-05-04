@@ -100,7 +100,7 @@ class _SettingsViewState extends State<_SettingsView> {
                   onToggle: () => setState(() => _newObscure = !_newObscure),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Yangi parolni kiriting';
-                    if (v.length < 8) return 'Parol kamida 8 ta belgidan iborat bo\'lsin';
+                    if (v.length < 5) return 'Parol kamida 5 ta belgidan iborat bo\'lsin';
                     return null;
                   },
                 ),

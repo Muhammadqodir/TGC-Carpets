@@ -77,8 +77,8 @@ class _LoginFormState extends State<LoginForm> {
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Parol kiritilishi shart';
-              if (v.length < 6) {
-                return 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak';
+              if (v.length < 5) {
+                return 'Parol kamida 5 ta belgidan iborat bo\'lishi kerak';
               }
               return null;
             },

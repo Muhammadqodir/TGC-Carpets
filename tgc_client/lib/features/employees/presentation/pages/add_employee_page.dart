@@ -164,8 +164,8 @@ class _AddEmployeeViewState extends State<_AddEmployeeView> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Parol majburiy.';
-                  if (v.length < 8)
-                    return 'Parol kamida 8 ta belgidan iborat bo\'lishi kerak.';
+                  if (v.length < 5)
+                    return 'Parol kamida 5 ta belgidan iborat bo\'lishi kerak.';
                   return null;
                 },
               ),

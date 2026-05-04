@@ -176,8 +176,8 @@ class _EditEmployeeViewState extends State<_EditEmployeeView> {
                   ),
                 ),
                 validator: (v) {
-                  if (v != null && v.isNotEmpty && v.length < 8) {
-                    return 'Parol kamida 8 ta belgidan iborat bo\'lishi kerak.';
+                  if (v != null && v.isNotEmpty && v.length < 5) {
+                    return 'Parol kamida 5 ta belgidan iborat bo\'lishi kerak.';
                   }
                   return null;
                 },
