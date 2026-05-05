@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // Used by the admin web panel to verify the `admin` role after session auth
             'web_admin' => \App\Http\Middleware\EnsureWebAdmin::class,
         ]);
+
+        // Redirect unauthenticated web users to the admin panel login page
+        $middleware->redirectGuestsTo(fn () => route('admin.app-releases.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
