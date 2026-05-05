@@ -14,7 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Register role guard middleware — used as 'role:admin', 'role:admin,warehouse', etc.
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureRole::class,
+            'role'      => \App\Http\Middleware\EnsureRole::class,
+            // Used by the admin web panel to verify the `admin` role after session auth
+            'web_admin' => \App\Http\Middleware\EnsureWebAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

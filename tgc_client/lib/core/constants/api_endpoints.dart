@@ -102,4 +102,8 @@ class ApiEndpoints {
   static String rawMaterialById(int id) => '/raw-materials/$id';
   static const String rawMaterialMovements = '/raw-materials/movements';
   static const String rawMaterialMovementsBatch = '/raw-materials/movements/batch';
+
+  // App Updates — public endpoint, lives at /api/ (not /api/v1/)
+  // Use AppConstants.publicApiUrl as base, not baseUrl.
+  static const String appUpdatesLatest = '/app-updates/latest';
 }

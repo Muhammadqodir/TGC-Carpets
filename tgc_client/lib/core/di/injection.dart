@@ -176,6 +176,13 @@ import '../../features/raw_materials/presentation/bloc/raw_materials_bloc.dart';
 import '../../features/raw_materials/presentation/bloc/raw_material_form_bloc.dart';
 import '../../features/raw_materials/presentation/bloc/batch_movement_bloc.dart';
 
+// App Updates feature
+import '../../features/app_updates/data/datasources/app_update_remote_datasource.dart';
+import '../../features/app_updates/data/repositories/app_update_repository_impl.dart';
+import '../../features/app_updates/domain/repositories/app_update_repository.dart';
+import '../../features/app_updates/domain/usecases/check_for_update_usecase.dart';
+import '../../features/app_updates/presentation/bloc/app_update_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -627,6 +634,23 @@ Future<void> initDependencies() async {
   sl.registerFactory(
     () => BatchMovementBloc(
       storeBatchMovementUseCase: sl<StoreBatchMovementUseCase>(),
+    ),
+  );
+
+  // ─── App Updates Feature ──────────────────────────────────────────────────
+  sl.registerLazySingleton<AppUpdateRemoteDataSource>(
+    () => AppUpdateRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<AppUpdateRepository>(
+    () => AppUpdateRepositoryImpl(remoteDataSource: sl<AppUpdateRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => CheckForUpdateUseCase(sl<AppUpdateRepository>()),
+  );
+  sl.registerFactory(
+    () => AppUpdateBloc(
+      checkForUpdateUseCase: sl<CheckForUpdateUseCase>(),
+      dio: sl<Dio>(),
     ),
   );
 }

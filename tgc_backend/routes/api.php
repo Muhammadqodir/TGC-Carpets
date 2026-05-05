@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AppUpdateController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\ClientDebitController;
@@ -28,6 +29,13 @@ use Illuminate\Support\Facades\Route;
 | API Routes — /api/v1/
 |--------------------------------------------------------------------------
 */
+
+// ── Public app-update check (outside /v1/ to stay platform-version-agnostic) ──
+// Rate-limited to 30 requests per minute per IP.
+Route::middleware('throttle:30,1')->group(function (): void {
+    Route::get('app-updates/latest', [AppUpdateController::class, 'latest'])
+        ->name('app-updates.latest');
+});
 
 Route::prefix('v1')->group(function (): void {
 
