@@ -12,12 +12,12 @@ import '../bloc/app_update_state.dart';
 /// Handles required vs optional updates:
 ///   - Required  → WillPopScope prevents dismissal; no "Keyinroq" button.
 ///   - Optional  → User may dismiss.
-void showUpdateDialog(
+Future<void> showUpdateDialog(
   BuildContext context, {
   required AppReleaseEntity release,
   required AppUpdateBloc bloc,
-}) {
-  showDialog<void>(
+}) async {
+  await showDialog<void>(
     context: context,
     barrierDismissible: !release.isRequired,
     builder: (_) => BlocProvider.value(

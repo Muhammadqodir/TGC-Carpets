@@ -22,6 +22,7 @@ import '../../features/employees/presentation/pages/add_employee_page.dart';
 import '../../features/employees/presentation/pages/edit_employee_page.dart';
 import '../../features/employees/domain/entities/employee_entity.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/app_updates/presentation/bloc/app_update_bloc.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/orders/presentation/pages/order_form_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
@@ -62,8 +63,11 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.splash,
         name: AppRoutes.splashName,
-        builder: (context, state) => BlocProvider.value(
-          value: sl<AuthBloc>(),
+        builder: (context, state) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: sl<AuthBloc>()),
+            BlocProvider(create: (_) => sl<AppUpdateBloc>()),
+          ],
           child: const SplashPage(),
         ),
       ),
