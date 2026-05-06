@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:tgc_client/core/theme/app_colors.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
@@ -147,14 +148,15 @@ class _SplashPageState extends State<SplashPage> {
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.primary.withOpacity(0.8),
-              ],
-            ),
+            // gradient: LinearGradient(
+            //   begin: Alignment.topCenter,
+            //   end: Alignment.bottomCenter,
+            //   colors: [
+            //     Theme.of(context).colorScheme.primary,
+            //     Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            //   ],
+            // ),
+            color: AppColors.primary
           ),
           child: Center(
             child: Column(
@@ -177,7 +179,7 @@ class _SplashPageState extends State<SplashPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Gilam fabrikasi boshqaruv tizimi',
+                  'Ishlab chiqarish boshqaruv tizimi',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withOpacity(0.9),
                       ),
