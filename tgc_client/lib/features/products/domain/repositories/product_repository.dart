@@ -16,7 +16,7 @@ abstract class ProductRepository {
     int? productQualityId,
     int? colorId,
     int page = 1,
-    int perPage = 20,
+    int perPage = 50,
   });
 
   Future<Either<Failure, ProductEntity>> getProduct(int id);

@@ -17,7 +17,7 @@ abstract class ProductRemoteDataSource {
     int? productQualityId,
     int? colorId,
     int page = 1,
-    int perPage = 20,
+    int perPage = 50,
   });
 
   Future<ProductModel> getProduct(int id);
@@ -81,7 +81,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     int? productQualityId,
     int? colorId,
     int page = 1,
-    int perPage = 20,
+    int perPage = 50,
   }) async {
     try {
       final queryParams = <String, dynamic>{

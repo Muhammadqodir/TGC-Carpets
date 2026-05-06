@@ -16,7 +16,7 @@ class GetProductsUseCase {
     int? productQualityId,
     int? colorId,
     int page = 1,
-    int perPage = 20,
+    int perPage = 50,
   }) =>
       _repository.getProducts(
         search: search,

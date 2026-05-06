@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tgc_client/core/di/injection.dart';
@@ -68,12 +70,28 @@ class _AddColorDialogContentState extends State<_AddColorDialogContent> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final file = await ImagePicker().pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1200,
+    final file = await ImagePicker().pickImage(source: source);
+    if (file == null) return;
+
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return;
+
+    // Scale so height does not exceed 800px, maintaining aspect ratio
+    final resized = decoded.height > 800
+        ? img.copyResize(decoded, height: 800)
+        : decoded;
+
+    // Encode as JPEG with quality 85
+    final jpegBytes = img.encodeJpg(resized, quality: 85);
+
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(
+      '${tempDir.path}/color_${DateTime.now().millisecondsSinceEpoch}.jpg',
     );
-    if (file != null) setState(() => _pickedImage = file);
+    await tempFile.writeAsBytes(jpegBytes);
+
+    setState(() => _pickedImage = XFile(tempFile.path));
   }
 
   void _showImageSourceSheet() {

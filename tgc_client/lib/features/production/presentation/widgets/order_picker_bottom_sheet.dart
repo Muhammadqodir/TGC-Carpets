@@ -121,13 +121,6 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
     setState(() {
       _selectedOrder = order;
       _selectedItemIds.clear();
-      // Pre-select only items that still have quantity pending production.
-      for (final item in order.items) {
-        final remaining = item.remainingQuantity ?? item.quantity;
-        if (remaining > 0) {
-          _selectedItemIds.add(item.id);
-        }
-      }
     });
   }
 
@@ -355,7 +348,15 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
                             final visibleItems = _selectedOrder!.items
                                 .where((i) =>
                                     (i.remainingQuantity ?? i.quantity) > 0)
-                                .toList();
+                                .toList()
+                              ..sort((a, b) {
+                                const big = 999999;
+                                final wCmp = (a.sizeWidth ?? big)
+                                    .compareTo(b.sizeWidth ?? big);
+                                if (wCmp != 0) return wCmp;
+                                return (a.sizeLength ?? big)
+                                    .compareTo(b.sizeLength ?? big);
+                              });
                             return ListView.separated(
                               padding:
                                   const EdgeInsets.fromLTRB(0, 4, 0, 0),
