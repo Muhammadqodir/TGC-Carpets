@@ -396,222 +396,224 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                 const SizedBox(width: 16),
               ],
             ),
-            body: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Top info bar: date + client ────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      border:
-                          Border(bottom: BorderSide(color: AppColors.divider)),
-                    ),
-                    child: Row(
-                      children: [
-                        // Date picker
-                        InkWell(
-                          onTap: _pickDate,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColors.divider),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.calendar_today_outlined,
-                                    size: 16, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _formattedDate,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Client picker (expands to fill remaining space)
-                        Expanded(
-                          child: InkWell(
-                            onTap: _pickClient,
+            body: SafeArea(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Top info bar: date + client ────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        border:
+                            Border(bottom: BorderSide(color: AppColors.divider)),
+                      ),
+                      child: Row(
+                        children: [
+                          // Date picker
+                          InkWell(
+                            onTap: _pickDate,
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
                               height: 40,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                               decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: !_hasClient
-                                      ? AppColors.divider
-                                      : AppColors.primary,
-                                  width: !_hasClient ? 1.0 : 1.5,
-                                ),
+                                border: Border.all(color: AppColors.divider),
                                 borderRadius: BorderRadius.circular(8),
-                                color: _hasClient
-                                    ? AppColors.primary.withValues(alpha: 0.05)
-                                    : null,
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.store_outlined,
-                                    size: 16,
-                                    color: !_hasClient
-                                        ? AppColors.textSecondary
-                                        : AppColors.primary,
-                                  ),
+                                  const Icon(Icons.calendar_today_outlined,
+                                      size: 16, color: AppColors.primary),
                                   const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _clientDisplay,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: !_hasClient
-                                                ? AppColors.textSecondary
-                                                : null,
-                                          ),
-                                    ),
+                                  Text(
+                                    _formattedDate,
+                                    style: Theme.of(context).textTheme.bodyMedium,
                                   ),
-                                  if (_newClient != null || _draftClientShopName != null)
-                                    GestureDetector(
-                                      onTap: () =>
-                                          setState(() {
-                                            _newClient = null;
-                                            _draftClientId = null;
-                                            _draftClientShopName = null;
-                                            _onControllerChanged();
-                                          }),
-                                      child: const Icon(Icons.close,
-                                          size: 18,
-                                          color: AppColors.textSecondary),
-                                    ),
                                 ],
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // ── Items section label ────────────────────────────────────
-                  // Padding(
-                  //   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                  //   child: Row(
-                  //     children: [
-                  //       Expanded(
-                  //         child: Text(
-                  //           'Mahsulotlar',
-                  //           style: Theme.of(context)
-                  //               .textTheme
-                  //               .titleSmall
-                  //               ?.copyWith(
-                  //                 color: AppColors.primary,
-                  //                 fontWeight: FontWeight.w600,
-                  //               ),
-                  //         ),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
-                  Expanded(
-                    child: OrderItemsSheet(ctrl: ctrl),
-                  ),
-                  // // ── Table header ───────────────────────────────────────────
-                  // const _FormTableHeader(),
-                  // const Divider(height: 1, color: AppColors.divider),
-                  // // // ── Table rows ─────────────────────────────────────────────
-                  // Expanded(
-                  //   child: ListView.separated(
-                  //     padding: EdgeInsets.zero,
-                  //     itemCount: ctrl.items.length,
-                  //     separatorBuilder: (_, __) =>
-                  //         const Divider(height: 1, color: AppColors.divider),
-                  //     itemBuilder: (context, index) {
-                  //       final row = ctrl.items[index];
-                  //       return _FormItemRow(
-                  //         key: ValueKey(row.id),
-                  //         row: row,
-                  //         allItems: ctrl.items,
-                  //         index: index,
-                  //         onRemove: () => ctrl.removeItem(index),
-                  //         onChanged: ctrl.notifyChanged,
-                  //       );
-                  //     },
-                  //   ),
-                  // ),
-                  const Divider(height: 1, color: AppColors.divider),
-                  // ── Notes at bottom ────────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    child: TextFormField(
-                      controller: ctrl.notesCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: "Izoh (ixtiyoriy)",
-                        hintText: "Qo'shimcha ma'lumot...",
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                  ),
-                  // ── Totals summary ─────────────────────────────────────────
-                  Builder(builder: (context) {
-                    final filled = ctrl.filledItems;
-                    final totalQty = filled.fold(
-                      0,
-                      (sum, r) =>
-                          sum + (int.tryParse(r.quantityCtrl.text) ?? 1),
-                    );
-                    final totalSqm = filled.fold(0.0, (sum, r) {
-                      final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
-                      if (r.selectedSize != null) {
-                        return sum +
-                            r.selectedSize!.length *
-                                r.selectedSize!.width *
-                                qty /
-                                10000.0;
-                      }
-                      if (r.prefilledSizeLength != null &&
-                          r.prefilledSizeWidth != null) {
-                        return sum +
-                            r.prefilledSizeLength! *
-                                r.prefilledSizeWidth! *
-                                qty /
-                                10000.0;
-                      }
-                      return sum;
-                    });
-                    return DesktopStatusBar(
-                      child: Row(
-                        children: [
-                          _TotalChip(
-                            label: 'Jami dona',
-                            value: '$totalQty',
-                          ),
-                          const SizedBox(width: 16),
-                          _TotalChip(
-                            label: 'Jami m²',
-                            value: '${totalSqm.toStringAsFixed(2)} m²',
+                          const SizedBox(width: 12),
+                          // Client picker (expands to fill remaining space)
+                          Expanded(
+                            child: InkWell(
+                              onTap: _pickClient,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                height: 40,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: !_hasClient
+                                        ? AppColors.divider
+                                        : AppColors.primary,
+                                    width: !_hasClient ? 1.0 : 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: _hasClient
+                                      ? AppColors.primary.withValues(alpha: 0.05)
+                                      : null,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.store_outlined,
+                                      size: 16,
+                                      color: !_hasClient
+                                          ? AppColors.textSecondary
+                                          : AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _clientDisplay,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              color: !_hasClient
+                                                  ? AppColors.textSecondary
+                                                  : null,
+                                            ),
+                                      ),
+                                    ),
+                                    if (_newClient != null || _draftClientShopName != null)
+                                      GestureDetector(
+                                        onTap: () =>
+                                            setState(() {
+                                              _newClient = null;
+                                              _draftClientId = null;
+                                              _draftClientShopName = null;
+                                              _onControllerChanged();
+                                            }),
+                                        child: const Icon(Icons.close,
+                                            size: 18,
+                                            color: AppColors.textSecondary),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    );
-                  }),
-                ],
+                    ),
+                    // ── Items section label ────────────────────────────────────
+                    // Padding(
+                    //   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                    //   child: Row(
+                    //     children: [
+                    //       Expanded(
+                    //         child: Text(
+                    //           'Mahsulotlar',
+                    //           style: Theme.of(context)
+                    //               .textTheme
+                    //               .titleSmall
+                    //               ?.copyWith(
+                    //                 color: AppColors.primary,
+                    //                 fontWeight: FontWeight.w600,
+                    //               ),
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+                    Expanded(
+                      child: OrderItemsSheet(ctrl: ctrl),
+                    ),
+                    // // ── Table header ───────────────────────────────────────────
+                    // const _FormTableHeader(),
+                    // const Divider(height: 1, color: AppColors.divider),
+                    // // // ── Table rows ─────────────────────────────────────────────
+                    // Expanded(
+                    //   child: ListView.separated(
+                    //     padding: EdgeInsets.zero,
+                    //     itemCount: ctrl.items.length,
+                    //     separatorBuilder: (_, __) =>
+                    //         const Divider(height: 1, color: AppColors.divider),
+                    //     itemBuilder: (context, index) {
+                    //       final row = ctrl.items[index];
+                    //       return _FormItemRow(
+                    //         key: ValueKey(row.id),
+                    //         row: row,
+                    //         allItems: ctrl.items,
+                    //         index: index,
+                    //         onRemove: () => ctrl.removeItem(index),
+                    //         onChanged: ctrl.notifyChanged,
+                    //       );
+                    //     },
+                    //   ),
+                    // ),
+                    const Divider(height: 1, color: AppColors.divider),
+                    // ── Notes at bottom ────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      child: TextFormField(
+                        controller: ctrl.notesCtrl,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: "Izoh (ixtiyoriy)",
+                          hintText: "Qo'shimcha ma'lumot...",
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ),
+                    // ── Totals summary ─────────────────────────────────────────
+                    Builder(builder: (context) {
+                      final filled = ctrl.filledItems;
+                      final totalQty = filled.fold(
+                        0,
+                        (sum, r) =>
+                            sum + (int.tryParse(r.quantityCtrl.text) ?? 1),
+                      );
+                      final totalSqm = filled.fold(0.0, (sum, r) {
+                        final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
+                        if (r.selectedSize != null) {
+                          return sum +
+                              r.selectedSize!.length *
+                                  r.selectedSize!.width *
+                                  qty /
+                                  10000.0;
+                        }
+                        if (r.prefilledSizeLength != null &&
+                            r.prefilledSizeWidth != null) {
+                          return sum +
+                              r.prefilledSizeLength! *
+                                  r.prefilledSizeWidth! *
+                                  qty /
+                                  10000.0;
+                        }
+                        return sum;
+                      });
+                      return DesktopStatusBar(
+                        child: Row(
+                          children: [
+                            _TotalChip(
+                              label: 'Jami dona',
+                              value: '$totalQty',
+                            ),
+                            const SizedBox(width: 16),
+                            _TotalChip(
+                              label: 'Jami m²',
+                              value: '${totalSqm.toStringAsFixed(2)} m²',
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ),
           );

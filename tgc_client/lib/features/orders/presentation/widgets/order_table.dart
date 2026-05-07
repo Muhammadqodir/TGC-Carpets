@@ -59,7 +59,7 @@ class OrderTable extends StatelessWidget {
     ),
     AppTableColumn(
       label: 'Amallar',
-      fixedWidth: 100,
+      fixedWidth: 150,
       alignment: Alignment.center,
     ),
   ];
@@ -265,13 +265,13 @@ class _ActionsCell extends StatelessWidget {
                 ],
               ),
             ),
-          if (onDelete != null)
+          if (order.status == 'pending' && onDelete != null)
             PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
                   HugeIcon(
-                    icon: HugeIcons.strokeRoundedRemove01,
+                    icon: HugeIcons.strokeRoundedRemoveCircle,
                     color: AppColors.error,
                     size: 18,
                     strokeWidth: 2,
@@ -309,11 +309,11 @@ class _ActionsCell extends StatelessWidget {
               tooltip: 'Tahrirlash',
             ),
           ],
-          if (onDelete != null) ...[
+          if (order.status == 'pending' && onDelete != null) ...[
             const SizedBox(width: 4),
             IconButton(
               icon: HugeIcon(
-                icon: HugeIcons.strokeRoundedRemove01,
+                icon: HugeIcons.strokeRoundedRemoveCircle,
                 color: AppColors.error,
               ),
               onPressed: () => onDelete!(order),

@@ -1,19 +1,24 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/order_entity.dart';
+import '../../domain/usecases/delete_order_usecase.dart';
 import '../../domain/usecases/get_orders_usecase.dart';
 import 'orders_event.dart';
 import 'orders_state.dart';
 
 class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final GetOrdersUseCase getOrdersUseCase;
+  final DeleteOrderUseCase deleteOrderUseCase;
 
   String? _activeStatusFilter;
   int? _activeClientIdFilter;
   DateTime? _dateFrom;
   DateTime? _dateTo;
 
-  OrdersBloc({required this.getOrdersUseCase})
+  OrdersBloc({
+    required this.getOrdersUseCase,
+    required this.deleteOrderUseCase,
+  })
       : super(const OrdersInitial()) {
     on<OrdersLoadRequested>(_onLoadRequested);
     on<OrdersRefreshRequested>(_onRefreshRequested);
@@ -72,13 +77,20 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     await _fetchPage(emit, page: current.currentPage + 1, replace: false);
   }
 
-  void _onOrderDeleted(OrderDeleted event, Emitter<OrdersState> emit) {
+  Future<void> _onOrderDeleted(
+    OrderDeleted event,
+    Emitter<OrdersState> emit,
+  ) async {
     final current = state;
-    if (current is OrdersLoaded) {
-      emit(current.copyWith(
+    if (current is! OrdersLoaded) return;
+
+    final result = await deleteOrderUseCase(event.orderId);
+    result.fold(
+      (failure) => emit(OrdersError(failure.message)),
+      (_) => emit(current.copyWith(
         orders: current.orders.where((o) => o.id != event.orderId).toList(),
-      ));
-    }
+      )),
+    );
   }
 
   Future<void> _fetchPage(

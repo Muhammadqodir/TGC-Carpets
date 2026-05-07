@@ -79,6 +79,32 @@ class _OrdersContentState extends State<_OrdersContent> {
     );
   }
 
+  Future<void> _deleteOrder(OrderEntity order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buyurtmani o\'chirish'),
+        content: Text(
+            '#${order.id} buyurtmani o\'chirishni tasdiqlaysizmi? Bu amalni qaytarib bo\'lmaydi.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('O\'chirish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      context.read<OrdersBloc>().add(OrderDeleted(order.id));
+    }
+  }
+
   Future<void> _navigateToEdit(OrderEntity order) async {
     final updated = await context.pushNamed(
       AppRoutes.editOrderName,
@@ -121,74 +147,77 @@ class _OrdersContentState extends State<_OrdersContent> {
           const SizedBox(width: 12),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Filter bar
-          OrderFilterBar(
-            selectedStatus: _selectedStatus,
-            selectedClient: _selectedClient,
-            selectedDateRange: _selectedDateRange,
-            onStatusChanged: (v) => _applyFilters(
-              status: v,
-              client: _selectedClient,
-              dateRange: _selectedDateRange,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Filter bar
+            OrderFilterBar(
+              selectedStatus: _selectedStatus,
+              selectedClient: _selectedClient,
+              selectedDateRange: _selectedDateRange,
+              onStatusChanged: (v) => _applyFilters(
+                status: v,
+                client: _selectedClient,
+                dateRange: _selectedDateRange,
+              ),
+              onClientChanged: (v) => _applyFilters(
+                status: _selectedStatus,
+                client: v,
+                dateRange: _selectedDateRange,
+              ),
+              onDateRangeChanged: (v) => _applyFilters(
+                status: _selectedStatus,
+                client: _selectedClient,
+                dateRange: v,
+              ),
+              onRefresh: () =>
+                  context.read<OrdersBloc>().add(const OrdersRefreshRequested()),
             ),
-            onClientChanged: (v) => _applyFilters(
-              status: _selectedStatus,
-              client: v,
-              dateRange: _selectedDateRange,
-            ),
-            onDateRangeChanged: (v) => _applyFilters(
-              status: _selectedStatus,
-              client: _selectedClient,
-              dateRange: v,
-            ),
-            onRefresh: () =>
-                context.read<OrdersBloc>().add(const OrdersRefreshRequested()),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
-          Expanded(
-            child: BlocBuilder<OrdersBloc, OrdersState>(
-              builder: (context, state) {
-                if (state is OrdersLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (state is OrdersError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(state.message, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: () => context
-                              .read<OrdersBloc>()
-                              .add(const OrdersRefreshRequested()),
-                          child: const Text('Qayta urinish'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (state is OrdersLoaded) {
-                  if (state.orders.isEmpty) {
-                    return const Center(
-                        child: Text('Buyurtmalar topilmadi.'));
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: BlocBuilder<OrdersBloc, OrdersState>(
+                builder: (context, state) {
+                  if (state is OrdersLoading) {
+                    return const Center(child: CircularProgressIndicator());
                   }
-                  return OrderTable(
-                    orders: state.orders,
-                    isLoadingMore: state.isLoadingMore,
-                    scrollController: _scrollController,
-                    onViewDetail: _navigateToDetail,
-                    onEdit: _navigateToEdit,
-                  );
-                }
-                return const SizedBox.shrink();
-              },
+                  if (state is OrdersError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(state.message, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () => context
+                                .read<OrdersBloc>()
+                                .add(const OrdersRefreshRequested()),
+                            child: const Text('Qayta urinish'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  if (state is OrdersLoaded) {
+                    if (state.orders.isEmpty) {
+                      return const Center(
+                          child: Text('Buyurtmalar topilmadi.'));
+                    }
+                    return OrderTable(
+                      orders: state.orders,
+                      isLoadingMore: state.isLoadingMore,
+                      scrollController: _scrollController,
+                      onViewDetail: _navigateToDetail,
+                      onEdit: _navigateToEdit,
+                      onDelete: _deleteOrder,
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

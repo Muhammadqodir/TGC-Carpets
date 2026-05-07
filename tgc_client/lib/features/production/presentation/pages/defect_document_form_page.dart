@@ -17,12 +17,10 @@ class DefectDocumentFormPage extends StatefulWidget {
   const DefectDocumentFormPage({super.key, required this.batch});
 
   @override
-  State<DefectDocumentFormPage> createState() =>
-      _DefectDocumentFormPageState();
+  State<DefectDocumentFormPage> createState() => _DefectDocumentFormPageState();
 }
 
-class _DefectDocumentFormPageState
-    extends State<DefectDocumentFormPage> {
+class _DefectDocumentFormPageState extends State<DefectDocumentFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
 
@@ -34,8 +32,7 @@ class _DefectDocumentFormPageState
   void initState() {
     super.initState();
     _qtyControllers = {
-      for (final item in widget.batch.items)
-        item.id: TextEditingController(),
+      for (final item in widget.batch.items) item.id: TextEditingController(),
     };
   }
 
@@ -151,10 +148,10 @@ class _DefectDocumentFormPageState
       }
 
       await sl<DefectDocumentRemoteDataSource>().createDefectDocument(
-        batchId:     widget.batch.id,
+        batchId: widget.batch.id,
         description: _descController.text.trim(),
-        items:       itemsPayload,
-        photos:      photos.isEmpty ? null : photos,
+        items: itemsPayload,
+        photos: photos.isEmpty ? null : photos,
       );
 
       if (context.mounted) context.pop(true);
@@ -171,12 +168,111 @@ class _DefectDocumentFormPageState
     }
   }
 
+  Widget _buildSidePanel(BuildContext context,
+      {EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(0, 24, 24, 24)}) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Izoh (majburiy)',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _descController,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      hintText: 'Nuxsonning sababi va batafsil tavsifi...',
+                      alignLabelWithHint: true,
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().length < 5) {
+                        return 'Kamida 5 ta belgi kiriting';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rasmlar (ixtiyoriy)',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_selectedPhotos.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _selectedPhotos
+                          .asMap()
+                          .entries
+                          .map(
+                            (e) => _PhotoThumb(
+                              xFile: e.value,
+                              onRemove: () => _removePhoto(e.key),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const HugeIcon(
+                        icon: HugeIcons.strokeRoundedCamera01,
+                        size: 18,
+                        strokeWidth: 2,
+                      ),
+                      label: Text(
+                        _selectedPhotos.isEmpty
+                            ? 'Rasm qo\'shish'
+                            : 'Yana rasm qo\'shish',
+                      ),
+                      onPressed: _pickPhotos,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Nuxson rasmiylashtirish — #${widget.batch.id} ${widget.batch.batchTitle}'),
+        title: Text(
+          'Nuxson — #${widget.batch.id} ${widget.batch.batchTitle}',
+          overflow: TextOverflow.ellipsis,
+        ),
         titleSpacing: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
@@ -207,118 +303,56 @@ class _DefectDocumentFormPageState
       ),
       body: Form(
         key: _formKey,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Left: items table ──────────────────────────────────────────
-            Expanded(
-              flex: 3,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: _ItemsTable(
-                  items: _items,
-                  controllers: _qtyControllers,
-                ),
-              ),
-            ),
-            // ── Right: description + photos ────────────────────────────────
-            SizedBox(
-              width: 360,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(0, 24, 24, 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 700;
+
+            if (isMobile) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Izoh (majburiy)',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              controller: _descController,
-                              maxLines: 6,
-                              decoration: const InputDecoration(
-                                hintText:
-                                    'Nuxsonning sababi va batafsil tavsifi...',
-                                alignLabelWithHint: true,
-                              ),
-                              validator: (v) {
-                                if (v == null || v.trim().length < 5) {
-                                  return 'Kamida 5 ta belgi kiriting';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                    _ItemsTable(
+                      items: _items,
+                      controllers: _qtyControllers,
+                      isMobile: true,
                     ),
                     const SizedBox(height: 16),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Rasmlar (ixtiyoriy)',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 12),
-                            if (_selectedPhotos.isNotEmpty) ...[
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _selectedPhotos
-                                    .asMap()
-                                    .entries
-                                    .map(
-                                      (e) => _PhotoThumb(
-                                        xFile: e.value,
-                                        onRemove: () => _removePhoto(e.key),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const HugeIcon(
-                                  icon: HugeIcons.strokeRoundedCamera01,
-                                  size: 18,
-                                  strokeWidth: 2,
-                                ),
-                                label: Text(
-                                  _selectedPhotos.isEmpty
-                                      ? 'Rasm qo\'shish'
-                                      : 'Yana rasm qo\'shish',
-                                ),
-                                onPressed: _pickPhotos,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildSidePanel(
+                      context,
+                      padding: EdgeInsets.zero,
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
-              ),
-            ),
-          ],
+              );
+            }
+
+            // ── Desktop / tablet layout ───────────────────────────────────
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _ItemsTable(
+                      items: _items,
+                      controllers: _qtyControllers,
+                      isMobile: false,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 360,
+                  child: SingleChildScrollView(
+                    child: _buildSidePanel(context),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -330,16 +364,16 @@ class _DefectDocumentFormPageState
 class _ItemsTable extends StatelessWidget {
   final List<ProductionBatchItemEntity> items;
   final Map<int, TextEditingController> controllers;
+  final bool isMobile;
 
-  const _ItemsTable({required this.items, required this.controllers});
+  const _ItemsTable({
+    required this.items,
+    required this.controllers,
+    required this.isMobile,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
-        );
-
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,33 +389,6 @@ class _ItemsTable extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: AppColors.divider),
-          // Header row
-          Container(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                SizedBox(width: 36, child: Text('#', style: labelStyle)),
-                Expanded(
-                    flex: 3, child: Text('Mahsulot', style: labelStyle)),
-                Expanded(flex: 2, child: Text('Rang', style: labelStyle)),
-                Expanded(
-                    flex: 2, child: Text('O\'lcham', style: labelStyle)),
-                SizedBox(
-                  width: 80,
-                  child: Text('Reja',
-                      style: labelStyle, textAlign: TextAlign.center),
-                ),
-                SizedBox(
-                  width: 100,
-                  child: Text('Nuxson',
-                      style: labelStyle, textAlign: TextAlign.center),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.divider),
           if (items.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
@@ -392,17 +399,101 @@ class _ItemsTable extends StatelessWidget {
                 ),
               ),
             )
-          else
+          else if (isMobile)
+            ...items.asMap().entries.expand((entry) sync* {
+              yield _ItemCard(
+                index: entry.key,
+                item: entry.value,
+                controller: controllers[entry.value.id]!,
+              );
+              if (entry.key < items.length - 1) {
+                yield const Divider(height: 1, color: AppColors.divider);
+              }
+            })
+          else ...[
+            // Header row — desktop only
+            Container(
+              color: AppColors.primary.withValues(alpha: 0.04),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 36,
+                    child: Text(
+                      '#',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Mahsulot',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Rang',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'O\'lcham',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      'Reja',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 100,
+                    child: Text(
+                      'Nuxson',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
             ...items.asMap().entries.expand((entry) sync* {
               yield _ItemRow(
-                index:      entry.key,
-                item:       entry.value,
+                index: entry.key,
+                item: entry.value,
                 controller: controllers[entry.value.id]!,
               );
               if (entry.key < items.length - 1) {
                 yield const Divider(height: 1, color: AppColors.divider);
               }
             }),
+          ],
         ],
       ),
     );
@@ -509,6 +600,124 @@ class _ItemRow extends StatelessWidget {
     );
   }
 }
+
+// ── Mobile card row ───────────────────────────────────────────────────────────
+
+class _ItemCard extends StatelessWidget {
+  final int index;
+  final ProductionBatchItemEntity item;
+  final TextEditingController controller;
+
+  const _ItemCard({
+    required this.index,
+    required this.item,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: AppColors.textSecondary);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Index badge
+          // Container(
+          //   width: 24,
+          //   height: 24,
+          //   alignment: Alignment.center,
+          //   decoration: BoxDecoration(
+          //     color: AppColors.primary.withValues(alpha: 0.08),
+          //     shape: BoxShape.circle,
+          //   ),
+          //   child: Text(
+          //     '${index + 1}',
+          //     style: secondary?.copyWith(fontWeight: FontWeight.w700),
+          //   ),
+          // ),
+          // const SizedBox(width: 12),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    AppThumbnail(imageUrl: item.colorImageUrl, size: 40),
+                    const SizedBox(width: 4),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item.productName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          item.colorName?.toUpperCase() ?? '—',
+                          style: secondary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item.sizeLength != null && item.sizeWidth != null
+                              ? '${item.sizeWidth}×${item.sizeLength}'
+                              : '—',
+                          style: secondary,
+                        ),
+                        const SizedBox(width: 12),
+                        Text('Reja: ${item.plannedQuantity}', style: secondary),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Defect qty input
+          SizedBox(
+            width: 90,
+            child: TextFormField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                labelText: 'Nuxson',
+                hintText: '0',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
+              validator: (v) {
+                if (v != null && v.isNotEmpty) {
+                  final n = int.tryParse(v);
+                  if (n == null || n < 0) return '≥0';
+                }
+                return null;
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Photo thumb ───────────────────────────────────────────────────────────────
 
 class _PhotoThumb extends StatelessWidget {
   final XFile xFile;

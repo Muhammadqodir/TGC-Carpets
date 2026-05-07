@@ -226,7 +226,7 @@ class ProductionBatchController extends Controller
                         'product_color' => $oi->variant->productColor ? [
                             'id'        => $oi->variant->productColor->id,
                             'image_url' => $oi->variant->productColor->image
-                                ? \Illuminate\Support\Facades\Storage::url($oi->variant->productColor->image)
+                                ? rtrim(config('app.url'), '/') . '/storage/' . $oi->variant->productColor->image
                                 : null,
                             'color'   => $oi->variant->productColor->color
                                 ? ['id' => $oi->variant->productColor->color->id, 'name' => $oi->variant->productColor->color->name]
@@ -349,7 +349,7 @@ class ProductionBatchController extends Controller
                     'type'          => $product->productType?->type,
                     'color'         => $color?->name,
                     'color_image'   => $productColor->image
-                        ? Storage::url($productColor->image)
+                        ? rtrim(config('app.url'), '/') . '/storage/' . $productColor->image
                         : null,
                     'size_length'   => $size?->length,
                     'size_width'    => $size?->width,

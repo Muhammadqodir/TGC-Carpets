@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
+import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
@@ -156,10 +157,10 @@ class _LabelingViewState extends State<_LabelingView> {
             ),
           );
         }
-        
+
         // Save to print history after successful print
         await _historyService.addToHistory(item);
-        
+
         // Refresh to get updated list (removes items with 0 remaining quantity)
         context.read<LabelingBloc>().add(const LabelingRefreshRequested());
       } finally {
@@ -184,21 +185,24 @@ class _LabelingViewState extends State<_LabelingView> {
         if (state is LabelingLoaded) {
           final previousItemCount = _items.length;
           setState(() => _items = state.items);
-          
+
           // If all items are now printed (list became empty), auto-refresh
           if (previousItemCount > 0 && state.items.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Barcha mahsulotlar yorliqlandi! Sahifa yangilanmoqda...'),
+                content: Text(
+                    'Barcha mahsulotlar yorliqlandi! Sahifa yangilanmoqda...'),
                 backgroundColor: AppColors.success,
                 duration: Duration(seconds: 2),
               ),
             );
-            
+
             // Auto-refresh after a short delay to check for new items
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
-                context.read<LabelingBloc>().add(const LabelingRefreshRequested());
+                context
+                    .read<LabelingBloc>()
+                    .add(const LabelingRefreshRequested());
               }
             });
           }
@@ -431,10 +435,10 @@ class _LabelingViewState extends State<_LabelingView> {
                     final crossAxisCount =
                         (constraints.maxWidth / 260).floor().clamp(1, 5);
                     const spacing = 12.0;
-                    final cardWidth =
-                        (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
-                            crossAxisCount;
-            
+                    final cardWidth = (constraints.maxWidth -
+                            spacing * (crossAxisCount - 1)) /
+                        crossAxisCount;
+
                     return Wrap(
                       spacing: spacing,
                       runSpacing: spacing,
@@ -575,16 +579,8 @@ class _LabelingCard extends StatelessWidget {
               AspectRatio(
                 aspectRatio: 1,
                 child: item.colorImageUrl != null
-                    ? CachedNetworkImage(
+                    ? AppThumbnail(
                         imageUrl: item.colorImageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          color: const Color(0xFFF0F2F5),
-                          child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => _PlaceholderImage(),
                       )
                     : _PlaceholderImage(),
               ),

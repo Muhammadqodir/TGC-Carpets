@@ -85,6 +85,7 @@ import '../../features/orders/domain/repositories/order_repository.dart';
 import '../../features/orders/domain/usecases/get_orders_usecase.dart';
 import '../../features/orders/domain/usecases/create_order_usecase.dart';
 import '../../features/orders/domain/usecases/update_order_usecase.dart';
+import '../../features/orders/domain/usecases/delete_order_usecase.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
 import '../../features/orders/presentation/bloc/order_form_bloc.dart';
 
@@ -343,8 +344,12 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetOrdersUseCase(sl<OrderRepository>()));
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<OrderRepository>()));
   sl.registerLazySingleton(() => UpdateOrderUseCase(sl<OrderRepository>()));
+  sl.registerLazySingleton(() => DeleteOrderUseCase(sl<OrderRepository>()));
   sl.registerFactory(
-    () => OrdersBloc(getOrdersUseCase: sl<GetOrdersUseCase>()),
+    () => OrdersBloc(
+      getOrdersUseCase: sl<GetOrdersUseCase>(),
+      deleteOrderUseCase: sl<DeleteOrderUseCase>(),
+    ),
   );
   sl.registerFactory(
     () => OrderFormBloc(

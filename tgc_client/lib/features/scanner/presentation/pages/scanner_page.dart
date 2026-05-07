@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/ui/widgets/app_thumbnail.dart';
 import '../bloc/scanner_bloc.dart';
 import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
@@ -198,21 +198,12 @@ class _ResultView extends StatelessWidget {
               // ── Product Image ──────────────────────────────────────────
               Card(
                 clipBehavior: Clip.antiAlias,
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: item.product.colorImage != null
-                      ? CachedNetworkImage(
-                          imageUrl: item.product.colorImage!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: const Color(0xFFF0F2F5),
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => _PlaceholderImage(),
-                        )
-                      : _PlaceholderImage(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => AppThumbnail(
+                    imageUrl: item.product.colorImage,
+                    size: constraints.maxWidth,
+                    borderRadius: 0,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -450,19 +441,4 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _PlaceholderImage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF0F2F5),
-      child: const Center(
-        child: HugeIcon(
-          icon: HugeIcons.strokeRoundedPrayerRug01,
-          size: 64,
-          color: AppColors.textSecondary,
-          strokeWidth: 1.5,
-        ),
-      ),
-    );
-  }
-}
+
