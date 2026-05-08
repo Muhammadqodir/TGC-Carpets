@@ -66,6 +66,17 @@ class FilterDropdown<T> extends StatelessWidget {
               ?.copyWith(color: AppColors.textPrimary),
           icon: const Icon(Icons.keyboard_arrow_down, size: 16),
           isDense: true,
+          selectedItemBuilder: (context) => [
+            // null/"all" item selected → show hint, not allLabel
+            Text(
+              hint,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+            ...items.map((item) => item.child),
+          ],
           items: [
             DropdownMenuItem<T>(
               value: null,
