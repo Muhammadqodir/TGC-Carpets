@@ -13,16 +13,21 @@ class AddProduct extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () async {
-        final result = await ProductPickerBottomSheet.show(context);
-        if (result == null || result.color == null) return;
-        final added = ctrl.addMatrixColorRow(result.product, result.color!);
-        if (!added && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Bu mahsulot varianti allaqachon qo'shilgan."),
-              backgroundColor: AppColors.error,
-            ),
-          );
+        while (context.mounted) {
+          final result = await ProductPickerBottomSheet.show(context);
+          if (result == null || result.color == null) break;
+          if (!context.mounted) break;
+          final added = ctrl.addMatrixColorRow(result.product, result.color!);
+          if (!added) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Bu mahsulot varianti allaqachon qo'shilgan."),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          // Sheet reopens automatically for the next product pick.
+          // Loop exits when user cancels (taps background → result is null).
         }
       },
       borderRadius: BorderRadius.circular(6),
