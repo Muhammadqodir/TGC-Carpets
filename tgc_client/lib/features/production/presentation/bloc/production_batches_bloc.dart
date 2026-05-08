@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/production_batch_entity.dart';
+import '../../domain/usecases/delete_production_batch_usecase.dart';
 import '../../domain/usecases/get_production_batches_usecase.dart';
 import 'production_batches_event.dart';
 import 'production_batches_state.dart';
@@ -8,19 +9,23 @@ import 'production_batches_state.dart';
 class ProductionBatchesBloc
     extends Bloc<ProductionBatchesEvent, ProductionBatchesState> {
   final GetProductionBatchesUseCase getProductionBatchesUseCase;
+  final DeleteProductionBatchUseCase deleteProductionBatchUseCase;
 
   String? _activeStatusFilter;
   String? _activeTypeFilter;
   DateTime? _dateFrom;
   DateTime? _dateTo;
 
-  ProductionBatchesBloc({required this.getProductionBatchesUseCase})
-      : super(const ProductionBatchesInitial()) {
+  ProductionBatchesBloc({
+    required this.getProductionBatchesUseCase,
+    required this.deleteProductionBatchUseCase,
+  }) : super(const ProductionBatchesInitial()) {
     on<ProductionBatchesLoadRequested>(_onLoadRequested);
     on<ProductionBatchesRefreshRequested>(_onRefreshRequested);
     on<ProductionBatchesFiltersChanged>(_onFiltersChanged);
     on<ProductionBatchesStatusFilterChanged>(_onStatusFilterChanged);
     on<ProductionBatchesNextPageRequested>(_onNextPageRequested);
+    on<ProductionBatchDeleteRequested>(_onDeleteRequested);
   }
 
   Future<void> _onLoadRequested(
@@ -72,6 +77,35 @@ class ProductionBatchesBloc
     }
     emit(current.copyWith(isLoadingMore: true));
     await _fetchPage(emit, page: current.currentPage + 1, replace: false);
+  }
+
+  Future<void> _onDeleteRequested(
+    ProductionBatchDeleteRequested event,
+    Emitter<ProductionBatchesState> emit,
+  ) async {
+    final current = state;
+    if (current is! ProductionBatchesLoaded) return;
+
+    emit(current.copyWith(
+      actionStatus: ProductionBatchActionPending(event.batchId),
+    ));
+
+    final result = await deleteProductionBatchUseCase(event.batchId);
+
+    result.fold(
+      (failure) => emit(current.copyWith(
+        actionStatus: ProductionBatchActionFailure(failure.message),
+      )),
+      (_) => emit(current.copyWith(
+        batches: current.batches
+            .where((b) => b.id != event.batchId)
+            .toList(),
+        total: current.total > 0 ? current.total - 1 : 0,
+        actionStatus: ProductionBatchActionSuccess(
+          '"${event.batchTitle}" o\'chirildi.',
+        ),
+      )),
+    );
   }
 
   Future<void> _fetchPage(

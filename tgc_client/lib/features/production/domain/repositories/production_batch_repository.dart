@@ -49,4 +49,6 @@ abstract class ProductionBatchRepository {
     int batchId,
     int itemId,
   );
+
+  Future<Either<Failure, void>> deleteProductionBatch(int id);
 }

@@ -85,6 +85,42 @@ class _ProductionBatchesContentState
     super.dispose();
   }
 
+  Future<void> _confirmDelete(
+    BuildContext context,
+    dynamic batch,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Partiyani o\'chirish'),
+        content: Text(
+          '"${batch.batchTitle}" partiyasini o\'chirishni tasdiqlaysizmi?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('O\'chirish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      context.read<ProductionBatchesBloc>().add(
+            ProductionBatchDeleteRequested(
+              batchId: batch.id,
+              batchTitle: batch.batchTitle,
+            ),
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,7 +177,27 @@ class _ProductionBatchesContentState
           ),
           const Divider(height: 1, color: AppColors.divider),
           Expanded(
-            child: BlocBuilder<ProductionBatchesBloc, ProductionBatchesState>(
+            child: BlocConsumer<ProductionBatchesBloc, ProductionBatchesState>(
+              listenWhen: (_, current) =>
+                  current is ProductionBatchesLoaded &&
+                  (current.actionStatus is ProductionBatchActionSuccess ||
+                      current.actionStatus is ProductionBatchActionFailure),
+              listener: (context, state) {
+                if (state is! ProductionBatchesLoaded) return;
+                final status = state.actionStatus;
+                if (status is ProductionBatchActionSuccess) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(status.message)),
+                  );
+                } else if (status is ProductionBatchActionFailure) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(status.message),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
               builder: (context, state) {
                 if (state is ProductionBatchesLoading) {
                   return const Center(child: CircularProgressIndicator());
@@ -194,6 +250,7 @@ class _ProductionBatchesContentState
                             .add(const ProductionBatchesRefreshRequested());
                       }
                     },
+                    onDelete: (batch) => _confirmDelete(context, batch),
                   );
                 }
                 return const SizedBox.shrink();

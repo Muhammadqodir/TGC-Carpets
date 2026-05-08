@@ -3,6 +3,41 @@ import 'package:equatable/equatable.dart';
 import '../../domain/entities/production_batch_entity.dart';
 import 'production_batches_event.dart';
 
+// ── Action status for row-level operations (e.g. delete) ─────────────────────
+
+sealed class ProductionBatchActionStatus extends Equatable {
+  const ProductionBatchActionStatus();
+}
+
+class ProductionBatchActionIdle extends ProductionBatchActionStatus {
+  const ProductionBatchActionIdle();
+  @override
+  List<Object?> get props => [];
+}
+
+class ProductionBatchActionPending extends ProductionBatchActionStatus {
+  final int batchId;
+  const ProductionBatchActionPending(this.batchId);
+  @override
+  List<Object?> get props => [batchId];
+}
+
+class ProductionBatchActionSuccess extends ProductionBatchActionStatus {
+  final String message;
+  const ProductionBatchActionSuccess(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+class ProductionBatchActionFailure extends ProductionBatchActionStatus {
+  final String message;
+  const ProductionBatchActionFailure(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+// ── States ────────────────────────────────────────────────────────────────────
+
 abstract class ProductionBatchesState extends Equatable {
   const ProductionBatchesState();
 
@@ -27,6 +62,7 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
   final String? activeStatusFilter;
   final String? activeTypeFilter;
   final DateTimeRangeSimple? activeDateRange;
+  final ProductionBatchActionStatus actionStatus;
 
   const ProductionBatchesLoaded({
     required this.batches,
@@ -37,6 +73,7 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
     this.activeStatusFilter,
     this.activeTypeFilter,
     this.activeDateRange,
+    this.actionStatus = const ProductionBatchActionIdle(),
   });
 
   ProductionBatchesLoaded copyWith({
@@ -51,6 +88,7 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
     bool clearStatusFilter = false,
     bool clearTypeFilter = false,
     bool clearDateRange = false,
+    ProductionBatchActionStatus? actionStatus,
   }) =>
       ProductionBatchesLoaded(
         batches:            batches       ?? this.batches,
@@ -61,6 +99,7 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
         activeStatusFilter: clearStatusFilter ? null : (activeStatusFilter ?? this.activeStatusFilter),
         activeTypeFilter:   clearTypeFilter   ? null : (activeTypeFilter   ?? this.activeTypeFilter),
         activeDateRange:    clearDateRange     ? null : (activeDateRange    ?? this.activeDateRange),
+        actionStatus:       actionStatus  ?? this.actionStatus,
       );
 
   @override
@@ -73,6 +112,7 @@ class ProductionBatchesLoaded extends ProductionBatchesState {
         activeStatusFilter,
         activeTypeFilter,
         activeDateRange,
+        actionStatus,
       ];
 }
 

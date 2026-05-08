@@ -92,6 +92,13 @@ class ProductionBatchController extends Controller
 
     public function destroy(ProductionBatch $productionBatch): JsonResponse
     {
+        if ($productionBatch->status !== ProductionBatch::STATUS_PLANNED) {
+            return response()->json(
+                ['message' => 'Only planned batches can be deleted.'],
+                422,
+            );
+        }
+
         $this->service->delete($productionBatch);
 
         return response()->json(['message' => 'Production batch deleted.']);

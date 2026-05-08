@@ -99,6 +99,7 @@ import '../../features/production/domain/usecases/get_production_batch_usecase.d
 import '../../features/production/domain/usecases/get_production_batch_item_usecase.dart';
 import '../../features/production/domain/usecases/create_production_batch_usecase.dart';
 import '../../features/production/domain/usecases/update_production_batch_usecase.dart';
+import '../../features/production/domain/usecases/delete_production_batch_usecase.dart';
 import '../../features/production/presentation/bloc/production_batches_bloc.dart';
 import '../../features/production/presentation/bloc/production_batch_form_bloc.dart';
 
@@ -384,9 +385,13 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(
     () => UpdateProductionBatchUseCase(sl<ProductionBatchRepository>()),
   );
+  sl.registerLazySingleton(
+    () => DeleteProductionBatchUseCase(sl<ProductionBatchRepository>()),
+  );
   sl.registerFactory(
     () => ProductionBatchesBloc(
       getProductionBatchesUseCase: sl<GetProductionBatchesUseCase>(),
+      deleteProductionBatchUseCase: sl<DeleteProductionBatchUseCase>(),
     ),
   );
   sl.registerFactory(

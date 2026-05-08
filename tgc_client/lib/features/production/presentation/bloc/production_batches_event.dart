@@ -43,6 +43,19 @@ class ProductionBatchesNextPageRequested extends ProductionBatchesEvent {
   const ProductionBatchesNextPageRequested();
 }
 
+class ProductionBatchDeleteRequested extends ProductionBatchesEvent {
+  final int batchId;
+  final String batchTitle;
+
+  const ProductionBatchDeleteRequested({
+    required this.batchId,
+    required this.batchTitle,
+  });
+
+  @override
+  List<Object?> get props => [batchId, batchTitle];
+}
+
 /// Simple value class to carry a date range without depending on Flutter's
 /// [DateTimeRange] from the event layer (avoids importing material.dart here).
 class DateTimeRangeSimple extends Equatable {

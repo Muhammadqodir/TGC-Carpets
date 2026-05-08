@@ -165,4 +165,18 @@ class ProductionBatchRepositoryImpl implements ProductionBatchRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteProductionBatch(int id) async {
+    try {
+      await remoteDataSource.deleteProductionBatch(id);
+      return const Right(null);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

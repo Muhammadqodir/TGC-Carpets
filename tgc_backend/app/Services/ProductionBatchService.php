@@ -87,7 +87,8 @@ class ProductionBatchService
                 'responsible_employee_id' => $responsibleEmployeeId,
             ]);
 
-            // Move all fully-planned linked orders to on_production.
+            // Move any linked orders (pending or planned) to on_production
+            // as soon as at least one of their items enters production.
             $orderIds = $batch->items()
                 ->whereNotNull('source_order_item_id')
                 ->with('sourceOrderItem')
@@ -98,7 +99,7 @@ class ProductionBatchService
 
             if ($orderIds->isNotEmpty()) {
                 Order::whereIn('id', $orderIds)
-                    ->where('status', Order::STATUS_PLANNED)
+                    ->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED])
                     ->update(['status' => Order::STATUS_ON_PRODUCTION]);
             }
         });
@@ -195,10 +196,14 @@ class ProductionBatchService
 
     /**
      * Delete a production batch and its items.
+     * Reverts linked order statuses before removing records so the order
+     * coverage check can still read the items that are about to be deleted.
      */
     public function delete(ProductionBatch $batch): void
     {
         DB::transaction(function () use ($batch): void {
+            // Must run before items are deleted so the coverage query still works.
+            $this->revertOrderStatusesOnCancel($batch);
             $batch->items()->delete();
             $batch->delete();
         });

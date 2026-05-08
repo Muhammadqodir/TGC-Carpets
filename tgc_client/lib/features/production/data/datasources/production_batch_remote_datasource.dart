@@ -47,6 +47,8 @@ abstract class ProductionBatchRemoteDataSource {
   Future<ProductionBatchModel> startBatch(int id, {required int responsibleEmployeeId});
 
   Future<ProductionBatchModel> cancelBatch(int id);
+
+  Future<void> deleteProductionBatch(int id);
 }
 
 class ProductionBatchRemoteDataSourceImpl
@@ -248,6 +250,15 @@ class ProductionBatchRemoteDataSourceImpl
         (response.data as Map<String, dynamic>)['data']
             as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteProductionBatch(int id) async {
+    try {
+      await _dio.delete(ApiEndpoints.productionBatchById(id));
     } on DioException catch (e) {
       _handleDioError(e);
     }

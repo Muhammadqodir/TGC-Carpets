@@ -15,6 +15,7 @@ class ProductionBatchTable extends StatelessWidget {
     required this.scrollController,
     this.onView,
     this.onEdit,
+    this.onDelete,
   });
 
   final List<ProductionBatchEntity> batches;
@@ -22,6 +23,7 @@ class ProductionBatchTable extends StatelessWidget {
   final ScrollController scrollController;
   final void Function(ProductionBatchEntity)? onView;
   final void Function(ProductionBatchEntity)? onEdit;
+  final void Function(ProductionBatchEntity)? onDelete;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 40, alignment: Alignment.centerLeft),
@@ -190,6 +192,17 @@ class ProductionBatchTable extends StatelessWidget {
                   tooltip: 'Tahrirlash',
                 ),
               ],
+              if (batch.status == 'planned' && onDelete != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete02,
+                    color: AppColors.error,
+                  ),
+                  onPressed: () => onDelete!(batch),
+                  tooltip: 'O\'chirish',
+                ),
+              ],
             ],
           ),
         );
@@ -254,18 +267,56 @@ class ProductionBatchTable extends StatelessWidget {
               case 'edit':
                 onEdit?.call(batch);
                 break;
+              case 'delete':
+                onDelete?.call(batch);
+                break;
             }
           },
           itemBuilder: (context) => [
             if (onView != null)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'view',
-                child: Text('Tafsilotlar'),
+                child: Row(
+                  children: [
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedView,
+                      color: AppColors.primaryLight,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('Tafsilotlar'),
+                  ],
+                ),
               ),
             if (batch.status == 'planned' && onEdit != null)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'edit',
-                child: Text('Tahrirlash'),
+                child: Row(
+                  children: [
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedEdit02,
+                      color: AppColors.warning,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('Tahrirlash'),
+                  ],
+                ),
+              ),
+            if (batch.status == 'planned' && onDelete != null)
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedDelete02,
+                      color: AppColors.error,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('O\'chirish'),
+                  ],
+                ),
               ),
           ],
         );
