@@ -37,6 +37,7 @@ import '../../features/products/domain/usecases/get_colors_usecase.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 import '../../features/products/presentation/bloc/product_form_bloc.dart';
 import '../../features/products/presentation/bloc/product_color_form_bloc.dart';
+import '../../features/products/presentation/bloc/import_products_bloc.dart';
 
 // Clients feature
 import '../../features/clients/data/datasources/client_remote_datasource.dart';
@@ -284,6 +285,15 @@ Future<void> initDependencies() async {
       getColorsUseCase: sl<GetColorsUseCase>(),
       createProductColorUseCase: sl<CreateProductColorUseCase>(),
       updateProductColorUseCase: sl<UpdateProductColorUseCase>(),
+    ),
+  );
+  sl.registerFactory(
+    () => ImportProductsBloc(
+      getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
+      getColorsUseCase: sl<GetColorsUseCase>(),
+      getProductsUseCase: sl<GetProductsUseCase>(),
+      createProductUseCase: sl<CreateProductUseCase>(),
+      createProductColorUseCase: sl<CreateProductColorUseCase>(),
     ),
   );
 

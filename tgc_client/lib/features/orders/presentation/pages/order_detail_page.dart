@@ -48,13 +48,15 @@ class OrderDetailPage extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _OrderInfoSection(order: order),
-            const SizedBox(height: 20),
-            _OrderItemsTable(items: order.items),
-          ],
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _OrderInfoSection(order: order),
+              const SizedBox(height: 20),
+              _OrderItemsTable(items: order.items),
+            ],
+          ),
         ),
       ),
     );
@@ -108,12 +110,23 @@ class _OrderInfoSection extends StatelessWidget {
                 value:
                     "${order.clientShopName ?? ''} / ${order.clientRegion ?? ''}",
               ),
-              InfoSectionItemData(label: "Jami m²", value: "${order.totalSqm.toStringAsFixed(2)} m²"),
-              InfoSectionItemData(label: "Jami dona", value: "${order.totalQuantity} ta"),
-              InfoSectionItemData(label: "Ishlab chiqarildi", value: "${order.totalProducedQuantity} ta | ${(order.productionProgress * 100).toStringAsFixed(1)}%"),
-              InfoSectionItemData(label: "Omborga kiritildi", value: "${order.totalWarehouseReceivedQuantity} ta | ${order.totalQuantity > 0 ? ((order.totalWarehouseReceivedQuantity / order.totalQuantity) * 100).toStringAsFixed(1) : '0.0'}%"),
-              InfoSectionItemData(label: "Yuborildi", value: "${order.totalShippedQuantity} ta | ${order.totalQuantity > 0 ? ((order.totalShippedQuantity / order.totalQuantity) * 100).toStringAsFixed(1) : '0.0'}%"),
-
+              InfoSectionItemData(
+                  label: "Jami m²",
+                  value: "${order.totalSqm.toStringAsFixed(2)} m²"),
+              InfoSectionItemData(
+                  label: "Jami dona", value: "${order.totalQuantity} ta"),
+              InfoSectionItemData(
+                  label: "Ishlab chiqarildi",
+                  value:
+                      "${order.totalProducedQuantity} ta | ${(order.productionProgress * 100).toStringAsFixed(1)}%"),
+              InfoSectionItemData(
+                  label: "Omborga kiritildi",
+                  value:
+                      "${order.totalWarehouseReceivedQuantity} ta | ${order.totalQuantity > 0 ? ((order.totalWarehouseReceivedQuantity / order.totalQuantity) * 100).toStringAsFixed(1) : '0.0'}%"),
+              InfoSectionItemData(
+                  label: "Yuborildi",
+                  value:
+                      "${order.totalShippedQuantity} ta | ${order.totalQuantity > 0 ? ((order.totalShippedQuantity / order.totalQuantity) * 100).toStringAsFixed(1) : '0.0'}%"),
             ]),
             if (order.notes != null && order.notes!.isNotEmpty) ...[
               const SizedBox(height: 12),

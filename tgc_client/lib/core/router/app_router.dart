@@ -10,6 +10,7 @@ import '../di/injection.dart';
 import '../../features/products/domain/entities/product_entity.dart';
 import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/products/presentation/pages/add_product_page.dart';
+import '../../features/products/presentation/pages/import_products_page.dart';
 import '../../features/clients/domain/entities/client_entity.dart';
 import '../../features/clients/presentation/pages/clients_page.dart';
 import '../../features/clients/presentation/pages/add_client_page.dart';
@@ -95,6 +96,11 @@ class AppRouter {
             builder: (context, state) => AddProductPage(
               product: state.extra as ProductEntity?,
             ),
+          ),
+          GoRoute(
+            path: AppRoutes.importProducts,
+            name: AppRoutes.importProductsName,
+            builder: (context, state) => const ImportProductsPage(),
           ),
           GoRoute(
             path: AppRoutes.clients,

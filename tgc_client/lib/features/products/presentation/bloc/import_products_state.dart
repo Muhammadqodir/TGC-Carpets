@@ -1,0 +1,126 @@
+import 'package:equatable/equatable.dart';
+
+import '../../domain/entities/color_entity.dart';
+import '../../domain/entities/product_quality_entity.dart';
+
+/// A single row parsed from an image filename.
+class ParsedImportEntry extends Equatable {
+  final String productName;
+  final String colorName;
+
+  /// Absolute path to the local image file selected by the user.
+  /// Null if the entry was added without a file (edge case).
+  final String? imagePath;
+
+  const ParsedImportEntry({
+    required this.productName,
+    required this.colorName,
+    this.imagePath,
+  });
+
+  @override
+  List<Object?> get props => [productName, colorName, imagePath];
+}
+
+// ─── States ─────────────────────────────────────────────────────────────────
+
+abstract class ImportProductsState extends Equatable {
+  const ImportProductsState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class ImportProductsInitial extends ImportProductsState {
+  const ImportProductsInitial();
+}
+
+class ImportProductsLoading extends ImportProductsState {
+  const ImportProductsLoading();
+}
+
+class ImportProductsReady extends ImportProductsState {
+  final List<ProductQualityEntity> qualities;
+  final List<ColorEntity> colors;
+  final List<ParsedImportEntry> entries;
+  final int? selectedQualityId;
+
+  const ImportProductsReady({
+    required this.qualities,
+    required this.colors,
+    this.entries = const [],
+    this.selectedQualityId,
+  });
+
+  @override
+  List<Object?> get props => [qualities, colors, entries, selectedQualityId];
+}
+
+class ImportProductsSubmitting extends ImportProductsState {
+  final List<ProductQualityEntity> qualities;
+  final List<ColorEntity> colors;
+  final List<ParsedImportEntry> entries;
+  final int? selectedQualityId;
+
+  /// Number of entries already processed (for progress display).
+  final int progress;
+
+  /// Total number of entries to process.
+  final int total;
+
+  const ImportProductsSubmitting({
+    required this.qualities,
+    required this.colors,
+    required this.entries,
+    this.selectedQualityId,
+    this.progress = 0,
+    this.total = 0,
+  });
+
+  double get progressFraction =>
+      total == 0 ? 0.0 : (progress / total).clamp(0.0, 1.0);
+
+  @override
+  List<Object?> get props =>
+      [qualities, colors, entries, selectedQualityId, progress, total];
+}
+
+class ImportProductsSuccess extends ImportProductsState {
+  final int createdProducts;
+  final int createdColors;
+  final int skipped;
+
+  const ImportProductsSuccess({
+    required this.createdProducts,
+    required this.createdColors,
+    required this.skipped,
+  });
+
+  @override
+  List<Object?> get props => [createdProducts, createdColors, skipped];
+}
+
+class ImportProductsFailure extends ImportProductsState {
+  final String message;
+  final List<ProductQualityEntity> qualities;
+  final List<ColorEntity> colors;
+  final List<ParsedImportEntry> entries;
+  final int? selectedQualityId;
+
+  const ImportProductsFailure(
+    this.message, {
+    required this.qualities,
+    required this.colors,
+    required this.entries,
+    this.selectedQualityId,
+  });
+
+  @override
+  List<Object?> get props => [
+        message,
+        qualities,
+        colors,
+        entries,
+        selectedQualityId,
+      ];
+}

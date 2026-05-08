@@ -65,6 +65,7 @@ dependencies:
   package_info_plus: ^8.1.2
   ota_update: ^7.1.0
   crypto: ^3.0.6
+  desktop_drop: ^0.7.1
 
 dev_dependencies:
   flutter_test:

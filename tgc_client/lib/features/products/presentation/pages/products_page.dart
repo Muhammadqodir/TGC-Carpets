@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/router/app_routes.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
@@ -112,6 +113,24 @@ class _ProductsViewState extends State<_ProductsView> {
             icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
           ),
           actions: [
+            IconButton(
+              onPressed: () async {
+                final imported = await context.pushNamed<bool>(
+                  AppRoutes.importProductsName,
+                );
+                if ((imported ?? false) && context.mounted) {
+                  context
+                      .read<ProductsBloc>()
+                      .add(const ProductsRefreshRequested());
+                }
+              },
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedFileDownload,
+                size: 20,
+                strokeWidth: 2.5,
+              ),
+              tooltip: 'Import',
+            ),
             IconButton(
               onPressed: () async {
                 final added = await context.pushNamed<bool>(
@@ -384,8 +403,7 @@ class _ProductsViewState extends State<_ProductsView> {
         _ => const [],
       };
 
-  List<ColorEntity> _colorsFromFormState(ProductFormState s) =>
-      switch (s) {
+  List<ColorEntity> _colorsFromFormState(ProductFormState s) => switch (s) {
         ProductFormReady r => r.colors,
         ProductFormSubmitting r => r.colors,
         ProductFormFailure r => r.colors,
@@ -434,4 +452,3 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
