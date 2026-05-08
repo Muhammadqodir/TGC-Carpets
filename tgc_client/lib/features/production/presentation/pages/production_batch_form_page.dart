@@ -82,9 +82,11 @@ class _ProductionBatchFormPageState extends State<ProductionBatchFormPage> {
 
     return BlocProvider(
       create: (_) => sl<ProductionBatchFormBloc>(),
-      child: _ProductionBatchFormBody(
-        controller: _ctrl,
-        initialBatch: effectiveBatch,
+      child: SafeArea(
+        child: _ProductionBatchFormBody(
+          controller: _ctrl,
+          initialBatch: effectiveBatch,
+        ),
       ),
     );
   }

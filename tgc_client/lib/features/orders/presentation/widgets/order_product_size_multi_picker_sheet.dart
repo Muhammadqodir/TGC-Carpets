@@ -208,8 +208,12 @@ class _OrderProductSizeMultiPickerSheetState
 
                   // Flat list when a specific type is pre-selected
                   if (widget.productTypeId != null) {
+                    final sortedSizes = [...data.sizes]
+                      ..sort((a, b) => a.width != b.width
+                          ? a.width.compareTo(b.width)
+                          : a.length.compareTo(b.length));
                     return _SizeMultiSelectWrap(
-                      sizes: data.sizes,
+                      sizes: sortedSizes,
                       selectedSizeIds: _selectedSizeIds,
                       onToggle: _toggleSize,
                       alreadyAddedIds: widget.alreadySelectedSizeIds,
@@ -221,6 +225,11 @@ class _OrderProductSizeMultiPickerSheetState
                   final grouped = <int, List<ProductSizeEntity>>{};
                   for (final s in data.sizes) {
                     grouped.putIfAbsent(s.productTypeId, () => []).add(s);
+                  }
+                  for (final list in grouped.values) {
+                    list.sort((a, b) => a.width != b.width
+                        ? a.width.compareTo(b.width)
+                        : a.length.compareTo(b.length));
                   }
 
                   return Column(

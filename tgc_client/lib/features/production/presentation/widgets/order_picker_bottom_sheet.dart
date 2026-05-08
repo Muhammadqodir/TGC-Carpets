@@ -515,6 +515,7 @@ class _OrderItemTile extends StatelessWidget {
                     if (item.colorName != null) item.colorName!.toUpperCase(),
                     if (item.sizeLength != null && item.sizeWidth != null)
                       '${item.sizeWidth}×${item.sizeLength}',
+                    if (item.qualityName != null) item.qualityName!,
                   ];
                   if (parts.isEmpty) return const SizedBox.shrink();
                   return Text(
