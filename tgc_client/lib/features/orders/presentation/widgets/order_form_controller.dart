@@ -282,10 +282,18 @@ class OrderFormController extends ChangeNotifier {
     return true;
   }
 
+  void _sortMatrixSizeColumns() {
+    matrixSizeColumns.sort((a, b) {
+      final cmp = a.width.compareTo(b.width);
+      return cmp != 0 ? cmp : a.length.compareTo(b.length);
+    });
+  }
+
   /// Adds a size column. Returns false if the size is already a column.
   bool addMatrixSizeColumn(ProductSizeEntity size) {
     if (matrixSizeColumns.any((s) => s.id == size.id)) return false;
     matrixSizeColumns.add(size);
+    _sortMatrixSizeColumns();
     for (final colorId in _uniqueColorIds) {
       matrixCellCtrl(colorId, size.id);
     }
@@ -300,6 +308,7 @@ class OrderFormController extends ChangeNotifier {
     final idx = matrixSizeColumns.indexWhere((s) => s.id == oldSizeId);
     if (idx == -1) return;
     matrixSizeColumns[idx] = newSize;
+    _sortMatrixSizeColumns();
     for (final colorId in _uniqueColorIds) {
       final oldKey = _matrixKey(colorId, oldSizeId);
       final qty = _matrixQty[oldKey] ?? 0;
@@ -367,6 +376,7 @@ class OrderFormController extends ChangeNotifier {
     if (matrixSizes != null && matrixSizes.isNotEmpty) {
       matrixSizeColumns.clear();
       matrixSizeColumns.addAll(matrixSizes);
+      _sortMatrixSizeColumns();
 
       // Clear existing matrix data
       for (final c in _matrixCellCtrls.values) {
