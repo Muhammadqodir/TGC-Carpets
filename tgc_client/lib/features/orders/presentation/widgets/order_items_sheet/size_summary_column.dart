@@ -4,10 +4,16 @@ import 'package:tgc_client/features/orders/presentation/widgets/order_items_shee
 import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 
 class SizeSummaryColumn extends StatefulWidget {
-  const SizeSummaryColumn({super.key, required this.ctrl, required this.size});
+  const SizeSummaryColumn({
+    super.key,
+    required this.ctrl,
+    required this.size,
+    this.isHighlighted = false,
+  });
 
   final OrderFormController ctrl;
   final ProductSizeEntity size;
+  final bool isHighlighted;
 
   @override
   State<SizeSummaryColumn> createState() => _SizeSummaryColumnState();
@@ -67,10 +73,12 @@ class _SizeSummaryColumnState extends State<SizeSummaryColumn> {
           SummaryCell(
             label: 'Uzunlik',
             value: '${totalM.toStringAsFixed(1)} m',
+            isHighlighted: widget.isHighlighted,
           ),
           SummaryCell(
             label: 'Maydon',
             value: '${totalSqm.toStringAsFixed(2)} m²',
+            isHighlighted: widget.isHighlighted,
           ),
         ],
       ),

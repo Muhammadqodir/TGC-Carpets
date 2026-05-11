@@ -10,11 +10,13 @@ class SizePickerCell extends StatelessWidget {
     required this.size,
     required this.onRemove,
     required this.onReplace,
+    this.isHighlighted = false,
   });
 
   final ProductSizeEntity size;
   final VoidCallback onRemove;
   final void Function(ProductSizeEntity) onReplace;
+  final bool isHighlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +35,14 @@ class SizePickerCell extends StatelessWidget {
         width: 120,
         height: 40,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary, width: 1.5),
+          border: Border.all(
+            color: AppColors.primary,
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(6),
-          color: AppColors.primary.withValues(alpha: 0.05),
+          color: isHighlighted
+              ? AppColors.primary.withValues(alpha: 0.30)
+              : AppColors.primary.withValues(alpha: 0.05),
         ),
         child: Row(
           children: [

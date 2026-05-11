@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 
 class SummaryCell extends StatelessWidget {
-  const SummaryCell({super.key, required this.label, required this.value});
+  const SummaryCell({
+    super.key,
+    required this.label,
+    required this.value,
+    this.isHighlighted = false,
+  });
 
   final String label;
   final String value;
+  final bool isHighlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -14,8 +20,12 @@ class SummaryCell extends StatelessWidget {
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.04),
-        border: Border.all(color: AppColors.divider),
+        color: isHighlighted
+            ? AppColors.primary.withValues(alpha: 0.12)
+            : AppColors.primary.withValues(alpha: 0.04),
+        border: Border.all(
+            color: isHighlighted ? AppColors.primary : AppColors.divider,
+            width: isHighlighted ? 2 : 1),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Column(

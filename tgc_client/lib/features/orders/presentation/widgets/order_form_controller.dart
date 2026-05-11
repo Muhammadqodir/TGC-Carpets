@@ -209,6 +209,7 @@ class OrderFormController extends ChangeNotifier {
         _matrixQty[key] = qty;
       }
     }
+    _sortMatrixSizeColumns();
   }
 
   /// Color IDs of all currently filled unique product rows.
@@ -284,8 +285,10 @@ class OrderFormController extends ChangeNotifier {
 
   void _sortMatrixSizeColumns() {
     matrixSizeColumns.sort((a, b) {
-      final cmp = a.width.compareTo(b.width);
-      return cmp != 0 ? cmp : a.length.compareTo(b.length);
+      final typeCmp = a.productTypeId.compareTo(b.productTypeId);
+      if (typeCmp != 0) return typeCmp;
+      final widthCmp = a.width.compareTo(b.width);
+      return widthCmp != 0 ? widthCmp : a.length.compareTo(b.length);
     });
   }
 

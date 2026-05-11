@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
+import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_form_controller.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/add_product.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/add_size.dart';
@@ -7,6 +8,7 @@ import 'package:tgc_client/features/orders/presentation/widgets/order_items_shee
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/quantity_cell.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/size_picker_cell.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/size_summary_column.dart';
+import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 
 class OrderItemsSheet extends StatefulWidget {
   const OrderItemsSheet({super.key, required this.ctrl});
@@ -22,6 +24,49 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
   late ScrollController _products;
   late ScrollController _quantities;
   final Map<String, FocusNode> _cellFocusNodes = {};
+  int? _focusedColorId;
+  int? _focusedSizeId;
+
+  // Track the last known row/column counts so we only rebuild on structure
+  // changes, not on pure quantity-value changes.
+  int _lastRowCount = 0;
+  int _lastColCount = 0;
+
+  void _onCtrlChanged() {
+    final newRowCount = widget.ctrl.getUniqueItems().length;
+    final newColCount = widget.ctrl.matrixSizeColumns.length;
+    if (newRowCount != _lastRowCount || newColCount != _lastColCount) {
+      _lastRowCount = newRowCount;
+      _lastColCount = newColCount;
+      setState(() {});
+    }
+  }
+
+  // Called from QuantityCell via onFocusChanged.  Batches blur/focus pairs
+  // so that arrow-key navigation (blur A → focus B) causes only ONE rebuild
+  // instead of two: the blur defers its clear to a post-frame check that is
+  // a no-op once B has already claimed focus.
+  void _onCellFocusChanged(int colorId, int sizeId, bool hasFocus) {
+    if (hasFocus) {
+      if (_focusedColorId == colorId && _focusedSizeId == sizeId) return;
+      setState(() {
+        _focusedColorId = colorId;
+        _focusedSizeId = sizeId;
+      });
+    } else {
+      // Defer the clear so an immediately following focus event on another cell
+      // can cancel it (by having already updated _focusedColorId/_focusedSizeId).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_focusedColorId == colorId && _focusedSizeId == sizeId) {
+          setState(() {
+            _focusedColorId = null;
+            _focusedSizeId = null;
+          });
+        }
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -32,19 +77,45 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
     _quantities = _controllers.addAndGet();
   }
 
-  void _onCtrlChanged() => setState(() {});
-
-  FocusNode _getFocusNode(int rowIndex, int columnIndex) {
-    final key = '${rowIndex}_$columnIndex';
+  FocusNode _getFocusNode(int colorId, int sizeId) {
+    final key = '${colorId}_$sizeId';
     if (!_cellFocusNodes.containsKey(key)) {
       _cellFocusNodes[key] = FocusNode();
     }
     return _cellFocusNodes[key]!;
   }
 
+  /// Groups [matrixSizeColumns] by productTypeId, preserving sort order.
+  List<MapEntry<int, List<ProductSizeEntity>>> _sizeGroups() {
+    final map = <int, List<ProductSizeEntity>>{};
+    for (final size in widget.ctrl.matrixSizeColumns) {
+      (map[size.productTypeId] ??= []).add(size);
+    }
+    return map.entries.toList();
+  }
+
+  /// Builds a typeId → typeName map from the currently added product rows.
+  Map<int, String> _typeNameMap() {
+    final map = <int, String>{};
+    for (final row in widget.ctrl.getUniqueItems()) {
+      final typeId =
+          row.selectedProduct?.productTypeId ?? row.prefilledProductTypeId;
+      final typeName =
+          row.selectedProduct?.productType?.type ?? row.prefilledProductTypeName;
+      if (typeId != null && typeName != null) map[typeId] = typeName;
+    }
+    return map;
+  }
+
   void _navigateToCell(int rowIndex, int columnIndex) {
-    final focusNode = _getFocusNode(rowIndex, columnIndex);
-    focusNode.requestFocus();
+    final rows = widget.ctrl.getUniqueItems();
+    final cols = widget.ctrl.matrixSizeColumns;
+    if (rowIndex < 0 || rowIndex >= rows.length) return;
+    if (columnIndex < 0 || columnIndex >= cols.length) return;
+    final colorId = rows[rowIndex].selectedColor?.id ?? rows[rowIndex].prefilledColorId;
+    if (colorId == null) return;
+    final sizeId = cols[columnIndex].id;
+    _getFocusNode(colorId, sizeId).requestFocus();
   }
 
   @override
@@ -74,9 +145,8 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
             width: 150,
             child: Column(
               children: [
-                SizedBox(
-                  height: 40,
-                ),
+                // Matches the two-row size header (24px label + 40px cell).
+                const SizedBox(height: 64),
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.vertical,
@@ -90,6 +160,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                             key: ValueKey('product_$colorId'),
                             row: row,
                             ctrl: widget.ctrl,
+                            isHighlighted: _focusedColorId == colorId,
                             onDelete: () {
                               if (colorId != null) {
                                 widget.ctrl.removeMatrixColorRow(colorId);
@@ -114,27 +185,80 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  //Sizes list
-                  Row(
-                    children: [
-                      ...widget.ctrl.matrixSizeColumns.map(
-                        (size) => SizePickerCell(
-                          key: ValueKey('size_header_${size.id}'),
-                          size: size,
-                          onRemove: () =>
-                              widget.ctrl.removeMatrixSizeColumn(size.id),
-                          onReplace: (newSize) => widget.ctrl
-                              .replaceMatrixSizeColumn(size.id, newSize),
+                  // Sizes header: type-label row + size-picker row.
+                  Builder(builder: (context) {
+                    final groups = _sizeGroups();
+                    final typeNames = _typeNameMap();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Type label row (24 px) ──────────────────────────
+                        Row(
+                          children: [
+                            ...groups.map((entry) {
+                              final name = typeNames[entry.key] ??
+                                  'Tur #${entry.key}';
+                              return Container(
+                                width: 120.0 * entry.value.length,
+                                height: 24,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.08),
+                                  border: Border(
+                                    bottom: BorderSide(
+                                        color: AppColors.divider),
+                                    right: BorderSide(
+                                        color: AppColors.divider),
+                                  ),
+                                ),
+                                child: Text(
+                                  name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }),
+                            // Spacer aligned with AddSize button
+                            const SizedBox(width: 120, height: 24),
+                          ],
                         ),
-                      ),
-                      AddSize(
-                        onSizeAdded: widget.ctrl.addMatrixSizeColumn,
-                        alreadySelectedSizeIds: widget.ctrl.matrixSizeColumns
-                            .map((s) => s.id)
-                            .toSet(),
-                      ),
-                    ],
-                  ),
+                        // ── Size picker cells row (40 px) ───────────────────
+                        Row(
+                          children: [
+                            ...widget.ctrl.matrixSizeColumns.map(
+                              (size) => SizePickerCell(
+                                key: ValueKey('size_header_${size.id}'),
+                                size: size,
+                                isHighlighted: _focusedSizeId == size.id,
+                                onRemove: () =>
+                                    widget.ctrl
+                                        .removeMatrixSizeColumn(size.id),
+                                onReplace: (newSize) => widget.ctrl
+                                    .replaceMatrixSizeColumn(
+                                        size.id, newSize),
+                              ),
+                            ),
+                            AddSize(
+                              onSizeAdded: widget.ctrl.addMatrixSizeColumn,
+                              alreadySelectedSizeIds: widget
+                                  .ctrl.matrixSizeColumns
+                                  .map((s) => s.id)
+                                  .toSet(),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  }),
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,
@@ -180,7 +304,10 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                                           totalRows: widget.ctrl.getUniqueItems().length,
                                           totalColumns: widget.ctrl.matrixSizeColumns.length,
                                           onNavigate: _navigateToCell,
-                                          focusNode: _getFocusNode(rowIndex, columnIndex),
+                                          focusNode: _getFocusNode(colorId, size.id),
+                                          onFocusChanged: (hasFocus) =>
+                                              _onCellFocusChanged(
+                                                  colorId, size.id, hasFocus),
                                         );
                                       },
                                     ),
@@ -204,6 +331,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                               key: ValueKey('summary_${size.id}'),
                               ctrl: widget.ctrl,
                               size: size,
+                              isHighlighted: _focusedSizeId == size.id,
                             ))
                         .toList(),
                   ),

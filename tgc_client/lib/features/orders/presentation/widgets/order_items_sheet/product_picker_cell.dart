@@ -10,12 +10,14 @@ class ProductPickerCell extends StatelessWidget {
   final OrderItemRow row;
   final OrderFormController ctrl;
   final Function() onDelete;
+  final bool isHighlighted;
 
   const ProductPickerCell({
     super.key,
     required this.row,
     required this.ctrl,
     required this.onDelete,
+    this.isHighlighted = false,
   });
 
   @override
@@ -51,15 +53,19 @@ class ProductPickerCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           border: Border.all(
-            color: (product == null && !isPrefilled)
-                ? AppColors.divider
-                : AppColors.primary,
+            color: isHighlighted
+                ? AppColors.primary
+                : (product == null && !isPrefilled)
+                    ? AppColors.divider
+                    : AppColors.primary,
             width: (product == null && !isPrefilled) ? 1 : 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
-          color: (product != null || isPrefilled)
-              ? AppColors.primary.withValues(alpha: 0.05)
-              : null,
+          color: isHighlighted
+              ? AppColors.primary.withValues(alpha: 0.30)
+              : (product != null || isPrefilled)
+                  ? AppColors.primary.withValues(alpha: 0.05)
+                  : null,
         ),
         child: Row(
           children: [
