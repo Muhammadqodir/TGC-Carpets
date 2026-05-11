@@ -268,7 +268,9 @@ class ProductionBatchController extends Controller
     public function labelingItems(): JsonResponse
     {
         $items = ProductionBatchItem::with([
-                'productionBatch:id,batch_title,status',
+                'productionBatch:id,batch_title,status,machine_id',
+                'productionBatch.machine:id,name',
+                'sourceOrderItem.order.client:id,shop_name',
                 'variant.productColor.product.productType',
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',

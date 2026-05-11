@@ -378,15 +378,23 @@ class _LabelingViewState extends State<_LabelingView> {
     final printingItems =
         state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
-    // Group all items by batchId (preserves insertion order)
+    // Batch groups reflect the active size filter so the batch sidebar
+    // only shows batches that contain the currently selected size.
+    final batchSourceItems = _selectedSize != null
+        ? items.where((item) => item.sizeLabel == _selectedSize).toList()
+        : items;
     final batchGroups = <int, List<LabelingItemEntity>>{};
-    for (final item in items) {
+    for (final item in batchSourceItems) {
       batchGroups.putIfAbsent(item.batchId, () => []).add(item);
     }
 
-    // Group all items by size label (preserves insertion order)
+    // Size groups reflect the active batch filter so the size sidebar
+    // only shows sizes that exist in the currently selected batch.
+    final sizeSourceItems = _selectedBatchId != null
+        ? items.where((item) => item.batchId == _selectedBatchId).toList()
+        : items;
     final sizeGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
+    for (final item in sizeSourceItems) {
       final sizeLabel = item.sizeLabel;
       sizeGroups.putIfAbsent(sizeLabel, () => []).add(item);
     }
@@ -585,9 +593,19 @@ class _LabelingCard extends StatelessWidget {
                     : _PlaceholderImage(),
               ),
               Positioned(
-                child: AppBadge(
-                  label: item.batchTitle ?? 'Batch #${item.batchId}',
-                  color: AppColors.textPrimary,
+                child: Builder(
+                  builder: (_) {
+                    final parts = [item.clientName, item.machineName]
+                        .whereType<String>()
+                        .toList();
+                    final label = parts.isNotEmpty
+                        ? parts.join(' | ')
+                        : (item.batchTitle ?? 'Batch #${item.batchId}');
+                    return AppBadge(
+                      label: label,
+                      color: AppColors.textPrimary,
+                    );
+                  },
                 ),
               )
             ],

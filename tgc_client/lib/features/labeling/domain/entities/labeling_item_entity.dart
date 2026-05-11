@@ -4,6 +4,8 @@ class LabelingItemEntity extends Equatable {
   final int id;
   final int batchId;
   final String? batchTitle;
+  final String? machineName;
+  final String? clientName;
 
   final int plannedQuantity;
   final int producedQuantity;
@@ -25,6 +27,8 @@ class LabelingItemEntity extends Equatable {
     required this.id,
     required this.batchId,
     this.batchTitle,
+    this.machineName,
+    this.clientName,
     required this.plannedQuantity,
     required this.producedQuantity,
     this.defectQuantity = 0,
@@ -56,6 +60,8 @@ class LabelingItemEntity extends Equatable {
       id: id,
       batchId: batchId,
       batchTitle: batchTitle,
+      machineName: machineName,
+      clientName: clientName,
       plannedQuantity: plannedQuantity,
       producedQuantity: producedQuantity ?? this.producedQuantity,
       defectQuantity: defectQuantity ?? this.defectQuantity,
