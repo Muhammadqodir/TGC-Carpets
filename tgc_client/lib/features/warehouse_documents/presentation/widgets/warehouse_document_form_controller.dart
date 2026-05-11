@@ -4,6 +4,22 @@ import '../../../production/domain/entities/production_batch_entity.dart';
 import '../../../production/domain/entities/production_batch_item_entity.dart';
 import 'warehouse_item_row.dart';
 
+/// Carries a single item selected in the order-grouped import picker,
+/// together with the batch it physically belongs to.
+class BatchItemImportEntry {
+  final ProductionBatchItemEntity item;
+  final int batchId;
+  final String batchTitle;
+  final int quantity;
+
+  const BatchItemImportEntry({
+    required this.item,
+    required this.batchId,
+    required this.batchTitle,
+    required this.quantity,
+  });
+}
+
 /// Shared form state for the "add warehouse document" flow.
 ///
 /// Lives in [AddWarehouseDocumentPage] and is passed down to both the
@@ -85,6 +101,40 @@ class WarehouseDocumentFormController extends ChangeNotifier {
           batchId: batch.id,
           batchTitle: batch.batchTitle,
           initialQuantity: quantities[item.id],
+        );
+        _hookRow(row);
+        _items.add(row);
+      }
+    }
+
+    _ensureSentinel();
+    notifyListeners();
+  }
+
+  /// Imports a flat list of [BatchItemImportEntry] records (each carrying its
+  /// own batch metadata). Used by the order-grouped import picker where items
+  /// can come from multiple batches.
+  void addRowsFromImport(List<BatchItemImportEntry> entries) {
+    final toRemove = _items.where((r) => !r.isFilled).toList();
+    for (final row in toRemove) {
+      _unhookRow(row);
+      row.dispose();
+      _items.remove(row);
+    }
+
+    for (final entry in entries) {
+      final alreadyExists = _items.any((r) {
+        final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+        final rSizeId  = r.selectedSize?.id  ?? r.prefilledSizeId;
+        return rColorId == entry.item.productColorId &&
+            rSizeId == entry.item.productSizeId;
+      });
+      if (!alreadyExists) {
+        final row = WarehouseItemRow.fromBatchItem(
+          entry.item,
+          batchId: entry.batchId,
+          batchTitle: entry.batchTitle,
+          initialQuantity: entry.quantity,
         );
         _hookRow(row);
         _items.add(row);

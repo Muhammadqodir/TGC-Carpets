@@ -270,11 +270,7 @@ class _AddWarehouseDocumentFormState extends State<_AddWarehouseDocumentForm> {
                             existingRows: ctrl.items,
                           );
                           if (result != null && mounted) {
-                            ctrl.addRowsFromProductionBatch(
-                              result.batch,
-                              result.items,
-                              quantities: result.quantities,
-                            );
+                            ctrl.addRowsFromImport(result.entries);
                           }
                         },
                         icon: const Icon(Icons.download_rounded, size: 16),
