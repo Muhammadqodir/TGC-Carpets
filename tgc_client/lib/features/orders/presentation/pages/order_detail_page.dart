@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/core/ui/widgets/info_section.dart';
@@ -7,8 +8,10 @@ import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/excel_downloader.dart';
 import '../../domain/entities/order_entity.dart';
 import '../../domain/entities/order_item_entity.dart';
+import '../services/order_excel_exporter.dart';
 import 'args/order_detail_args.dart';
 
 class OrderDetailPage extends StatelessWidget {
@@ -29,10 +32,42 @@ class OrderDetailPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
         actions: [
+          IconButton(
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedXls01,
+              size: 20,
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+            tooltip: "Excelga eksport qilish",
+            onPressed: () async {
+              try {
+                final bytes = OrderExcelExporter().export(order);
+                final date =
+                    '${order.orderDate.day.toString().padLeft(2, '0')}'
+                    '${order.orderDate.month.toString().padLeft(2, '0')}'
+                    '${order.orderDate.year}';
+                await downloadExcel(bytes, 'buyurtma_${order.id}_$date.xlsx');
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Excel yaratishda xatolik yuz berdi'),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
           if (order.status == 'pending')
-            TextButton.icon(
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Tahrirlash'),
+            IconButton(
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedEdit01,
+                size: 20,
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+              tooltip: "Buyurtmani tahrirlash",
               onPressed: () async {
                 final updated = await context.pushNamed(
                   AppRoutes.editOrderName,
