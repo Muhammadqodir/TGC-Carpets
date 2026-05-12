@@ -7,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_40.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
@@ -20,6 +21,23 @@ import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
 import '../bloc/labeling_state.dart';
 import 'print_history_page.dart';
+
+// ── Label size options ───────────────────────────────────────────────────────
+
+enum _LabelSize {
+  size60x60,
+  size60x40;
+
+  String get label => switch (this) {
+        _LabelSize.size60x60 => '60×60',
+        _LabelSize.size60x40 => '60×40',
+      };
+
+  LabelConfig get config => switch (this) {
+        _LabelSize.size60x60 => LabelConfig.preset60x60,
+        _LabelSize.size60x40 => LabelConfig.preset58x40,
+      };
+}
 
 class LabelingPage extends StatelessWidget {
   const LabelingPage({super.key});
@@ -54,8 +72,9 @@ class _LabelingView extends StatefulWidget {
 }
 
 class _LabelingViewState extends State<_LabelingView> {
-  // ── Label config ──────────────────────────────────────────────────────────
-  static const _config = LabelConfig.preset60x60;
+  // ── Label size ─────────────────────────────────────────────────────────────
+  _LabelSize _labelSize = _LabelSize.size60x60;
+  LabelConfig get _config => _labelSize.config;
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -174,6 +193,140 @@ class _LabelingViewState extends State<_LabelingView> {
     }
   }
 
+  void _showSettingsDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> refreshPrinters() async {
+            setDialogState(() {});
+            setState(() => _isLoadingPrinters = true);
+            final printers = await _discoveryService.discoverPrinters();
+            if (!mounted) return;
+            setState(() {
+              _printers = printers;
+              _selectedPrinter =
+                  printers.isNotEmpty ? printers.first : null;
+              _isLoadingPrinters = false;
+            });
+            setDialogState(() {});
+          }
+
+          return AlertDialog(
+            title: const Text('Sozlamalar'),
+            content: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Label size ───────────────────────────────────────
+                  Text(
+                    'Yorliq o\'lchami',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<_LabelSize>(
+                    segments: _LabelSize.values
+                        .map(
+                          (s) => ButtonSegment<_LabelSize>(
+                            value: s,
+                            label: Text(s.label),
+                          ),
+                        )
+                        .toList(),
+                    selected: {_labelSize},
+                    onSelectionChanged: (selected) {
+                      setState(() => _labelSize = selected.first);
+                      setDialogState(() {});
+                    },
+                  ),
+                  if (_isPrintingPlatform) ...[
+                    const SizedBox(height: 20),
+                    // ── Printer ──────────────────────────────────────
+                    Text(
+                      'Printer',
+                      style: Theme.of(ctx).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _isLoadingPrinters
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : _printers.isEmpty
+                                  ? Text(
+                                      'Printer topilmadi',
+                                      style: Theme.of(ctx)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                              color:
+                                                  AppColors.textSecondary),
+                                    )
+                                  : DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _selectedPrinter,
+                                        isExpanded: true,
+                                        isDense: true,
+                                        items: _printers
+                                            .map(
+                                              (p) => DropdownMenuItem(
+                                                value: p,
+                                                child: Text(
+                                                  p,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: Theme.of(ctx)
+                                                      .textTheme
+                                                      .bodyMedium,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (v) {
+                                          setState(
+                                              () => _selectedPrinter = v);
+                                          setDialogState(() {});
+                                        },
+                                      ),
+                                    ),
+                        ),
+                        IconButton(
+                          icon: const HugeIcon(
+                            icon: HugeIcons.strokeRoundedReload,
+                            size: 20,
+                            strokeWidth: 2.5,
+                          ),
+                          tooltip: 'Printerlarni yangilash',
+                          onPressed:
+                              _isLoadingPrinters ? null : refreshPrinters,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Yopish'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _refresh() async {
     context.read<LabelingBloc>().add(const LabelingRefreshRequested());
   }
@@ -224,6 +377,14 @@ class _LabelingViewState extends State<_LabelingView> {
             actions: [
               IconButton(
                 icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedSettings01,
+                  strokeWidth: 2,
+                ),
+                tooltip: 'Sozlamalar',
+                onPressed: _showSettingsDialog,
+              ),
+              IconButton(
+                icon: const HugeIcon(
                   icon: HugeIcons.strokeRoundedClock01,
                   strokeWidth: 2,
                 ),
@@ -257,14 +418,7 @@ class _LabelingViewState extends State<_LabelingView> {
               Positioned.fill(
                 child: Column(
                   children: [
-                    if (_isPrintingPlatform)
-                      _PrinterSelector(
-                        printers: _printers,
-                        selected: _selectedPrinter,
-                        isLoading: _isLoadingPrinters,
-                        onChanged: (v) => setState(() => _selectedPrinter = v),
-                        onRefresh: _loadPrinters,
-                      ),
+
                     Expanded(child: _buildContent(state)),
                   ],
                 ),
@@ -288,19 +442,33 @@ class _LabelingViewState extends State<_LabelingView> {
                     height: _config.heightPx.toDouble(),
                     child: RepaintBoundary(
                       key: key,
-                      child: PrintLabel60(
-                        config: _config,
-                        productName: item.productName,
-                        quality: item.qualityName,
-                        type: item.productTypeName,
-                        color: item.colorName,
-                        sizeLabel:
-                            item.sizeLength != null && item.sizeWidth != null
-                                ? item.sizeLabel
-                                : null,
-                        barcodeValue: barcodeValue,
-                        qrData: qrData,
-                      ),
+                      child: _labelSize == _LabelSize.size60x60
+                          ? PrintLabel60(
+                              config: _config,
+                              productName: item.productName,
+                              quality: item.qualityName,
+                              type: item.productTypeName,
+                              color: item.colorName,
+                              sizeLabel:
+                                  item.sizeLength != null && item.sizeWidth != null
+                                      ? item.sizeLabel
+                                      : null,
+                              barcodeValue: barcodeValue,
+                              qrData: qrData,
+                            )
+                          : PrintLabel(
+                              config: _config,
+                              productName: item.productName,
+                              quality: item.qualityName,
+                              type: item.productTypeName,
+                              color: item.colorName,
+                              sizeLabel:
+                                  item.sizeLength != null && item.sizeWidth != null
+                                      ? item.sizeLabel
+                                      : null,
+                              barcodeValue: barcodeValue,
+                              qrData: qrData,
+                            ),
                     ),
                   ),
                 );
@@ -469,86 +637,6 @@ class _LabelingViewState extends State<_LabelingView> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Printer selector ──────────────────────────────────────────────────────────
-
-class _PrinterSelector extends StatelessWidget {
-  const _PrinterSelector({
-    required this.printers,
-    required this.selected,
-    required this.isLoading,
-    required this.onChanged,
-    required this.onRefresh,
-  });
-
-  final List<String> printers;
-  final String? selected;
-  final bool isLoading;
-  final ValueChanged<String?> onChanged;
-  final VoidCallback onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        children: [
-          const HugeIcon(
-            icon: HugeIcons.strokeRoundedPrinter,
-            size: 20,
-            color: AppColors.textSecondary,
-            strokeWidth: 1.5,
-          ),
-          const SizedBox(width: 10),
-          Text('Printer:', style: textTheme.bodyMedium),
-          const SizedBox(width: 12),
-          Expanded(
-            child: isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : printers.isEmpty
-                    ? Text('Printer topilmadi',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary))
-                    : DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selected,
-                          isExpanded: true,
-                          isDense: true,
-                          items: printers
-                              .map((p) => DropdownMenuItem(
-                                    value: p,
-                                    child: Text(p,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textTheme.bodyMedium),
-                                  ))
-                              .toList(),
-                          onChanged: onChanged,
-                        ),
-                      ),
-          ),
-          IconButton(
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedReload,
-              size: 20,
-              strokeWidth: 2.5,
-            ),
-            tooltip: 'Printerlarni yangilash',
-            onPressed: isLoading ? null : onRefresh,
-          ),
-        ],
-      ),
     );
   }
 }

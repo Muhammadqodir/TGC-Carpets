@@ -84,18 +84,18 @@ class PrintLabel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _SpecRow(
-                        label: 'Model',
+                        label: 'Quality',
+                        value: quality ?? '—',
+                        fontSize: specFontSize,
+                      ),
+                      _SpecRow(
+                        label: 'Design',
                         value: productName ?? '—',
                         fontSize: specFontSize,
                       ),
                       _SpecRow(
                         label: 'Size',
                         value: sizeLabel ?? '—',
-                        fontSize: specFontSize,
-                      ),
-                      _SpecRow(
-                        label: 'Quality',
-                        value: quality ?? '—',
                         fontSize: specFontSize,
                       ),
                       _SpecRow(
