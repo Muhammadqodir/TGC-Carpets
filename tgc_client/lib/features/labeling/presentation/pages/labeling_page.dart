@@ -9,6 +9,7 @@ import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_40.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/print_label_70_50.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
@@ -25,15 +26,18 @@ import 'print_history_page.dart';
 // ── Label size options ───────────────────────────────────────────────────────
 
 enum _LabelSize {
+  size70x50,
   size60x60,
   size60x40;
 
   String get label => switch (this) {
+        _LabelSize.size70x50 => '70×50',
         _LabelSize.size60x60 => '60×60',
         _LabelSize.size60x40 => '60×40',
       };
 
   LabelConfig get config => switch (this) {
+        _LabelSize.size70x50 => LabelConfig.preset70x50,
         _LabelSize.size60x60 => LabelConfig.preset60x60,
         _LabelSize.size60x40 => LabelConfig.preset58x40,
       };
@@ -205,8 +209,7 @@ class _LabelingViewState extends State<_LabelingView> {
             if (!mounted) return;
             setState(() {
               _printers = printers;
-              _selectedPrinter =
-                  printers.isNotEmpty ? printers.first : null;
+              _selectedPrinter = printers.isNotEmpty ? printers.first : null;
               _isLoadingPrinters = false;
             });
             setDialogState(() {});
@@ -268,8 +271,7 @@ class _LabelingViewState extends State<_LabelingView> {
                                           .textTheme
                                           .bodyMedium
                                           ?.copyWith(
-                                              color:
-                                                  AppColors.textSecondary),
+                                              color: AppColors.textSecondary),
                                     )
                                   : DropdownButtonHideUnderline(
                                       child: DropdownButton<String>(
@@ -292,8 +294,7 @@ class _LabelingViewState extends State<_LabelingView> {
                                             )
                                             .toList(),
                                         onChanged: (v) {
-                                          setState(
-                                              () => _selectedPrinter = v);
+                                          setState(() => _selectedPrinter = v);
                                           setDialogState(() {});
                                         },
                                       ),
@@ -418,7 +419,6 @@ class _LabelingViewState extends State<_LabelingView> {
               Positioned.fill(
                 child: Column(
                   children: [
-
                     Expanded(child: _buildContent(state)),
                   ],
                 ),
@@ -431,8 +431,8 @@ class _LabelingViewState extends State<_LabelingView> {
                 final key = _keyFor(item.id);
                 final barcodeValue = item.variantBarcode?.isNotEmpty == true
                     ? item.variantBarcode!
-                    : 'TGC-VAR-${item.variantId.toString().padLeft(8, '0')}';
-                final qrData = 'PB{${item.batchId}} PBI{${item.id}}';
+                    : 'TGC-${item.variantId.toString().padLeft(8, '0')}';
+                final qrData = 'P${item.batchId} I${item.id}';
 
                 return Positioned(
                   left: -5000,
@@ -442,33 +442,17 @@ class _LabelingViewState extends State<_LabelingView> {
                     height: _config.heightPx.toDouble(),
                     child: RepaintBoundary(
                       key: key,
-                      child: _labelSize == _LabelSize.size60x60
-                          ? PrintLabel60(
-                              config: _config,
-                              productName: item.productName,
-                              quality: item.qualityName,
-                              type: item.productTypeName,
-                              color: item.colorName,
-                              sizeLabel:
-                                  item.sizeLength != null && item.sizeWidth != null
-                                      ? item.sizeLabel
-                                      : null,
-                              barcodeValue: barcodeValue,
-                              qrData: qrData,
-                            )
-                          : PrintLabel(
-                              config: _config,
-                              productName: item.productName,
-                              quality: item.qualityName,
-                              type: item.productTypeName,
-                              color: item.colorName,
-                              sizeLabel:
-                                  item.sizeLength != null && item.sizeWidth != null
-                                      ? item.sizeLabel
-                                      : null,
-                              barcodeValue: barcodeValue,
-                              qrData: qrData,
-                            ),
+                      child: getLabelWidget(
+                        size: _labelSize,
+                        config: _config,
+                        productName: item.productName,
+                        quality: item.qualityName ?? '',
+                        type: item.productTypeName ?? '',
+                        color: item.colorName ?? '',
+                        sizeLabel: item.sizeLabel + " R",
+                        barcodeValue: barcodeValue,
+                        qrData: qrData,
+                      ),
                     ),
                   ),
                 );
@@ -478,6 +462,54 @@ class _LabelingViewState extends State<_LabelingView> {
         );
       },
     );
+  }
+
+  Widget getLabelWidget({
+    required _LabelSize size,
+    required LabelConfig config,
+    required String productName,
+    required String quality,
+    required String type,
+    required String color,
+    required String sizeLabel,
+    required String barcodeValue,
+    required String qrData,
+  }) {
+    switch (size) {
+      case _LabelSize.size70x50:
+        return PrintLabel7050(
+          config: config,
+          productName: productName,
+          quality: quality,
+          type: type,
+          color: color,
+          sizeLabel: sizeLabel,
+          barcodeValue: barcodeValue,
+          qrData: qrData,
+        );
+      case _LabelSize.size60x60:
+        return PrintLabel60(
+          config: config,
+          productName: productName,
+          quality: quality,
+          type: type,
+          color: color,
+          sizeLabel: sizeLabel,
+          barcodeValue: barcodeValue,
+          qrData: qrData,
+        );
+      case _LabelSize.size60x40:
+        return PrintLabel(
+          config: config,
+          productName: productName,
+          quality: quality,
+          type: type,
+          color: color,
+          sizeLabel: sizeLabel,
+          barcodeValue: barcodeValue,
+          qrData: qrData,
+        );
+    }
   }
 
   Widget _buildContent(LabelingState state) {

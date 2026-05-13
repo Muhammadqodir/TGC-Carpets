@@ -32,18 +32,35 @@ class ProductionBatchService
     {
         return DB::transaction(function () use ($data, $userId): ProductionBatch {
             $batch = ProductionBatch::create([
-                'batch_title'      => $data['batch_title'],
-                'planned_datetime' => $data['planned_datetime'] ?? null,
-                'machine_id'       => $data['machine_id'],
-                'type'             => $data['type'] ?? ProductionBatch::TYPE_BY_ORDER,
-                'status'           => ProductionBatch::STATUS_PLANNED,
-                'created_by'       => $userId,
-                'notes'            => $data['notes'] ?? null,
+                'batch_title'             => $data['batch_title'],
+                'planned_datetime'        => $data['planned_datetime'] ?? null,
+                'machine_id'              => $data['machine_id'],
+                'type'                    => $data['type'] ?? ProductionBatch::TYPE_BY_ORDER,
+                'status'                  => ProductionBatch::STATUS_IN_PROGRESS,
+                'started_datetime'        => now(),
+                'responsible_employee_id' => $userId,
+                'created_by'              => $userId,
+                'notes'                   => $data['notes'] ?? null,
             ]);
 
             if (! empty($data['items'])) {
                 $this->syncItems($batch, $data['items']);
                 $this->syncOrderStatuses($batch);
+
+                // Move any linked pending/planned orders to on_production immediately.
+                $orderIds = $batch->items()
+                    ->whereNotNull('source_order_item_id')
+                    ->with('sourceOrderItem')
+                    ->get()
+                    ->pluck('sourceOrderItem.order_id')
+                    ->filter()
+                    ->unique();
+
+                if ($orderIds->isNotEmpty()) {
+                    Order::whereIn('id', $orderIds)
+                        ->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED])
+                        ->update(['status' => Order::STATUS_ON_PRODUCTION]);
+                }
             }
 
             return $batch->load(self::EAGER_LOAD);

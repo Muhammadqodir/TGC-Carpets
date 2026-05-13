@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/production_batch_entity.dart';
 import '../bloc/production_batches_bloc.dart';
 import '../bloc/production_batches_event.dart';
 import '../bloc/production_batches_state.dart';
@@ -139,7 +140,16 @@ class _ProductionBatchesContentState
             onPressed: () async {
               final created =
                   await context.pushNamed(AppRoutes.addProductionBatchName);
-              if (created == true && context.mounted) {
+              if (!context.mounted) return;
+              if (created is ProductionBatchEntity) {
+                context
+                    .read<ProductionBatchesBloc>()
+                    .add(const ProductionBatchesRefreshRequested());
+                context.pushNamed(
+                  AppRoutes.productionBatchDetailName,
+                  extra: created,
+                );
+              } else if (created == true) {
                 context
                     .read<ProductionBatchesBloc>()
                     .add(const ProductionBatchesRefreshRequested());

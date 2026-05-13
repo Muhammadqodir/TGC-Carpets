@@ -225,12 +225,14 @@ class _ProductionBatchFormBodyState extends State<_ProductionBatchFormBody> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                _isEditMode ? 'Partiya yangilandi.' : 'Partiya saqlandi.',
+                _isEditMode ? 'Partiya yangilandi.' : 'Partiya boshlandi.',
               ),
               backgroundColor: AppColors.success,
             ),
           );
-          context.pop(true);
+          // In add mode return the batch entity so the caller can navigate to
+          // the detail page. In edit mode just signal a refresh with true.
+          context.pop(_isEditMode ? true : state.batch);
         } else if (state is ProductionBatchFormFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
