@@ -55,6 +55,20 @@ class _QualityGroup {
   });
 }
 
+class _SizeGroup {
+  final int? sizeWidth;
+  final int? sizeLength;
+  final String label;
+  final List<OrderItemEntity> items;
+
+  _SizeGroup({
+    required this.sizeWidth,
+    required this.sizeLength,
+    required this.label,
+    required this.items,
+  });
+}
+
 class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   // ── Step 1 ─────────────────────────────────────────────────────────────────
   final _searchCtrl = TextEditingController();
@@ -67,11 +81,14 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   OrderEntity? _selectedOrder;
   List<_QualityGroup> _qualityGroups = [];
   _QualityGroup? _activeQuality;
+  List<_SizeGroup> _sizeGroups = [];
+  _SizeGroup? _activeSizeGroup;
   final Set<int> _selectedItemIds = {};
 
   bool get _onOrdersStep => _selectedOrder == null;
   bool get _onQualitiesStep => _selectedOrder != null && _activeQuality == null;
-  bool get _onItemsStep => _activeQuality != null;
+  bool get _onSizesStep => _activeQuality != null && _activeSizeGroup == null;
+  bool get _onItemsStep => _activeSizeGroup != null;
 
   @override
   void initState() {
@@ -143,20 +160,36 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
       _selectedOrder = order;
       _qualityGroups = _buildQualityGroups(visible);
       _activeQuality = null;
+      _sizeGroups = [];
+      _activeSizeGroup = null;
       _selectedItemIds.clear();
     });
   }
 
   void _selectQuality(_QualityGroup quality) {
+    final visible = quality.items
+        .where((i) => (i.remainingQuantity ?? i.quantity) > 0)
+        .toList();
     setState(() {
       _activeQuality = quality;
+      _sizeGroups = _buildSizeGroups(visible);
+      _activeSizeGroup = null;
+    });
+  }
+
+  void _selectSize(_SizeGroup size) {
+    setState(() {
+      _activeSizeGroup = size;
     });
   }
 
   void _back() {
     setState(() {
-      if (_activeQuality != null) {
+      if (_activeSizeGroup != null) {
+        _activeSizeGroup = null;
+      } else if (_activeQuality != null) {
         _activeQuality = null;
+        _sizeGroups = [];
       } else {
         _selectedOrder = null;
         _qualityGroups = [];
@@ -185,6 +218,34 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
         .toList();
   }
 
+  List<_SizeGroup> _buildSizeGroups(List<OrderItemEntity> items) {
+    final Map<String, List<OrderItemEntity>> bySize = {};
+    for (final item in items) {
+      final key = (item.sizeWidth != null && item.sizeLength != null)
+          ? '${item.sizeWidth}x${item.sizeLength}'
+          : 'unknown';
+      bySize.putIfAbsent(key, () => []).add(item);
+    }
+    final groups = bySize.entries.map((e) {
+      final first = e.value.first;
+      return _SizeGroup(
+        sizeWidth: first.sizeWidth,
+        sizeLength: first.sizeLength,
+        label: (first.sizeWidth != null && first.sizeLength != null)
+            ? '${first.sizeWidth}×${first.sizeLength}'
+            : "Noma'lum o'lcham",
+        items: e.value,
+      );
+    }).toList();
+    groups.sort((a, b) {
+      const big = 999999;
+      final wCmp = (a.sizeWidth ?? big).compareTo(b.sizeWidth ?? big);
+      if (wCmp != 0) return wCmp;
+      return (a.sizeLength ?? big).compareTo(b.sizeLength ?? big);
+    });
+    return groups;
+  }
+
   // ── Selection ──────────────────────────────────────────────────────────────
 
   void _toggleItem(int itemId) {
@@ -198,15 +259,9 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   }
 
   List<OrderItemEntity> get _visibleItems {
-    return (_activeQuality?.items ?? [])
+    return (_activeSizeGroup?.items ?? [])
         .where((i) => (i.remainingQuantity ?? i.quantity) > 0)
-        .toList()
-      ..sort((a, b) {
-        const big = 999999;
-        final wCmp = (a.sizeWidth ?? big).compareTo(b.sizeWidth ?? big);
-        if (wCmp != 0) return wCmp;
-        return (a.sizeLength ?? big).compareTo(b.sizeLength ?? big);
-      });
+        .toList();
   }
 
   void _selectAll(bool select) {
@@ -235,13 +290,15 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   // ── Title helpers ──────────────────────────────────────────────────────────
 
   String get _titleText {
-    if (_onItemsStep) return _activeQuality?.label ?? 'Mahsulotlar';
+    if (_onItemsStep) return _activeSizeGroup?.label ?? 'Mahsulotlar';
+    if (_onSizesStep) return _activeQuality?.label ?? "O'lchamlar";
     if (_onQualitiesStep) return 'Buyurtma #${_selectedOrder!.id}';
     return 'Buyurtmani tanlang';
   }
 
   String get _subtitleText {
-    if (_onItemsStep) return _selectedOrder?.clientShopName ?? '';
+    if (_onItemsStep) return _activeQuality?.label ?? '';
+    if (_onSizesStep) return "O'lchamni tanlang";
     if (_onQualitiesStep) return 'Sifat turini tanlang';
     return "Ishlab chiqarishga ega bo'sh buyurtmalar";
   }
@@ -276,7 +333,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Row(
               children: [
-                if (_onQualitiesStep || _onItemsStep)
+                if (_onQualitiesStep || _onSizesStep || _onItemsStep)
                   IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, size: 20),
                     onPressed: _back,
@@ -322,8 +379,13 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
           // Step indicator
           if (!_isLoadingOrders && _ordersError == null)
             _StepIndicator(
-              onOrdersStep: _onOrdersStep,
-              onQualitiesStep: _onQualitiesStep,
+              currentStep: _onOrdersStep
+                  ? 1
+                  : _onQualitiesStep
+                      ? 2
+                      : _onSizesStep
+                          ? 3
+                          : 4,
             ),
 
           // Search field (step 1 only)
@@ -367,6 +429,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
 
   Widget _buildContent() {
     if (_onItemsStep) return _buildItemsList();
+    if (_onSizesStep) return _buildSizesList();
     if (_onQualitiesStep) return _buildQualitiesList();
     // Orders step
     if (_isLoadingOrders) {
@@ -606,7 +669,93 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
     );
   }
 
-  // ── Step 3: Item list ──────────────────────────────────────────────────────
+  // ── Step 3: Size list ───────────────────────────────────────────────────────
+
+  Widget _buildSizesList() {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
+      itemCount: _sizeGroups.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final size = _sizeGroups[i];
+        final selectedInSize = size.items
+            .where((item) => _selectedItemIds.contains(item.id))
+            .length;
+
+        return InkWell(
+          onTap: () => _selectSize(size),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.straighten_rounded,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        size.label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${size.items.length} ta mahsulot',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                if (selectedInSize > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$selectedInSize',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Step 4: Item list ──────────────────────────────────────────────────────
 
   Widget _buildItemsList() {
     final items = _visibleItems;
@@ -770,16 +919,11 @@ class _OrderItemTile extends StatelessWidget {
 // ── Step indicator ─────────────────────────────────────────────────────────────
 
 class _StepIndicator extends StatelessWidget {
-  final bool onOrdersStep;
-  final bool onQualitiesStep;
-  const _StepIndicator({
-    required this.onOrdersStep,
-    required this.onQualitiesStep,
-  });
+  final int currentStep;
+  const _StepIndicator({required this.currentStep});
 
   @override
   Widget build(BuildContext context) {
-    final onItemsStep = !onOrdersStep && !onQualitiesStep;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       child: Row(
@@ -787,21 +931,28 @@ class _StepIndicator extends StatelessWidget {
           _StepDot(
             index: 1,
             label: 'Buyurtma',
-            active: onOrdersStep,
-            done: !onOrdersStep,
+            active: currentStep == 1,
+            done: currentStep > 1,
           ),
-          _StepLine(done: !onOrdersStep),
+          _StepLine(done: currentStep > 1),
           _StepDot(
             index: 2,
             label: 'Sifat',
-            active: onQualitiesStep,
-            done: onItemsStep,
+            active: currentStep == 2,
+            done: currentStep > 2,
           ),
-          _StepLine(done: onItemsStep),
+          _StepLine(done: currentStep > 2),
           _StepDot(
             index: 3,
+            label: "O'lcham",
+            active: currentStep == 3,
+            done: currentStep > 3,
+          ),
+          _StepLine(done: currentStep > 3),
+          _StepDot(
+            index: 4,
             label: 'Mahsulot',
-            active: onItemsStep,
+            active: currentStep == 4,
             done: false,
           ),
         ],
