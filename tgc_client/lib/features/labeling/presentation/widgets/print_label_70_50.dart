@@ -111,14 +111,14 @@ class PrintLabel7050 extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  height: 120,
+                  height: 110,
                   child: Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: SizedBox(
-                            height: 120,
+                            height: 100,
                             child: BarcodeWidget(
                               data: barcodeValue,
                               barcode: Barcode.code128(),
@@ -133,8 +133,8 @@ class PrintLabel7050 extends StatelessWidget {
                         ),
                         SizedBox(width: pad),
                         SizedBox(
-                          height: 91,
-                          width: 91,
+                          height: 110,
+                          width: 110,
                           child: RotatedBox(
                             quarterTurns: 45,
                             child: BarcodeWidget(
