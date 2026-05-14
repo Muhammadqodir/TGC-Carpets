@@ -34,7 +34,7 @@ class LabelConfig {
   static const preset40x30 = LabelConfig(widthMm: 40, heightMm: 30);
 
   /// Common preset: 70mm x 50mm at 203 DPI
-  static const preset70x50 = LabelConfig(widthMm: 70, heightMm: 50);
+  static const preset70x50 = LabelConfig(widthMm: 68, heightMm: 50);
 
   /// Common preset: 60mm x 60mm at 203 DPI
   static const preset60x60 = LabelConfig(widthMm: 58, heightMm: 60);

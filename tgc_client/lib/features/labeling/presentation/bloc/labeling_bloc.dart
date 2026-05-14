@@ -66,10 +66,11 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
         emit(current.copyWith(printingItems: updated));
       },
       (updatedItem) {
-        // Replace updated item in list; keep printing state until UI completes
-        final updatedItems = current.items.map((i) {
-          return i.id == updatedItem.id ? updatedItem : i;
-        }).toList();
+        // Replace updated item; remove fully-labeled ones so no network refresh is needed
+        final updatedItems = current.items
+            .map((i) => i.id == updatedItem.id ? updatedItem : i)
+            .where((i) => !i.isFullyLabeled)
+            .toList();
 
         emit(LabelingLoaded(
           items: updatedItems,

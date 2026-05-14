@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -36,10 +35,16 @@ enum _LabelSize {
         _LabelSize.size60x40 => '60×40',
       };
 
-  LabelConfig get config => switch (this) {
-        _LabelSize.size70x50 => LabelConfig.preset70x50,
-        _LabelSize.size60x60 => LabelConfig.preset60x60,
-        _LabelSize.size60x40 => LabelConfig.preset58x40,
+  double get widthMm => switch (this) {
+        _LabelSize.size70x50 => 68,
+        _LabelSize.size60x60 => 58,
+        _LabelSize.size60x40 => 58,
+      };
+
+  double get heightMm => switch (this) {
+        _LabelSize.size70x50 => 50,
+        _LabelSize.size60x60 => 60,
+        _LabelSize.size60x40 => 40,
       };
 }
 
@@ -77,8 +82,16 @@ class _LabelingView extends StatefulWidget {
 
 class _LabelingViewState extends State<_LabelingView> {
   // ── Label size ─────────────────────────────────────────────────────────────
-  _LabelSize _labelSize = _LabelSize.size60x60;
-  LabelConfig get _config => _labelSize.config;
+  _LabelSize _labelSize = _LabelSize.size70x50;
+
+  // ── Print DPI ──────────────────────────────────────────────────────────────
+  int _dpi = 203;
+
+  LabelConfig get _config => LabelConfig(
+        widthMm: _labelSize.widthMm,
+        heightMm: _labelSize.heightMm,
+        dpi: _dpi,
+      );
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -88,8 +101,11 @@ class _LabelingViewState extends State<_LabelingView> {
   // ── Render keys per item id ────────────────────────────────────────────────
   final Map<int, GlobalKey> _repaintKeys = {};
 
-  // ── Current items (mirrored from BLoC for hidden-label rendering) ─────────
-  List<LabelingItemEntity> _items = [];
+  // ── Items currently being rendered off-screen (only while printing) ───────
+  final Map<int, LabelingItemEntity> _renderingItems = {};
+
+  // ── Tracks previous loaded count to detect when the list empties ──────────
+  int _lastItemCount = 0;
 
   // ── Selected batch filter (null = show all) ───────────────────────────────
   int? _selectedBatchId;
@@ -149,21 +165,19 @@ class _LabelingViewState extends State<_LabelingView> {
   Future<void> _onPrint(LabelingItemEntity item) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
 
-    final key = _keyFor(item.id);
     // Dispatch to BLoC to mark item as printing / increment count on backend
     context.read<LabelingBloc>().add(
           LabelingPrintRequested(batchId: item.batchId, itemId: item.id),
         );
 
     try {
+      // Add item to off-screen rendering map, wait for the frame to paint it
+      if (mounted) setState(() => _renderingItems[item.id] = item);
+      await WidgetsBinding.instance.endOfFrame;
+
+      final key = _keyFor(item.id);
       final path = await _renderLabel(key);
-      if (path == null) {
-        // If rendering failed, mark as completed to re-enable button
-        context.read<LabelingBloc>().add(
-              LabelingPrintCompleted(itemId: item.id),
-            );
-        return;
-      }
+      if (path == null) return; // finally cleans up
 
       try {
         if (_isPrintingPlatform) {
@@ -183,14 +197,13 @@ class _LabelingViewState extends State<_LabelingView> {
 
         // Save to print history after successful print
         await _historyService.addToHistory(item);
-
-        // Refresh to get updated list (removes items with 0 remaining quantity)
-        context.read<LabelingBloc>().add(const LabelingRefreshRequested());
+        // BLoC already removes fully-labeled items locally; no network refresh needed
       } finally {
         _deleteTempFile(path);
       }
     } finally {
-      // Always mark printing as completed to re-enable button
+      // Remove off-screen widget and re-enable button
+      if (mounted) setState(() => _renderingItems.remove(item.id));
       context.read<LabelingBloc>().add(
             LabelingPrintCompleted(itemId: item.id),
           );
@@ -241,6 +254,24 @@ class _LabelingViewState extends State<_LabelingView> {
                     selected: {_labelSize},
                     onSelectionChanged: (selected) {
                       setState(() => _labelSize = selected.first);
+                      setDialogState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  // ── DPI ──────────────────────────────────────────────────
+                  Text(
+                    'Chop etish sifati (DPI)',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment<int>(value: 203, label: Text('203 DPI')),
+                      ButtonSegment<int>(value: 300, label: Text('300 DPI')),
+                    ],
+                    selected: {_dpi},
+                    onSelectionChanged: (selected) {
+                      setState(() => _dpi = selected.first);
                       setDialogState(() {});
                     },
                   ),
@@ -337,11 +368,11 @@ class _LabelingViewState extends State<_LabelingView> {
     return BlocConsumer<LabelingBloc, LabelingState>(
       listener: (context, state) {
         if (state is LabelingLoaded) {
-          final previousItemCount = _items.length;
-          setState(() => _items = state.items);
+          final previousCount = _lastItemCount;
+          _lastItemCount = state.items.length;
 
           // If all items are now printed (list became empty), auto-refresh
-          if (previousItemCount > 0 && state.items.isEmpty) {
+          if (previousCount > 0 && state.items.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -424,10 +455,8 @@ class _LabelingViewState extends State<_LabelingView> {
                 ),
               ),
 
-              // ── Off-screen hidden labels for RepaintBoundary rendering ─
-              // Positioned far off to the left. Stack's Clip.none ensures
-              // they are still painted and capturable via toImage().
-              ..._items.map((item) {
+              // ── Off-screen labels rendered on-demand (only while printing) ─
+              ..._renderingItems.values.map((item) {
                 final key = _keyFor(item.id);
                 final barcodeValue = item.variantBarcode?.isNotEmpty == true
                     ? item.variantBarcode!
@@ -640,24 +669,29 @@ class _LabelingViewState extends State<_LabelingView> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount =
-                        (constraints.maxWidth / 260).floor().clamp(1, 5);
                     const spacing = 12.0;
-                    final cardWidth = (constraints.maxWidth -
-                            spacing * (crossAxisCount - 1)) /
-                        crossAxisCount;
+                    final crossAxisCount =
+                        ((constraints.maxWidth + spacing) / (260 + spacing))
+                            .floor()
+                            .clamp(1, 3);
+                    final cardWidth =
+                        (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
+                            crossAxisCount;
 
                     return Wrap(
                       spacing: spacing,
                       runSpacing: spacing,
                       children: displayedItems.map((item) {
                         return SizedBox(
+                          key: ValueKey(item.id),
                           width: cardWidth,
-                          child: _LabelingCard(
-                            item: item,
-                            isPrinting: printingItems[item.id] == true,
-                            isPrintPlatform: _isPrintingPlatform,
-                            onPrint: () => _onPrint(item),
+                          child: RepaintBoundary(
+                            child: _LabelingCard(
+                              item: item,
+                              isPrinting: printingItems[item.id] == true,
+                              isPrintPlatform: _isPrintingPlatform,
+                              onPrint: () => _onPrint(item),
+                            ),
                           ),
                         );
                       }).toList(),
@@ -819,9 +853,8 @@ class _InfoChips extends StatelessWidget {
       if (item.qualityName != null) item.qualityName!.toUpperCase(),
     ];
 
-    return Wrap(
+    return Row(
       spacing: 6,
-      runSpacing: 4,
       children: parts
           .map(
             (p) => AppBadge(
