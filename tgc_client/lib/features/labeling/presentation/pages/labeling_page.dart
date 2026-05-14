@@ -25,24 +25,24 @@ import 'print_history_page.dart';
 // ── Label size options ───────────────────────────────────────────────────────
 
 enum _LabelSize {
-  size70x50,
+  size80x50,
   size60x60,
   size60x40;
 
   String get label => switch (this) {
-        _LabelSize.size70x50 => '70×50',
+        _LabelSize.size80x50 => '80×50',
         _LabelSize.size60x60 => '60×60',
         _LabelSize.size60x40 => '60×40',
       };
 
   double get widthMm => switch (this) {
-        _LabelSize.size70x50 => 68,
+        _LabelSize.size80x50 => 78,
         _LabelSize.size60x60 => 58,
         _LabelSize.size60x40 => 58,
       };
 
   double get heightMm => switch (this) {
-        _LabelSize.size70x50 => 50,
+        _LabelSize.size80x50 => 50,
         _LabelSize.size60x60 => 60,
         _LabelSize.size60x40 => 40,
       };
@@ -82,7 +82,7 @@ class _LabelingView extends StatefulWidget {
 
 class _LabelingViewState extends State<_LabelingView> {
   // ── Label size ─────────────────────────────────────────────────────────────
-  _LabelSize _labelSize = _LabelSize.size70x50;
+  _LabelSize _labelSize = _LabelSize.size80x50;
 
   // ── Print DPI ──────────────────────────────────────────────────────────────
   int _dpi = 203;
@@ -464,7 +464,7 @@ class _LabelingViewState extends State<_LabelingView> {
                 final qrData = 'P${item.batchId} I${item.id}';
 
                 return Positioned(
-                  left: -5000,
+                  left: 0,
                   top: 0,
                   child: SizedBox(
                     width: _config.widthPx.toDouble(),
@@ -505,7 +505,7 @@ class _LabelingViewState extends State<_LabelingView> {
     required String qrData,
   }) {
     switch (size) {
-      case _LabelSize.size70x50:
+      case _LabelSize.size80x50:
         return PrintLabel7050(
           config: config,
           productName: productName,
