@@ -69,95 +69,85 @@ class PrintLabel7050 extends StatelessWidget {
       height: h,
       color: Colors.white,
       padding: EdgeInsets.all(pad * 1.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Specs + QR ────────────────────────────────────────────────
           Expanded(
-            flex: 56,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: pad),
-                      _SpecRow(
-                        label: 'Quality',
-                        value: quality ?? '—',
-                        fontSize: specFontSize,
-                      ),
-                      SizedBox(height: pad * 0.8),
-                      _SpecRow(
-                        label: 'Design',
-                        value: productName ?? '—',
-                        fontSize: specFontSize,
-                      ),
-                      SizedBox(height: pad * 0.8),
-                      _SpecRow(
-                        label: 'Size',
-                        value: sizeLabel ?? '—',
-                        fontSize: specFontSize,
-                      ),
-                      SizedBox(height: pad * 0.8),
-                      _SpecRow(
-                        label: 'Color',
-                        value: color ?? '—',
-                        fontSize: specFontSize,
-                      ),
-                    ],
-                  ),
+                SizedBox(height: pad),
+                _SpecRow(
+                  label: 'Quality',
+                  value: quality ?? '—',
+                  fontSize: specFontSize,
                 ),
-                SizedBox(
-                  height: 110,
-                  child: Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 100,
-                            child: BarcodeWidget(
-                              data: barcodeValue,
-                              barcode: Barcode.code128(),
-                              drawText: true,
-                              textPadding: h * 0.018,
-                              style: TextStyle(
-                                fontSize: h * 0.055,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: pad),
-                        SizedBox(
-                          height: 110,
-                          width: 110,
-                          child: RotatedBox(
-                            quarterTurns: 45,
-                            child: BarcodeWidget(
-                              data: qrData,
-                              barcode: Barcode.qrCode(),
-                              drawText: false,
-                              textPadding: h * 0.018,
-                              style: TextStyle(
-                                fontSize: h * 0.055,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                SizedBox(height: pad * 0.8),
+                _SpecRow(
+                  label: 'Design',
+                  value: productName ?? '—',
+                  fontSize: specFontSize,
                 ),
-
-                // ── Barcode ───────────────────────────────────────────────────
+                SizedBox(height: pad * 0.8),
+                _SpecRow(
+                  label: 'Size',
+                  value: sizeLabel ?? '—',
+                  fontSize: specFontSize,
+                ),
+                SizedBox(height: pad * 0.8),
+                _SpecRow(
+                  label: 'Color',
+                  value: color ?? '—',
+                  fontSize: specFontSize,
+                ),
               ],
             ),
           ),
+          SizedBox(
+            height: 110,
+            child: Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 100,
+                      child: BarcodeWidget(
+                        data: barcodeValue,
+                        barcode: Barcode.code128(),
+                        drawText: true,
+                        textPadding: h * 0.018,
+                        style: TextStyle(
+                          fontSize: h * 0.055,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: pad),
+                  SizedBox(
+                    height: 110,
+                    width: 110,
+                    child: RotatedBox(
+                      quarterTurns: 45,
+                      child: BarcodeWidget(
+                        data: qrData,
+                        barcode: Barcode.qrCode(),
+                        drawText: false,
+                        textPadding: h * 0.018,
+                        style: TextStyle(
+                          fontSize: h * 0.055,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── Barcode ───────────────────────────────────────────────────
         ],
       ),
     );
