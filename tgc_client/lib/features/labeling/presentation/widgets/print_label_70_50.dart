@@ -1,6 +1,5 @@
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 /// A fully parameterised label widget that renders at [config.widthPx] ×
@@ -106,45 +105,43 @@ class PrintLabel7050 extends StatelessWidget {
           ),
           SizedBox(
             height: 110,
-            child: Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 100,
-                      child: BarcodeWidget(
-                        data: barcodeValue,
-                        barcode: Barcode.code128(),
-                        drawText: true,
-                        textPadding: h * 0.018,
-                        style: TextStyle(
-                          fontSize: h * 0.055,
-                          fontWeight: FontWeight.bold,
-                        ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 100,
+                    child: BarcodeWidget(
+                      data: barcodeValue,
+                      barcode: Barcode.code128(),
+                      drawText: true,
+                      textPadding: h * 0.018,
+                      style: TextStyle(
+                        fontSize: h * 0.055,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  SizedBox(width: pad),
-                  SizedBox(
-                    height: 110,
-                    width: 110,
-                    child: RotatedBox(
-                      quarterTurns: 45,
-                      child: BarcodeWidget(
-                        data: qrData,
-                        barcode: Barcode.qrCode(),
-                        drawText: false,
-                        textPadding: h * 0.018,
-                        style: TextStyle(
-                          fontSize: h * 0.055,
-                          fontWeight: FontWeight.bold,
-                        ),
+                ),
+                SizedBox(width: pad),
+                SizedBox(
+                  height: 110,
+                  width: 110,
+                  child: RotatedBox(
+                    quarterTurns: 1,
+                    child: BarcodeWidget(
+                      data: qrData,
+                      barcode: Barcode.qrCode(),
+                      drawText: false,
+                      textPadding: h * 0.018,
+                      style: TextStyle(
+                        fontSize: h * 0.055,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           // ── Barcode ───────────────────────────────────────────────────
