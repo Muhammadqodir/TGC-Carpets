@@ -7,9 +7,8 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
-import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_40.dart';
-import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
-import 'package:tgc_client/features/labeling/presentation/widgets/print_label_70_50.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
@@ -25,33 +24,46 @@ import '../bloc/labeling_state.dart';
 import 'print_history_page.dart';
 
 // ── Shared preferences keys ─────────────────────────────────────────────────
+const _kPrefLabelStyle = 'labeling_label_style';
 const _kPrefLabelSize = 'labeling_label_size';
 const _kPrefDpi = 'labeling_dpi';
 const _kPrefPrinter = 'labeling_printer';
 
-// ── Label size options ───────────────────────────────────────────────────────
+// ── Label size options (all LabelConfig presets) ─────────────────────────────
 
 enum _LabelSize {
   size80x50,
   size60x60,
-  size60x40;
+  size58x40,
+  size58x30,
+  size40x30;
 
   String get label => switch (this) {
         _LabelSize.size80x50 => '80×50',
         _LabelSize.size60x60 => '60×60',
-        _LabelSize.size60x40 => '60×40',
+        _LabelSize.size58x40 => '58×40',
+        _LabelSize.size58x30 => '58×30',
+        _LabelSize.size40x30 => '40×30',
       };
 
-  double get widthMm => switch (this) {
-        _LabelSize.size80x50 => 78,
-        _LabelSize.size60x60 => 58,
-        _LabelSize.size60x40 => 58,
+  LabelConfig configWithDpi(int dpi) => switch (this) {
+        _LabelSize.size80x50 => LabelConfig(widthMm: 78, heightMm: 50, dpi: dpi),
+        _LabelSize.size60x60 => LabelConfig(widthMm: 58, heightMm: 60, dpi: dpi),
+        _LabelSize.size58x40 => LabelConfig(widthMm: 58, heightMm: 40, dpi: dpi),
+        _LabelSize.size58x30 => LabelConfig(widthMm: 58, heightMm: 30, dpi: dpi),
+        _LabelSize.size40x30 => LabelConfig(widthMm: 40, heightMm: 30, dpi: dpi),
       };
+}
 
-  double get heightMm => switch (this) {
-        _LabelSize.size80x50 => 50,
-        _LabelSize.size60x60 => 60,
-        _LabelSize.size60x40 => 40,
+// ── Label style options ──────────────────────────────────────────────────────
+
+enum _LabelStyle {
+  asosiy,
+  asosiyArab;
+
+  String get label => switch (this) {
+        _LabelStyle.asosiy => 'Asosiy',
+        _LabelStyle.asosiyArab => 'Asosiy arab',
       };
 }
 
@@ -88,17 +100,16 @@ class _LabelingView extends StatefulWidget {
 }
 
 class _LabelingViewState extends State<_LabelingView> {
+  // ── Label style ────────────────────────────────────────────────────────────
+  _LabelStyle _labelStyle = _LabelStyle.asosiy;
+
   // ── Label size ─────────────────────────────────────────────────────────────
   _LabelSize _labelSize = _LabelSize.size80x50;
 
   // ── Print DPI ──────────────────────────────────────────────────────────────
   int _dpi = 203;
 
-  LabelConfig get _config => LabelConfig(
-        widthMm: _labelSize.widthMm,
-        heightMm: _labelSize.heightMm,
-        dpi: _dpi,
-      );
+  LabelConfig get _config => _labelSize.configWithDpi(_dpi);
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -136,11 +147,15 @@ class _LabelingViewState extends State<_LabelingView> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final styleIndex = prefs.getInt(_kPrefLabelStyle);
     final sizeIndex = prefs.getInt(_kPrefLabelSize);
     final dpi = prefs.getInt(_kPrefDpi);
     final printer = prefs.getString(_kPrefPrinter);
     if (!mounted) return;
     setState(() {
+      if (styleIndex != null && styleIndex < _LabelStyle.values.length) {
+        _labelStyle = _LabelStyle.values[styleIndex];
+      }
       if (sizeIndex != null && sizeIndex < _LabelSize.values.length) {
         _labelSize = _LabelSize.values[sizeIndex];
       }
@@ -151,6 +166,7 @@ class _LabelingViewState extends State<_LabelingView> {
 
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kPrefLabelStyle, _labelStyle.index);
     await prefs.setInt(_kPrefLabelSize, _labelSize.index);
     await prefs.setInt(_kPrefDpi, _dpi);
     if (_selectedPrinter != null) {
@@ -280,28 +296,58 @@ class _LabelingViewState extends State<_LabelingView> {
             title: const Text('Sozlamalar'),
             content: SizedBox(
               width: 380,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Label size ───────────────────────────────────────
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [                  // ── Label size ───────────────────────────────────────────
                   Text(
                     'Yorliq o\'lchami',
                     style: Theme.of(ctx).textTheme.labelLarge,
                   ),
                   const SizedBox(height: 10),
-                  SegmentedButton<_LabelSize>(
-                    segments: _LabelSize.values
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<_LabelSize>(
+                      value: _labelSize,
+                      isExpanded: true,
+                      isDense: true,
+                      items: _LabelSize.values
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(
+                                s.label,
+                                style: Theme.of(ctx).textTheme.bodyMedium,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _labelSize = v);
+                        _saveSettings();
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),                  // ── Label style ──────────────────────────────────────
+                  Text(
+                    'Yorliq uslubi',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<_LabelStyle>(
+                    segments: _LabelStyle.values
                         .map(
-                          (s) => ButtonSegment<_LabelSize>(
+                          (s) => ButtonSegment<_LabelStyle>(
                             value: s,
                             label: Text(s.label),
                           ),
                         )
                         .toList(),
-                    selected: {_labelSize},
+                    selected: {_labelStyle},
                     onSelectionChanged: (selected) {
-                      setState(() => _labelSize = selected.first);
+                      setState(() => _labelStyle = selected.first);
                       _saveSettings();
                       setDialogState(() {});
                     },
@@ -325,6 +371,41 @@ class _LabelingViewState extends State<_LabelingView> {
                       setDialogState(() {});
                     },
                   ),
+                  // ── Label preview ────────────────────────────────────
+                  const SizedBox(height: 20),
+                  Text(
+                    'Yorliq ko\'rinishi',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRect(
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 340 /
+                          (_config.widthPx / _config.heightPx),
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: _config.widthPx.toDouble(),
+                          height: _config.heightPx.toDouble(),
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: getLabelWidget(
+                              style: _labelStyle,
+                              productName: '1568',
+                              quality: 'Ronaldo',
+                              type: 'Classic',
+                              color: 'Beige',
+                              sizeLabel: '200x300 R',
+                              barcodeValue: 'TGC-00000001',
+                              qrData: 'P1 I1',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   if (_isPrintingPlatform) ...[
                     const SizedBox(height: 20),
                     // ── Printer ──────────────────────────────────────
@@ -397,6 +478,7 @@ class _LabelingViewState extends State<_LabelingView> {
                   ],
                 ],
               ),
+            ),
             ),
             actions: [
               TextButton(
@@ -520,18 +602,20 @@ class _LabelingViewState extends State<_LabelingView> {
                   child: SizedBox(
                     width: _config.widthPx.toDouble(),
                     height: _config.heightPx.toDouble(),
-                    child: RepaintBoundary(
-                      key: key,
-                      child: getLabelWidget(
-                        size: _labelSize,
-                        config: _config,
-                        productName: item.productName,
-                        quality: item.qualityName ?? '',
-                        type: item.productTypeName ?? '',
-                        color: item.colorName ?? '',
-                        sizeLabel: item.sizeLabel + " R",
-                        barcodeValue: barcodeValue,
-                        qrData: qrData,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: RepaintBoundary(
+                        key: key,
+                        child: getLabelWidget(
+                          style: _labelStyle,
+                          productName: item.productName,
+                          quality: item.qualityName ?? '',
+                          type: item.productTypeName ?? '',
+                          color: item.colorName ?? '',
+                          sizeLabel: item.sizeLabel + " R",
+                          barcodeValue: barcodeValue,
+                          qrData: qrData,
+                        ),
                       ),
                     ),
                   ),
@@ -545,8 +629,7 @@ class _LabelingViewState extends State<_LabelingView> {
   }
 
   Widget getLabelWidget({
-    required _LabelSize size,
-    required LabelConfig config,
+    required _LabelStyle style,
     required String productName,
     required String quality,
     required String type,
@@ -555,10 +638,9 @@ class _LabelingViewState extends State<_LabelingView> {
     required String barcodeValue,
     required String qrData,
   }) {
-    switch (size) {
-      case _LabelSize.size80x50:
+    switch (style) {
+      case _LabelStyle.asosiy:
         return PrintLabel7050(
-          config: config,
           productName: productName,
           quality: quality,
           type: type,
@@ -567,20 +649,8 @@ class _LabelingViewState extends State<_LabelingView> {
           barcodeValue: barcodeValue,
           qrData: qrData,
         );
-      case _LabelSize.size60x60:
-        return PrintLabel60(
-          config: config,
-          productName: productName,
-          quality: quality,
-          type: type,
-          color: color,
-          sizeLabel: sizeLabel,
-          barcodeValue: barcodeValue,
-          qrData: qrData,
-        );
-      case _LabelSize.size60x40:
-        return PrintLabel(
-          config: config,
+      case _LabelStyle.asosiyArab:
+        return PrintLabel7050Arab(
           productName: productName,
           quality: quality,
           type: type,

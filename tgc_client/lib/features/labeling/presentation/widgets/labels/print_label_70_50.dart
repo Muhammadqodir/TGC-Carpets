@@ -22,7 +22,6 @@ import 'package:usb_label_print/usb_label_print.dart';
 class PrintLabel7050 extends StatelessWidget {
   const PrintLabel7050({
     super.key,
-    required this.config,
     required this.barcodeValue,
     required this.qrData,
     this.productName,
@@ -32,7 +31,8 @@ class PrintLabel7050 extends StatelessWidget {
     this.sizeLabel,
   });
 
-  final LabelConfig config;
+  /// Fixed internal canvas: 80 × 50 mm at 300 DPI.
+  static const _kConfig = LabelConfig(widthMm: 80, heightMm: 50, dpi: 300);
 
   /// Human-readable product name / model shown in the spec section.
   final String? productName;
@@ -57,95 +57,101 @@ class PrintLabel7050 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = config.widthPx.toDouble();
-    final h = config.heightPx.toDouble();
+    final w = _kConfig.widthPx.toDouble();
+    final h = _kConfig.heightPx.toDouble();
     final pad = w * 0.015;
-    final specFontSize = h * 0.11;
-    final qrSize = w * 0.22;
+    final specFontSize = h * 0.125;
 
-    return Container(
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: Container(
       width: w,
       height: h,
       color: Colors.white,
       padding: EdgeInsets.all(pad * 1.5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: pad),
-                _SpecRow(
-                  label: 'Quality',
-                  value: quality ?? '—',
-                  fontSize: specFontSize,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: pad),
+                    _SpecRow(
+                      label: 'Quality',
+                      value: quality ?? '—',
+                      fontSize: specFontSize,
+                    ),
+                    _SpecRow(
+                      label: 'Design',
+                      value: productName ?? '—',
+                      fontSize: specFontSize,
+                      isBold: true,
+                    ),
+                    _SpecRow(
+                      label: 'Size',
+                      value: sizeLabel ?? '—',
+                      fontSize: specFontSize,
+                      isBold: true,
+                    ),
+                    _SpecRow(
+                      label: 'Color',
+                      value: color ?? '—',
+                      fontSize: specFontSize,
+                    ),
+                  ],
                 ),
-                SizedBox(height: pad * 0.8),
-                _SpecRow(
-                  label: 'Design',
-                  value: productName ?? '—',
-                  fontSize: specFontSize,
-                ),
-                SizedBox(height: pad * 0.8),
-                _SpecRow(
-                  label: 'Size',
-                  value: sizeLabel ?? '—',
-                  fontSize: specFontSize,
-                ),
-                SizedBox(height: pad * 0.8),
-                _SpecRow(
-                  label: 'Color',
-                  value: color ?? '—',
-                  fontSize: specFontSize,
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 110,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 100,
-                    child: BarcodeWidget(
-                      data: barcodeValue,
-                      barcode: Barcode.code128(),
-                      drawText: true,
-                      textPadding: h * 0.018,
-                      style: TextStyle(
-                        fontSize: h * 0.055,
-                        fontWeight: FontWeight.bold,
+              ),
+              SizedBox(
+                height: h * 0.27,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: h * 0.25,
+                        child: BarcodeWidget(
+                          data: barcodeValue,
+                          barcode: Barcode.code128(),
+                          drawText: true,
+                          textPadding: h * 0.018,
+                          style: TextStyle(
+                            fontSize: h * 0.055,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(width: pad),
-                SizedBox(
-                  height: 110,
-                  width: 110,
-                  child: RotatedBox(
-                    quarterTurns: 1,
-                    child: BarcodeWidget(
-                      data: qrData,
-                      barcode: Barcode.qrCode(),
-                      drawText: false,
-                      textPadding: h * 0.018,
-                      style: TextStyle(
-                        fontSize: h * 0.055,
-                        fontWeight: FontWeight.bold,
+                    SizedBox(width: pad),
+                    SizedBox(
+                      height: h * 0.276,
+                      width: h * 0.276,
+                      child: RotatedBox(
+                        quarterTurns: 1,
+                        child: BarcodeWidget(
+                          data: qrData,
+                          barcode: Barcode.qrCode(),
+                          drawText: false,
+                          textPadding: h * 0.018,
+                          style: TextStyle(
+                            fontSize: h * 0.055,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // ── Barcode ───────────────────────────────────────────────────
+            ],
           ),
-          // ── Barcode ───────────────────────────────────────────────────
         ],
+      ),
       ),
     );
   }
@@ -158,11 +164,13 @@ class _SpecRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.fontSize,
+    this.isBold = false,
   });
 
   final String label;
   final String value;
   final double fontSize;
+  final bool isBold;
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +181,7 @@ class _SpecRow extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           SizedBox(
-            width: 100,
+            width: fontSize * 2.4,
             child: Text(
               label,
               maxLines: 1,
@@ -191,7 +199,7 @@ class _SpecRow extends StatelessWidget {
               height: 1.1,
             ), // gap between label and value
           ),
-          SizedBox(width: 5), // extra gap for readability
+          SizedBox(width: fontSize * 0.1), // extra gap for readability
           Expanded(
             child: Text(
               value.toUpperCase(),
@@ -200,7 +208,7 @@ class _SpecRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: fontSize,
                 height: 1,
-                fontWeight: FontWeight.bold,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
                 color: Colors.black,
               ),
             ),

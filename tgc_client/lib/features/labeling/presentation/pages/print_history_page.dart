@@ -4,13 +4,25 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
-import 'package:tgc_client/features/labeling/presentation/widgets/print_label_60_60.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50.dart';
+import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../data/services/print_history_service.dart';
 import '../../domain/entities/print_history_entity.dart';
+
+// ── Shared preference keys (same as labeling_page) ───────────────────────────
+const _kPrefLabelStyle = 'labeling_label_style';
+const _kPrefDpi = 'labeling_dpi';
+const _kPrefPrinter = 'labeling_printer';
+
+enum _LabelStyle {
+  asosiy,
+  asosiyArab;
+}
 
 class PrintHistoryPage extends StatefulWidget {
   const PrintHistoryPage({
@@ -25,8 +37,15 @@ class PrintHistoryPage extends StatefulWidget {
 }
 
 class _PrintHistoryPageState extends State<PrintHistoryPage> {
-  // ── Label config ──────────────────────────────────────────────────────────
-  static const _config = LabelConfig.preset60x60;
+  // ── Label style & DPI (loaded from SharedPreferences) ────────────────────
+  _LabelStyle _labelStyle = _LabelStyle.asosiy;
+  int _dpi = 203;
+
+  LabelConfig get _config => LabelConfig(
+        widthMm: 78,
+        heightMm: 50,
+        dpi: _dpi,
+      );
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -49,8 +68,25 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-    _loadPrinters();
+    _loadSettings().then((_) {
+      _loadHistory();
+      _loadPrinters();
+    });
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final styleIndex = prefs.getInt(_kPrefLabelStyle);
+    final dpi = prefs.getInt(_kPrefDpi);
+    final printer = prefs.getString(_kPrefPrinter);
+    if (!mounted) return;
+    setState(() {
+      if (styleIndex != null && styleIndex < _LabelStyle.values.length) {
+        _labelStyle = _LabelStyle.values[styleIndex];
+      }
+      if (dpi != null) _dpi = dpi;
+      if (printer != null) _selectedPrinter = printer;
+    });
   }
 
   Future<void> _loadHistory() async {
@@ -69,7 +105,10 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     if (!mounted) return;
     setState(() {
       _printers = printers;
-      _selectedPrinter = printers.isNotEmpty ? printers.first : null;
+      if (printers.isNotEmpty &&
+          (_selectedPrinter == null || !printers.contains(_selectedPrinter))) {
+        _selectedPrinter = printers.first;
+      }
       _isLoadingPrinters = false;
     });
   }
@@ -244,16 +283,8 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
                 height: _config.heightPx.toDouble(),
                 child: RepaintBoundary(
                   key: key,
-                  child: PrintLabel60(
-                    config: _config,
-                    productName: item.productName,
-                    quality: item.qualityName,
-                    type: item.productTypeName,
-                    color: item.colorName,
-                    sizeLabel:
-                        item.sizeLength != null && item.sizeWidth != null
-                            ? item.sizeLabel
-                            : null,
+                  child: _buildLabelWidget(
+                    item: item,
                     barcodeValue: barcodeValue,
                     qrData: qrData,
                   ),
@@ -264,6 +295,38 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildLabelWidget({
+    required PrintHistoryEntity item,
+    required String barcodeValue,
+    required String qrData,
+  }) {
+    final sizeLabel = item.sizeLength != null && item.sizeWidth != null
+        ? item.sizeLabel
+        : null;
+    switch (_labelStyle) {
+      case _LabelStyle.asosiy:
+        return PrintLabel7050(
+          productName: item.productName,
+          quality: item.qualityName,
+          type: item.productTypeName,
+          color: item.colorName,
+          sizeLabel: sizeLabel,
+          barcodeValue: barcodeValue,
+          qrData: qrData,
+        );
+      case _LabelStyle.asosiyArab:
+        return PrintLabel7050Arab(
+          productName: item.productName,
+          quality: item.qualityName,
+          type: item.productTypeName,
+          color: item.colorName,
+          sizeLabel: sizeLabel,
+          barcodeValue: barcodeValue,
+          qrData: qrData,
+        );
+    }
   }
 
   Widget _buildContent() {
