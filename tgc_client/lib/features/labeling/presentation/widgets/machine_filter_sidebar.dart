@@ -4,17 +4,18 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 
-class SizeFilterSidebar extends StatelessWidget {
-  const SizeFilterSidebar({
+class MachineFilterSidebar extends StatelessWidget {
+  const MachineFilterSidebar({
     super.key,
     required this.groups,
-    required this.selectedSize,
-    required this.onSizeSelected,
+    required this.selectedMachine,
+    required this.onMachineSelected,
   });
 
+  /// Keys are `item.machineName ?? '—'`.
   final Map<String, List<LabelingItemEntity>> groups;
-  final String? selectedSize;
-  final ValueChanged<String?> onSizeSelected;
+  final String? selectedMachine;
+  final ValueChanged<String?> onMachineSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class SizeFilterSidebar extends StatelessWidget {
             color: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: const Text(
-              'O\'lchamlar',
+              'Mashinalar',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -39,11 +40,11 @@ class SizeFilterSidebar extends StatelessWidget {
               ),
             ),
           ),
-          _SizeTile(
+          _MachineTile(
             title: 'Barchasi',
             subtitle: '$totalItems ta mahsulot',
-            isSelected: selectedSize == null,
-            onTap: () => onSizeSelected(null),
+            isSelected: selectedMachine == null,
+            onTap: () => onMachineSelected(null),
           ),
           const Divider(height: 1),
           Expanded(
@@ -51,29 +52,24 @@ class SizeFilterSidebar extends StatelessWidget {
               padding: EdgeInsets.zero,
               children: (groups.entries.toList()
                     ..sort((a, b) {
-                      // Parse 'W×L' into numeric parts for sorting.
-                      int _dim(String label, int index) {
-                        final parts = label.split('×');
-                        return parts.length > index
-                            ? int.tryParse(parts[index]) ?? 0
-                            : 0;
-                      }
-
-                      final wCmp = _dim(a.key, 0).compareTo(_dim(b.key, 0));
-                      return wCmp != 0
-                          ? wCmp
-                          : _dim(a.key, 1).compareTo(_dim(b.key, 1));
+                      final aId = a.value.isNotEmpty
+                          ? (a.value.first.machineId ?? 0)
+                          : 0;
+                      final bId = b.value.isNotEmpty
+                          ? (b.value.first.machineId ?? 0)
+                          : 0;
+                      return aId.compareTo(bId);
                     }))
                   .map((entry) {
-                final sizeLabel = entry.key;
-                final sizeItems = entry.value;
+                final machineName = entry.key;
+                final machineItems = entry.value;
                 final remaining =
-                    sizeItems.fold(0, (s, i) => s + i.remainingQuantity);
-                return _SizeTile(
-                  title: sizeLabel,
-                  subtitle: '${sizeItems.length} xil • $remaining qoldi',
-                  isSelected: selectedSize == sizeLabel,
-                  onTap: () => onSizeSelected(sizeLabel),
+                    machineItems.fold(0, (s, i) => s + i.remainingQuantity);
+                return _MachineTile(
+                  title: machineName,
+                  subtitle: '${machineItems.length} xil • $remaining qoldi',
+                  isSelected: selectedMachine == machineName,
+                  onTap: () => onMachineSelected(machineName),
                 );
               }).toList(),
             ),
@@ -84,8 +80,8 @@ class SizeFilterSidebar extends StatelessWidget {
   }
 }
 
-class _SizeTile extends StatelessWidget {
-  const _SizeTile({
+class _MachineTile extends StatelessWidget {
+  const _MachineTile({
     required this.title,
     required this.subtitle,
     required this.isSelected,
@@ -117,7 +113,7 @@ class _SizeTile extends StatelessWidget {
           child: Row(
             children: [
               HugeIcon(
-                icon: HugeIcons.strokeRoundedRuler,
+                icon: HugeIcons.strokeRoundedSetup01,
                 size: 20,
                 strokeWidth: 1.5,
                 color: isSelected

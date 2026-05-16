@@ -11,7 +11,7 @@ import '../bloc/scanner_state.dart';
 import '../../domain/entities/scanned_item_entity.dart';
 
 // ── Scanner Configuration ─────────────────────────────────────────────────
-const bool _useBarcodeMode = true; // Set to true for barcode, false for QR
+const bool _useBarcodeMode = false; // Set to true for barcode, false for QR
 const _detectionSpeed = DetectionSpeed.normal;
 
 class ScannerPage extends StatelessWidget {
@@ -57,14 +57,14 @@ class _ScannerViewState extends State<_ScannerView> {
 
     final code = barcode!.rawValue!;
 
-    // Validate format on client side: PB{batchId} PBI{itemId}
-    final regex = RegExp(r'^PB\{\d+\}\s+PBI\{\d+\}$');
+    // Validate format on client side: P{batchId} I{itemId}
+    final regex = RegExp(r'^P\d+\s+I\d+$');
     if (!regex.hasMatch(code)) {
       final messenger = ScaffoldMessenger.of(context);
       messenger.clearSnackBars();
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Noto\'g\'ri QR kod formati. Format: PB{123} PBI{456}'),
+          content: Text('Noto\'g\'ri QR kod formati. Format: P123 I456'),
           backgroundColor: AppColors.error,
           duration: Duration(seconds: 2),
         ),

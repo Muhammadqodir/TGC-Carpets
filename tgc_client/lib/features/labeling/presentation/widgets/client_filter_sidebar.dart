@@ -4,17 +4,18 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 
-class SizeFilterSidebar extends StatelessWidget {
-  const SizeFilterSidebar({
+class ClientFilterSidebar extends StatelessWidget {
+  const ClientFilterSidebar({
     super.key,
     required this.groups,
-    required this.selectedSize,
-    required this.onSizeSelected,
+    required this.selectedClient,
+    required this.onClientSelected,
   });
 
+  /// Keys are `item.clientName ?? '—'`.
   final Map<String, List<LabelingItemEntity>> groups;
-  final String? selectedSize;
-  final ValueChanged<String?> onSizeSelected;
+  final String? selectedClient;
+  final ValueChanged<String?> onClientSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class SizeFilterSidebar extends StatelessWidget {
             color: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: const Text(
-              'O\'lchamlar',
+              'Mijozlar',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -39,41 +40,26 @@ class SizeFilterSidebar extends StatelessWidget {
               ),
             ),
           ),
-          _SizeTile(
+          _ClientTile(
             title: 'Barchasi',
             subtitle: '$totalItems ta mahsulot',
-            isSelected: selectedSize == null,
-            onTap: () => onSizeSelected(null),
+            isSelected: selectedClient == null,
+            onTap: () => onClientSelected(null),
           ),
           const Divider(height: 1),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
-              children: (groups.entries.toList()
-                    ..sort((a, b) {
-                      // Parse 'W×L' into numeric parts for sorting.
-                      int _dim(String label, int index) {
-                        final parts = label.split('×');
-                        return parts.length > index
-                            ? int.tryParse(parts[index]) ?? 0
-                            : 0;
-                      }
-
-                      final wCmp = _dim(a.key, 0).compareTo(_dim(b.key, 0));
-                      return wCmp != 0
-                          ? wCmp
-                          : _dim(a.key, 1).compareTo(_dim(b.key, 1));
-                    }))
-                  .map((entry) {
-                final sizeLabel = entry.key;
-                final sizeItems = entry.value;
+              children: groups.entries.map((entry) {
+                final clientName = entry.key;
+                final clientItems = entry.value;
                 final remaining =
-                    sizeItems.fold(0, (s, i) => s + i.remainingQuantity);
-                return _SizeTile(
-                  title: sizeLabel,
-                  subtitle: '${sizeItems.length} xil • $remaining qoldi',
-                  isSelected: selectedSize == sizeLabel,
-                  onTap: () => onSizeSelected(sizeLabel),
+                    clientItems.fold(0, (s, i) => s + i.remainingQuantity);
+                return _ClientTile(
+                  title: clientName,
+                  subtitle: '${clientItems.length} xil • $remaining qoldi',
+                  isSelected: selectedClient == clientName,
+                  onTap: () => onClientSelected(clientName),
                 );
               }).toList(),
             ),
@@ -84,8 +70,8 @@ class SizeFilterSidebar extends StatelessWidget {
   }
 }
 
-class _SizeTile extends StatelessWidget {
-  const _SizeTile({
+class _ClientTile extends StatelessWidget {
+  const _ClientTile({
     required this.title,
     required this.subtitle,
     required this.isSelected,
@@ -117,7 +103,7 @@ class _SizeTile extends StatelessWidget {
           child: Row(
             children: [
               HugeIcon(
-                icon: HugeIcons.strokeRoundedRuler,
+                icon: HugeIcons.strokeRoundedUser,
                 size: 20,
                 strokeWidth: 1.5,
                 color: isSelected

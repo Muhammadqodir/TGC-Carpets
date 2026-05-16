@@ -4,6 +4,7 @@ class LabelingItemEntity extends Equatable {
   final int id;
   final int batchId;
   final String? batchTitle;
+  final int? machineId;
   final String? machineName;
   final String? clientName;
 
@@ -27,6 +28,7 @@ class LabelingItemEntity extends Equatable {
     required this.id,
     required this.batchId,
     this.batchTitle,
+    this.machineId,
     this.machineName,
     this.clientName,
     required this.plannedQuantity,
@@ -60,6 +62,7 @@ class LabelingItemEntity extends Equatable {
       id: id,
       batchId: batchId,
       batchTitle: batchTitle,
+      machineId: machineId,
       machineName: machineName,
       clientName: clientName,
       plannedQuantity: plannedQuantity,

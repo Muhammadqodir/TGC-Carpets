@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,13 +15,19 @@ import 'package:usb_label_print/usb_label_print.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/services/print_history_service.dart';
-import '../widgets/batch_filter_sidebar.dart';
+import '../widgets/client_filter_sidebar.dart';
+import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
 import '../bloc/labeling_state.dart';
 import 'print_history_page.dart';
+
+// ── Shared preferences keys ─────────────────────────────────────────────────
+const _kPrefLabelSize = 'labeling_label_size';
+const _kPrefDpi = 'labeling_dpi';
+const _kPrefPrinter = 'labeling_printer';
 
 // ── Label size options ───────────────────────────────────────────────────────
 
@@ -107,8 +114,11 @@ class _LabelingViewState extends State<_LabelingView> {
   // ── Tracks previous loaded count to detect when the list empties ──────────
   int _lastItemCount = 0;
 
-  // ── Selected batch filter (null = show all) ───────────────────────────────
-  int? _selectedBatchId;
+  // ── Selected machine filter (null = show all) ──────────────────────────────
+  String? _selectedMachine;
+
+  // ── Selected client filter (null = show all) ─────────────────────────────
+  String? _selectedClient;
 
   // ── Selected size filter (null = show all) ────────────────────────────────
   String? _selectedSize;
@@ -121,16 +131,49 @@ class _LabelingViewState extends State<_LabelingView> {
   void initState() {
     super.initState();
     context.read<LabelingBloc>().add(const LabelingLoadRequested());
-    _loadPrinters();
+    _loadSettings().then((_) => _loadPrinters());
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sizeIndex = prefs.getInt(_kPrefLabelSize);
+    final dpi = prefs.getInt(_kPrefDpi);
+    final printer = prefs.getString(_kPrefPrinter);
+    if (!mounted) return;
+    setState(() {
+      if (sizeIndex != null && sizeIndex < _LabelSize.values.length) {
+        _labelSize = _LabelSize.values[sizeIndex];
+      }
+      if (dpi != null) _dpi = dpi;
+      if (printer != null) _selectedPrinter = printer;
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kPrefLabelSize, _labelSize.index);
+    await prefs.setInt(_kPrefDpi, _dpi);
+    if (_selectedPrinter != null) {
+      await prefs.setString(_kPrefPrinter, _selectedPrinter!);
+    } else {
+      await prefs.remove(_kPrefPrinter);
+    }
   }
 
   Future<void> _loadPrinters() async {
     setState(() => _isLoadingPrinters = true);
     final printers = await _discoveryService.discoverPrinters();
     if (!mounted) return;
+    // Only override the persisted printer if the stored value is no longer
+    // available in the discovered list, or if no printer was ever saved.
     setState(() {
       _printers = printers;
-      _selectedPrinter = printers.isNotEmpty ? printers.first : null;
+      if (printers.isNotEmpty &&
+          (_selectedPrinter == null ||
+              !printers.contains(_selectedPrinter))) {
+        _selectedPrinter = printers.first;
+        _saveSettings();
+      }
       _isLoadingPrinters = false;
     });
   }
@@ -222,9 +265,14 @@ class _LabelingViewState extends State<_LabelingView> {
             if (!mounted) return;
             setState(() {
               _printers = printers;
-              _selectedPrinter = printers.isNotEmpty ? printers.first : null;
+              if (printers.isNotEmpty &&
+                  (_selectedPrinter == null ||
+                      !printers.contains(_selectedPrinter))) {
+                _selectedPrinter = printers.first;
+              }
               _isLoadingPrinters = false;
             });
+            _saveSettings();
             setDialogState(() {});
           }
 
@@ -254,6 +302,7 @@ class _LabelingViewState extends State<_LabelingView> {
                     selected: {_labelSize},
                     onSelectionChanged: (selected) {
                       setState(() => _labelSize = selected.first);
+                      _saveSettings();
                       setDialogState(() {});
                     },
                   ),
@@ -272,6 +321,7 @@ class _LabelingViewState extends State<_LabelingView> {
                     selected: {_dpi},
                     onSelectionChanged: (selected) {
                       setState(() => _dpi = selected.first);
+                      _saveSettings();
                       setDialogState(() {});
                     },
                   ),
@@ -326,6 +376,7 @@ class _LabelingViewState extends State<_LabelingView> {
                                             .toList(),
                                         onChanged: (v) {
                                           setState(() => _selectedPrinter = v);
+                                          _saveSettings();
                                           setDialogState(() {});
                                         },
                                       ),
@@ -607,32 +658,53 @@ class _LabelingViewState extends State<_LabelingView> {
     final printingItems =
         state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
-    // Batch groups reflect the active size filter so the batch sidebar
-    // only shows batches that contain the currently selected size.
-    final batchSourceItems = _selectedSize != null
-        ? items.where((item) => item.sizeLabel == _selectedSize).toList()
-        : items;
-    final batchGroups = <int, List<LabelingItemEntity>>{};
-    for (final item in batchSourceItems) {
-      batchGroups.putIfAbsent(item.batchId, () => []).add(item);
+    // Machine groups reflect the active client + size filters.
+    final machineSourceItems = items.where((item) {
+      if (_selectedClient != null &&
+          (item.clientName ?? '—') != _selectedClient) return false;
+      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
+      return true;
+    }).toList();
+    final machineGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in machineSourceItems) {
+      machineGroups.putIfAbsent(item.machineName ?? '—', () => []).add(item);
     }
 
-    // Size groups reflect the active batch filter so the size sidebar
-    // only shows sizes that exist in the currently selected batch.
-    final sizeSourceItems = _selectedBatchId != null
-        ? items.where((item) => item.batchId == _selectedBatchId).toList()
-        : items;
+    // Client groups reflect the active machine + size filters.
+    final clientSourceItems = items.where((item) {
+      if (_selectedMachine != null &&
+          (item.machineName ?? '—') != _selectedMachine) return false;
+      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
+      return true;
+    }).toList();
+    final clientGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in clientSourceItems) {
+      clientGroups.putIfAbsent(item.clientName ?? '—', () => []).add(item);
+    }
+
+    // Size groups reflect the active machine + client filters.
+    final sizeSourceItems = items.where((item) {
+      if (_selectedMachine != null &&
+          (item.machineName ?? '—') != _selectedMachine) return false;
+      if (_selectedClient != null &&
+          (item.clientName ?? '—') != _selectedClient) return false;
+      return true;
+    }).toList();
     final sizeGroups = <String, List<LabelingItemEntity>>{};
     for (final item in sizeSourceItems) {
-      final sizeLabel = item.sizeLabel;
-      sizeGroups.putIfAbsent(sizeLabel, () => []).add(item);
+      sizeGroups.putIfAbsent(item.sizeLabel, () => []).add(item);
     }
 
-    // Filter by selected batch and size
+    // Filter displayed items by all active filters.
     var displayedItems = items;
-    if (_selectedBatchId != null) {
+    if (_selectedMachine != null) {
       displayedItems = displayedItems
-          .where((item) => item.batchId == _selectedBatchId)
+          .where((item) => (item.machineName ?? '—') == _selectedMachine)
+          .toList();
+    }
+    if (_selectedClient != null) {
+      displayedItems = displayedItems
+          .where((item) => (item.clientName ?? '—') == _selectedClient)
           .toList();
     }
     if (_selectedSize != null) {
@@ -648,10 +720,16 @@ class _LabelingViewState extends State<_LabelingView> {
     return Row(
       children: [
         if (isDesktop)
-          BatchFilterSidebar(
-            groups: batchGroups,
-            selectedBatchId: _selectedBatchId,
-            onBatchSelected: (id) => setState(() => _selectedBatchId = id),
+          MachineFilterSidebar(
+            groups: machineGroups,
+            selectedMachine: _selectedMachine,
+            onMachineSelected: (m) => setState(() => _selectedMachine = m),
+          ),
+        if (isDesktop)
+          ClientFilterSidebar(
+            groups: clientGroups,
+            selectedClient: _selectedClient,
+            onClientSelected: (c) => setState(() => _selectedClient = c),
           ),
         if (isDesktop)
           SizeFilterSidebar(
