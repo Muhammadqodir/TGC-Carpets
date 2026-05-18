@@ -179,7 +179,7 @@ class _OrdersContentState extends State<_OrdersContent> {
               child: BlocBuilder<OrdersBloc, OrdersState>(
                 builder: (context, state) {
                   if (state is OrdersLoading) {
-                    return const OrderTableSkeleton();
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (state is OrdersError) {
                     return Center(

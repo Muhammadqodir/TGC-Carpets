@@ -84,10 +84,12 @@ import '../../features/orders/data/datasources/order_remote_datasource.dart';
 import '../../features/orders/data/repositories/order_repository_impl.dart';
 import '../../features/orders/domain/repositories/order_repository.dart';
 import '../../features/orders/domain/usecases/get_orders_usecase.dart';
+import '../../features/orders/domain/usecases/get_order_usecase.dart';
 import '../../features/orders/domain/usecases/create_order_usecase.dart';
 import '../../features/orders/domain/usecases/update_order_usecase.dart';
 import '../../features/orders/domain/usecases/delete_order_usecase.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
+import '../../features/orders/presentation/bloc/order_detail_cubit.dart';
 import '../../features/orders/presentation/bloc/order_form_bloc.dart';
 
 // Production feature
@@ -353,6 +355,7 @@ Future<void> initDependencies() async {
     () => OrderRepositoryImpl(remoteDataSource: sl<OrderRemoteDataSource>()),
   );
   sl.registerLazySingleton(() => GetOrdersUseCase(sl<OrderRepository>()));
+  sl.registerLazySingleton(() => GetOrderUseCase(sl<OrderRepository>()));
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<OrderRepository>()));
   sl.registerLazySingleton(() => UpdateOrderUseCase(sl<OrderRepository>()));
   sl.registerLazySingleton(() => DeleteOrderUseCase(sl<OrderRepository>()));
@@ -362,6 +365,7 @@ Future<void> initDependencies() async {
       deleteOrderUseCase: sl<DeleteOrderUseCase>(),
     ),
   );
+  sl.registerFactory(() => OrderDetailCubit(sl<GetOrderUseCase>()));
   sl.registerFactory(
     () => OrderFormBloc(
       createOrderUseCase: sl<CreateOrderUseCase>(),

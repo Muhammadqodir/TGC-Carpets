@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
@@ -6,11 +7,13 @@ import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/core/ui/widgets/info_section.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/excel_downloader.dart';
 import '../../domain/entities/order_entity.dart';
 import '../../domain/entities/order_item_entity.dart';
+import '../bloc/order_detail_cubit.dart';
 import '../services/order_excel_exporter.dart';
 import 'args/order_detail_args.dart';
 
@@ -21,67 +24,118 @@ class OrderDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final order = args.order;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text('#${order.id} Buyurtma tafsilotlari'),
-        titleSpacing: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
-        ),
-        actions: [
-          IconButton(
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedXls01,
-              size: 20,
-              strokeWidth: 2,
-              color: Colors.white,
+    return BlocProvider(
+      create: (_) => sl<OrderDetailCubit>()..load(args.order.id),
+      child: _OrderDetailView(initialOrderId: args.order.id),
+    );
+  }
+}
+
+class _OrderDetailView extends StatelessWidget {
+  final int initialOrderId;
+
+  const _OrderDetailView({required this.initialOrderId});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OrderDetailCubit, OrderDetailState>(
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Text('#$initialOrderId Buyurtma tafsilotlari'),
+            titleSpacing: 0,
+            leading: IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
             ),
-            tooltip: "Excelga eksport qilish",
-            onPressed: () async {
-              try {
-                final bytes = OrderExcelExporter().export(order);
-                final date =
-                    '${order.orderDate.day.toString().padLeft(2, '0')}'
-                    '${order.orderDate.month.toString().padLeft(2, '0')}'
-                    '${order.orderDate.year}';
-                await downloadExcel(bytes, 'buyurtma_${order.id}_$date.xlsx');
-              } catch (_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Excel yaratishda xatolik yuz berdi'),
+            actions: [
+              if (state is OrderDetailLoaded) ...[
+                IconButton(
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedXls01,
+                    size: 20,
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                  tooltip: "Excelga eksport qilish",
+                  onPressed: () async {
+                    try {
+                      final bytes = OrderExcelExporter().export(state.order);
+                      final date =
+                          '${state.order.orderDate.day.toString().padLeft(2, '0')}'
+                          '${state.order.orderDate.month.toString().padLeft(2, '0')}'
+                          '${state.order.orderDate.year}';
+                      await downloadExcel(
+                          bytes, 'buyurtma_${state.order.id}_$date.xlsx');
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Excel yaratishda xatolik yuz berdi'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                if (state.order.status == 'pending')
+                  IconButton(
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedEdit01,
+                      size: 20,
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-                  );
-                }
-              }
-            },
+                    tooltip: "Buyurtmani tahrirlash",
+                    onPressed: () async {
+                      final updated = await context.pushNamed(
+                        AppRoutes.editOrderName,
+                        extra: state.order,
+                      );
+                      if (updated == true && context.mounted) {
+                        context
+                            .read<OrderDetailCubit>()
+                            .load(state.order.id);
+                      }
+                    },
+                  ),
+              ],
+              const SizedBox(width: 12),
+            ],
           ),
-          if (order.status == 'pending')
-            IconButton(
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedEdit01,
-                size: 20,
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-              tooltip: "Buyurtmani tahrirlash",
-              onPressed: () async {
-                final updated = await context.pushNamed(
-                  AppRoutes.editOrderName,
-                  extra: order,
-                );
-                if (updated == true && context.mounted) {
-                  context.pop(true);
-                }
-              },
+          body: _buildBody(context, state),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context, OrderDetailState state) {
+    if (state is OrderDetailLoading || state is OrderDetailInitial) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state is OrderDetailError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(state.message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () =>
+                  context.read<OrderDetailCubit>().load(initialOrderId),
+              child: const Text('Qayta urinish'),
             ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: SingleChildScrollView(
+          ],
+        ),
+      );
+    }
+
+    if (state is OrderDetailLoaded) {
+      final order = state.order;
+      return SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: SafeArea(
           child: Column(
@@ -93,8 +147,10 @@ class OrderDetailPage extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }
 
