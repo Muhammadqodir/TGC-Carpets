@@ -6,6 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../orders/domain/entities/order_entity.dart';
 import '../../../orders/domain/entities/order_item_entity.dart';
+import '../../../orders/domain/usecases/get_order_usecase.dart';
 import '../../../orders/domain/usecases/get_orders_usecase.dart';
 
 /// Result returned by [OrderPickerBottomSheet.show].
@@ -79,14 +80,16 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
 
   // ── Step 2 ─────────────────────────────────────────────────────────────────
   OrderEntity? _selectedOrder;
+  bool _isLoadingOrderDetail = false;
+  String? _orderDetailError;
   List<_QualityGroup> _qualityGroups = [];
   _QualityGroup? _activeQuality;
   List<_SizeGroup> _sizeGroups = [];
   _SizeGroup? _activeSizeGroup;
   final Set<int> _selectedItemIds = {};
 
-  bool get _onOrdersStep => _selectedOrder == null;
-  bool get _onQualitiesStep => _selectedOrder != null && _activeQuality == null;
+  bool get _onOrdersStep => _selectedOrder == null && !_isLoadingOrderDetail;
+  bool get _onQualitiesStep => _selectedOrder != null && _activeQuality == null && !_isLoadingOrderDetail && _orderDetailError == null;
   bool get _onSizesStep => _activeQuality != null && _activeSizeGroup == null;
   bool get _onItemsStep => _activeSizeGroup != null;
 
@@ -152,18 +155,37 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
-  void _selectOrder(OrderEntity order) {
-    final visible = order.items
-        .where((i) => (i.remainingQuantity ?? i.quantity) > 0)
-        .toList();
+  Future<void> _selectOrder(OrderEntity order) async {
     setState(() {
       _selectedOrder = order;
-      _qualityGroups = _buildQualityGroups(visible);
+      _isLoadingOrderDetail = true;
+      _orderDetailError = null;
+      _qualityGroups = [];
       _activeQuality = null;
       _sizeGroups = [];
       _activeSizeGroup = null;
       _selectedItemIds.clear();
     });
+
+    final result = await sl<GetOrderUseCase>()(order.id);
+    if (!mounted) return;
+
+    result.fold(
+      (failure) => setState(() {
+        _isLoadingOrderDetail = false;
+        _orderDetailError = failure.toString();
+      }),
+      (fullOrder) {
+        final visible = fullOrder.items
+            .where((i) => (i.remainingQuantity ?? i.quantity) > 0)
+            .toList();
+        setState(() {
+          _selectedOrder = fullOrder;
+          _qualityGroups = _buildQualityGroups(visible);
+          _isLoadingOrderDetail = false;
+        });
+      },
+    );
   }
 
   void _selectQuality(_QualityGroup quality) {
@@ -185,6 +207,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
 
   void _back() {
     setState(() {
+      _orderDetailError = null;
       if (_activeSizeGroup != null) {
         _activeSizeGroup = null;
       } else if (_activeQuality != null) {
@@ -290,6 +313,8 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   // ── Title helpers ──────────────────────────────────────────────────────────
 
   String get _titleText {
+    if (_isLoadingOrderDetail) return 'Buyurtma #${_selectedOrder?.id ?? '...'}';
+    if (_orderDetailError != null) return 'Xatolik';
     if (_onItemsStep) return _activeSizeGroup?.label ?? 'Mahsulotlar';
     if (_onSizesStep) return _activeQuality?.label ?? "O'lchamlar";
     if (_onQualitiesStep) return 'Buyurtma #${_selectedOrder!.id}';
@@ -297,6 +322,8 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   }
 
   String get _subtitleText {
+    if (_isLoadingOrderDetail) return 'Yuklanmoqda...';
+    if (_orderDetailError != null) return 'Buyurtma yuklanmadi';
     if (_onItemsStep) return _activeQuality?.label ?? '';
     if (_onSizesStep) return "O'lchamni tanlang";
     if (_onQualitiesStep) return 'Sifat turini tanlang';
@@ -333,7 +360,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Row(
               children: [
-                if (_onQualitiesStep || _onSizesStep || _onItemsStep)
+                if (_isLoadingOrderDetail || _orderDetailError != null || _onQualitiesStep || _onSizesStep || _onItemsStep)
                   IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, size: 20),
                     onPressed: _back,
@@ -377,7 +404,7 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
           const Divider(height: 1),
 
           // Step indicator
-          if (!_isLoadingOrders && _ordersError == null)
+          if (!_isLoadingOrders && _ordersError == null && !_isLoadingOrderDetail && _orderDetailError == null)
             _StepIndicator(
               currentStep: _onOrdersStep
                   ? 1
@@ -428,6 +455,43 @@ class _OrderPickerBottomSheetState extends State<OrderPickerBottomSheet> {
   }
 
   Widget _buildContent() {
+    // Loading full order details (step 1 → step 2 transition)
+    if (_isLoadingOrderDetail) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    // Error loading order details
+    if (_orderDetailError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Buyurtma yuklanmadi',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.error),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () {
+                  if (_selectedOrder != null) _selectOrder(_selectedOrder!);
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Qayta urinish'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (_onItemsStep) return _buildItemsList();
     if (_onSizesStep) return _buildSizesList();
     if (_onQualitiesStep) return _buildQualitiesList();
