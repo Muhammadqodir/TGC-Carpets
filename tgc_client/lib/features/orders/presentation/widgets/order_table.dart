@@ -53,11 +53,6 @@ class OrderTable extends StatelessWidget {
       alignment: Alignment.centerLeft,
     ),
     AppTableColumn(
-      label: 'Ishlab chiqarish',
-      flex: 2,
-      alignment: Alignment.centerLeft,
-    ),
-    AppTableColumn(
       label: 'Amallar',
       fixedWidth: 150,
       alignment: Alignment.center,
@@ -134,9 +129,6 @@ class OrderTable extends StatelessWidget {
         return _StatusChip(status: order.status);
 
       case 5:
-        return _ProductionProgressCell(order: order);
-
-      case 6:
         return _ActionsCell(
             order: order,
             onViewDetail: onViewDetail,
@@ -170,14 +162,7 @@ class OrderTable extends StatelessWidget {
         );
 
       case 1:
-        return Column(
-          spacing: 4,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _StatusChip(status: order.status),
-            _ProductionProgressCell(order: order),
-          ],
-        );
+        return _StatusChip(status: order.status);
 
       case 2:
         return _ActionsCell(
@@ -322,54 +307,6 @@ class _ActionsCell extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _ProductionProgressCell extends StatelessWidget {
-  final OrderEntity order;
-
-  const _ProductionProgressCell({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = order.totalQuantity;
-    final produced = order.totalProducedQuantity;
-    final progress = order.productionProgress;
-
-    if (total == 0) {
-      return Text('—',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary));
-    }
-
-    final color = progress >= 1.0
-        ? AppColors.success
-        : progress > 0
-            ? AppColors.primaryLight
-            : AppColors.textSecondary;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 6,
-            backgroundColor: AppColors.textSecondary.withAlpha(40),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-        const SizedBox(height: 3),
-        SubBodyText(
-          text:
-              '$produced / $total ta tayor | ${order.totalWarehouseReceivedQuantity} ta omborda',
-        ),
-      ],
     );
   }
 }
