@@ -18,7 +18,7 @@ class OrderController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $orders = Order::with(['user', 'client', 'items.variant.productSize'])
+        $orders = Order::with(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.productionBatchItems.productionBatch', 'items.shipmentItems'])
             ->when($request->filled('status'),    fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id))
             ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))

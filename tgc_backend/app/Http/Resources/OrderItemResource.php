@@ -44,11 +44,10 @@ class OrderItemResource extends JsonResource
             return (int) $this->productionBatchItems->sum('defect_quantity');
         }, 0);
 
-        // Calculate current warehouse stock only in detail context (when productionBatchItems
-        // are loaded). This avoids 2 extra DB queries per item in the list endpoint.
-        $stockAvailable = $this->relationLoaded('productionBatchItems')
-            ? $this->whenLoaded('variant', fn () => $this->getStockForVariant($this->variant->id), 0)
-            : 0;
+        // Calculate current warehouse stock for this variant
+        $stockAvailable = $this->whenLoaded('variant', function () {
+            return $this->getStockForVariant($this->variant->id);
+        }, 0);
 
         return [
             'id'                          => $this->id,
