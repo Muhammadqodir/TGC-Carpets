@@ -29,22 +29,6 @@ const _kPrefLabelSize = 'labeling_label_size';
 const _kPrefDpi = 'labeling_dpi';
 const _kPrefPrinter = 'labeling_printer';
 
-// ── Cached filter result ─────────────────────────────────────────────────────
-
-class _FilterResult {
-  const _FilterResult({
-    this.displayedItems = const [],
-    this.machineGroups = const {},
-    this.clientGroups = const {},
-    this.sizeGroups = const {},
-  });
-
-  final List<LabelingItemEntity> displayedItems;
-  final Map<String, List<LabelingItemEntity>> machineGroups;
-  final Map<String, List<LabelingItemEntity>> clientGroups;
-  final Map<String, List<LabelingItemEntity>> sizeGroups;
-}
-
 // ── Label size options (all LabelConfig presets) ─────────────────────────────
 
 enum _LabelSize {
@@ -150,16 +134,6 @@ class _LabelingViewState extends State<_LabelingView> {
   // ── Selected size filter (null = show all) ────────────────────────────────
   String? _selectedSize;
 
-  // ── Cached filter computation ─────────────────────────────────────────────
-  List<LabelingItemEntity> _cachedItems = const [];
-  String? _cachedMachine;
-  String? _cachedClient;
-  String? _cachedSize;
-  _FilterResult _filterResult = const _FilterResult();
-
-  // ── Pagination ────────────────────────────────────────────────────────────
-  int _currentPage = 0;
-
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
   final _historyService = sl<PrintHistoryService>();
@@ -218,57 +192,6 @@ class _LabelingViewState extends State<_LabelingView> {
       }
       _isLoadingPrinters = false;
     });
-  }
-
-  // ── Filter computation (memoised) ──────────────────────────────────────────
-  // Re-runs only when items list reference or an active filter changes.
-  _FilterResult _computeFiltered(List<LabelingItemEntity> items) {
-    if (identical(items, _cachedItems) &&
-        _selectedMachine == _cachedMachine &&
-        _selectedClient == _cachedClient &&
-        _selectedSize == _cachedSize) {
-      return _filterResult;
-    }
-
-    _cachedItems = items;
-    _cachedMachine = _selectedMachine;
-    _cachedClient = _selectedClient;
-    _cachedSize = _selectedSize;
-
-    final machineGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
-      if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
-      machineGroups.putIfAbsent(item.machineName ?? '—', () => []).add(item);
-    }
-
-    final clientGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
-      if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
-      clientGroups.putIfAbsent(item.clientName ?? '—', () => []).add(item);
-    }
-
-    final sizeGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
-      if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
-      if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
-      sizeGroups.putIfAbsent(item.sizeLabel, () => []).add(item);
-    }
-
-    final displayed = items.where((item) {
-      if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) return false;
-      if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) return false;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
-      return true;
-    }).toList(growable: false);
-
-    return _filterResult = _FilterResult(
-      displayedItems: displayed,
-      machineGroups: machineGroups,
-      clientGroups: clientGroups,
-      sizeGroups: sizeGroups,
-    );
   }
 
   GlobalKey _keyFor(int itemId) =>
@@ -576,15 +499,6 @@ class _LabelingViewState extends State<_LabelingView> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<LabelingBloc, LabelingState>(
-      // Only rebuild the Scaffold/grid when the items list itself changes.
-      // printingItems changes are handled per-card via BlocSelector in
-      // _LabelingCardWrapper — rebuilding the entire grid for them is wasteful.
-      buildWhen: (previous, current) {
-        if (previous is LabelingLoaded && current is LabelingLoaded) {
-          return !identical(previous.items, current.items);
-        }
-        return previous.runtimeType != current.runtimeType;
-      },
       listener: (context, state) {
         if (state is LabelingLoaded) {
           final previousCount = _lastItemCount;
@@ -683,11 +597,8 @@ class _LabelingViewState extends State<_LabelingView> {
                 final qrData = 'P${item.batchId} I${item.id}';
 
                 return Positioned(
-                  // Positioned far off-screen so the label never flashes
-                  // over the UI, but is still painted (Clip.none) so that
-                  // RepaintBoundary.toImage() can capture it.
-                  left: -100000,
-                  top: -100000,
+                  left: 0,
+                  top: 0,
                   child: SizedBox(
                     width: _config.widthPx.toDouble(),
                     height: _config.heightPx.toDouble(),
@@ -814,9 +725,63 @@ class _LabelingViewState extends State<_LabelingView> {
 
     final items =
         state is LabelingLoaded ? state.items : <LabelingItemEntity>[];
+    final printingItems =
+        state is LabelingLoaded ? state.printingItems : <int, bool>{};
 
-    // Cached: only recomputed when items reference or filter values change.
-    final result = _computeFiltered(items);
+    // Machine groups reflect the active client + size filters.
+    final machineSourceItems = items.where((item) {
+      if (_selectedClient != null &&
+          (item.clientName ?? '—') != _selectedClient) return false;
+      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
+      return true;
+    }).toList();
+    final machineGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in machineSourceItems) {
+      machineGroups.putIfAbsent(item.machineName ?? '—', () => []).add(item);
+    }
+
+    // Client groups reflect the active machine + size filters.
+    final clientSourceItems = items.where((item) {
+      if (_selectedMachine != null &&
+          (item.machineName ?? '—') != _selectedMachine) return false;
+      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
+      return true;
+    }).toList();
+    final clientGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in clientSourceItems) {
+      clientGroups.putIfAbsent(item.clientName ?? '—', () => []).add(item);
+    }
+
+    // Size groups reflect the active machine + client filters.
+    final sizeSourceItems = items.where((item) {
+      if (_selectedMachine != null &&
+          (item.machineName ?? '—') != _selectedMachine) return false;
+      if (_selectedClient != null &&
+          (item.clientName ?? '—') != _selectedClient) return false;
+      return true;
+    }).toList();
+    final sizeGroups = <String, List<LabelingItemEntity>>{};
+    for (final item in sizeSourceItems) {
+      sizeGroups.putIfAbsent(item.sizeLabel, () => []).add(item);
+    }
+
+    // Filter displayed items by all active filters.
+    var displayedItems = items;
+    if (_selectedMachine != null) {
+      displayedItems = displayedItems
+          .where((item) => (item.machineName ?? '—') == _selectedMachine)
+          .toList();
+    }
+    if (_selectedClient != null) {
+      displayedItems = displayedItems
+          .where((item) => (item.clientName ?? '—') == _selectedClient)
+          .toList();
+    }
+    if (_selectedSize != null) {
+      displayedItems = displayedItems
+          .where((item) => item.sizeLabel == _selectedSize)
+          .toList();
+    }
 
     final isDesktop = Theme.of(context).platform == TargetPlatform.macOS ||
         Theme.of(context).platform == TargetPlatform.windows ||
@@ -825,244 +790,67 @@ class _LabelingViewState extends State<_LabelingView> {
     return Row(
       children: [
         if (isDesktop)
-          RepaintBoundary(
-            child: MachineFilterSidebar(
-              groups: result.machineGroups,
-              selectedMachine: _selectedMachine,
-              onMachineSelected: (m) => setState(() {
-                _selectedMachine = m;
-                _cachedItems = const [];
-                _currentPage = 0;
-              }),
-            ),
+          MachineFilterSidebar(
+            groups: machineGroups,
+            selectedMachine: _selectedMachine,
+            onMachineSelected: (m) => setState(() => _selectedMachine = m),
           ),
         if (isDesktop)
-          RepaintBoundary(
-            child: ClientFilterSidebar(
-              groups: result.clientGroups,
-              selectedClient: _selectedClient,
-              onClientSelected: (c) => setState(() {
-                _selectedClient = c;
-                _cachedItems = const [];
-                _currentPage = 0;
-              }),
-            ),
+          ClientFilterSidebar(
+            groups: clientGroups,
+            selectedClient: _selectedClient,
+            onClientSelected: (c) => setState(() => _selectedClient = c),
           ),
         if (isDesktop)
-          RepaintBoundary(
-            child: SizeFilterSidebar(
-              groups: result.sizeGroups,
-              selectedSize: _selectedSize,
-              onSizeSelected: (size) => setState(() {
-                _selectedSize = size;
-                _cachedItems = const [];
-                _currentPage = 0;
-              }),
-            ),
+          SizeFilterSidebar(
+            groups: sizeGroups,
+            selectedSize: _selectedSize,
+            onSizeSelected: (size) => setState(() => _selectedSize = size),
           ),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const spacing = 12.0;
-              // 2 rows per page: always fills the screen with exactly 2 rows
-              // of cards regardless of column count.
-              const rowsPerPage = 2;
+          child: SizedBox(
+            height: double.infinity,
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const spacing = 12.0;
+                    final crossAxisCount =
+                        ((constraints.maxWidth + spacing) / (260 + spacing))
+                            .floor()
+                            .clamp(1, 3);
+                    final cardWidth =
+                        (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
+                            crossAxisCount;
 
-              final crossAxisCount =
-                  ((constraints.maxWidth + spacing) / (260 + spacing))
-                      .floor()
-                      .clamp(1, 3);
-              final pageSize = crossAxisCount * rowsPerPage;
-              final totalPages =
-                  ((result.displayedItems.length + pageSize - 1) ~/ pageSize)
-                      .clamp(1, 999999);
-              // clamp so the page never goes out of range after items shrink
-              final safeCurrentPage =
-                  _currentPage.clamp(0, totalPages - 1);
-              final pageItems = result.displayedItems
-                  .skip(safeCurrentPage * pageSize)
-                  .take(pageSize)
-                  .toList(growable: false);
-
-              // Compute card height so the grid exactly fills the available
-              // vertical space (minus the pagination bar when visible).
-              final showPagination = totalPages > 1;
-              const paginationBarHeight = 56.0;
-              const verticalPadding = 24.0; // top 12 + bottom 12
-              final gridAreaHeight = constraints.maxHeight -
-                  (showPagination ? paginationBarHeight : 0.0) -
-                  verticalPadding;
-              // Subtract the GridView's horizontal padding (16 + 16 = 32 px)
-              // so the aspect ratio matches the actual rendered cell width.
-              const gridHPadding = 32.0;
-              final cardWidth =
-                  (constraints.maxWidth -
-                          gridHPadding -
-                          spacing * (crossAxisCount - 1)) /
-                      crossAxisCount;
-              final rowHeight =
-                  (gridAreaHeight - spacing * (rowsPerPage - 1)) /
-                      rowsPerPage;
-              // Clamp ensures the fixed info section (~170 px) always fits;
-              // the image area above it is Expanded and absorbs the rest.
-              final childAspectRatio =
-                  (cardWidth / rowHeight.clamp(200, double.maxFinite))
-                      .clamp(0.3, 2.0);
-
-              return Column(
-                children: [
-                  Expanded(
-                    child: result.displayedItems.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Tanlangan filtrlar bo\'yicha mahsulot topilmadi.',
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: displayedItems.map((item) {
+                        return SizedBox(
+                          key: ValueKey(item.id),
+                          width: cardWidth,
+                          child: RepaintBoundary(
+                            child: _LabelingCard(
+                              item: item,
+                              isPrinting: printingItems[item.id] == true,
+                              isPrintPlatform: _isPrintingPlatform,
+                              onPrint: () => _onPrint(item),
                             ),
-                          )
-                        : GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(
-                                16, 12, 16, 12),
-                            physics:
-                                const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: spacing,
-                              mainAxisSpacing: spacing,
-                              childAspectRatio: childAspectRatio,
-                            ),
-                            itemCount: pageItems.length,
-                            itemBuilder: (context, index) {
-                              final item = pageItems[index];
-                              return RepaintBoundary(
-                                key: ValueKey(item.id),
-                                child: _LabelingCardWrapper(
-                                  item: item,
-                                  isPrintPlatform: _isPrintingPlatform,
-                                  onPrint: () => _onPrint(item),
-                                ),
-                              );
-                            },
                           ),
-                  ),
-                  _PaginationBar(
-                    currentPage: safeCurrentPage,
-                    totalPages: totalPages,
-                    totalItems: result.displayedItems.length,
-                    onPrevious: safeCurrentPage > 0
-                        ? () => setState(
-                            () => _currentPage = safeCurrentPage - 1)
-                        : null,
-                    onNext: safeCurrentPage < totalPages - 1
-                        ? () => setState(
-                            () => _currentPage = safeCurrentPage + 1)
-                        : null,
-                  ),
-                ],
-              );
-            },
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Pagination bar ───────────────────────────────────────────────────────────
-
-class _PaginationBar extends StatelessWidget {
-  const _PaginationBar({
-    required this.currentPage,
-    required this.totalPages,
-    required this.totalItems,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  final int currentPage;
-  final int totalPages;
-  final int totalItems;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    if (totalPages <= 1) return const SizedBox.shrink();
-
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton.outlined(
-            icon: const Icon(Icons.chevron_left_rounded),
-            tooltip: 'Oldingi sahifa',
-            onPressed: onPrevious,
-          ),
-          const SizedBox(width: 20),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${currentPage + 1} / $totalPages',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              Text(
-                '$totalItems ta mahsulot',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(width: 20),
-          IconButton.outlined(
-            icon: const Icon(Icons.chevron_right_rounded),
-            tooltip: 'Keyingi sahifa',
-            onPressed: onNext,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Card wrapper: subscribes only to its own printing state ──────────────────
-// Each card uses BlocSelector so when one item starts/stops printing only
-// that single card rebuilds — not the entire grid.
-
-class _LabelingCardWrapper extends StatelessWidget {
-  const _LabelingCardWrapper({
-    required this.item,
-    required this.isPrintPlatform,
-    required this.onPrint,
-  });
-
-  final LabelingItemEntity item;
-  final bool isPrintPlatform;
-  final VoidCallback onPrint;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocSelector<LabelingBloc, LabelingState, bool>(
-      selector: (state) =>
-          state is LabelingLoaded && state.printingItems[item.id] == true,
-      builder: (context, isPrinting) {
-        return _LabelingCard(
-          item: item,
-          isPrinting: isPrinting,
-          isPrintPlatform: isPrintPlatform,
-          onPrint: onPrint,
-        );
-      },
     );
   }
 }
@@ -1092,39 +880,37 @@ class _LabelingCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Image area: fills all space left after the info section ───
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                item.colorImageUrl != null
+          // ── Big variant image ──────────────────────────────────────────
+          Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: item.colorImageUrl != null
                     ? AppThumbnail(
                         imageUrl: item.colorImageUrl!,
                       )
-                    : const _PlaceholderImage(),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Builder(
-                    builder: (_) {
-                      final parts = [item.clientName, item.machineName]
-                          .whereType<String>()
-                          .toList();
-                      final label = parts.isNotEmpty
-                          ? parts.join(' | ')
-                          : (item.batchTitle ?? 'Batch #${item.batchId}');
-                      return AppBadge(
-                        label: label,
-                        color: AppColors.textPrimary,
-                      );
-                    },
-                  ),
+                    : _PlaceholderImage(),
+              ),
+              Positioned(
+                child: Builder(
+                  builder: (_) {
+                    final parts = [item.clientName, item.machineName]
+                        .whereType<String>()
+                        .toList();
+                    final label = parts.isNotEmpty
+                        ? parts.join(' | ')
+                        : (item.batchTitle ?? 'Batch #${item.batchId}');
+                    return AppBadge(
+                      label: label,
+                      color: AppColors.textPrimary,
+                    );
+                  },
                 ),
-              ],
-            ),
+              )
+            ],
           ),
           // ── Info section ─────────────────────────────────────────────────
           Padding(
@@ -1231,8 +1017,6 @@ class _InfoChips extends StatelessWidget {
 }
 
 class _PlaceholderImage extends StatelessWidget {
-  const _PlaceholderImage();
-
   @override
   Widget build(BuildContext context) {
     return Container(
