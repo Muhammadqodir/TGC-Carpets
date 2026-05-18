@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Requests\Order\UpdateOrderRequest;
+use App\Http\Resources\OrderListResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\OrderService;
@@ -18,7 +19,18 @@ class OrderController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $orders = Order::with(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.productionBatchItems.productionBatch', 'items.shipmentItems'])
+        // Eager-load only the relations needed for the list view:
+        //  - user & client for header columns
+        //  - items.variant.productSize for m² (totalSqm) calculation
+        //  - items.productionBatchItems.productionBatch for production progress
+        // The full variant/product/color/quality tree and stock_available
+        // are intentionally omitted here — they are only needed on the detail page.
+        $orders = Order::with([
+                'user',
+                'client',
+                'items.variant.productSize',
+                'items.productionBatchItems.productionBatch',
+            ])
             ->when($request->filled('status'),    fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id))
             ->when($request->filled('user_id'),   fn ($q) => $q->where('user_id', $request->user_id))
@@ -54,7 +66,7 @@ class OrderController extends Controller
             ->latest()
             ->paginate($request->integer('per_page', 50));
 
-        return OrderResource::collection($orders);
+        return OrderListResource::collection($orders);
     }
 
     public function store(StoreOrderRequest $request): JsonResponse
