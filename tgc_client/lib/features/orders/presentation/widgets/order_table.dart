@@ -17,6 +17,7 @@ class OrderTable extends StatelessWidget {
     this.onDelete,
     this.onViewDetail,
     this.onEdit,
+    this.onCopy,
   });
 
   final List<OrderEntity> orders;
@@ -25,6 +26,7 @@ class OrderTable extends StatelessWidget {
   final void Function(OrderEntity)? onDelete;
   final void Function(OrderEntity)? onViewDetail;
   final void Function(OrderEntity)? onEdit;
+  final void Function(OrderEntity)? onCopy;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(
@@ -59,7 +61,7 @@ class OrderTable extends StatelessWidget {
     ),
     AppTableColumn(
       label: 'Amallar',
-      fixedWidth: 150,
+      fixedWidth: 210,
       alignment: Alignment.center,
     ),
   ];
@@ -141,7 +143,8 @@ class OrderTable extends StatelessWidget {
             order: order,
             onViewDetail: onViewDetail,
             onEdit: onEdit,
-            onDelete: onDelete);
+            onDelete: onDelete,
+            onCopy: onCopy);
 
       default:
         return const SizedBox.shrink();
@@ -185,6 +188,7 @@ class OrderTable extends StatelessWidget {
           onViewDetail: onViewDetail,
           onEdit: onEdit,
           onDelete: onDelete,
+          onCopy: onCopy,
           compact: true,
         );
 
@@ -203,6 +207,7 @@ class _ActionsCell extends StatelessWidget {
     this.onViewDetail,
     this.onEdit,
     this.onDelete,
+    this.onCopy,
     this.compact = false,
   });
 
@@ -210,6 +215,7 @@ class _ActionsCell extends StatelessWidget {
   final void Function(OrderEntity)? onViewDetail;
   final void Function(OrderEntity)? onEdit;
   final void Function(OrderEntity)? onDelete;
+  final void Function(OrderEntity)? onCopy;
   final bool compact;
 
   @override
@@ -223,6 +229,9 @@ class _ActionsCell extends StatelessWidget {
           switch (value) {
             case 'view':
               onViewDetail?.call(order);
+              break;
+            case 'copy':
+              onCopy?.call(order);
               break;
             case 'edit':
               onEdit?.call(order);
@@ -246,6 +255,22 @@ class _ActionsCell extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   const Text('Tafsilotlar'),
+                ],
+              ),
+            ),
+          if (onCopy != null)
+            PopupMenuItem(
+              value: 'copy',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedCopy01,
+                    color: AppColors.textSecondary,
+                    size: 18,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Nusxa olish'),
                 ],
               ),
             ),
@@ -298,6 +323,16 @@ class _ActionsCell extends StatelessWidget {
               onPressed: () => onViewDetail!(order),
               tooltip: 'Tafsilotlar',
             ),
+          if (onCopy != null) ...[            const SizedBox(width: 4),
+            IconButton(
+              icon: HugeIcon(
+                icon: HugeIcons.strokeRoundedCopy01,
+                color: AppColors.textSecondary,
+              ),
+              onPressed: () => onCopy!(order),
+              tooltip: 'Nusxa olish',
+            ),
+          ],
           if (order.status == 'pending' && onEdit != null) ...[
             const SizedBox(width: 4),
             IconButton(

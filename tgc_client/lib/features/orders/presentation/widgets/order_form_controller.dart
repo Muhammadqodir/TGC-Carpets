@@ -403,6 +403,13 @@ class OrderFormController extends ChangeNotifier {
           }
         }
       }
+    } else {
+      // No explicit matrix snapshot — seed from prefill data on the rows.
+      // This handles the copy-order flow where rows carry prefilledSizeId /
+      // prefilledSizeLength / prefilledSizeWidth / initialQuantity but no
+      // separate matrix_size_columns blob was saved.
+      seedMatrixFromPrefill();
+      print('DEBUG: restoreFrom - seeded matrix from prefill, columns=${matrixSizeColumns.length}');
     }
 
     _ensureEmptyRowAtEnd();

@@ -8,6 +8,7 @@ import '../../../products/data/models/product_size_model.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
+import '../../domain/entities/order_item_entity.dart';
 import '../../presentation/widgets/order_form_controller.dart';
 import '../../presentation/widgets/order_item_row.dart';
 
@@ -80,6 +81,7 @@ class OrderFormDraftService {
   /// Returns [DraftData] if a draft was found, null otherwise.
   Future<DraftData?> restore() async {
     final raw = _prefs.getString(_key);
+    print('DEBUG restore(): raw=${raw == null ? "null" : "found (${raw.length} bytes)"}');
     if (raw == null) return null;
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -159,8 +161,9 @@ class OrderFormDraftService {
         matrixSizeColumns: matrixSizeColumns,
         matrixQuantities: matrixQuantities,
       );
-    } catch (_) {
-      // Corrupted / incompatible draft — silently ignore
+    } catch (e, st) {
+      // Corrupted / incompatible draft — clear and report
+      print('DEBUG restore() EXCEPTION: $e\n$st');
       await clear();
       return null;
     }
@@ -168,6 +171,55 @@ class OrderFormDraftService {
 
   /// Removes the stored draft (call after successful submission).
   Future<void> clear() => _prefs.remove(_key);
+
+  /// Clears any existing draft and saves a new one pre-populated from
+  /// [items] (copy-order flow). Client data is intentionally omitted so
+  /// the user can pick a new client on the add-order page.
+  Future<void> saveFromOrderItems(List<OrderItemEntity> items) async {
+    print('DEBUG saveFromOrderItems: saving ${items.length} items');
+
+    // Sort by product type → product name → color name.
+    // Size columns are sorted separately by seedMatrixFromPrefill → _sortMatrixSizeColumns.
+    final sortedItems = List<OrderItemEntity>.from(items)
+      ..sort((a, b) {
+        final typeCmp =
+            (a.productTypeName ?? '').compareTo(b.productTypeName ?? '');
+        if (typeCmp != 0) return typeCmp;
+        final nameCmp = a.productName.compareTo(b.productName);
+        if (nameCmp != 0) return nameCmp;
+        return (a.colorName ?? '').compareTo(b.colorName ?? '');
+      });
+
+    for (int i = 0; i < sortedItems.length; i++) {
+      print('DEBUG saveFromOrderItems: item[$i] productName=${sortedItems[i].productName}, productColorId=${sortedItems[i].productColorId}, qty=${sortedItems[i].quantity}');
+    }
+    final payload = {
+      'notes': '',
+      'order_date': null,
+      'client_id': null,
+      'client_shop_name': null,
+      'is_matrix_mode': false,
+      'items': sortedItems
+          .map((item) => {
+                'product': null,
+                'color': null,
+                'size': null,
+                'quantity': '${item.quantity}',
+                'prefilled_color_id': item.productColorId,
+                'prefilled_size_id': item.productSizeId,
+                'prefilled_product_name': item.productName,
+                'prefilled_color_name': item.colorName,
+                'prefilled_color_image_url': item.colorImageUrl,
+                'prefilled_quality_name': item.qualityName,
+                'prefilled_product_type_name': item.productTypeName,
+                'prefilled_product_type_id': item.productTypeId,
+                'prefilled_size_length': item.sizeLength,
+                'prefilled_size_width': item.sizeWidth,
+              })
+          .toList(),
+    };
+    await _prefs.setString(_key, jsonEncode(payload));
+  }
 
   // ── Serialisation helpers ─────────────────────────────────────────────────
 

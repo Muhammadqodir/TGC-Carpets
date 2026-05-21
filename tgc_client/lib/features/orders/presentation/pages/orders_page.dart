@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../clients/domain/entities/client_entity.dart';
+import '../../data/services/order_form_draft_service.dart';
 import '../../domain/entities/order_entity.dart';
+import '../../domain/usecases/get_order_usecase.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_event.dart';
 import '../bloc/orders_state.dart';
@@ -106,13 +109,101 @@ class _OrdersContentState extends State<_OrdersContent> {
   }
 
   Future<void> _navigateToEdit(OrderEntity order) async {
-    final updated = await context.pushNamed(
-      AppRoutes.editOrderName,
-      extra: order,
+    // The list API returns lightweight items (no product/color/type data).
+    // Fetch the full order detail so EditOrderFormController can seed the matrix.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Yuklanmoqda...'),
+          ],
+        ),
+      ),
     );
-    if (updated == true && mounted) {
-      context.read<OrdersBloc>().add(const OrdersRefreshRequested());
-    }
+
+    final result = await sl<GetOrderUseCase>().call(order.id);
+
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
+
+    result.fold(
+      (failure) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Buyurtmani yuklashda xatolik: ${failure.toString()}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      (fullOrder) async {
+        final updated = await context.pushNamed(
+          AppRoutes.editOrderName,
+          extra: fullOrder,
+        );
+        if (updated == true && mounted) {
+          context.read<OrdersBloc>().add(const OrdersRefreshRequested());
+        }
+      },
+    );
+  }
+
+  Future<void> _copyOrder(OrderEntity order) async {
+    // Show a non-dismissible progress dialog while fetching the full order.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Nusxa tayyorlanmoqda...'),
+          ],
+        ),
+      ),
+    );
+
+    print('DEBUG _copyOrder: fetching full order id=${order.id}');
+    final result = await sl<GetOrderUseCase>().call(order.id);
+
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
+
+    result.fold(
+      (failure) {
+        print('DEBUG _copyOrder: fetch failed: $failure');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Buyurtmani yuklashda xatolik: ${failure.toString()}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      (fullOrder) async {
+        print('DEBUG _copyOrder: fullOrder.items.length=${fullOrder.items.length}');
+        for (int i = 0; i < fullOrder.items.length; i++) {
+          final item = fullOrder.items[i];
+          print('DEBUG _copyOrder: item[$i] productName=${item.productName}, productColorId=${item.productColorId}, sizeId=${item.productSizeId}, qty=${item.quantity}');
+        }
+        final prefs = await SharedPreferences.getInstance();
+        final draftService = OrderFormDraftService(prefs);
+        await draftService.clear();
+        print('DEBUG _copyOrder: draft cleared');
+        await draftService.saveFromOrderItems(fullOrder.items);
+        print('DEBUG _copyOrder: draft saved, navigating to addOrder');
+        if (!mounted) return;
+        final created = await context.pushNamed(AppRoutes.addOrderName);
+        if (created == true && mounted) {
+          context.read<OrdersBloc>().add(const OrdersRefreshRequested());
+        }
+      },
+    );
   }
 
   @override
@@ -210,6 +301,7 @@ class _OrdersContentState extends State<_OrdersContent> {
                       onViewDetail: _navigateToDetail,
                       onEdit: _navigateToEdit,
                       onDelete: _deleteOrder,
+                      onCopy: _copyOrder,
                     );
                   }
                   return const SizedBox.shrink();
