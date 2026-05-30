@@ -18,7 +18,7 @@ class GetOrdersUseCase {
     String? dateTo,
     bool forProduction = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) =>
       _repository.getOrders(
         status: status,

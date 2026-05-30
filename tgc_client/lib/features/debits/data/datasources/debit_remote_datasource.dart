@@ -12,7 +12,7 @@ abstract class DebitRemoteDataSource {
     String? region,
     bool hasBalance = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<({
@@ -33,7 +33,7 @@ class DebitRemoteDataSourceImpl implements DebitRemoteDataSource {
     String? region,
     bool hasBalance = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final response = await _dio.get(

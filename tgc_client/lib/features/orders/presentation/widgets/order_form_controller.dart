@@ -340,6 +340,35 @@ class OrderFormController extends ChangeNotifier {
     _matrixQty.remove(key);
   }
 
+  // ── Form clear ────────────────────────────────────────────────────────────
+
+  /// Resets the form to its initial blank state: clears all items, notes, and
+  /// matrix data, then re-adds the empty sentinel row.
+  void clearForm() {
+    // Dispose & clear items
+    for (final row in items) {
+      row.quantityCtrl.removeListener(notifyListeners);
+      row.dispose();
+    }
+    items.clear();
+
+    // Clear notes
+    notesCtrl.removeListener(notifyListeners);
+    notesCtrl.clear();
+    notesCtrl.addListener(notifyListeners);
+
+    // Clear matrix data
+    for (final c in _matrixCellCtrls.values) {
+      c.dispose();
+    }
+    _matrixCellCtrls.clear();
+    _matrixQty.clear();
+    matrixSizeColumns.clear();
+
+    _ensureEmptyRowAtEnd();
+    notifyListeners();
+  }
+
   // ── Draft restoration ──────────────────────────────────────────────────────
 
   /// Restores the form state from a draft. Clears current items and replaces

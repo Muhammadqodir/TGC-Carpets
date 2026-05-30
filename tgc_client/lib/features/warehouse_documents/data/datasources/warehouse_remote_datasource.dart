@@ -12,7 +12,7 @@ abstract class WarehouseRemoteDataSource {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<WarehouseDocumentModel> getDocument(int id);
@@ -38,7 +38,7 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final queryParams = <String, dynamic>{

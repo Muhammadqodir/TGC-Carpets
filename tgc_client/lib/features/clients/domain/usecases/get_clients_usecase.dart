@@ -13,7 +13,7 @@ class GetClientsUseCase {
     String? search,
     String? region,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) =>
       _repository.getClients(
         search: search,

@@ -11,7 +11,7 @@ abstract class ProductsStockRemoteDataSource {
     int? productSizeId,
     String? search,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 }
 
@@ -27,7 +27,7 @@ class ProductsStockRemoteDataSourceImpl implements ProductsStockRemoteDataSource
     int? productSizeId,
     String? search,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final response = await _dio.get(

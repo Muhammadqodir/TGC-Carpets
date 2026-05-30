@@ -11,7 +11,7 @@ abstract class ShipmentRepository {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<Either<Failure, ShipmentEntity>> createShipment({

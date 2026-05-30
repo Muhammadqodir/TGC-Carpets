@@ -9,7 +9,7 @@ abstract class ClientRemoteDataSource {
     String? search,
     String? region,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<ClientModel> getClient(int id);
@@ -46,7 +46,7 @@ class ClientRemoteDataSourceImpl implements ClientRemoteDataSource {
     String? search,
     String? region,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final queryParams = <String, dynamic>{

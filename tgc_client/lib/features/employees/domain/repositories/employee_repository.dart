@@ -8,7 +8,7 @@ abstract class EmployeeRepository {
     String? search,
     String? role,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<Either<Failure, EmployeeEntity>> createEmployee({

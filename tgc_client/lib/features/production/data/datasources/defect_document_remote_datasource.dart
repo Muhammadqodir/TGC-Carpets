@@ -9,7 +9,7 @@ abstract class DefectDocumentRemoteDataSource {
   Future<PaginatedResponse<DefectDocumentEntity>> getDefectDocuments(
     int batchId, {
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<DefectDocumentEntity> createDefectDocument({
@@ -33,7 +33,7 @@ class DefectDocumentRemoteDataSourceImpl
   Future<PaginatedResponse<DefectDocumentEntity>> getDefectDocuments(
     int batchId, {
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final response = await _dio.get(

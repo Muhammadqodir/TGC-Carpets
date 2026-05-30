@@ -15,7 +15,7 @@ abstract class ProductionBatchRemoteDataSource {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
     bool excludeWarehouseReceived = false,
   });
 
@@ -65,7 +65,7 @@ class ProductionBatchRemoteDataSourceImpl
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
     bool excludeWarehouseReceived = false,
   }) async {
     try {

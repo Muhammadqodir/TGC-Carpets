@@ -12,7 +12,7 @@ abstract class ShipmentRemoteDataSource {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<ShipmentModel> createShipment({
@@ -46,7 +46,7 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final queryParams = <String, dynamic>{

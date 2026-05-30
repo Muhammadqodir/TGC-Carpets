@@ -10,6 +10,6 @@ abstract class ProductsStockRepository {
     int? productSizeId,
     String? search,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 }

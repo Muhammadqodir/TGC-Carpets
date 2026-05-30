@@ -14,7 +14,7 @@ abstract class OrderRemoteDataSource {
     String? dateTo,
     bool forProduction = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<OrderModel> getOrder(int id);
@@ -54,7 +54,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     String? dateTo,
     bool forProduction = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final queryParams = <String, dynamic>{

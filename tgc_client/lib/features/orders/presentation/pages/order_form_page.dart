@@ -322,6 +322,45 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
   String get _formattedDate =>
       '${_orderDate.day.toString().padLeft(2, '0')}.${_orderDate.month.toString().padLeft(2, '0')}.${_orderDate.year}';
 
+  Future<void> _clearForm() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Formani tozalash'),
+        content: const Text(
+            'Barcha kiritilgan ma\'lumotlar o\'chib ketadi. Davom etasizmi?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('Tozalash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _newClient = null;
+      _draftClientId = null;
+      _draftClientShopName = null;
+      _orderDate = DateTime.now();
+    });
+    widget.controller.clearForm();
+
+    if (_draftService != null) {
+      await _draftService!.clear();
+    }
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<OrderFormBloc, OrderFormState>(
@@ -373,6 +412,16 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                 onPressed: () => context.pop(),
               ),
               actions: [
+                if (!_isEditMode)
+                  IconButton(
+                    tooltip: 'Formani tozalash',
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedClean,
+                      size: 18,
+                      strokeWidth: 2,
+                    ),
+                    onPressed: _clearForm,
+                  ),
                 BlocBuilder<OrderFormBloc, OrderFormState>(
                   builder: (context, state) {
                     if (state is OrderFormSubmitting) {

@@ -8,7 +8,7 @@ abstract class ClientRepository {
     String? search,
     String? region,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<Either<Failure, ClientEntity>> getClient(int id);

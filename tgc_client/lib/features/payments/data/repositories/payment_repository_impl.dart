@@ -19,7 +19,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     String? dateFrom,
     String? dateTo,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final result = await remoteDataSource.getPayments(

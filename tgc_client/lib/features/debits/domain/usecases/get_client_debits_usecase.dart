@@ -15,7 +15,7 @@ class GetClientDebitsUseCase {
     String? region,
     bool hasBalance = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) =>
       _repository.getClientDebits(
         search: search,

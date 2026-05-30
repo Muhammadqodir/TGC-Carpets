@@ -11,7 +11,7 @@ abstract class DebitRepository {
     String? region,
     bool hasBalance = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<Either<Failure, DebitLedgerSummary>> getClientDebitLedger(int clientId);

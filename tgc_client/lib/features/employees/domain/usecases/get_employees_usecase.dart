@@ -12,7 +12,7 @@ class GetEmployeesUseCase {
     String? search,
     String? role,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) =>
       _repository.getEmployees(search: search, role: role, page: page, perPage: perPage);
 }

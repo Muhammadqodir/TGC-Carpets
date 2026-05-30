@@ -9,7 +9,7 @@ abstract class EmployeeRemoteDataSource {
     String? search,
     String? role,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<EmployeeModel> createEmployee({
@@ -41,7 +41,7 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
     String? search,
     String? role,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   }) async {
     try {
       final response = await _dio.get(

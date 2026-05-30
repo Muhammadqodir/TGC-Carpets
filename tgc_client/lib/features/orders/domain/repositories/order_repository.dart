@@ -13,7 +13,7 @@ abstract class OrderRepository {
     String? dateTo,
     bool forProduction = false,
     int page = 1,
-    int perPage = 20,
+    int perPage = 30,
   });
 
   Future<Either<Failure, OrderEntity>> getOrder(int id);
