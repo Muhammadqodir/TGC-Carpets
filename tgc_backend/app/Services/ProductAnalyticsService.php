@@ -71,13 +71,12 @@ class ProductAnalyticsService
 
         $rows = $this->baseQuery($from, $to)
             ->selectRaw(
-                "DATE_FORMAT(orders.order_date, ?) as period_label,
+                "DATE_FORMAT(orders.order_date, '{$dateFormat}') as period_label,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity",
-                [$dateFormat]
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity"
             )
-            ->groupByRaw("DATE_FORMAT(orders.order_date, ?)", [$dateFormat])
-            ->orderByRaw("DATE_FORMAT(orders.order_date, ?)", [$dateFormat])
+            ->groupByRaw("DATE_FORMAT(orders.order_date, '{$dateFormat}')")
+            ->orderByRaw("DATE_FORMAT(orders.order_date, '{$dateFormat}')")
             ->get();
 
         return $rows->map(fn ($r) => [
