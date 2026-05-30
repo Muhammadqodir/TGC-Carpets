@@ -81,24 +81,24 @@ class PrintLabel7050Arab extends StatelessWidget {
                   children: [
                     SizedBox(height: pad),
                     _SpecRow(
-                      label: 'Quality',
+                      label: 'Quality\nالجودة',
                       value: quality ?? '—',
                       fontSize: specFontSize,
                     ),
                     _SpecRow(
-                      label: 'Design',
+                      label: 'Design\nالتصميم',
                       value: productName ?? '—',
                       fontSize: specFontSize,
                       isBold: true,
                     ),
                     _SpecRow(
-                      label: 'Size',
+                      label: 'Size\nالحجم',
                       value: sizeLabel ?? '—',
                       fontSize: specFontSize,
                       isBold: true,
                     ),
                     _SpecRow(
-                      label: 'Color',
+                      label: 'Color\nاللون',
                       value: color ?? '—',
                       fontSize: specFontSize,
                     ),
@@ -112,14 +112,14 @@ class PrintLabel7050Arab extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SizedBox(
-                        height: h * 0.25,
+                        height: h * 0.27,
                         child: BarcodeWidget(
                           data: barcodeValue,
                           barcode: Barcode.code128(),
                           drawText: true,
                           textPadding: h * 0.018,
                           style: TextStyle(
-                            fontSize: h * 0.055,
+                            fontSize: h * 0.04,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -193,14 +193,15 @@ class _SpecRow extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           SizedBox(
-            width: fontSize * 2.4,
+            width: fontSize * 2,
             child: Text(
               label,
-              maxLines: 1,
+              textAlign: TextAlign.start,
+              maxLines: 2,
               overflow: TextOverflow.visible,
               style: TextStyle(
-                fontSize: fontSize * 0.65,
-                height: 1.1,
+                fontSize: fontSize * 0.5,
+                height: 1,
               ),
             ),
           ),

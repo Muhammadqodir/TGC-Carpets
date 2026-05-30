@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/product_quality_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
 import '../bloc/import_products_bloc.dart';
 import '../bloc/import_products_event.dart';
 import '../bloc/import_products_state.dart';
@@ -134,8 +135,10 @@ class _ImportProductsView extends StatelessWidget {
             }
 
             final qualities = _qualitiesFrom(state);
+            final productTypes = _productTypesFrom(state);
             final entries = _entriesFrom(state);
             final selectedQualityId = _qualityIdFrom(state);
+            final selectedProductTypeId = _productTypeIdFrom(state);
             final isSubmitting = state is ImportProductsSubmitting;
 
             return Column(
@@ -147,7 +150,7 @@ class _ImportProductsView extends StatelessWidget {
 
                 // ── Quality selector ──────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: DropdownButtonFormField<int>(
                     decoration: const InputDecoration(labelText: 'Sifat'),
                     value: selectedQualityId,
@@ -169,6 +172,29 @@ class _ImportProductsView extends StatelessWidget {
                             .read<ImportProductsBloc>()
                             .add(ImportProductsQualityChanged(v)),
                     hint: const Text('Sifat tanlang (ixtiyoriy)'),
+                  ),
+                ),
+
+                // ── Type selector ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Tur'),
+                    value: selectedProductTypeId,
+                    items: productTypes
+                        .map(
+                          (t) => DropdownMenuItem<int>(
+                            value: t.id,
+                            child: Text(t.type),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: isSubmitting
+                        ? null
+                        : (v) => context
+                            .read<ImportProductsBloc>()
+                            .add(ImportProductsTypeChanged(v)),
+                    hint: const Text('Tur tanlang (ixtiyoriy)'),
                   ),
                 ),
 
@@ -276,6 +302,14 @@ class _ImportProductsView extends StatelessWidget {
         _ => const [],
       };
 
+  List<ProductTypeEntity> _productTypesFrom(ImportProductsState s) =>
+      switch (s) {
+        ImportProductsReady r => r.productTypes,
+        ImportProductsSubmitting r => r.productTypes,
+        ImportProductsFailure r => r.productTypes,
+        _ => const [],
+      };
+
   List<ParsedImportEntry> _entriesFrom(ImportProductsState s) => switch (s) {
         ImportProductsReady r => r.entries,
         ImportProductsSubmitting r => r.entries,
@@ -287,6 +321,13 @@ class _ImportProductsView extends StatelessWidget {
         ImportProductsReady r => r.selectedQualityId,
         ImportProductsSubmitting r => r.selectedQualityId,
         ImportProductsFailure r => r.selectedQualityId,
+        _ => null,
+      };
+
+  int? _productTypeIdFrom(ImportProductsState s) => switch (s) {
+        ImportProductsReady r => r.selectedProductTypeId,
+        ImportProductsSubmitting r => r.selectedProductTypeId,
+        ImportProductsFailure r => r.selectedProductTypeId,
         _ => null,
       };
 }

@@ -7,10 +7,12 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
 import '../../domain/usecases/create_product_color_usecase.dart';
 import '../../domain/usecases/create_product_usecase.dart';
 import '../../domain/usecases/get_colors_usecase.dart';
 import '../../domain/usecases/get_product_qualities_usecase.dart';
+import '../../domain/usecases/get_product_types_usecase.dart';
 import '../../domain/usecases/get_products_usecase.dart';
 import 'import_products_event.dart';
 import 'import_products_state.dart';
@@ -18,6 +20,7 @@ import 'import_products_state.dart';
 class ImportProductsBloc
     extends Bloc<ImportProductsEvent, ImportProductsState> {
   final GetProductQualitiesUseCase getProductQualitiesUseCase;
+  final GetProductTypesUseCase getProductTypesUseCase;
   final GetColorsUseCase getColorsUseCase;
   final GetProductsUseCase getProductsUseCase;
   final CreateProductUseCase createProductUseCase;
@@ -25,6 +28,7 @@ class ImportProductsBloc
 
   ImportProductsBloc({
     required this.getProductQualitiesUseCase,
+    required this.getProductTypesUseCase,
     required this.getColorsUseCase,
     required this.getProductsUseCase,
     required this.createProductUseCase,
@@ -34,6 +38,7 @@ class ImportProductsBloc
     on<ImportProductsEntriesAdded>(_onEntriesAdded);
     on<ImportProductsItemRemoved>(_onItemRemoved);
     on<ImportProductsQualityChanged>(_onQualityChanged);
+    on<ImportProductsTypeChanged>(_onTypeChanged);
     on<ImportProductsSubmitted>(_onSubmitted);
   }
 
@@ -47,6 +52,7 @@ class ImportProductsBloc
 
     final results = await Future.wait([
       getProductQualitiesUseCase(),
+      getProductTypesUseCase(),
       getColorsUseCase(),
     ]);
 
@@ -54,12 +60,20 @@ class ImportProductsBloc
       (_) => <ProductQualityEntity>[],
       (v) => v as List<ProductQualityEntity>,
     );
-    final colors = results[1].fold(
+    final productTypes = results[1].fold(
+      (_) => <ProductTypeEntity>[],
+      (v) => v as List<ProductTypeEntity>,
+    );
+    final colors = results[2].fold(
       (_) => <ColorEntity>[],
       (v) => v as List<ColorEntity>,
     );
 
-    emit(ImportProductsReady(qualities: qualities, colors: colors));
+    emit(ImportProductsReady(
+      qualities: qualities,
+      productTypes: productTypes,
+      colors: colors,
+    ));
   }
 
   void _onEntriesAdded(
@@ -79,9 +93,11 @@ class ImportProductsBloc
 
     emit(ImportProductsReady(
       qualities: current.qualities,
+      productTypes: current.productTypes,
       colors: current.colors,
       entries: deduped,
       selectedQualityId: current.selectedQualityId,
+      selectedProductTypeId: current.selectedProductTypeId,
     ));
   }
 
@@ -97,9 +113,11 @@ class ImportProductsBloc
 
     emit(ImportProductsReady(
       qualities: current.qualities,
+      productTypes: current.productTypes,
       colors: current.colors,
       entries: updated,
       selectedQualityId: current.selectedQualityId,
+      selectedProductTypeId: current.selectedProductTypeId,
     ));
   }
 
@@ -112,9 +130,28 @@ class ImportProductsBloc
 
     emit(ImportProductsReady(
       qualities: current.qualities,
+      productTypes: current.productTypes,
       colors: current.colors,
       entries: current.entries,
       selectedQualityId: event.qualityId,
+      selectedProductTypeId: current.selectedProductTypeId,
+    ));
+  }
+
+  void _onTypeChanged(
+    ImportProductsTypeChanged event,
+    Emitter<ImportProductsState> emit,
+  ) {
+    final current = _currentReady();
+    if (current == null) return;
+
+    emit(ImportProductsReady(
+      qualities: current.qualities,
+      productTypes: current.productTypes,
+      colors: current.colors,
+      entries: current.entries,
+      selectedQualityId: current.selectedQualityId,
+      selectedProductTypeId: event.typeId,
     ));
   }
 
@@ -129,9 +166,11 @@ class ImportProductsBloc
 
     emit(ImportProductsSubmitting(
       qualities: current.qualities,
+      productTypes: current.productTypes,
       colors: current.colors,
       entries: current.entries,
       selectedQualityId: current.selectedQualityId,
+      selectedProductTypeId: current.selectedProductTypeId,
       progress: 0,
       total: totalItems,
     ));
@@ -147,9 +186,11 @@ class ImportProductsBloc
       emit(ImportProductsFailure(
         'Mahsulotlar ro\'yxatini yuklashda xato yuz berdi.',
         qualities: current.qualities,
+        productTypes: current.productTypes,
         colors: current.colors,
         entries: current.entries,
         selectedQualityId: current.selectedQualityId,
+        selectedProductTypeId: current.selectedProductTypeId,
       ));
       return;
     }
@@ -199,6 +240,7 @@ class ImportProductsBloc
       } else {
         final result = await createProductUseCase(
           name: originalName,
+          productTypeId: current.selectedProductTypeId,
           productQualityId: current.selectedQualityId,
           unit: 'piece',
         );
@@ -207,9 +249,11 @@ class ImportProductsBloc
           processed += colorEntries.length;
           emit(ImportProductsSubmitting(
             qualities: current.qualities,
+            productTypes: current.productTypes,
             colors: current.colors,
             entries: current.entries,
             selectedQualityId: current.selectedQualityId,
+            selectedProductTypeId: current.selectedProductTypeId,
             progress: processed,
             total: totalItems,
           ));
@@ -236,9 +280,11 @@ class ImportProductsBloc
           processed++;
           emit(ImportProductsSubmitting(
             qualities: current.qualities,
+            productTypes: current.productTypes,
             colors: current.colors,
             entries: current.entries,
             selectedQualityId: current.selectedQualityId,
+            selectedProductTypeId: current.selectedProductTypeId,
             progress: processed,
             total: totalItems,
           ));
@@ -252,9 +298,11 @@ class ImportProductsBloc
           processed++;
           emit(ImportProductsSubmitting(
             qualities: current.qualities,
+            productTypes: current.productTypes,
             colors: current.colors,
             entries: current.entries,
             selectedQualityId: current.selectedQualityId,
+            selectedProductTypeId: current.selectedProductTypeId,
             progress: processed,
             total: totalItems,
           ));
@@ -288,9 +336,11 @@ class ImportProductsBloc
         processed++;
         emit(ImportProductsSubmitting(
           qualities: current.qualities,
+          productTypes: current.productTypes,
           colors: current.colors,
           entries: current.entries,
           selectedQualityId: current.selectedQualityId,
+          selectedProductTypeId: current.selectedProductTypeId,
           progress: processed,
           total: totalItems,
         ));
@@ -368,9 +418,11 @@ class ImportProductsBloc
     if (s is ImportProductsFailure) {
       return ImportProductsReady(
         qualities: s.qualities,
+        productTypes: s.productTypes,
         colors: s.colors,
         entries: s.entries,
         selectedQualityId: s.selectedQualityId,
+        selectedProductTypeId: s.selectedProductTypeId,
       );
     }
     return null;

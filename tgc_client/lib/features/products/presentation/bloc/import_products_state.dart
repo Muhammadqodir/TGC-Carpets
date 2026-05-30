@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
+import '../../domain/entities/product_type_entity.dart';
 
 /// A single row parsed from an image filename.
 class ParsedImportEntry extends Equatable {
@@ -41,26 +42,33 @@ class ImportProductsLoading extends ImportProductsState {
 
 class ImportProductsReady extends ImportProductsState {
   final List<ProductQualityEntity> qualities;
+  final List<ProductTypeEntity> productTypes;
   final List<ColorEntity> colors;
   final List<ParsedImportEntry> entries;
   final int? selectedQualityId;
+  final int? selectedProductTypeId;
 
   const ImportProductsReady({
     required this.qualities,
+    required this.productTypes,
     required this.colors,
     this.entries = const [],
     this.selectedQualityId,
+    this.selectedProductTypeId,
   });
 
   @override
-  List<Object?> get props => [qualities, colors, entries, selectedQualityId];
+  List<Object?> get props =>
+      [qualities, productTypes, colors, entries, selectedQualityId, selectedProductTypeId];
 }
 
 class ImportProductsSubmitting extends ImportProductsState {
   final List<ProductQualityEntity> qualities;
+  final List<ProductTypeEntity> productTypes;
   final List<ColorEntity> colors;
   final List<ParsedImportEntry> entries;
   final int? selectedQualityId;
+  final int? selectedProductTypeId;
 
   /// Number of entries already processed (for progress display).
   final int progress;
@@ -70,9 +78,11 @@ class ImportProductsSubmitting extends ImportProductsState {
 
   const ImportProductsSubmitting({
     required this.qualities,
+    required this.productTypes,
     required this.colors,
     required this.entries,
     this.selectedQualityId,
+    this.selectedProductTypeId,
     this.progress = 0,
     this.total = 0,
   });
@@ -81,8 +91,16 @@ class ImportProductsSubmitting extends ImportProductsState {
       total == 0 ? 0.0 : (progress / total).clamp(0.0, 1.0);
 
   @override
-  List<Object?> get props =>
-      [qualities, colors, entries, selectedQualityId, progress, total];
+  List<Object?> get props => [
+        qualities,
+        productTypes,
+        colors,
+        entries,
+        selectedQualityId,
+        selectedProductTypeId,
+        progress,
+        total,
+      ];
 }
 
 class ImportProductsSuccess extends ImportProductsState {
@@ -103,24 +121,30 @@ class ImportProductsSuccess extends ImportProductsState {
 class ImportProductsFailure extends ImportProductsState {
   final String message;
   final List<ProductQualityEntity> qualities;
+  final List<ProductTypeEntity> productTypes;
   final List<ColorEntity> colors;
   final List<ParsedImportEntry> entries;
   final int? selectedQualityId;
+  final int? selectedProductTypeId;
 
   const ImportProductsFailure(
     this.message, {
     required this.qualities,
+    required this.productTypes,
     required this.colors,
     required this.entries,
     this.selectedQualityId,
+    this.selectedProductTypeId,
   });
 
   @override
   List<Object?> get props => [
         message,
         qualities,
+        productTypes,
         colors,
         entries,
         selectedQualityId,
+        selectedProductTypeId,
       ];
 }

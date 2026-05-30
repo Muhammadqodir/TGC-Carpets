@@ -299,6 +299,7 @@ Future<void> initDependencies() async {
   sl.registerFactory(
     () => ImportProductsBloc(
       getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
+      getProductTypesUseCase: sl<GetProductTypesUseCase>(),
       getColorsUseCase: sl<GetColorsUseCase>(),
       getProductsUseCase: sl<GetProductsUseCase>(),
       createProductUseCase: sl<CreateProductUseCase>(),

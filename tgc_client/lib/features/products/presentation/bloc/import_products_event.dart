@@ -44,6 +44,16 @@ class ImportProductsQualityChanged extends ImportProductsEvent {
   List<Object?> get props => [qualityId];
 }
 
+/// Updates the type selection for all new products.
+class ImportProductsTypeChanged extends ImportProductsEvent {
+  final int? typeId;
+
+  const ImportProductsTypeChanged(this.typeId);
+
+  @override
+  List<Object?> get props => [typeId];
+}
+
 /// Triggers the import: creates products / product-colors as needed.
 class ImportProductsSubmitted extends ImportProductsEvent {
   const ImportProductsSubmitted();

@@ -113,14 +113,14 @@ class PrintLabel7050 extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SizedBox(
-                        height: h * 0.25,
+                        height: h * 0.27,
                         child: BarcodeWidget(
                           data: barcodeValue,
                           barcode: Barcode.code128(),
                           drawText: true,
                           textPadding: h * 0.018,
                           style: TextStyle(
-                            fontSize: h * 0.055,
+                            fontSize: h * 0.045,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
