@@ -80,8 +80,7 @@ class _OrderDetailView extends StatelessWidget {
                     }
                   },
                 ),
-                if (state.order.status == 'pending')
-                  IconButton(
+                IconButton(
                     icon: const HugeIcon(
                       icon: HugeIcons.strokeRoundedEdit01,
                       size: 20,
@@ -89,17 +88,7 @@ class _OrderDetailView extends StatelessWidget {
                       color: Colors.white,
                     ),
                     tooltip: "Buyurtmani tahrirlash",
-                    onPressed: () async {
-                      final updated = await context.pushNamed(
-                        AppRoutes.editOrderName,
-                        extra: state.order,
-                      );
-                      if (updated == true && context.mounted) {
-                        context
-                            .read<OrderDetailCubit>()
-                            .load(state.order.id);
-                      }
-                    },
+                    onPressed: () => _onEditTapped(context, state.order),
                   ),
               ],
               const SizedBox(width: 12),
@@ -109,6 +98,41 @@ class _OrderDetailView extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _onEditTapped(BuildContext context, OrderEntity order) async {
+    if (order.status != 'pending') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Buyurtmani tahrirlash'),
+          content: Text(
+            'Bu buyurtma "${order.statusLabel}" holatida. '
+            'Tahrirlash ishlab chiqarish yoki yuk xati ma\'lumotlariga ta\'sir qilishi mumkin. '
+            'Davom etasizmi?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Bekor qilish'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Tahrirlash'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
+
+    final updated = await context.pushNamed(
+      AppRoutes.editOrderName,
+      extra: order,
+    );
+    if (updated == true && context.mounted) {
+      context.read<OrderDetailCubit>().load(order.id);
+    }
   }
 
   Widget _buildBody(BuildContext context, OrderDetailState state) {

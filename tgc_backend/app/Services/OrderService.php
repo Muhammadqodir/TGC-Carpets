@@ -54,6 +54,14 @@ class OrderService
             ], fn ($v) => $v !== null));
 
             if (! empty($data['items'])) {
+                // Guard: shipment_items references order_items with restrictOnDelete.
+                // Deleting shipped line items would violate the FK constraint.
+                if ($order->items()->whereHas('shipmentItems')->exists()) {
+                    throw new \DomainException(
+                        'Buyurtma qatorlari yuk xatiga kiritilgan. Mahsulot ro\'yxatini o\'zgartirib bo\'lmaydi.'
+                    );
+                }
+
                 $order->items()->delete();
                 $this->syncItems($order, $data['items']);
             }

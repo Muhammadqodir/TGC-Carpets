@@ -109,6 +109,32 @@ class _OrdersContentState extends State<_OrdersContent> {
   }
 
   Future<void> _navigateToEdit(OrderEntity order) async {
+    // Warn before editing orders that are beyond the initial pending state.
+    if (order.status != 'pending') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Buyurtmani tahrirlash'),
+          content: Text(
+            'Bu buyurtma "${order.statusLabel}" holatida. '
+            'Tahrirlash ishlab chiqarish yoki yuk xati ma\'lumotlariga ta\'sir qilishi mumkin. '
+            'Davom etasizmi?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Bekor qilish'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Tahrirlash'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
     // The list API returns lightweight items (no product/color/type data).
     // Fetch the full order detail so EditOrderFormController can seed the matrix.
     showDialog<void>(

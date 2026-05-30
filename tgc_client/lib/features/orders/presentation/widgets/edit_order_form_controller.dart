@@ -10,7 +10,17 @@ import 'order_item_row.dart';
 class EditOrderFormController extends OrderFormController {
   EditOrderFormController({required List<OrderItemEntity> initialItems})
       : super(
-          initialRows: initialItems
+          initialRows: (List<OrderItemEntity>.from(initialItems)
+                ..sort((a, b) {
+                  final typeCmp =
+                      (a.productTypeId ?? 0).compareTo(b.productTypeId ?? 0);
+                  if (typeCmp != 0) return typeCmp;
+                  final widthCmp =
+                      (a.sizeWidth ?? 0).compareTo(b.sizeWidth ?? 0);
+                  return widthCmp != 0
+                      ? widthCmp
+                      : (a.sizeLength ?? 0).compareTo(b.sizeLength ?? 0);
+                }))
               .map(
                 (item) => OrderItemRow(
                   prefilledColorId: item.productColorId,

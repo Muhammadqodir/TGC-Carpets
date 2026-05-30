@@ -274,7 +274,7 @@ class _ActionsCell extends StatelessWidget {
                 ],
               ),
             ),
-          if (order.status == 'pending' && onEdit != null)
+          if (onEdit != null)
             PopupMenuItem(
               value: 'edit',
               child: Row(
@@ -333,7 +333,7 @@ class _ActionsCell extends StatelessWidget {
               tooltip: 'Nusxa olish',
             ),
           ],
-          if (order.status == 'pending' && onEdit != null) ...[
+          if (onEdit != null) ...[
             const SizedBox(width: 4),
             IconButton(
               icon: HugeIcon(

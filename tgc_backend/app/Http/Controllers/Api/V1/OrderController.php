@@ -87,9 +87,13 @@ class OrderController extends Controller
 
     public function update(UpdateOrderRequest $request, Order $order): JsonResponse
     {
-        $updated = $this->service->update($order, $request->validated());
+        try {
+            $updated = $this->service->update($order, $request->validated());
 
-        return response()->json(['data' => new OrderResource($updated)]);
+            return response()->json(['data' => new OrderResource($updated)]);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     public function destroy(Order $order): JsonResponse
