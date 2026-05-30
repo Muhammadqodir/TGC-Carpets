@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:printing/printing.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 import 'package:tgc_client/core/ui/widgets/info_section.dart';
@@ -15,6 +16,7 @@ import '../../domain/entities/order_entity.dart';
 import '../../domain/entities/order_item_entity.dart';
 import '../bloc/order_detail_cubit.dart';
 import '../services/order_excel_exporter.dart';
+import '../services/order_pdf_exporter.dart';
 import 'args/order_detail_args.dart';
 
 class OrderDetailPage extends StatelessWidget {
@@ -51,6 +53,16 @@ class _OrderDetailView extends StatelessWidget {
             ),
             actions: [
               if (state is OrderDetailLoaded) ...[
+                IconButton(
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedPdf01,
+                    size: 20,
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                  tooltip: "PDF ko'rinishi",
+                  onPressed: () => _onPdfTapped(context, state.order),
+                ),
                 IconButton(
                   icon: const HugeIcon(
                     icon: HugeIcons.strokeRoundedXls01,
@@ -97,6 +109,53 @@ class _OrderDetailView extends StatelessWidget {
           body: _buildBody(context, state),
         );
       },
+    );
+  }
+
+  Future<void> _onPdfTapped(BuildContext context, OrderEntity order) async {
+    final date = '${order.orderDate.day.toString().padLeft(2, '0')}'
+        '${order.orderDate.month.toString().padLeft(2, '0')}'
+        '${order.orderDate.year}';
+    final fileName = 'buyurtma_${order.id}_$date.pdf';
+
+    await showDialog<void>(
+      context: context,
+      useSafeArea: false,
+      builder: (ctx) => Dialog.fullscreen(
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Text('#${order.id} Buyurtma – PDF'),
+            titleSpacing: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+          body: PdfPreview(
+            canChangePageFormat: false,
+            canChangeOrientation: false,
+            canDebug: false,
+            pdfFileName: fileName,
+            loadingWidget: const Center(child: CircularProgressIndicator()),
+            onError: (_, error) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const SizedBox(height: 12),
+                  Text(
+                    'PDF yaratishda xatolik: $error',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            build: (_) => OrderPdfExporter().export(order),
+          ),
+        ),
+      ),
     );
   }
 
