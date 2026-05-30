@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/product_analytics_entity.dart';
@@ -352,14 +353,9 @@ class _ColorChip extends StatelessWidget {
 
     Widget thumbnail;
     if (c.imageUrl != null) {
-      thumbnail = ClipOval(
-        child: Image.network(
-          c.imageUrl!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _swatchCircle(swatchOf(c.name), size),
-        ),
+      thumbnail = AppThumbnail(
+        imageUrl: c.imageUrl!,
+        size: 30,
       );
     } else {
       thumbnail = _swatchCircle(swatchOf(c.name), size);
