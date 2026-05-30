@@ -18,6 +18,7 @@ class AnalyticsPeriodSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       color: AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
@@ -146,6 +147,8 @@ class _PresetChip extends StatelessWidget {
       selected: isSelected,
       onSelected: (_) => onTap(),
       selectedColor: AppColors.primary,
+      checkmarkColor: Colors.white,
+      showCheckmark: false,
       labelStyle: TextStyle(
         color: isSelected ? Colors.white : AppColors.textPrimary,
         fontSize: 13,

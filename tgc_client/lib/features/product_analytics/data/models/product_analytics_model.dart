@@ -1,5 +1,29 @@
 import '../../domain/entities/product_analytics_entity.dart';
 
+class TopProductItemModel extends TopProductItem {
+  const TopProductItemModel({
+    required super.id,
+    required super.name,
+    required super.typeName,
+    required super.qualityName,
+    required super.ordersCount,
+    required super.totalQuantity,
+    required super.percentage,
+  });
+
+  factory TopProductItemModel.fromJson(Map<String, dynamic> json) {
+    return TopProductItemModel(
+      id:            json['id'] as int?,
+      name:          json['name'] as String? ?? '',
+      typeName:      json['type_name'] as String? ?? '',
+      qualityName:   json['quality_name'] as String? ?? '',
+      ordersCount:   json['orders_count'] as int? ?? 0,
+      totalQuantity: json['total_quantity'] as int? ?? 0,
+      percentage:    (json['percentage'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
 class AnalyticsDimensionItemModel extends AnalyticsDimensionItem {
   const AnalyticsDimensionItemModel({
     required super.id,
@@ -61,6 +85,7 @@ class ProductAnalyticsModel extends ProductAnalyticsEntity {
     required super.byColor,
     required super.bySize,
     required super.byQuality,
+    required super.topProducts,
   });
 
   factory ProductAnalyticsModel.fromJson(Map<String, dynamic> json) {
@@ -83,10 +108,13 @@ class ProductAnalyticsModel extends ProductAnalyticsEntity {
       trend: (json['trend'] as List<dynamic>? ?? [])
           .map((e) => AnalyticsTrendPointModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      byType:    parseDimension('by_type'),
-      byColor:   parseDimension('by_color'),
-      bySize:    parseDimension('by_size'),
-      byQuality: parseDimension('by_quality'),
+      byType:       parseDimension('by_type'),
+      byColor:      parseDimension('by_color'),
+      bySize:       parseDimension('by_size'),
+      byQuality:    parseDimension('by_quality'),
+      topProducts: (json['top_products'] as List<dynamic>? ?? [])
+          .map((e) => TopProductItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

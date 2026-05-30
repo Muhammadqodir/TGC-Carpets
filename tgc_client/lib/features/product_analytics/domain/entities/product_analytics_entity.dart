@@ -34,6 +34,30 @@ class AnalyticsTrendPoint extends Equatable {
   List<Object?> get props => [label, ordersCount, totalQuantity];
 }
 
+class TopProductItem extends Equatable {
+  final int? id;
+  final String name;
+  final String typeName;
+  final String qualityName;
+  final int ordersCount;
+  final int totalQuantity;
+  final double percentage;
+
+  const TopProductItem({
+    required this.id,
+    required this.name,
+    required this.typeName,
+    required this.qualityName,
+    required this.ordersCount,
+    required this.totalQuantity,
+    required this.percentage,
+  });
+
+  @override
+  List<Object?> get props =>
+      [id, name, typeName, qualityName, ordersCount, totalQuantity, percentage];
+}
+
 class AnalyticsSummary extends Equatable {
   final int totalOrders;
   final int totalItems;
@@ -57,6 +81,7 @@ class ProductAnalyticsEntity extends Equatable {
   final List<AnalyticsDimensionItem> byColor;
   final List<AnalyticsDimensionItem> bySize;
   final List<AnalyticsDimensionItem> byQuality;
+  final List<TopProductItem> topProducts;
 
   const ProductAnalyticsEntity({
     required this.periodFrom,
@@ -68,6 +93,7 @@ class ProductAnalyticsEntity extends Equatable {
     required this.byColor,
     required this.bySize,
     required this.byQuality,
+    required this.topProducts,
   });
 
   @override
@@ -81,5 +107,6 @@ class ProductAnalyticsEntity extends Equatable {
         byColor,
         bySize,
         byQuality,
+        topProducts,
       ];
 }

@@ -10,6 +10,7 @@ import '../bloc/product_analytics_state.dart';
 import '../widgets/analytics_dimension_section.dart';
 import '../widgets/analytics_period_selector.dart';
 import '../widgets/analytics_summary_cards.dart';
+import '../widgets/analytics_top_products_section.dart';
 import '../widgets/analytics_trend_chart.dart';
 
 class ProductAnalyticsPage extends StatelessWidget {
@@ -203,6 +204,12 @@ class _AnalyticsContent extends StatelessWidget {
             _TwoColumnGrid(sections: sections)
           else
             _SingleColumn(sections: sections),
+
+          // Top products table
+          if (data.topProducts.isNotEmpty) ...[            
+            const SizedBox(height: 12),
+            AnalyticsTopProductsSection(items: data.topProducts),
+          ],
         ],
       ),
     );

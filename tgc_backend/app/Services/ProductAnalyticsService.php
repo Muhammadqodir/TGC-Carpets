@@ -21,12 +21,13 @@ class ProductAnalyticsService
 
         return Cache::remember($cacheKey, $ttl, function () use ($from, $to, $trendBy): array {
             return [
-                'summary'    => $this->querySummary($from, $to),
-                'trend'      => $this->queryTrend($from, $to, $trendBy),
-                'by_type'    => $this->queryByType($from, $to),
-                'by_color'   => $this->queryByColor($from, $to),
-                'by_size'    => $this->queryBySize($from, $to),
-                'by_quality' => $this->queryByQuality($from, $to),
+                'summary'      => $this->querySummary($from, $to),
+                'trend'        => $this->queryTrend($from, $to, $trendBy),
+                'by_type'      => $this->queryByType($from, $to),
+                'by_color'     => $this->queryByColor($from, $to),
+                'by_size'      => $this->queryBySize($from, $to),
+                'by_quality'   => $this->queryByQuality($from, $to),
+                'top_products' => $this->queryTopProducts($from, $to),
             ];
         });
     }
@@ -170,6 +171,40 @@ class ProductAnalyticsService
             ->get();
 
         return $this->appendPercentage($rows, $total);
+    }
+
+    private function queryTopProducts(string $from, string $to): array
+    {
+        $total = $this->totalItems($from, $to);
+
+        $rows = $this->baseQuery($from, $to)
+            ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
+            ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
+            ->selectRaw(
+                "products.id,
+                 products.name,
+                 COALESCE(product_types.type, 'Noma\'lum') as type_name,
+                 COALESCE(product_qualities.quality_name, 'Noma\'lum') as quality_name,
+                 COUNT(DISTINCT orders.id) as orders_count,
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity"
+            )
+            ->groupBy('products.id', 'products.name', 'product_types.type', 'product_qualities.quality_name')
+            ->orderByRaw('SUM(order_items.quantity) DESC')
+            ->limit(50)
+            ->get();
+
+        return $rows->map(function ($r) use ($total): array {
+            $qty = (int) $r->total_quantity;
+            return [
+                'id'             => $r->id,
+                'name'           => $r->name,
+                'type_name'      => $r->type_name,
+                'quality_name'   => $r->quality_name,
+                'orders_count'   => (int) $r->orders_count,
+                'total_quantity' => $qty,
+                'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
+            ];
+        })->all();
     }
 
     // ─── Utilities ────────────────────────────────────────────────────────────
