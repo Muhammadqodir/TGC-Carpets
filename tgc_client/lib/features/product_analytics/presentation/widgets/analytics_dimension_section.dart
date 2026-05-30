@@ -280,85 +280,83 @@ class _ListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      itemCount: items.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: AppColors.divider),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: accentColor.withAlpha(25),
-                      borderRadius: BorderRadius.circular(6),
+    return Column(
+      children: [
+        for (int index = 0; index < items.length; index++) ...[
+          if (index > 0)
+            const Divider(height: 1, color: AppColors.divider),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: accentColor.withAlpha(25),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: accentColor,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: Center(
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Text(
-                        '${index + 1}',
+                        items[index].name,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${items[index].totalQuantity} dona',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 44,
+                      child: Text(
+                        '${items[index].percentage}%',
+                        textAlign: TextAlign.end,
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: accentColor,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${item.totalQuantity} dona',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 44,
-                    child: Text(
-                      '${item.percentage}%',
-                      textAlign: TextAlign.end,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: accentColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: item.percentage / 100,
-                  backgroundColor: accentColor.withAlpha(20),
-                  valueColor: AlwaysStoppedAnimation(accentColor),
-                  minHeight: 4,
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: items[index].percentage / 100,
+                    backgroundColor: accentColor.withAlpha(20),
+                    valueColor: AlwaysStoppedAnimation(accentColor),
+                    minHeight: 4,
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ],
     );
   }
 }
