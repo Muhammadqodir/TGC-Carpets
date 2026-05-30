@@ -114,6 +114,15 @@ class _ProductsViewState extends State<_ProductsView> {
           ),
           actions: [
             IconButton(
+              onPressed: () => context.pushNamed(AppRoutes.productAnalyticsName),
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedChartAnalysis,
+                size: 20,
+                strokeWidth: 2.5,
+              ),
+              tooltip: 'Tahlil',
+            ),
+            IconButton(
               onPressed: () async {
                 final imported = await context.pushNamed<bool>(
                   AppRoutes.importProductsName,

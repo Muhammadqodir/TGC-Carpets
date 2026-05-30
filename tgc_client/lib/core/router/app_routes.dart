@@ -19,6 +19,9 @@ class AppRoutes {
   static const String importProducts = '/products/import';
   static const String importProductsName = 'importProducts';
 
+  static const String productAnalytics = '/products/analytics';
+  static const String productAnalyticsName = 'productAnalytics';
+
   static const String clients = '/clients';
   static const String clientsName = 'clients';
 

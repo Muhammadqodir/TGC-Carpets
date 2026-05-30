@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ShipmentController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
+use App\Http\Controllers\Api\V1\ProductAnalyticsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -57,6 +58,9 @@ Route::prefix('v1')->group(function (): void {
 
         // Dashboard statistics
         Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+
+        // Product Analytics
+        Route::get('analytics/products', [ProductAnalyticsController::class, 'index'])->name('analytics.products');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);

@@ -188,6 +188,13 @@ import '../../features/app_updates/domain/repositories/app_update_repository.dar
 import '../../features/app_updates/domain/usecases/check_for_update_usecase.dart';
 import '../../features/app_updates/presentation/bloc/app_update_bloc.dart';
 
+// Product Analytics feature
+import '../../features/product_analytics/data/datasources/product_analytics_remote_datasource.dart';
+import '../../features/product_analytics/data/repositories/product_analytics_repository_impl.dart';
+import '../../features/product_analytics/domain/repositories/product_analytics_repository.dart';
+import '../../features/product_analytics/domain/usecases/get_product_analytics_usecase.dart';
+import '../../features/product_analytics/presentation/bloc/product_analytics_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
@@ -675,6 +682,22 @@ Future<void> initDependencies() async {
     () => AppUpdateBloc(
       checkForUpdateUseCase: sl<CheckForUpdateUseCase>(),
       dio: sl<Dio>(),
+    ),
+  );
+
+  // ─── Product Analytics Feature ────────────────────────────────────────────
+  sl.registerLazySingleton<ProductAnalyticsRemoteDataSource>(
+    () => ProductAnalyticsRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ProductAnalyticsRepository>(
+    () => ProductAnalyticsRepositoryImpl(sl<ProductAnalyticsRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetProductAnalyticsUseCase(sl<ProductAnalyticsRepository>()),
+  );
+  sl.registerFactory(
+    () => ProductAnalyticsBloc(
+      getAnalyticsUseCase: sl<GetProductAnalyticsUseCase>(),
     ),
   );
 }

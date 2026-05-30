@@ -48,6 +48,7 @@ import '../../features/debits/presentation/pages/client_debit_detail_page.dart';
 import '../../features/raw_materials/presentation/pages/raw_materials_page.dart';
 import '../../features/raw_materials/presentation/pages/add_raw_material_page.dart';
 import '../../features/raw_materials/presentation/pages/raw_material_batch_movement_page.dart';
+import '../../features/product_analytics/presentation/pages/product_analytics_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -101,6 +102,11 @@ class AppRouter {
             path: AppRoutes.importProducts,
             name: AppRoutes.importProductsName,
             builder: (context, state) => const ImportProductsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.productAnalytics,
+            name: AppRoutes.productAnalyticsName,
+            builder: (context, state) => const ProductAnalyticsPage(),
           ),
           GoRoute(
             path: AppRoutes.clients,
