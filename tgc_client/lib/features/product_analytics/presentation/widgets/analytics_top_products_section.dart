@@ -17,9 +17,9 @@ class AnalyticsTopProductsSection extends StatefulWidget {
 
 class _AnalyticsTopProductsSectionState
     extends State<AnalyticsTopProductsSection> {
-  _FilterBy _filterBy = _FilterBy.type;
+  _FilterBy _filterBy   = _FilterBy.type;
+  String _selectedLabel = 'Barchasi';
 
-  // Unique label values for the selected dimension
   List<String> get _labels {
     final values = widget.items
         .map((e) => _filterBy == _FilterBy.type ? e.typeName : e.qualityName)
@@ -29,20 +29,22 @@ class _AnalyticsTopProductsSectionState
     return ['Barchasi', ...values];
   }
 
-  String _selectedLabel = 'Barchasi';
-
+  /// Top 10 for the current filter selection.
   List<TopProductItem> get _filtered {
-    if (_selectedLabel == 'Barchasi') return widget.items;
-    return widget.items.where((e) {
-      final val = _filterBy == _FilterBy.type ? e.typeName : e.qualityName;
-      return val == _selectedLabel;
-    }).toList();
+    final all = _selectedLabel == 'Barchasi'
+        ? widget.items
+        : widget.items.where((e) {
+            final val =
+                _filterBy == _FilterBy.type ? e.typeName : e.qualityName;
+            return val == _selectedLabel;
+          }).toList();
+    return all.take(10).toList();
   }
 
   void _onFilterByChanged(_FilterBy? val) {
     if (val == null) return;
     setState(() {
-      _filterBy = val;
+      _filterBy      = val;
       _selectedLabel = 'Barchasi';
     });
   }
@@ -68,21 +70,20 @@ class _AnalyticsTopProductsSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row ────────────────────────────────────────────────
+          // ── Header ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 8),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Top mahsulotlar',
+                    'Top mahsulotlar (10)',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
                   ),
                 ),
-                // Dimension toggle
                 _DimensionToggle(
                   value: _filterBy,
                   onChanged: _onFilterByChanged,
@@ -91,9 +92,9 @@ class _AnalyticsTopProductsSectionState
             ),
           ),
 
-          // ── Filter label dropdown ────────────────────────────────────
+          // ── Filter dropdown ───────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: _LabelDropdown(
               labels: _labels,
               selected: _selectedLabel,
@@ -105,31 +106,28 @@ class _AnalyticsTopProductsSectionState
 
           const Divider(height: 1, color: AppColors.divider),
 
-          // ── Product list ──────────────────────────────────────────────
+          // ── Product tiles ─────────────────────────────────────────────
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: filtered.length,
             separatorBuilder: (_, __) =>
                 const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (context, index) {
-              final item = filtered[index];
-              return _ProductRow(
-                rank:       index + 1,
-                item:       item,
-                filterBy:   _filterBy,
-              );
-            },
+            itemBuilder: (context, index) => _ProductTile(
+              rank:     index + 1,
+              item:     filtered[index],
+              filterBy: _filterBy,
+            ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 }
 
-// ── Dimension toggle (Tur / Sifat) ────────────────────────────────────────────
+// ── Dimension toggle ──────────────────────────────────────────────────────────
 
 class _DimensionToggle extends StatelessWidget {
   final _FilterBy value;
@@ -156,7 +154,7 @@ class _DimensionToggle extends StatelessWidget {
   }
 }
 
-// ── Label filter dropdown ──────────────────────────────────────────────────────
+// ── Label filter dropdown ─────────────────────────────────────────────────────
 
 class _LabelDropdown extends StatelessWidget {
   final List<String> labels;
@@ -188,12 +186,10 @@ class _LabelDropdown extends StatelessWidget {
               ),
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
           items: labels
-              .map(
-                (l) => DropdownMenuItem(
-                  value: l,
-                  child: Text(l, overflow: TextOverflow.ellipsis),
-                ),
-              )
+              .map((l) => DropdownMenuItem(
+                    value: l,
+                    child: Text(l, overflow: TextOverflow.ellipsis),
+                  ))
               .toList(),
           onChanged: onChanged,
         ),
@@ -202,14 +198,14 @@ class _LabelDropdown extends StatelessWidget {
   }
 }
 
-// ── Single product row ────────────────────────────────────────────────────────
+// ── Expandable product tile ───────────────────────────────────────────────────
 
-class _ProductRow extends StatelessWidget {
+class _ProductTile extends StatelessWidget {
   final int rank;
   final TopProductItem item;
   final _FilterBy filterBy;
 
-  const _ProductRow({
+  const _ProductTile({
     required this.rank,
     required this.item,
     required this.filterBy,
@@ -219,68 +215,204 @@ class _ProductRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final badge =
         filterBy == _FilterBy.type ? item.typeName : item.qualityName;
+    final hasDetails = item.colors.isNotEmpty || item.sizes.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          // Rank
-          SizedBox(
-            width: 28,
-            child: Text(
-              '$rank',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: rank <= 3
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    fontWeight:
-                        rank <= 3 ? FontWeight.w700 : FontWeight.normal,
-                  ),
+    return Theme(
+      // Remove default ExpansionTile dividers
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        childrenPadding: EdgeInsets.zero,
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        trailing: hasDetails
+            ? null
+            : const SizedBox.shrink(),
+        title: Row(
+          children: [
+            // Rank
+            SizedBox(
+              width: 28,
+              child: Text(
+                '$rank',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: rank <= 3
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: rank <= 3
+                          ? FontWeight.w700
+                          : FontWeight.normal,
+                    ),
+              ),
             ),
-          ),
-          // Name + badge
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Name + badge
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  _Badge(label: badge),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Quantity + %
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  item.name,
+                  '${item.totalQuantity}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
                       ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                _Badge(label: badge),
+                Text(
+                  '${item.percentage}%',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
               ],
             ),
+          ],
+        ),
+        children: [
+          if (item.colors.isNotEmpty)
+            _ColorBreakdown(colors: item.colors),
+          if (item.sizes.isNotEmpty)
+            _SizeBreakdown(sizes: item.sizes),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Color breakdown ───────────────────────────────────────────────────────────
+
+class _ColorBreakdown extends StatelessWidget {
+  final List<ProductColorBreakdown> colors;
+  const _ColorBreakdown({required this.colors});
+
+  /// Deterministic swatch color from name.
+  static Color _swatchOf(String name) {
+    final hue = (name.hashCode.abs() % 360).toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.55, 0.48).toColor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ranglar',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
           ),
-          const SizedBox(width: 8),
-          // Quantity + percentage
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${item.totalQuantity}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: colors.map((c) {
+              final color = _swatchOf(c.name);
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Color thumbnail
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: color.withAlpha(80),
+                        width: 1,
+                      ),
                     ),
-              ),
-              Text(
-                '${item.percentage}%',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${c.name}  ${c.percentage}%',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Size breakdown ────────────────────────────────────────────────────────────
+
+class _SizeBreakdown extends StatelessWidget {
+  final List<ProductSizeBreakdown> sizes;
+  const _SizeBreakdown({required this.sizes});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "O'lchamlar",
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: sizes.map((s) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Text(
+                  '${s.label}  ${s.percentage}%',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
 
 class _Badge extends StatelessWidget {
   final String label;
@@ -304,3 +436,4 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+

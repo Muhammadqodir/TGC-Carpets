@@ -177,7 +177,8 @@ class ProductAnalyticsService
     {
         $total = $this->totalItems($from, $to);
 
-        $rows = $this->baseQuery($from, $to)
+        // ── Step 1: all products ordered by sales quantity ───────────────────
+        $productRows = $this->baseQuery($from, $to)
             ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
             ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
             ->selectRaw(
@@ -190,11 +191,71 @@ class ProductAnalyticsService
             )
             ->groupBy('products.id', 'products.name', 'product_types.type', 'product_qualities.quality_name')
             ->orderByRaw('SUM(order_items.quantity) DESC')
-            ->limit(50)
             ->get();
 
-        return $rows->map(function ($r) use ($total): array {
+        if ($productRows->isEmpty()) {
+            return [];
+        }
+
+        $productIds = $productRows->pluck('id')->filter()->toArray();
+
+        // ── Step 2: color breakdown for all products (single query) ──────────
+        $colorsByProduct = $this->baseQuery($from, $to)
+            ->whereIn('products.id', $productIds)
+            ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
+            ->selectRaw(
+                "products.id as product_id,
+                 COALESCE(colors.name, 'Noma\'lum') as color_name,
+                 COALESCE(SUM(order_items.quantity), 0) as quantity"
+            )
+            ->groupBy('products.id', 'colors.name')
+            ->orderByRaw('SUM(order_items.quantity) DESC')
+            ->get()
+            ->groupBy(fn ($r) => (string) $r->product_id);
+
+        // ── Step 3: size breakdown for all products (single query) ───────────
+        $sizesByProduct = $this->baseQuery($from, $to)
+            ->whereIn('products.id', $productIds)
+            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
+            ->selectRaw(
+                "products.id as product_id,
+                 product_sizes.width,
+                 product_sizes.length,
+                 COALESCE(SUM(order_items.quantity), 0) as quantity"
+            )
+            ->groupBy('products.id', 'product_sizes.width', 'product_sizes.length')
+            ->orderByRaw('SUM(order_items.quantity) DESC')
+            ->get()
+            ->groupBy(fn ($r) => (string) $r->product_id);
+
+        // ── Merge ────────────────────────────────────────────────────────────
+        return $productRows->map(function ($r) use ($total, $colorsByProduct, $sizesByProduct): array {
             $qty = (int) $r->total_quantity;
+            $pid = (string) $r->id;
+
+            $colors = ($colorsByProduct[$pid] ?? collect())->map(function ($c) use ($qty): array {
+                $cQty = (int) $c->quantity;
+                return [
+                    'name'       => $c->color_name,
+                    'quantity'   => $cQty,
+                    'percentage' => $qty > 0 ? round(($cQty / $qty) * 100, 1) : 0.0,
+                ];
+            })->values()->all();
+
+            $sizes = ($sizesByProduct[$pid] ?? collect())->map(function ($s) use ($qty): array {
+                $sQty  = (int) $s->quantity;
+                $label = ($s->width && $s->length)
+                    ? "{$s->width}x{$s->length}"
+                    : "O'lchamsiz";
+                return [
+                    'label'      => $label,
+                    'width'      => $s->width,
+                    'length'     => $s->length,
+                    'quantity'   => $sQty,
+                    'percentage' => $qty > 0 ? round(($sQty / $qty) * 100, 1) : 0.0,
+                ];
+            })->values()->all();
+
             return [
                 'id'             => $r->id,
                 'name'           => $r->name,
@@ -203,6 +264,8 @@ class ProductAnalyticsService
                 'orders_count'   => (int) $r->orders_count,
                 'total_quantity' => $qty,
                 'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
+                'colors'         => $colors,
+                'sizes'          => $sizes,
             ];
         })->all();
     }
