@@ -36,17 +36,19 @@ class AnalyticsTrendPoint extends Equatable {
 
 class ProductColorBreakdown extends Equatable {
   final String name;
+  final String? imageUrl;
   final int quantity;
   final double percentage;
 
   const ProductColorBreakdown({
     required this.name,
+    this.imageUrl,
     required this.quantity,
     required this.percentage,
   });
 
   @override
-  List<Object?> get props => [name, quantity, percentage];
+  List<Object?> get props => [name, imageUrl, quantity, percentage];
 }
 
 class ProductSizeBreakdown extends Equatable {

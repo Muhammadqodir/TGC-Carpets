@@ -6,6 +6,7 @@ use App\Models\Order;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductAnalyticsService
 {
@@ -206,9 +207,10 @@ class ProductAnalyticsService
             ->selectRaw(
                 "products.id as product_id,
                  COALESCE(colors.name, 'Noma\'lum') as color_name,
+                 product_colors.image as image,
                  COALESCE(SUM(order_items.quantity), 0) as quantity"
             )
-            ->groupBy('products.id', 'colors.name')
+            ->groupBy('products.id', 'colors.name', 'product_colors.image')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get()
             ->groupBy(fn ($r) => (string) $r->product_id);
@@ -237,6 +239,7 @@ class ProductAnalyticsService
                 $cQty = (int) $c->quantity;
                 return [
                     'name'       => $c->color_name,
+                    'image_url'  => $c->image ? Storage::disk('public')->url($c->image) : null,
                     'quantity'   => $cQty,
                     'percentage' => $qty > 0 ? round(($cQty / $qty) * 100, 1) : 0.0,
                 ];

@@ -17,7 +17,7 @@ class AnalyticsTopProductsSection extends StatefulWidget {
 
 class _AnalyticsTopProductsSectionState
     extends State<AnalyticsTopProductsSection> {
-  _FilterBy _filterBy   = _FilterBy.type;
+  _FilterBy _filterBy = _FilterBy.type;
   String _selectedLabel = 'Barchasi';
 
   List<String> get _labels {
@@ -44,7 +44,7 @@ class _AnalyticsTopProductsSectionState
   void _onFilterByChanged(_FilterBy? val) {
     if (val == null) return;
     setState(() {
-      _filterBy      = val;
+      _filterBy = val;
       _selectedLabel = 'Barchasi';
     });
   }
@@ -114,8 +114,8 @@ class _AnalyticsTopProductsSectionState
             separatorBuilder: (_, __) =>
                 const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (context, index) => _ProductTile(
-              rank:     index + 1,
-              item:     filtered[index],
+              rank: index + 1,
+              item: filtered[index],
               filterBy: _filterBy,
             ),
           ),
@@ -145,7 +145,7 @@ class _DimensionToggle extends StatelessWidget {
         visualDensity: VisualDensity.compact,
       ),
       segments: const [
-        ButtonSegment(value: _FilterBy.type,    label: Text('Tur')),
+        ButtonSegment(value: _FilterBy.type, label: Text('Tur')),
         ButtonSegment(value: _FilterBy.quality, label: Text('Sifat')),
       ],
       selected: {value},
@@ -213,8 +213,7 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge =
-        filterBy == _FilterBy.type ? item.typeName : item.qualityName;
+    final badge = filterBy == _FilterBy.type ? item.typeName : item.qualityName;
     final hasDetails = item.colors.isNotEmpty || item.sizes.isNotEmpty;
 
     return Theme(
@@ -224,9 +223,7 @@ class _ProductTile extends StatelessWidget {
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         childrenPadding: EdgeInsets.zero,
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
-        trailing: hasDetails
-            ? null
-            : const SizedBox.shrink(),
+        trailing: hasDetails ? null : const SizedBox.shrink(),
         title: Row(
           children: [
             // Rank
@@ -238,9 +235,8 @@ class _ProductTile extends StatelessWidget {
                       color: rank <= 3
                           ? AppColors.primary
                           : AppColors.textSecondary,
-                      fontWeight: rank <= 3
-                          ? FontWeight.w700
-                          : FontWeight.normal,
+                      fontWeight:
+                          rank <= 3 ? FontWeight.w700 : FontWeight.normal,
                     ),
               ),
             ),
@@ -285,11 +281,18 @@ class _ProductTile extends StatelessWidget {
           ],
         ),
         children: [
-          if (item.colors.isNotEmpty)
-            _ColorBreakdown(colors: item.colors),
-          if (item.sizes.isNotEmpty)
-            _SizeBreakdown(sizes: item.sizes),
-          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.colors.isNotEmpty)
+                  _ColorBreakdown(colors: item.colors),
+                if (item.sizes.isNotEmpty) _SizeBreakdown(sizes: item.sizes),
+                const SizedBox(height: 8),
+              ],
+            ),
+          )
         ],
       ),
     );
@@ -302,7 +305,7 @@ class _ColorBreakdown extends StatelessWidget {
   final List<ProductColorBreakdown> colors;
   const _ColorBreakdown({required this.colors});
 
-  /// Deterministic swatch color from name.
+  /// Deterministic swatch fallback when no image is available.
   static Color _swatchOf(String name) {
     final hue = (name.hashCode.abs() % 360).toDouble();
     return HSLColor.fromAHSL(1.0, hue, 0.55, 0.48).toColor();
@@ -325,38 +328,66 @@ class _ColorBreakdown extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: colors.map((c) {
-              final color = _swatchOf(c.name);
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Color thumbnail
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: color.withAlpha(80),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${c.name}  ${c.percentage}%',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ],
-              );
-            }).toList(),
+            spacing: 10,
+            runSpacing: 8,
+            children: colors
+                .map((c) => _ColorChip(c: c, swatchOf: _swatchOf))
+                .toList(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ColorChip extends StatelessWidget {
+  final ProductColorBreakdown c;
+  final Color Function(String) swatchOf;
+
+  const _ColorChip({required this.c, required this.swatchOf});
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 20.0;
+
+    Widget thumbnail;
+    if (c.imageUrl != null) {
+      thumbnail = ClipOval(
+        child: Image.network(
+          c.imageUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _swatchCircle(swatchOf(c.name), size),
+        ),
+      );
+    } else {
+      thumbnail = _swatchCircle(swatchOf(c.name), size);
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        thumbnail,
+        const SizedBox(width: 5),
+        Text(
+          '${c.name}  ${c.percentage}%',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _swatchCircle(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black12, width: 0.5),
       ),
     );
   }
@@ -389,8 +420,7 @@ class _SizeBreakdown extends StatelessWidget {
             runSpacing: 6,
             children: sizes.map((s) {
               return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(6),
@@ -436,4 +466,3 @@ class _Badge extends StatelessWidget {
     );
   }
 }
-

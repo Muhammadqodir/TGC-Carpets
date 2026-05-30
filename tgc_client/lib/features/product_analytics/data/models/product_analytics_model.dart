@@ -3,6 +3,7 @@ import '../../domain/entities/product_analytics_entity.dart';
 class ProductColorBreakdownModel extends ProductColorBreakdown {
   const ProductColorBreakdownModel({
     required super.name,
+    super.imageUrl,
     required super.quantity,
     required super.percentage,
   });
@@ -10,6 +11,7 @@ class ProductColorBreakdownModel extends ProductColorBreakdown {
   factory ProductColorBreakdownModel.fromJson(Map<String, dynamic> json) {
     return ProductColorBreakdownModel(
       name:       json['name'] as String? ?? '',
+      imageUrl:   json['image_url'] as String?,
       quantity:   json['quantity'] as int? ?? 0,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
     );
