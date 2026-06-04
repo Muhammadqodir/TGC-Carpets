@@ -149,100 +149,119 @@ class OrderPdfExporter {
 
     final totalChunks = sizeChunks.length;
 
-    // ── Build all chunk content into a single MultiPage ─────────────────────
+    // ── Build all chunk content grouped by quality ─────────────────────────
     final buildWidgets = <pw.Widget>[];
 
-    for (var ci = 0; ci < totalChunks; ci++) {
+    // Pre-compute chunkTypeGroups per chunk (reused across quality groups)
+    final allChunkTypeGroups = List.generate(totalChunks, (ci) {
       final chunk = sizeChunks[ci];
-
-      // Chunk-local type groups: typeId → chunk-local column indices
-      final chunkTypeGroups = <int, List<int>>{};
+      final ctg   = <int, List<int>>{};
       for (var j = 0; j < chunk.length; j++) {
         final typeId = sizeMeta[chunk[j]]?.productTypeId ?? 0;
-        (chunkTypeGroups[typeId] ??= []).add(j);
+        (ctg[typeId] ??= []).add(j);
       }
+      return ctg;
+    });
 
-      // Only include product rows that have at least one quantity in this chunk
-      final chunkRowKeys = rowKeys
-          .where((colorId) => chunk.any((sizeId) => cellMap[(colorId, sizeId)] != null))
-          .toList();
+    // Group product rows by quality name
+    final qualityGroups = <String, List<int>>{};
+    for (final colorId in rowKeys) {
+      final quality = rowMeta[colorId]?.qualityName ?? '—';
+      (qualityGroups[quality] ??= []).add(colorId);
+    }
+    final sortedQualities = qualityGroups.keys.toList()..sort();
 
-      // Spacer between consecutive blocks
-      if (ci > 0) buildWidgets.add(pw.SizedBox(height: 8));
+    for (var qi = 0; qi < sortedQualities.length; qi++) {
+      final quality        = sortedQualities[qi];
+      final qualityRowKeys = qualityGroups[quality]!;
 
-      // Chunk table: type row + col header row repeated on overflow (headerCount: 2)
-      buildWidgets.add(_buildChunkTable(
-        chunkRowKeys:    chunkRowKeys,
-        rowMeta:         rowMeta,
-        chunk:           chunk,
-        cellMap:         cellMap,
-        sizeMeta:        sizeMeta,
-        chunkTypeGroups: chunkTypeGroups,
-        typeColorMap:    typeColorMap,
-        typeNames:       typeNames,
-      ));
+      if (qi > 0) buildWidgets.add(pw.SizedBox(height: 8));
+      buildWidgets.add(_qualityGroupHeader(quality));
 
-      // Totals rows
-      buildWidgets.add(_totalsRow(
-        rowKeys:         chunkRowKeys,
-        chunk:           chunk,
-        cellMap:         cellMap,
-        sizeMeta:        sizeMeta,
-        chunkTypeGroups: chunkTypeGroups,
-        typeColorMap:    typeColorMap,
-        label:           'JAMI (dona)',
-        valueFn: (sizeId, colorIds) {
-          int sum = 0;
-          for (final c in colorIds) sum += cellMap[(c, sizeId)]?.quantity ?? 0;
-          return '$sum';
-        },
-        totalFn: (colorIds, chunkSizes) {
-          double t = 0;
-          for (final c in colorIds) {
-            for (final s in chunkSizes) {
-              final it = cellMap[(c, s)];
-              if (it != null && it.sizeLength != null && it.sizeWidth != null) {
-                t += it.sizeLength! * it.sizeWidth! * it.quantity / 10000.0;
+      for (var ci = 0; ci < totalChunks; ci++) {
+        final chunk           = sizeChunks[ci];
+        final chunkTypeGroups = allChunkTypeGroups[ci];
+
+        final chunkRowKeys = qualityRowKeys
+            .where((colorId) => chunk.any((sizeId) => cellMap[(colorId, sizeId)] != null))
+            .toList();
+
+        if (chunkRowKeys.isEmpty) continue;
+
+        if (ci > 0) buildWidgets.add(pw.SizedBox(height: 8));
+
+        buildWidgets.add(_buildChunkTable(
+          chunkRowKeys:    chunkRowKeys,
+          rowMeta:         rowMeta,
+          chunk:           chunk,
+          cellMap:         cellMap,
+          sizeMeta:        sizeMeta,
+          chunkTypeGroups: chunkTypeGroups,
+          typeColorMap:    typeColorMap,
+          typeNames:       typeNames,
+        ));
+
+        buildWidgets.add(_totalsRow(
+          rowKeys:         chunkRowKeys,
+          chunk:           chunk,
+          cellMap:         cellMap,
+          sizeMeta:        sizeMeta,
+          chunkTypeGroups: chunkTypeGroups,
+          typeColorMap:    typeColorMap,
+          label:           'JAMI (dona)',
+          valueFn: (sizeId, colorIds) {
+            int sum = 0;
+            for (final c in colorIds) sum += cellMap[(c, sizeId)]?.quantity ?? 0;
+            return '$sum';
+          },
+          totalFn: (colorIds, chunkSizes) {
+            double t = 0;
+            for (final c in colorIds) {
+              for (final s in chunkSizes) {
+                final it = cellMap[(c, s)];
+                if (it != null && it.sizeLength != null && it.sizeWidth != null) {
+                  t += it.sizeLength! * it.sizeWidth! * it.quantity / 10000.0;
+                }
               }
             }
-          }
-          return t.toStringAsFixed(2);
-        },
-        topThick: true,
-      ));
-      buildWidgets.add(_totalsRow(
-        rowKeys:         chunkRowKeys,
-        chunk:           chunk,
-        cellMap:         cellMap,
-        sizeMeta:        sizeMeta,
-        chunkTypeGroups: chunkTypeGroups,
-        typeColorMap:    typeColorMap,
-        label:           'Jami m²',
-        valueFn: (sizeId, colorIds) {
-          final m = sizeMeta[sizeId];
-          if (m?.sizeLength == null || m?.sizeWidth == null) return '—';
-          double sum = 0;
-          for (final c in colorIds) {
-            final it = cellMap[(c, sizeId)];
-            if (it != null) sum += m!.sizeLength! * m.sizeWidth! * it.quantity / 10000.0;
-          }
-          return sum.toStringAsFixed(2);
-        },
-        totalFn: (colorIds, chunkSizes) {
-          double t = 0;
-          for (final c in colorIds) {
-            for (final s in chunkSizes) {
-              final it = cellMap[(c, s)];
-              final m  = sizeMeta[s];
-              if (it != null && m?.sizeLength != null && m?.sizeWidth != null) {
-                t += m!.sizeLength! * m.sizeWidth! * it.quantity / 10000.0;
+            return t.toStringAsFixed(2);
+          },
+          topThick: true,
+        ));
+        buildWidgets.add(_totalsRow(
+          rowKeys:         chunkRowKeys,
+          chunk:           chunk,
+          cellMap:         cellMap,
+          sizeMeta:        sizeMeta,
+          chunkTypeGroups: chunkTypeGroups,
+          typeColorMap:    typeColorMap,
+          label:           'Jami m²',
+          valueFn: (sizeId, colorIds) {
+            final m = sizeMeta[sizeId];
+            if (m?.sizeLength == null || m?.sizeWidth == null) return '—';
+            double sum = 0;
+            for (final c in colorIds) {
+              final it = cellMap[(c, sizeId)];
+              if (it != null) sum += m!.sizeLength! * m.sizeWidth! * it.quantity / 10000.0;
+            }
+            return sum.toStringAsFixed(2);
+          },
+          totalFn: (colorIds, chunkSizes) {
+            double t = 0;
+            for (final c in colorIds) {
+              for (final s in chunkSizes) {
+                final it = cellMap[(c, s)];
+                final m  = sizeMeta[s];
+                if (it != null && m?.sizeLength != null && m?.sizeWidth != null) {
+                  t += m!.sizeLength! * m.sizeWidth! * it.quantity / 10000.0;
+                }
               }
             }
-          }
-          return t.toStringAsFixed(2);
-        },
-        topThick: false,
-      ));
+            return t.toStringAsFixed(2);
+          },
+          topThick: false,
+        ));
+      }
     }
 
     doc.addPage(
@@ -324,6 +343,29 @@ class OrderPdfExporter {
         ),
         pw.SizedBox(height: 2),
       ],
+    );
+  }
+
+  // ─── Quality-group header bar ─────────────────────────────────────────────
+  pw.Widget _qualityGroupHeader(String qualityName) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        color:  _primaryLight,
+        border: pw.Border(
+          left:   pw.BorderSide(color: _primary, width: 3),
+          bottom: pw.BorderSide(color: _borderColor, width: 0.4),
+        ),
+      ),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin:  const pw.EdgeInsets.only(bottom: 2),
+      child: pw.Text(
+        'Sifat: $qualityName',
+        style: pw.TextStyle(
+          fontSize:   8.5,
+          fontWeight: pw.FontWeight.bold,
+          color:      _primary,
+        ),
+      ),
     );
   }
 
@@ -450,7 +492,7 @@ class OrderPdfExporter {
           }
           cells.add(_tc(text: '${item.quantity}', height: _kRowH, bg: typeBg, bold: true, fontSize: _fsTd, thickLeft: thick));
         } else {
-          cells.add(_tc(text: '—', height: _kRowH, bg: _disabledBg, fg: _textSec, fontSize: _fsTd, thickLeft: thick));
+          cells.add(_tc(text: '', height: _kRowH, bg: _disabledBg, fontSize: _fsTd, thickLeft: thick));
         }
       }
       cells.add(_tc(
@@ -482,6 +524,7 @@ class OrderPdfExporter {
     required String Function(int sizeId, List<int> colorIds) valueFn,
     required String Function(List<int> colorIds, List<int> chunkSizes) totalFn,
     required bool topThick,
+    PdfColor? bg,
   }) {
     final typeByJ  = <int, int>{};
     final firstByT = <int, int>{};
@@ -508,11 +551,12 @@ class OrderPdfExporter {
       );
     });
 
+    final rowBg = bg ?? _successBg;
     return pw.Row(children: [
-      _cell(text: '',    width: _kColNum,  height: _kRowH, bg: _successBg, topThick: topThick),
-      _cell(text: label, width: _kColMeta, height: _kRowH, bg: _successBg, fg: _primary, bold: true, fontSize: _fsTd, align: pw.TextAlign.left, topThick: topThick),
+      _cell(text: '',    width: _kColNum,  height: _kRowH, bg: rowBg, topThick: topThick),
+      _cell(text: label, width: _kColMeta, height: _kRowH, bg: rowBg, fg: _primary, bold: true, fontSize: _fsTd, align: pw.TextAlign.left, topThick: topThick),
       ...sizeCells,
-      _cell(text: totalFn(rowKeys, chunk), width: _kColTot, height: _kRowH, bg: _successBg, fg: _primary, bold: true, fontSize: _fsTd, topThick: topThick),
+      _cell(text: totalFn(rowKeys, chunk), width: _kColTot, height: _kRowH, bg: rowBg, fg: _primary, bold: true, fontSize: _fsTd, topThick: topThick),
     ]);
   }
 
