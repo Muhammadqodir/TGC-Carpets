@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -64,8 +65,11 @@ class _SplashPageState extends State<SplashPage> {
     // Fire auth check
     context.read<AuthBloc>().add(AuthCheckRequested());
 
-    // Fire update check on supported platforms
-    if (_updateSupported) {
+    // Fire update check on supported platforms (disabled in label terminal mode)
+    final prefs = await SharedPreferences.getInstance();
+    final isLabelTerminal = prefs.getBool('isLabelPrintingTerminal') ?? false;
+
+    if (_updateSupported && !isLabelTerminal) {
       final buildCode = int.tryParse(packageInfo.buildNumber) ?? 0;
       final platform = Platform.isAndroid ? 'android' : 'windows';
       context.read<AppUpdateBloc>().add(

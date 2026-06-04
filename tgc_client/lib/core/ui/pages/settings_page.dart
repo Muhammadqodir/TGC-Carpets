@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:tgc_client/core/services/autostart_service.dart';
 import 'package:tgc_client/core/ui/widgets/settigs_bool.dart';
 
 class CoreSettingsPage extends StatefulWidget {
@@ -33,6 +36,20 @@ class _CoreSettingsPageState extends State<CoreSettingsPage> {
         .setBool('isLabelPrintingTerminal', value);
   }
 
+  Future<void> _applyLabelTerminalSettings(bool enabled) async {
+    setState(() => _isLabelPrintingTerminal = enabled);
+    await _saveSettings(enabled);
+
+    if (Platform.isWindows || Platform.isMacOS) {
+      await windowManager.setFullScreen(enabled);
+      if (enabled) {
+        await AutostartService.enable();
+      } else {
+        await AutostartService.disable();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,12 +65,7 @@ class _CoreSettingsPageState extends State<CoreSettingsPage> {
               description:
                   'Yorliq bosib chiqarish terminalini yoqish yoki o\'chirish.',
               value: _isLabelPrintingTerminal,
-              onChanged: (val) {
-                setState(() {
-                  _isLabelPrintingTerminal = val;
-                });
-                _saveSettings(val);
-              },
+              onChanged: (val) => _applyLabelTerminalSettings(val),
             )
           ],
         ),

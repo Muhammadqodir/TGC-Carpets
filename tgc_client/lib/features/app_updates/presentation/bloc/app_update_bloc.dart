@@ -165,7 +165,7 @@ class AppUpdateBloc extends Bloc<AppUpdateEvent, AppUpdateState> {
         return;
       }
 
-      // ── Launch detached installer ───────────────────────────────────────
+      // ── Launch detached installer then exit ────────────────────────────
       emit(AppUpdateInstalling());
       await Process.start(
         filePath,
@@ -173,6 +173,7 @@ class AppUpdateBloc extends Bloc<AppUpdateEvent, AppUpdateState> {
         runInShell: false,
         mode: ProcessStartMode.detached,
       );
+      exit(0);
     } catch (e) {
       emit(AppUpdateError('Windows yangilashda xatolik: $e'));
       await _deleteSafely(tempFile);
