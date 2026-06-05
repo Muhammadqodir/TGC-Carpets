@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -25,7 +26,8 @@ class _LabelLoginViewState extends State<LabelLoginView> {
   List<UserEntity> _labelUsers = [];
   UserEntity? _selectedUser;
   bool _isLoading = true;
-  String? _errorMessage;
+  Object? _loadError;
+  StackTrace? _loadErrorStack;
 
   @override
   void initState() {
@@ -36,7 +38,8 @@ class _LabelLoginViewState extends State<LabelLoginView> {
   Future<void> _loadLabelUsers() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _loadError = null;
+      _loadErrorStack = null;
     });
 
     try {
@@ -50,10 +53,11 @@ class _LabelLoginViewState extends State<LabelLoginView> {
           _selectedUser = _labelUsers.first;
         }
       });
-    } catch (e) {
+    } catch (e, stack) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Foydalanuvchilarni yuklashda xatolik: $e';
+        _loadError = e;
+        _loadErrorStack = stack;
       });
     }
   }
@@ -188,6 +192,19 @@ class _LabelLoginViewState extends State<LabelLoginView> {
     );
   }
 
+  String _buildErrorText(Object error, StackTrace? stack) {
+    final buf = StringBuffer();
+    buf.writeln('Type   : ${error.runtimeType}');
+    buf.writeln('Message: $error');
+    if (stack != null) {
+      buf.writeln('');
+      buf.writeln('--- Stack trace (first 10 frames) ---');
+      final lines = stack.toString().split('\n').take(10);
+      buf.writeAll(lines, '\n');
+    }
+    return buf.toString().trim();
+  }
+
   Widget _buildUserList() {
     if (_isLoading) {
       return const Center(
@@ -198,17 +215,59 @@ class _LabelLoginViewState extends State<LabelLoginView> {
       );
     }
 
-    if (_errorMessage != null) {
+    if (_loadError != null) {
+      final errorText = _buildErrorText(_loadError!, _loadErrorStack);
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: AppColors.error),
-                textAlign: TextAlign.center,
+              Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Yuklashda xatolik',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Xatolikni nusxalash',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: errorText));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Xatolik nusxalandi'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, size: 18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  errorText,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(

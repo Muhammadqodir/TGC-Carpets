@@ -80,7 +80,25 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw const UnauthorizedException();
     }
     switch (e.type) {
+      case DioExceptionType.badCertificate:
+        throw const NetworkException(
+          'SSL certificate error: the server certificate is not trusted by this device. '
+          'On Windows LTSC, update root certificates via: '
+          'certutil -generateSSTFromWU roots.sst',
+        );
       case DioExceptionType.connectionError:
+        // On Windows LTSC, SSL/TLS handshake failures also surface as connectionError.
+        // The inner error message helps distinguish certificate issues from network issues.
+        final inner = e.error?.toString() ?? '';
+        if (inner.contains('HandshakeException') ||
+            inner.contains('CERTIFICATE') ||
+            inner.contains('certificate')) {
+          throw const NetworkException(
+            'SSL certificate error: the server certificate is not trusted by this device. '
+            'On Windows LTSC, update root certificates via: '
+            'certutil -generateSSTFromWU roots.sst',
+          );
+        }
         throw const NetworkException(
           'Cannot connect to server. Please check your network and try again.',
         );
