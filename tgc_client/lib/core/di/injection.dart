@@ -202,6 +202,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
       mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+      wOptions: WindowsOptions(),
     ),
   );
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
