@@ -22,14 +22,27 @@ void main() async {
       );
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final isLabelTerminal = prefs.getBool('isLabelPrintingTerminal') ?? false;
-
-    final windowOptions = WindowOptions(fullScreen: isLabelTerminal);
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    // Show the window immediately so the process is always visible even if
+    // SharedPreferences (AppData) is temporarily locked/corrupted on Windows.
+    await windowManager.waitUntilReadyToShow(const WindowOptions(), () async {
       await windowManager.show();
       await windowManager.focus();
     });
+
+    // Apply fullscreen for label terminal mode after the window is visible.
+    // Guard with a timeout so a corrupted SharedPreferences file can't block
+    // startup — in that case we simply continue in windowed mode.
+    try {
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(const Duration(seconds: 5));
+      final isLabelTerminal =
+          prefs.getBool('isLabelPrintingTerminal') ?? false;
+      if (isLabelTerminal) {
+        await windowManager.setFullScreen(true);
+      }
+    } catch (_) {
+      // AppData unavailable — continue without fullscreen.
+    }
   }
 
   await initDependencies();

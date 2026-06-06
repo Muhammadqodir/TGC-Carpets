@@ -206,8 +206,20 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
-  
-  final sharedPreferences = await SharedPreferences.getInstance();
+
+  // Guard with a timeout: on Windows, SharedPreferences reads from AppData
+  // which can be locked briefly after a restart. If it times out we proceed
+  // with a fresh (empty) instance obtained after the lock clears, or fall
+  // back to re-trying once — either way the app stays responsive.
+  SharedPreferences sharedPreferences;
+  try {
+    sharedPreferences = await SharedPreferences.getInstance()
+        .timeout(const Duration(seconds: 10));
+  } catch (_) {
+    // Second attempt after a short back-off (file may have been released).
+    await Future<void>.delayed(const Duration(seconds: 2));
+    sharedPreferences = await SharedPreferences.getInstance();
+  }
   sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 
   // ─── Core ─────────────────────────────────────────────────────────────────
