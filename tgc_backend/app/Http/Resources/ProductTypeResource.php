@@ -10,8 +10,9 @@ class ProductTypeResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'   => $this->id,
-            'type' => $this->type,
+            'id'     => $this->id,
+            'type'   => $this->type,
+            'status' => $this->status,
         ];
     }
 }

@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductType extends Model
 {
-    protected $fillable = ['type'];
+    const STATUS_ACTIVE   = 'active';
+    const STATUS_ARCHIVED = 'archived';
+
+    protected $fillable = ['type', 'status'];
 
     public function products(): HasMany
     {

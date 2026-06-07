@@ -49,6 +49,24 @@ class ProductQualityController extends Controller
         return response()->json(['count' => $productQuality->products()->count()]);
     }
 
+    public function archive(ProductQuality $productQuality): JsonResponse
+    {
+        $productQuality->update(['status' => ProductQuality::STATUS_ARCHIVED]);
+
+        Product::where('product_quality_id', $productQuality->id)
+            ->where('status', Product::STATUS_ACTIVE)
+            ->update(['status' => Product::STATUS_ARCHIVED]);
+
+        return response()->json(['data' => new ProductQualityResource($productQuality)]);
+    }
+
+    public function unarchive(ProductQuality $productQuality): JsonResponse
+    {
+        $productQuality->update(['status' => ProductQuality::STATUS_ACTIVE]);
+
+        return response()->json(['data' => new ProductQualityResource($productQuality)]);
+    }
+
     public function destroy(Request $request, ProductQuality $productQuality): JsonResponse
     {
         $usageCount = $productQuality->products()->count();

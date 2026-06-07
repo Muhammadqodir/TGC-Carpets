@@ -68,10 +68,14 @@ Route::prefix('v1')->group(function (): void {
 
         // Product types
         Route::get('product-types/{productType}/usage', [ProductTypeController::class, 'usage']);
+        Route::post('product-types/{productType}/archive', [ProductTypeController::class, 'archive']);
+        Route::post('product-types/{productType}/unarchive', [ProductTypeController::class, 'unarchive']);
         Route::apiResource('product-types', ProductTypeController::class)->except(['show']);
 
         // Product qualities
         Route::get('product-qualities/{productQuality}/usage', [ProductQualityController::class, 'usage']);
+        Route::post('product-qualities/{productQuality}/archive', [ProductQualityController::class, 'archive']);
+        Route::post('product-qualities/{productQuality}/unarchive', [ProductQualityController::class, 'unarchive']);
         Route::apiResource('product-qualities', ProductQualityController::class)->except(['show']);
 
         // Product edges

@@ -22,7 +22,11 @@ class ApiEndpoints {
   static String colorById(int id) => '/colors/$id';
   static String colorUsage(int id) => '/colors/$id/usage';
   static String productTypeUsage(int id) => '/product-types/$id/usage';
+  static String productTypeArchive(int id) => '/product-types/$id/archive';
+  static String productTypeUnarchive(int id) => '/product-types/$id/unarchive';
   static String productQualityUsage(int id) => '/product-qualities/$id/usage';
+  static String productQualityArchive(int id) => '/product-qualities/$id/archive';
+  static String productQualityUnarchive(int id) => '/product-qualities/$id/unarchive';
   static String productSizeUsage(int id) => '/product-sizes/$id/usage';
   static const String productEdges = '/product-edges';
   static String productEdgeById(int id) => '/product-edges/$id';

@@ -13,6 +13,7 @@ class ProductQualityResource extends JsonResource
             'id'           => $this->id,
             'quality_name' => $this->quality_name,
             'density'      => $this->density,
+            'status'       => $this->status,
         ];
     }
 }

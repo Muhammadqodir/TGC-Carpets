@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductQuality extends Model
 {
-    protected $fillable = ['quality_name', 'density'];
+    const STATUS_ACTIVE   = 'active';
+    const STATUS_ARCHIVED = 'archived';
+
+    protected $fillable = ['quality_name', 'density', 'status'];
 
     protected function casts(): array
     {

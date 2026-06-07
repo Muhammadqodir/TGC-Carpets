@@ -20,6 +20,8 @@ abstract class ProductAttributesRemoteDataSource {
   Future<ProductTypeModel> createProductType({required String type});
   Future<ProductTypeModel> updateProductType({required int id, required String type});
   Future<int> checkProductTypeUsage({required int id});
+  Future<ProductTypeModel> archiveProductType({required int id});
+  Future<ProductTypeModel> unarchiveProductType({required int id});
   Future<void> deleteProductType({required int id, int? replaceWithId});
 
   // Product Qualities
@@ -27,6 +29,8 @@ abstract class ProductAttributesRemoteDataSource {
   Future<ProductQualityModel> createProductQuality({required String qualityName, int? density});
   Future<ProductQualityModel> updateProductQuality({required int id, required String qualityName, int? density});
   Future<int> checkProductQualityUsage({required int id});
+  Future<ProductQualityModel> archiveProductQuality({required int id});
+  Future<ProductQualityModel> unarchiveProductQuality({required int id});
   Future<void> deleteProductQuality({required int id, int? replaceWithId});
 
   // Product Sizes
@@ -149,6 +153,30 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
+  Future<ProductTypeModel> archiveProductType({required int id}) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.productTypeArchive(id));
+      return ProductTypeModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductTypeModel> unarchiveProductType({required int id}) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.productTypeUnarchive(id));
+      return ProductTypeModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
   Future<void> deleteProductType({required int id, int? replaceWithId}) async {
     try {
       await _dio.delete(
@@ -211,6 +239,30 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
           'density': density,
         },
       );
+      return ProductQualityModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductQualityModel> archiveProductQuality({required int id}) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.productQualityArchive(id));
+      return ProductQualityModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductQualityModel> unarchiveProductQuality({required int id}) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.productQualityUnarchive(id));
       return ProductQualityModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );

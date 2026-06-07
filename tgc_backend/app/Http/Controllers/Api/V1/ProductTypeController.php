@@ -45,6 +45,24 @@ class ProductTypeController extends Controller
         return response()->json(['count' => $productType->products()->count()]);
     }
 
+    public function archive(ProductType $productType): JsonResponse
+    {
+        $productType->update(['status' => ProductType::STATUS_ARCHIVED]);
+
+        Product::where('product_type_id', $productType->id)
+            ->where('status', Product::STATUS_ACTIVE)
+            ->update(['status' => Product::STATUS_ARCHIVED]);
+
+        return response()->json(['data' => new ProductTypeResource($productType)]);
+    }
+
+    public function unarchive(ProductType $productType): JsonResponse
+    {
+        $productType->update(['status' => ProductType::STATUS_ACTIVE]);
+
+        return response()->json(['data' => new ProductTypeResource($productType)]);
+    }
+
     public function destroy(Request $request, ProductType $productType): JsonResponse
     {
         $usageCount = $productType->products()->count();
