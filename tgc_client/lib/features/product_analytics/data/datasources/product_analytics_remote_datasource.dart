@@ -49,7 +49,8 @@ class ProductAnalyticsRemoteDataSourceImpl
       return ProductAnalyticsModel.fromJson(body['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) throw const UnauthorizedException();
-      final msg = (e.response?.data?['message'] as String?) ?? e.message ?? 'Server xatosi';
+      final data = e.response?.data;
+      final msg = (data is Map ? data['message'] as String? : null) ?? e.message ?? 'Server xatosi';
       throw ServerException(message: msg, statusCode: e.response?.statusCode);
     } catch (e) {
       throw NetworkException(e.toString());
@@ -91,7 +92,8 @@ class ProductAnalyticsRemoteDataSourceImpl
           .toList();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) throw const UnauthorizedException();
-      final msg = (e.response?.data?['message'] as String?) ?? e.message ?? 'Server xatosi';
+      final data = e.response?.data;
+      final msg = (data is Map ? data['message'] as String? : null) ?? e.message ?? 'Server xatosi';
       throw ServerException(message: msg, statusCode: e.response?.statusCode);
     } catch (e) {
       throw NetworkException(e.toString());
