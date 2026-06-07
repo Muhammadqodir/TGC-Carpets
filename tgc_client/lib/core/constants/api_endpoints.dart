@@ -56,7 +56,8 @@ class ApiEndpoints {
   static String employeeById(int id) => '/employees/$id';
 
   // Analytics
-  static const String analyticsProducts = '/analytics/products';
+  static const String analyticsProducts    = '/analytics/products';
+  static const String analyticsTopProducts = '/analytics/top-products';
 
   // Orders
   static const String orders = '/orders';

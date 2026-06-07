@@ -32,4 +32,36 @@ class ProductAnalyticsRepositoryImpl implements ProductAnalyticsRepository {
       return Left(NetworkFailure(e.message));
     }
   }
+
+  @override
+  Future<Either<Failure, List<TopProductItem>>> getTopProducts({
+    required String periodFrom,
+    required String periodTo,
+    int? typeId,
+    int? qualityId,
+    int? colorId,
+    int? sizeId,
+    int? edgeId,
+    int limit = 10,
+  }) async {
+    try {
+      final result = await _remoteDataSource.getTopProducts(
+        periodFrom: periodFrom,
+        periodTo:   periodTo,
+        typeId:     typeId,
+        qualityId:  qualityId,
+        colorId:    colorId,
+        sizeId:     sizeId,
+        edgeId:     edgeId,
+        limit:      limit,
+      );
+      return Right(result);
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    }
+  }
 }

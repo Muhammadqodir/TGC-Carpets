@@ -1,15 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/product_analytics_entity.dart';
+import '../../domain/usecases/get_top_products_usecase.dart';
+import '../bloc/top_products_filter_cubit.dart';
+import '../bloc/top_products_filter_state.dart';
 
-enum _FilterBy { type, quality }
+const _kLimitOptions = [10, 20, 30, 40, 50];
 
 class AnalyticsTopProductsSection extends StatefulWidget {
-  final List<TopProductItem> items;
+  final String periodFrom;
+  final String periodTo;
+  final List<AnalyticsDimensionItem> typeOptions;
+  final List<AnalyticsDimensionItem> qualityOptions;
+  final List<AnalyticsDimensionItem> colorOptions;
+  final List<AnalyticsDimensionItem> sizeOptions;
+  final List<AnalyticsDimensionItem> edgeOptions;
 
-  const AnalyticsTopProductsSection({super.key, required this.items});
+  const AnalyticsTopProductsSection({
+    super.key,
+    required this.periodFrom,
+    required this.periodTo,
+    required this.typeOptions,
+    required this.qualityOptions,
+    required this.colorOptions,
+    required this.sizeOptions,
+    required this.edgeOptions,
+  });
 
   @override
   State<AnalyticsTopProductsSection> createState() =>
@@ -18,44 +38,67 @@ class AnalyticsTopProductsSection extends StatefulWidget {
 
 class _AnalyticsTopProductsSectionState
     extends State<AnalyticsTopProductsSection> {
-  _FilterBy _filterBy = _FilterBy.type;
-  String _selectedLabel = 'Barchasi';
+  late final TopProductsFilterCubit _cubit;
 
-  List<String> get _labels {
-    final values = widget.items
-        .map((e) => _filterBy == _FilterBy.type ? e.typeName : e.qualityName)
-        .toSet()
-        .toList()
-      ..sort();
-    return ['Barchasi', ...values];
+  @override
+  void initState() {
+    super.initState();
+    _cubit = TopProductsFilterCubit(
+      useCase:    sl<GetTopProductsUseCase>(),
+      periodFrom: widget.periodFrom,
+      periodTo:   widget.periodTo,
+    );
   }
 
-  /// Top 10 for the current filter selection.
-  List<TopProductItem> get _filtered {
-    final all = _selectedLabel == 'Barchasi'
-        ? widget.items
-        : widget.items.where((e) {
-            final val =
-                _filterBy == _FilterBy.type ? e.typeName : e.qualityName;
-            return val == _selectedLabel;
-          }).toList();
-    return all.take(10).toList();
+  @override
+  void didUpdateWidget(AnalyticsTopProductsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.periodFrom != widget.periodFrom ||
+        oldWidget.periodTo != widget.periodTo) {
+      _cubit.updatePeriod(widget.periodFrom, widget.periodTo);
+    }
   }
 
-  void _onFilterByChanged(_FilterBy? val) {
-    if (val == null) return;
-    setState(() {
-      _filterBy = val;
-      _selectedLabel = 'Barchasi';
-    });
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.items.isEmpty) return const SizedBox.shrink();
+    return BlocProvider.value(
+      value: _cubit,
+      child: _TopProductsContent(
+        typeOptions:    widget.typeOptions,
+        qualityOptions: widget.qualityOptions,
+        colorOptions:   widget.colorOptions,
+        sizeOptions:    widget.sizeOptions,
+        edgeOptions:    widget.edgeOptions,
+      ),
+    );
+  }
+}
 
-    final filtered = _filtered;
+// ── Main content ──────────────────────────────────────────────────────────────
 
+class _TopProductsContent extends StatelessWidget {
+  final List<AnalyticsDimensionItem> typeOptions;
+  final List<AnalyticsDimensionItem> qualityOptions;
+  final List<AnalyticsDimensionItem> colorOptions;
+  final List<AnalyticsDimensionItem> sizeOptions;
+  final List<AnalyticsDimensionItem> edgeOptions;
+
+  const _TopProductsContent({
+    required this.typeOptions,
+    required this.qualityOptions,
+    required this.colorOptions,
+    required this.sizeOptions,
+    required this.edgeOptions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -68,130 +111,310 @@ class _AnalyticsTopProductsSectionState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
+      child: BlocBuilder<TopProductsFilterCubit, TopProductsFilterState>(
+        builder: (context, state) {
+          final cubit    = context.read<TopProductsFilterCubit>();
+          final isLoading = state is TopProductsFilterLoading;
+          final products  = switch (state) {
+            TopProductsFilterLoaded(:final products) => products,
+            TopProductsFilterLoading(:final previousProducts) => previousProducts,
+            _ => const <TopProductItem>[],
+          };
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: BlocBuilder<TopProductsFilterCubit,
+                          TopProductsFilterState>(
+                        buildWhen: (a, b) => a.limit != b.limit,
+                        builder: (context, s) => Text(
+                          'Top mahsulotlar (${s.limit})',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                      ),
+                    ),
+                    if (isLoading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    if (cubit.hasActiveFilters) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: cubit.clearFilters,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withAlpha(20),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Tozalash',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: AppColors.error),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // ── Filter bar ───────────────────────────────────────────────
+              _FilterBar(
+                state:          state,
+                typeOptions:    typeOptions,
+                qualityOptions: qualityOptions,
+                colorOptions:   colorOptions,
+                sizeOptions:    sizeOptions,
+                edgeOptions:    edgeOptions,
+                onTypeChanged:    (id) => cubit.setTypeId(id),
+                onQualityChanged: (id) => cubit.setQualityId(id),
+                onColorChanged:   (id) => cubit.setColorId(id),
+                onSizeChanged:    (id) => cubit.setSizeId(id),
+                onEdgeChanged:    (id) => cubit.setEdgeId(id),
+                onLimitChanged:   (l)  => cubit.setLimit(l),
+              ),
+
+              const Divider(height: 1, color: AppColors.divider),
+
+              // ── Error state ──────────────────────────────────────────────
+              if (state is TopProductsFilterError)
+                Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Text(
-                    'Top mahsulotlar (10)',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                    state.message,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.error,
                         ),
                   ),
+                )
+              // ── Product tiles ────────────────────────────────────────────
+              else if (products.isEmpty && !isLoading)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Mahsulotlar topilmadi',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                )
+              else
+                Opacity(
+                  opacity: isLoading ? 0.5 : 1.0,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.divider),
+                    itemBuilder: (context, index) => _ProductTile(
+                      rank: index + 1,
+                      item: products[index],
+                    ),
+                  ),
                 ),
-                _DimensionToggle(
-                  value: _filterBy,
-                  onChanged: _onFilterByChanged,
-                ),
-              ],
-            ),
+
+              const SizedBox(height: 4),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Filter bar ────────────────────────────────────────────────────────────────
+
+class _FilterBar extends StatelessWidget {
+  final TopProductsFilterState state;
+  final List<AnalyticsDimensionItem> typeOptions;
+  final List<AnalyticsDimensionItem> qualityOptions;
+  final List<AnalyticsDimensionItem> colorOptions;
+  final List<AnalyticsDimensionItem> sizeOptions;
+  final List<AnalyticsDimensionItem> edgeOptions;
+  final ValueChanged<int?> onTypeChanged;
+  final ValueChanged<int?> onQualityChanged;
+  final ValueChanged<int?> onColorChanged;
+  final ValueChanged<int?> onSizeChanged;
+  final ValueChanged<int?> onEdgeChanged;
+  final ValueChanged<int> onLimitChanged;
+
+  const _FilterBar({
+    required this.state,
+    required this.typeOptions,
+    required this.qualityOptions,
+    required this.colorOptions,
+    required this.sizeOptions,
+    required this.edgeOptions,
+    required this.onTypeChanged,
+    required this.onQualityChanged,
+    required this.onColorChanged,
+    required this.onSizeChanged,
+    required this.onEdgeChanged,
+    required this.onLimitChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          _AttrDropdown<int?>(
+            hint: 'Tur',
+            value: state.typeId,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Barchasi')),
+              ...typeOptions.map((e) => DropdownMenuItem(
+                    value: e.id,
+                    child: Text(e.name, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: onTypeChanged,
+            isActive: state.typeId != null,
           ),
-
-          // ── Filter dropdown ───────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: _LabelDropdown(
-              labels: _labels,
-              selected: _selectedLabel,
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedLabel = val);
-              },
-            ),
+          const SizedBox(width: 8),
+          _AttrDropdown<int?>(
+            hint: 'Sifat',
+            value: state.qualityId,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Barchasi')),
+              ...qualityOptions.map((e) => DropdownMenuItem(
+                    value: e.id,
+                    child: Text(e.name, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: onQualityChanged,
+            isActive: state.qualityId != null,
           ),
-
-          const Divider(height: 1, color: AppColors.divider),
-
-          // ── Product tiles ─────────────────────────────────────────────
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (context, index) => _ProductTile(
-              rank: index + 1,
-              item: filtered[index],
-              filterBy: _filterBy,
-            ),
+          const SizedBox(width: 8),
+          _AttrDropdown<int?>(
+            hint: 'Rang',
+            value: state.colorId,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Barchasi')),
+              ...colorOptions.map((e) => DropdownMenuItem(
+                    value: e.id,
+                    child: Text(e.name, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: onColorChanged,
+            isActive: state.colorId != null,
           ),
-
-          const SizedBox(height: 4),
+          const SizedBox(width: 8),
+          _AttrDropdown<int?>(
+            hint: "O'lcham",
+            value: state.sizeId,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Barchasi')),
+              ...sizeOptions.map((e) => DropdownMenuItem(
+                    value: e.id,
+                    child: Text(e.name, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: onSizeChanged,
+            isActive: state.sizeId != null,
+          ),
+          const SizedBox(width: 8),
+          _AttrDropdown<int?>(
+            hint: 'Chegara',
+            value: state.edgeId,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Barchasi')),
+              ...edgeOptions.map((e) => DropdownMenuItem(
+                    value: e.id,
+                    child: Text(e.name, overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: onEdgeChanged,
+            isActive: state.edgeId != null,
+          ),
+          const SizedBox(width: 8),
+          _AttrDropdown<int>(
+            hint: 'Soni',
+            value: state.limit,
+            items: _kLimitOptions
+                .map((n) => DropdownMenuItem(value: n, child: Text('$n ta')))
+                .toList(),
+            onChanged: (v) { if (v != null) onLimitChanged(v); },
+            isActive: state.limit != 10,
+          ),
         ],
       ),
     );
   }
 }
 
-// ── Dimension toggle ──────────────────────────────────────────────────────────
+// ── Generic attribute dropdown ────────────────────────────────────────────────
 
-class _DimensionToggle extends StatelessWidget {
-  final _FilterBy value;
-  final ValueChanged<_FilterBy?> onChanged;
+class _AttrDropdown<T> extends StatelessWidget {
+  final String hint;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+  final bool isActive;
 
-  const _DimensionToggle({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return SegmentedButton<_FilterBy>(
-      style: SegmentedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: const TextStyle(fontSize: 12),
-        visualDensity: VisualDensity.compact,
-      ),
-      segments: const [
-        ButtonSegment(value: _FilterBy.type, label: Text('Tur')),
-        ButtonSegment(value: _FilterBy.quality, label: Text('Sifat')),
-      ],
-      selected: {value},
-      onSelectionChanged: (set) => onChanged(set.firstOrNull),
-    );
-  }
-}
-
-// ── Label filter dropdown ─────────────────────────────────────────────────────
-
-class _LabelDropdown extends StatelessWidget {
-  final List<String> labels;
-  final String selected;
-  final ValueChanged<String?> onChanged;
-
-  const _LabelDropdown({
-    required this.labels,
-    required this.selected,
+  const _AttrDropdown({
+    required this.hint,
+    required this.value,
+    required this.items,
     required this.onChanged,
+    required this.isActive,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: isActive
+            ? AppColors.primary.withAlpha(18)
+            : AppColors.background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(
+          color: isActive ? AppColors.primary : AppColors.divider,
+        ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selected,
-          isExpanded: true,
+        child: DropdownButton<T>(
+          value: value,
+          hint: Text(
+            hint,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
+                color: isActive ? AppColors.primary : AppColors.textPrimary,
+                fontWeight:
+                    isActive ? FontWeight.w600 : FontWeight.normal,
               ),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-          items: labels
-              .map((l) => DropdownMenuItem(
-                    value: l,
-                    child: Text(l, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 16,
+            color: isActive ? AppColors.primary : AppColors.textSecondary,
+          ),
+          items: items,
           onChanged: onChanged,
         ),
       ),
@@ -204,21 +427,14 @@ class _LabelDropdown extends StatelessWidget {
 class _ProductTile extends StatelessWidget {
   final int rank;
   final TopProductItem item;
-  final _FilterBy filterBy;
 
-  const _ProductTile({
-    required this.rank,
-    required this.item,
-    required this.filterBy,
-  });
+  const _ProductTile({required this.rank, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final badge = filterBy == _FilterBy.type ? item.typeName : item.qualityName;
     final hasDetails = item.colors.isNotEmpty || item.sizes.isNotEmpty;
 
     return Theme(
-      // Remove default ExpansionTile dividers
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -241,7 +457,7 @@ class _ProductTile extends StatelessWidget {
                     ),
               ),
             ),
-            // Name + badge
+            // Name + badges
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,8 +470,17 @@ class _ProductTile extends StatelessWidget {
                         ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  _Badge(label: badge),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      _Badge(label: item.typeName),
+                      const SizedBox(width: 4),
+                      _Badge(
+                        label: item.qualityName,
+                        color: AppColors.accent,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -282,18 +507,19 @@ class _ProductTile extends StatelessWidget {
           ],
         ),
         children: [
-          Container(
+          SizedBox(
             width: double.infinity,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (item.colors.isNotEmpty)
                   _ColorBreakdown(colors: item.colors),
-                if (item.sizes.isNotEmpty) _SizeBreakdown(sizes: item.sizes),
+                if (item.sizes.isNotEmpty)
+                  _SizeBreakdown(sizes: item.sizes),
                 const SizedBox(height: 8),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -306,7 +532,6 @@ class _ColorBreakdown extends StatelessWidget {
   final List<ProductColorBreakdown> colors;
   const _ColorBreakdown({required this.colors});
 
-  /// Deterministic swatch fallback when no image is available.
   static Color _swatchOf(String name) {
     final hue = (name.hashCode.abs() % 360).toDouble();
     return HSLColor.fromAHSL(1.0, hue, 0.55, 0.48).toColor();
@@ -351,15 +576,17 @@ class _ColorChip extends StatelessWidget {
   Widget build(BuildContext context) {
     const size = 20.0;
 
-    Widget thumbnail;
-    if (c.imageUrl != null) {
-      thumbnail = AppThumbnail(
-        imageUrl: c.imageUrl!,
-        size: 30,
-      );
-    } else {
-      thumbnail = _swatchCircle(swatchOf(c.name), size);
-    }
+    final Widget thumbnail = c.imageUrl != null
+        ? AppThumbnail(imageUrl: c.imageUrl!, size: 30)
+        : Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: swatchOf(c.name),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.black12, width: 0.5),
+            ),
+          );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -373,18 +600,6 @@ class _ColorChip extends StatelessWidget {
               ),
         ),
       ],
-    );
-  }
-
-  Widget _swatchCircle(Color color, double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.black12, width: 0.5),
-      ),
     );
   }
 }
@@ -442,20 +657,22 @@ class _SizeBreakdown extends StatelessWidget {
 
 class _Badge extends StatelessWidget {
   final String label;
-  const _Badge({required this.label});
+  final Color? color;
+  const _Badge({required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(20),
+        color: c.withAlpha(20),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.primary,
+              color: c,
               fontWeight: FontWeight.w500,
             ),
       ),

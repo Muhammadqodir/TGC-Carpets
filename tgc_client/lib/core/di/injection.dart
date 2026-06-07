@@ -194,6 +194,7 @@ import '../../features/product_analytics/data/datasources/product_analytics_remo
 import '../../features/product_analytics/data/repositories/product_analytics_repository_impl.dart';
 import '../../features/product_analytics/domain/repositories/product_analytics_repository.dart';
 import '../../features/product_analytics/domain/usecases/get_product_analytics_usecase.dart';
+import '../../features/product_analytics/domain/usecases/get_top_products_usecase.dart';
 import '../../features/product_analytics/presentation/bloc/product_analytics_bloc.dart';
 
 final sl = GetIt.instance;
@@ -737,6 +738,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(
     () => GetProductAnalyticsUseCase(sl<ProductAnalyticsRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetTopProductsUseCase(sl<ProductAnalyticsRepository>()),
   );
   sl.registerFactory(
     () => ProductAnalyticsBloc(
