@@ -121,6 +121,7 @@ class ProductAnalyticsEntity extends Equatable {
   final List<AnalyticsDimensionItem> byColor;
   final List<AnalyticsDimensionItem> bySize;
   final List<AnalyticsDimensionItem> byQuality;
+  final List<AnalyticsDimensionItem> byEdge;
   final List<TopProductItem> topProducts;
 
   const ProductAnalyticsEntity({
@@ -133,6 +134,7 @@ class ProductAnalyticsEntity extends Equatable {
     required this.byColor,
     required this.bySize,
     required this.byQuality,
+    required this.byEdge,
     required this.topProducts,
   });
 
@@ -147,6 +149,7 @@ class ProductAnalyticsEntity extends Equatable {
         byColor,
         bySize,
         byQuality,
+        byEdge,
         topProducts,
       ];
 }

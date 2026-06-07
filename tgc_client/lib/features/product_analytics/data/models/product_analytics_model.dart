@@ -131,6 +131,7 @@ class ProductAnalyticsModel extends ProductAnalyticsEntity {
     required super.byColor,
     required super.bySize,
     required super.byQuality,
+    required super.byEdge,
     required super.topProducts,
   });
 
@@ -158,6 +159,7 @@ class ProductAnalyticsModel extends ProductAnalyticsEntity {
       byColor:      parseDimension('by_color'),
       bySize:       parseDimension('by_size'),
       byQuality:    parseDimension('by_quality'),
+      byEdge:       parseDimension('by_edge'),
       topProducts: (json['top_products'] as List<dynamic>? ?? [])
           .map((e) => TopProductItemModel.fromJson(e as Map<String, dynamic>))
           .toList(),

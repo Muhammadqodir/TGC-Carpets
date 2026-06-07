@@ -206,9 +206,17 @@ class _AnalyticsContent extends StatelessWidget {
             _SingleColumn(sections: sections),
 
           // Top products table
-          if (data.topProducts.isNotEmpty) ...[            
+          if (data.topProducts.isNotEmpty || true) ...[
             const SizedBox(height: 12),
-            AnalyticsTopProductsSection(items: data.topProducts),
+            AnalyticsTopProductsSection(
+              periodFrom: data.periodFrom,
+              periodTo:   data.periodTo,
+              byType:     data.byType,
+              byQuality:  data.byQuality,
+              bySize:     data.bySize,
+              byColor:    data.byColor,
+              byEdge:     data.byEdge,
+            ),
           ],
         ],
       ),

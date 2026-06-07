@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function (): void {
 
         // Product Analytics
         Route::get('analytics/products', [ProductAnalyticsController::class, 'index'])->name('analytics.products');
+        Route::get('analytics/top-products', [ProductAnalyticsController::class, 'topProducts'])->name('analytics.top-products');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         Route::apiResource('products', ProductController::class);

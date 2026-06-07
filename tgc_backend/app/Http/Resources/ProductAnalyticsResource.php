@@ -17,6 +17,7 @@ class ProductAnalyticsResource extends JsonResource
             'by_color'     => $this->resource['by_color'],
             'by_size'      => $this->resource['by_size'],
             'by_quality'   => $this->resource['by_quality'],
+            'by_edge'      => $this->resource['by_edge'],
             'top_products' => $this->resource['top_products'],
         ];
     }
