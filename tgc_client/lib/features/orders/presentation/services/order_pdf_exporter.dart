@@ -320,7 +320,7 @@ class OrderPdfExporter {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'BUYURTMA #${order.id}  |  TGC CARPETS',
+                      'BUYURTMA #${order.id}  |  ${order.clientShopName} / ${order.clientRegion}',
                       style: pw.TextStyle(
                         fontSize:   _fsTitle,
                         fontWeight: pw.FontWeight.bold,
