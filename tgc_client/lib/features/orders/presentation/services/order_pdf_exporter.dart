@@ -498,7 +498,7 @@ class OrderPdfExporter {
       final cells = <pw.Widget>[
         _tc(text: '$rowNumber', height: _kRowH, bg: rowBg, fontSize: _fsTd),
         _tc(
-          text:     '${meta.productName}  |  ${meta.colorName?.toUpperCase() ?? "—"}\n'
+          text:     '${meta.productName}${meta.edgeCode != null ? ' [${meta.edgeCode}]' : ''}  |  ${meta.colorName?.toUpperCase() ?? "—"}\n'
                     '${meta.qualityName ?? "—"} / ${meta.productTypeName ?? "—"}',
           height:   _kRowH,
           bg:       rowBg,

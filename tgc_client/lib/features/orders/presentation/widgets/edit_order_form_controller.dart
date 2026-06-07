@@ -25,6 +25,7 @@ class EditOrderFormController extends OrderFormController {
                 (item) => OrderItemRow(
                   prefilledColorId: item.productColorId,
                   prefilledSizeId: item.productSizeId,
+                  prefilledEdgeId: item.productEdgeId,
                   prefilledProductName: item.productName,
                   prefilledColorName: item.colorName,
                   prefilledColorImageUrl: item.colorImageUrl,
@@ -33,6 +34,7 @@ class EditOrderFormController extends OrderFormController {
                   prefilledProductTypeId: item.productTypeId,
                   prefilledSizeLength: item.sizeLength,
                   prefilledSizeWidth: item.sizeWidth,
+                  prefilledEdgeCode: item.edgeCode,
                   initialQuantity: item.quantity,
                 ),
               )

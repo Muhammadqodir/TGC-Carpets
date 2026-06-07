@@ -264,8 +264,9 @@ class OrderFormController extends ChangeNotifier {
   bool updateMatrixProductRow(
     int oldColorId,
     ProductEntity newProduct,
-    ProductColorEntity newColor,
-  ) {
+    ProductColorEntity newColor, [
+    ProductEdgeEntity? edge,
+  ]) {
     if (newColor.id != oldColorId && _uniqueColorIds.contains(newColor.id)) {
       return false;
     }
@@ -273,6 +274,7 @@ class OrderFormController extends ChangeNotifier {
       if ((r.selectedColor?.id ?? r.prefilledColorId) == oldColorId) {
         r.selectedProduct = newProduct;
         r.selectedColor = newColor;
+        r.selectedEdge = edge;
       }
     }
     if (newColor.id != oldColorId) {

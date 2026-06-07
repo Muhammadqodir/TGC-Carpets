@@ -925,7 +925,9 @@ class _OrderItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.productName,
+                  item.edgeCode != null
+                      ? '${item.productName} [${item.edgeCode}]'
+                      : item.productName,
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium

@@ -532,7 +532,9 @@ class _ItemRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Text(
-              item.productName,
+              item.edgeCode != null
+                  ? '${item.productName} [${item.edgeCode}]'
+                  : item.productName,
               style: Theme.of(context).textTheme.bodyMedium,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -656,7 +658,9 @@ class _ItemCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          item.productName,
+                          item.edgeCode != null
+                              ? '${item.productName} [${item.edgeCode}]'
+                              : item.productName,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium

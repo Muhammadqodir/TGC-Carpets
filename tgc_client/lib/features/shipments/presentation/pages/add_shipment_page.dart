@@ -654,7 +654,9 @@ class _ItemRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Text(
-                row.productName,
+                row.edgeCode != null
+                    ? '${row.productName} [${row.edgeCode}]'
+                    : row.productName,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -858,7 +860,7 @@ class _ItemRowMobile extends StatelessWidget {
                           children: [
                             BodyText(
                               text:
-                                  "${row.productName}/${row.colorName?.toUpperCase() ?? ''}",
+                                  "${row.edgeCode != null ? '${row.productName} [${row.edgeCode}]' : row.productName}/${row.colorName?.toUpperCase() ?? ''}",
                             ),
                             Text(
                               row.sizeLabel ?? '—',

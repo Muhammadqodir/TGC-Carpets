@@ -362,7 +362,7 @@ class OrderExcelExporter {
         row,
         1,
         TextCellValue(
-          '${meta.productName}  |  ${meta.colorName?.toUpperCase() ?? '—'}\n'
+          '${meta.productName}${meta.edgeCode != null ? ' [${meta.edgeCode}]' : ''}  |  ${meta.colorName?.toUpperCase() ?? '—'}\n'
           '${meta.qualityName ?? '—'} / ${meta.productTypeName ?? '—'}',
         ),
         dataStyleLeft.copyWith(textWrappingVal: TextWrapping.WrapText),

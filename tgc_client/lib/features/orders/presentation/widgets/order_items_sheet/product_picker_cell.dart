@@ -41,6 +41,7 @@ class ProductPickerCell extends StatelessWidget {
           oldColorId,
           result.product,
           result.color!,
+          result.edge,
         );
         if (!updated && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
