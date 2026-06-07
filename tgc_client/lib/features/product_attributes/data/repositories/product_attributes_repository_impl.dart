@@ -70,6 +70,14 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.checkProductTypeUsage(id: id));
 
   @override
+  Future<Either<Failure, ProductTypeEntity>> archiveProductType({required int id}) =>
+      _execute(() => remoteDataSource.archiveProductType(id: id));
+
+  @override
+  Future<Either<Failure, ProductTypeEntity>> unarchiveProductType({required int id}) =>
+      _execute(() => remoteDataSource.unarchiveProductType(id: id));
+
+  @override
   Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId}) =>
       _execute(() => remoteDataSource.deleteProductType(id: id, replaceWithId: replaceWithId));
 
@@ -90,6 +98,14 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
   @override
   Future<Either<Failure, int>> checkProductQualityUsage({required int id}) =>
       _execute(() => remoteDataSource.checkProductQualityUsage(id: id));
+
+  @override
+  Future<Either<Failure, ProductQualityEntity>> archiveProductQuality({required int id}) =>
+      _execute(() => remoteDataSource.archiveProductQuality(id: id));
+
+  @override
+  Future<Either<Failure, ProductQualityEntity>> unarchiveProductQuality({required int id}) =>
+      _execute(() => remoteDataSource.unarchiveProductQuality(id: id));
 
   @override
   Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId}) =>

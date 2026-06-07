@@ -615,6 +615,12 @@ Future<void> initDependencies() async {
     () => DeleteProductTypeUseCase(sl<ProductAttributesRepository>()),
   );
   sl.registerLazySingleton(
+    () => ArchiveProductTypeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UnarchiveProductTypeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
     () => CreateProductQualityUseCase(sl<ProductAttributesRepository>()),
   );
   sl.registerLazySingleton(
@@ -622,6 +628,12 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(
     () => DeleteProductQualityUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => ArchiveProductQualityUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UnarchiveProductQualityUseCase(sl<ProductAttributesRepository>()),
   );
   sl.registerLazySingleton(
     () => CreateProductSizeUseCase(sl<ProductAttributesRepository>()),
@@ -650,9 +662,13 @@ Future<void> initDependencies() async {
       createProductTypeUseCase: sl<CreateProductTypeUseCase>(),
       updateProductTypeUseCase: sl<UpdateProductTypeUseCase>(),
       deleteProductTypeUseCase: sl<DeleteProductTypeUseCase>(),
+      archiveProductTypeUseCase: sl<ArchiveProductTypeUseCase>(),
+      unarchiveProductTypeUseCase: sl<UnarchiveProductTypeUseCase>(),
       createProductQualityUseCase: sl<CreateProductQualityUseCase>(),
       updateProductQualityUseCase: sl<UpdateProductQualityUseCase>(),
       deleteProductQualityUseCase: sl<DeleteProductQualityUseCase>(),
+      archiveProductQualityUseCase: sl<ArchiveProductQualityUseCase>(),
+      unarchiveProductQualityUseCase: sl<UnarchiveProductQualityUseCase>(),
       createProductSizeUseCase: sl<CreateProductSizeUseCase>(),
       updateProductSizeUseCase: sl<UpdateProductSizeUseCase>(),
       deleteProductSizeUseCase: sl<DeleteProductSizeUseCase>(),

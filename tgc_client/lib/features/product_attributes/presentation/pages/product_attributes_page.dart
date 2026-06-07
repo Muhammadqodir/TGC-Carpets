@@ -168,6 +168,15 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                           itemLabel: (t) => t.type as String,
                           itemSubtitle: (_) => null,
                           emptyMessage: 'Mahsulot turlari topilmadi.',
+                          isArchived: (t) => (t.isArchived as bool),
+                          onArchiveToggle: (t, archive) {
+                            context.read<ProductAttributesBloc>().add(
+                                  ProductTypeArchiveToggleRequested(
+                                    id: t.id as int,
+                                    archive: archive,
+                                  ),
+                                );
+                          },
                           onAdd: () => SimpleAttributeFormDialog.show(
                             context,
                             title: 'Tur qo\'shish',
@@ -219,6 +228,15 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             return d != null ? 'Zichlik: $d' : null;
                           },
                           emptyMessage: 'Sifatlar topilmadi.',
+                          isArchived: (q) => (q.isArchived as bool),
+                          onArchiveToggle: (q, archive) {
+                            context.read<ProductAttributesBloc>().add(
+                                  ProductQualityArchiveToggleRequested(
+                                    id: q.id as int,
+                                    archive: archive,
+                                  ),
+                                );
+                          },
                           onAdd: () => QualityFormDialog.show(
                             context,
                             onSubmit: (ctx, name, density) {

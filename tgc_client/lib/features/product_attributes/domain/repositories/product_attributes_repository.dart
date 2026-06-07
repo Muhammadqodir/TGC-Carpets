@@ -19,6 +19,8 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, ProductTypeEntity>> createProductType({required String type});
   Future<Either<Failure, ProductTypeEntity>> updateProductType({required int id, required String type});
   Future<Either<Failure, int>> checkProductTypeUsage({required int id});
+  Future<Either<Failure, ProductTypeEntity>> archiveProductType({required int id});
+  Future<Either<Failure, ProductTypeEntity>> unarchiveProductType({required int id});
   Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId});
 
   // ── Product Qualities ─────────────────────────────────────────────────────
@@ -26,6 +28,8 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, ProductQualityEntity>> createProductQuality({required String qualityName, int? density});
   Future<Either<Failure, ProductQualityEntity>> updateProductQuality({required int id, required String qualityName, int? density});
   Future<Either<Failure, int>> checkProductQualityUsage({required int id});
+  Future<Either<Failure, ProductQualityEntity>> archiveProductQuality({required int id});
+  Future<Either<Failure, ProductQualityEntity>> unarchiveProductQuality({required int id});
   Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId});
 
   // ── Product Sizes ─────────────────────────────────────────────────────────

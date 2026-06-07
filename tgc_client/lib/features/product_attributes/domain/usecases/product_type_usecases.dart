@@ -17,6 +17,20 @@ class UpdateProductTypeUseCase {
       _repository.updateProductType(id: id, type: type);
 }
 
+class ArchiveProductTypeUseCase {
+  final ProductAttributesRepository _repository;
+  const ArchiveProductTypeUseCase(this._repository);
+  Future<Either<Failure, ProductTypeEntity>> call({required int id}) =>
+      _repository.archiveProductType(id: id);
+}
+
+class UnarchiveProductTypeUseCase {
+  final ProductAttributesRepository _repository;
+  const UnarchiveProductTypeUseCase(this._repository);
+  Future<Either<Failure, ProductTypeEntity>> call({required int id}) =>
+      _repository.unarchiveProductType(id: id);
+}
+
 class DeleteProductTypeUseCase {
   final ProductAttributesRepository _repository;
   const DeleteProductTypeUseCase(this._repository);

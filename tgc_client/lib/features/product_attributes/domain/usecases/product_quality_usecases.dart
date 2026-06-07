@@ -17,6 +17,20 @@ class UpdateProductQualityUseCase {
       _repository.updateProductQuality(id: id, qualityName: qualityName, density: density);
 }
 
+class ArchiveProductQualityUseCase {
+  final ProductAttributesRepository _repository;
+  const ArchiveProductQualityUseCase(this._repository);
+  Future<Either<Failure, ProductQualityEntity>> call({required int id}) =>
+      _repository.archiveProductQuality(id: id);
+}
+
+class UnarchiveProductQualityUseCase {
+  final ProductAttributesRepository _repository;
+  const UnarchiveProductQualityUseCase(this._repository);
+  Future<Either<Failure, ProductQualityEntity>> call({required int id}) =>
+      _repository.unarchiveProductQuality(id: id);
+}
+
 class DeleteProductQualityUseCase {
   final ProductAttributesRepository _repository;
   const DeleteProductQualityUseCase(this._repository);

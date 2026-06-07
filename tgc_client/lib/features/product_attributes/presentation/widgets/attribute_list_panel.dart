@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// A reusable list panel showing a titled list of attribute items.
-/// Each item has an edit and delete action.
+/// Each item has an edit, optional archive-toggle, and delete action.
 class AttributeListPanel<T> extends StatelessWidget {
   const AttributeListPanel({
     super.key,
@@ -13,6 +13,8 @@ class AttributeListPanel<T> extends StatelessWidget {
     required this.onAdd,
     required this.onEdit,
     required this.onDelete,
+    this.isArchived,
+    this.onArchiveToggle,
     this.emptyMessage = 'Ma\'lumot topilmadi.',
   });
 
@@ -22,11 +24,11 @@ class AttributeListPanel<T> extends StatelessWidget {
   final String? Function(T item) itemSubtitle;
   final VoidCallback onAdd;
   final void Function(T item) onEdit;
-
-  /// Called when the delete icon is pressed.
-  /// The callback is responsible for any confirmation dialogs and the actual
-  /// delete logic (including replacement if needed).
   final Future<void> Function(T item) onDelete;
+
+  /// If provided, enables the archive-toggle button for each item.
+  final bool Function(T item)? isArchived;
+  final void Function(T item, bool archive)? onArchiveToggle;
 
   final String emptyMessage;
 
@@ -54,36 +56,79 @@ class AttributeListPanel<T> extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final subtitle = itemSubtitle(item);
-                    return ListTile(
-                      dense: true,
-                      title: Text(
-                        itemLabel(item),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      subtitle: subtitle != null
-                          ? Text(
-                              subtitle,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                            )
-                          : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            color: AppColors.primary,
-                            tooltip: 'Tahrirlash',
-                            onPressed: () => onEdit(item),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18),
-                            color: AppColors.error,
-                            tooltip: 'O\'chirish',
-                            onPressed: () => onDelete(item),
-                          ),
-                        ],
+                    final archived = isArchived?.call(item) ?? false;
+
+                    return Opacity(
+                      opacity: archived ? 0.55 : 1.0,
+                      child: ListTile(
+                        dense: true,
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                itemLabel(item),
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      decoration: archived ? TextDecoration.lineThrough : null,
+                                      color: archived ? AppColors.textSecondary : null,
+                                    ),
+                              ),
+                            ),
+                            if (archived)
+                              Container(
+                                margin: const EdgeInsets.only(left: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.textSecondary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Arxiv',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 10,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: subtitle != null
+                            ? Text(
+                                subtitle,
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                              )
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (onArchiveToggle != null)
+                              IconButton(
+                                icon: Icon(
+                                  archived
+                                      ? Icons.unarchive_outlined
+                                      : Icons.archive_outlined,
+                                  size: 18,
+                                ),
+                                color: archived ? AppColors.success : AppColors.textSecondary,
+                                tooltip: archived ? 'Arxivdan chiqarish' : 'Arxivlash',
+                                onPressed: () => onArchiveToggle!(item, !archived),
+                              ),
+                            if (!archived)
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                color: AppColors.primary,
+                                tooltip: 'Tahrirlash',
+                                onPressed: () => onEdit(item),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              color: AppColors.error,
+                              tooltip: 'O\'chirish',
+                              onPressed: () => onDelete(item),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

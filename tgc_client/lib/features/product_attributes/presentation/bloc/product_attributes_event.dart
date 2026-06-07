@@ -67,6 +67,14 @@ class ProductTypeDeleteRequested extends ProductAttributesEvent {
   List<Object?> get props => [id, replaceWithId];
 }
 
+class ProductTypeArchiveToggleRequested extends ProductAttributesEvent {
+  final int id;
+  final bool archive;
+  const ProductTypeArchiveToggleRequested({required this.id, required this.archive});
+  @override
+  List<Object?> get props => [id, archive];
+}
+
 // ── Product Qualities ─────────────────────────────────────────────────────────
 
 class ProductQualityCreateRequested extends ProductAttributesEvent {
@@ -92,6 +100,14 @@ class ProductQualityDeleteRequested extends ProductAttributesEvent {
   const ProductQualityDeleteRequested(this.id, {this.replaceWithId});
   @override
   List<Object?> get props => [id, replaceWithId];
+}
+
+class ProductQualityArchiveToggleRequested extends ProductAttributesEvent {
+  final int id;
+  final bool archive;
+  const ProductQualityArchiveToggleRequested({required this.id, required this.archive});
+  @override
+  List<Object?> get props => [id, archive];
 }
 
 // ── Product Sizes ─────────────────────────────────────────────────────────────

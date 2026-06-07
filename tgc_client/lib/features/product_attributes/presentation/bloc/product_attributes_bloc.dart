@@ -18,9 +18,13 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
   final CreateProductTypeUseCase createProductTypeUseCase;
   final UpdateProductTypeUseCase updateProductTypeUseCase;
   final DeleteProductTypeUseCase deleteProductTypeUseCase;
+  final ArchiveProductTypeUseCase archiveProductTypeUseCase;
+  final UnarchiveProductTypeUseCase unarchiveProductTypeUseCase;
   final CreateProductQualityUseCase createProductQualityUseCase;
   final UpdateProductQualityUseCase updateProductQualityUseCase;
   final DeleteProductQualityUseCase deleteProductQualityUseCase;
+  final ArchiveProductQualityUseCase archiveProductQualityUseCase;
+  final UnarchiveProductQualityUseCase unarchiveProductQualityUseCase;
   final CreateProductSizeUseCase createProductSizeUseCase;
   final UpdateProductSizeUseCase updateProductSizeUseCase;
   final DeleteProductSizeUseCase deleteProductSizeUseCase;
@@ -36,9 +40,13 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     required this.createProductTypeUseCase,
     required this.updateProductTypeUseCase,
     required this.deleteProductTypeUseCase,
+    required this.archiveProductTypeUseCase,
+    required this.unarchiveProductTypeUseCase,
     required this.createProductQualityUseCase,
     required this.updateProductQualityUseCase,
     required this.deleteProductQualityUseCase,
+    required this.archiveProductQualityUseCase,
+    required this.unarchiveProductQualityUseCase,
     required this.createProductSizeUseCase,
     required this.updateProductSizeUseCase,
     required this.deleteProductSizeUseCase,
@@ -56,10 +64,12 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     on<ProductTypeCreateRequested>(_onTypeCreate);
     on<ProductTypeUpdateRequested>(_onTypeUpdate);
     on<ProductTypeDeleteRequested>(_onTypeDelete);
+    on<ProductTypeArchiveToggleRequested>(_onTypeArchiveToggle);
 
     on<ProductQualityCreateRequested>(_onQualityCreate);
     on<ProductQualityUpdateRequested>(_onQualityUpdate);
     on<ProductQualityDeleteRequested>(_onQualityDelete);
+    on<ProductQualityArchiveToggleRequested>(_onQualityArchiveToggle);
 
     on<ProductSizeCreateRequested>(_onSizeCreate);
     on<ProductSizeUpdateRequested>(_onSizeUpdate);
@@ -218,6 +228,26 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     );
   }
 
+  Future<void> _onTypeArchiveToggle(
+    ProductTypeArchiveToggleRequested event,
+    Emitter<ProductAttributesState> emit,
+  ) async {
+    final current = _requireLoaded(emit);
+    if (current == null) return;
+    emit(current.copyWith(actionStatus: const AttributeActionPending()));
+    final result = event.archive
+        ? await archiveProductTypeUseCase(id: event.id)
+        : await unarchiveProductTypeUseCase(id: event.id);
+    result.fold(
+      (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
+      (pt) {
+        final updated = current.productTypes.map((t) => t.id == pt.id ? pt : t).toList();
+        final msg = event.archive ? '"${pt.type}" arxivlandi.' : '"${pt.type}" arxivdan chiqarildi.';
+        emit(current.copyWith(productTypes: updated, actionStatus: AttributeActionSuccess(msg)));
+      },
+    );
+  }
+
   Future<void> _onQualityCreate(
     ProductQualityCreateRequested event,
     Emitter<ProductAttributesState> emit,
@@ -271,6 +301,26 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
         productQualities: current.productQualities.where((q) => q.id != event.id).toList(),
         actionStatus: const AttributeActionSuccess('Sifat o\'chirildi.'),
       )),
+    );
+  }
+
+  Future<void> _onQualityArchiveToggle(
+    ProductQualityArchiveToggleRequested event,
+    Emitter<ProductAttributesState> emit,
+  ) async {
+    final current = _requireLoaded(emit);
+    if (current == null) return;
+    emit(current.copyWith(actionStatus: const AttributeActionPending()));
+    final result = event.archive
+        ? await archiveProductQualityUseCase(id: event.id)
+        : await unarchiveProductQualityUseCase(id: event.id);
+    result.fold(
+      (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
+      (q) {
+        final updated = current.productQualities.map((e) => e.id == q.id ? q : e).toList();
+        final msg = event.archive ? '"${q.qualityName}" arxivlandi.' : '"${q.qualityName}" arxivdan chiqarildi.';
+        emit(current.copyWith(productQualities: updated, actionStatus: AttributeActionSuccess(msg)));
+      },
     );
   }
 
