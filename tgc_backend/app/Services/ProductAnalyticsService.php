@@ -73,7 +73,7 @@ class ProductAnalyticsService
             if ($qualityId !== null) $query->where('products.product_quality_id', $qualityId);
             if ($colorId !== null)   $query->where('product_colors.color_id', $colorId);
             if ($sizeId !== null)    $query->where('product_variants.product_size_id', $sizeId);
-            if ($edgeId !== null)    $query->where('product_variants.edge_id', $edgeId);
+            if ($edgeId !== null)    $query->where('product_variants.product_edge_id', $edgeId);
 
             $productRows = $query->get();
 
@@ -395,7 +395,7 @@ class ProductAnalyticsService
         $total = $this->totalItems($from, $to);
 
         $rows = $this->baseQuery($from, $to)
-            ->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.edge_id')
+            ->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.product_edge_id')
             ->selectRaw(
                 'product_edges.id,
                  COALESCE(product_edges.title, ?) as name,
@@ -423,7 +423,7 @@ class ProductAnalyticsService
         if ($qualityId !== null) $query->where('products.product_quality_id', $qualityId);
         if ($colorId !== null)   $query->where('product_colors.color_id', $colorId);
         if ($sizeId !== null)    $query->where('product_variants.product_size_id', $sizeId);
-        if ($edgeId !== null)    $query->where('product_variants.edge_id', $edgeId);
+        if ($edgeId !== null)    $query->where('product_variants.product_edge_id', $edgeId);
 
         return (int) $query->value('total');
     }
