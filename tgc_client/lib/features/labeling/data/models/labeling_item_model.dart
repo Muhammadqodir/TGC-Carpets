@@ -21,6 +21,7 @@ class LabelingItemModel extends LabelingItemEntity {
     super.sizeWidth,
     super.qualityName,
     super.productTypeName,
+    super.edgeCode,
   });
 
   factory LabelingItemModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class LabelingItemModel extends LabelingItemEntity {
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;
     final colorInfoMap   = colorMap?['color']           as Map<String, dynamic>?;
     final sizeMap        = variantMap?['product_size']  as Map<String, dynamic>?;
+    final edgeMap        = variantMap?['product_edge']  as Map<String, dynamic>?;
     final productTypeMap = productMap?['product_type']  as Map<String, dynamic>?;
 
     return LabelingItemModel(
@@ -51,6 +53,7 @@ class LabelingItemModel extends LabelingItemEntity {
       sizeWidth:       sizeMap?['width']  as int?,
       qualityName:     productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
+      edgeCode:        edgeMap?['code'] as String?,
     );
   }
 }

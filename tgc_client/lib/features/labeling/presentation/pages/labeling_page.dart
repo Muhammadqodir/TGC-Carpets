@@ -701,7 +701,8 @@ class _LabelingViewState extends State<_LabelingView> {
                           quality: item.qualityName ?? '',
                           type: item.productTypeName ?? '',
                           color: item.colorName ?? '',
-                          sizeLabel: item.sizeLabel + " R",
+                          sizeLabel: item.sizeLabel,
+                          edgeCode: item.edgeCode,
                           barcodeValue: barcodeValue,
                           qrData: qrData,
                         ),
@@ -726,6 +727,7 @@ class _LabelingViewState extends State<_LabelingView> {
     required String sizeLabel,
     required String barcodeValue,
     required String qrData,
+    String? edgeCode,
   }) {
     switch (style) {
       case _LabelStyle.asosiy:
@@ -735,6 +737,7 @@ class _LabelingViewState extends State<_LabelingView> {
           type: type,
           color: color,
           sizeLabel: sizeLabel,
+          edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           qrData: qrData,
         );
@@ -745,6 +748,7 @@ class _LabelingViewState extends State<_LabelingView> {
           type: type,
           color: color,
           sizeLabel: sizeLabel,
+          edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           qrData: qrData,
         );
@@ -1133,7 +1137,7 @@ class _LabelingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${item.productName} | ${item.sizeLabel} | ${item.colorName?.toUpperCase() ?? '—'}',
+                  '${item.edgeCode != null ? '${item.productName} [${item.edgeCode}]' : item.productName} | ${item.sizeLabel} | ${item.colorName?.toUpperCase() ?? '—'}',
                   style: textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                   maxLines: 2,

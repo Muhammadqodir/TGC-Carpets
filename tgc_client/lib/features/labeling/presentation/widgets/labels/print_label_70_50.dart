@@ -29,6 +29,7 @@ class PrintLabel7050 extends StatelessWidget {
     this.type,
     this.color,
     this.sizeLabel,
+    this.edgeCode,
   });
 
   /// Fixed internal canvas: 80 × 50 mm at 300 DPI.
@@ -48,6 +49,9 @@ class PrintLabel7050 extends StatelessWidget {
 
   /// Formatted size string (e.g. "200x300").
   final String? sizeLabel;
+
+  /// Edge code (e.g. "R").
+  final String? edgeCode;
 
   /// Value encoded into the Code-128 barcode (e.g. "TGC-VAR-00000042").
   final String barcodeValue;
@@ -94,7 +98,9 @@ class PrintLabel7050 extends StatelessWidget {
                     ),
                     _SpecRow(
                       label: 'Size',
-                      value: sizeLabel ?? '—',
+                      value: edgeCode != null
+                          ? '${sizeLabel ?? '—'} $edgeCode'
+                          : sizeLabel ?? '—',
                       fontSize: specFontSize,
                       isBold: true,
                     ),
