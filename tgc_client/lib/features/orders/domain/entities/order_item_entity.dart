@@ -24,20 +24,20 @@ class OrderItemEntity extends Equatable {
   final String? qualityName;
   /// product.productType.type — shown in the Tur column.
   final String? productTypeName;
+  final int? productEdgeId;
+  final String? edgeCode;
+  final String? edgeTitle;
   /// How many units of this item have been planned in non-cancelled production batches.
   final int? plannedQuantity;
   /// How many units of this item have actually been produced (produced_quantity sum).
   final int? producedQuantity;
   /// How many units of this item still need to be put into production.
-  /// Calculated on the backend as: quantity - sum(planned_quantity in non-cancelled batches).
   final int? remainingQuantity;
   /// How many units of this item have already been shipped.
-  /// Calculated on the backend as: sum(shipment_items.quantity).
   final int? shippedQuantity;
   /// How many units have been received into the warehouse from production.
   final int? warehouseReceivedQuantity;
   /// Current available stock in the warehouse for this variant.
-  /// This is the actual stock that can be shipped.
   final int? stockAvailable;
 
   const OrderItemEntity({
@@ -58,6 +58,9 @@ class OrderItemEntity extends Equatable {
     this.productTypeId,
     this.qualityName,
     this.productTypeName,
+    this.productEdgeId,
+    this.edgeCode,
+    this.edgeTitle,
     this.plannedQuantity,
     this.producedQuantity,
     this.remainingQuantity,
@@ -70,8 +73,9 @@ class OrderItemEntity extends Equatable {
     final parts = <String>[productName];
     if (colorName != null) parts.add(colorName!);
     if (sizeLength != null && sizeWidth != null) {
-      parts.add('${sizeWidth}×$sizeLength');
+      parts.add('$sizeWidth×$sizeLength');
     }
+    if (edgeCode != null) parts.add('[${edgeCode!}]');
     return parts.join(' / ');
   }
 
@@ -91,6 +95,9 @@ class OrderItemEntity extends Equatable {
         quantity,
         productColorId,
         productSizeId,
+        productEdgeId,
+        edgeCode,
+        edgeTitle,
         plannedQuantity,
         producedQuantity,
         remainingQuantity,
@@ -99,8 +106,6 @@ class OrderItemEntity extends Equatable {
         productTypeId,
         qualityName,
         productTypeName,
-        remainingQuantity,
-        shippedQuantity,
         stockAvailable,
       ];
 }

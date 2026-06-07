@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\ClientDebitController;
 use App\Http\Controllers\Api\V1\ColorController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\ProductEdgeController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductColorController;
@@ -72,6 +73,10 @@ Route::prefix('v1')->group(function (): void {
         // Product qualities
         Route::get('product-qualities/{productQuality}/usage', [ProductQualityController::class, 'usage']);
         Route::apiResource('product-qualities', ProductQualityController::class)->except(['show']);
+
+        // Product edges
+        Route::get('product-edges/{productEdge}/usage', [ProductEdgeController::class, 'usage']);
+        Route::apiResource('product-edges', ProductEdgeController::class)->except(['show']);
 
         // Product sizes
         Route::get('product-sizes/{productSize}/usage', [ProductSizeController::class, 'usage']);

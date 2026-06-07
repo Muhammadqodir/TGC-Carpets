@@ -457,6 +457,143 @@ class _SizeFormDialogState extends State<SizeFormDialog> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Edge form dialog (code + title)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class EdgeFormDialog extends StatefulWidget {
+  const EdgeFormDialog({
+    super.key,
+    this.initialCode,
+    this.initialTitle,
+    required this.onSubmit,
+  });
+
+  final String? initialCode;
+  final String? initialTitle;
+  final void Function(BuildContext context, String code, String title) onSubmit;
+
+  static void show(
+    BuildContext context, {
+    String? initialCode,
+    String? initialTitle,
+    required void Function(BuildContext context, String code, String title) onSubmit,
+  }) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BlocProvider.value(
+        value: context.read<ProductAttributesBloc>(),
+        child: EdgeFormDialog(
+          initialCode: initialCode,
+          initialTitle: initialTitle,
+          onSubmit: onSubmit,
+        ),
+      ),
+    );
+  }
+
+  @override
+  State<EdgeFormDialog> createState() => _EdgeFormDialogState();
+}
+
+class _EdgeFormDialogState extends State<EdgeFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _codeCtrl;
+  late final TextEditingController _titleCtrl;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _codeCtrl  = TextEditingController(text: widget.initialCode  ?? '');
+    _titleCtrl = TextEditingController(text: widget.initialTitle ?? '');
+  }
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    widget.onSubmit(context, _codeCtrl.text.trim().toUpperCase(), _titleCtrl.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<ProductAttributesBloc, ProductAttributesState>(
+      listenWhen: (prev, curr) =>
+          curr is ProductAttributesLoaded &&
+          prev is ProductAttributesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: (context, state) {
+        if (state is ProductAttributesLoaded) {
+          final status = state.actionStatus;
+          if (status is AttributeActionSuccess) {
+            if (mounted) Navigator.of(context).pop();
+          } else if (status is AttributeActionFailure) {
+            if (mounted) {
+              setState(() => _submitting = false);
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: AlertDialog(
+        title: Text(widget.initialCode != null ? 'Qirrani tahrirlash' : 'Qirra qo\'shish'),
+        content: Form(
+          key: _formKey,
+          child: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _codeCtrl,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 10,
+                  decoration: const InputDecoration(
+                    labelText: 'Kod',
+                    hintText: 'masalan: R',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nomi',
+                    hintText: 'masalan: Tortburchak',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared action status listener
 // ─────────────────────────────────────────────────────────────────────────────
 

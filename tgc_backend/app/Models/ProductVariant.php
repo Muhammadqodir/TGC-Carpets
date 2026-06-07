@@ -12,6 +12,7 @@ class ProductVariant extends Model
     protected $fillable = [
         'product_color_id',
         'product_size_id',
+        'product_edge_id',
         'barcode_value',
         'sku_code',
     ];
@@ -21,6 +22,7 @@ class ProductVariant extends Model
         return [
             'product_color_id' => 'integer',
             'product_size_id'  => 'integer',
+            'product_edge_id'  => 'integer',
         ];
     }
 
@@ -29,15 +31,16 @@ class ProductVariant extends Model
     /**
      * Generate a human-readable SKU for a variant.
      *
-     * Format: TGC-{NAME}-Q{quality_id}-T{type_id}-{COLOR}-{LxW}
-     * Example: TGC-7126-Q1-T2-KREM-200x300
+     * Format: TGC-{NAME}-Q{quality_id}-T{type_id}-{COLOR}-{LxW}-E{edge_code}
+     * Example: TGC-7126-Q1-T2-KREM-200x300-ER
      */
     public static function generateSku(
         string $name,
         ?int $qualityId,
         ?int $typeId,
         string $colorName,
-        ?ProductSize $size
+        ?ProductSize $size,
+        ?string $edgeCode = null
     ): string {
         $sku = 'TGC-' . strtoupper(Str::slug($name, '_'));
 
@@ -54,6 +57,10 @@ class ProductVariant extends Model
             $sku .= '-' . $size->width . 'x' . $size->length;
         }
 
+        if ($edgeCode) {
+            $sku .= '-E' . strtoupper($edgeCode);
+        }
+
         return $sku;
     }
 
@@ -67,6 +74,11 @@ class ProductVariant extends Model
     public function productSize(): BelongsTo
     {
         return $this->belongsTo(ProductSize::class);
+    }
+
+    public function productEdge(): BelongsTo
+    {
+        return $this->belongsTo(ProductEdge::class);
     }
 
     public function warehouseDocumentItems(): HasMany
@@ -96,7 +108,7 @@ class ProductVariant extends Model
     }
 
     /**
-     * Human-readable label: "Carpet Name (krem) 200x300".
+     * Human-readable label: "Carpet Name (krem) 200x300 [R]".
      */
     public function label(): string
     {
@@ -106,7 +118,10 @@ class ProductVariant extends Model
         $size = $this->productSize
             ? " {$this->productSize->width}x{$this->productSize->length}"
             : '';
+        $edge = $this->productEdge
+            ? " [{$this->productEdge->code}]"
+            : '';
 
-        return trim("{$name} ({$color}){$size}");
+        return trim("{$name} ({$color}){$size}{$edge}");
     }
 }

@@ -22,6 +22,8 @@ class ShipmentItemRow {
   final int? sizeLength;
   final int? sizeWidth;
   final String? productUnit;
+  final String? edgeCode;
+  final String? edgeTitle;
 
   /// Max shippable quantity = order qty - already shipped qty.
   final int availableQuantity;
@@ -41,6 +43,8 @@ class ShipmentItemRow {
     this.sizeLength,
     this.sizeWidth,
     this.productUnit,
+    this.edgeCode,
+    this.edgeTitle,
     required this.availableQuantity,
     int initialQuantity = 1,
     double? initialPrice,
@@ -71,6 +75,8 @@ class ShipmentItemRow {
       sizeLength: item.sizeLength,
       sizeWidth: item.sizeWidth,
       productUnit: item.productUnit,
+      edgeCode: item.edgeCode,
+      edgeTitle: item.edgeTitle,
       availableQuantity: available,
       initialQuantity: available > 0 ? available : 1,
       initialPrice: lastPrice,
@@ -78,7 +84,7 @@ class ShipmentItemRow {
   }
 
   String? get sizeLabel =>
-      sizeLength != null && sizeWidth != null ? '${sizeWidth}×$sizeLength' : null;
+      sizeLength != null && sizeWidth != null ? '$sizeWidth×$sizeLength' : null;
 
   double get parsedPrice =>
       double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;

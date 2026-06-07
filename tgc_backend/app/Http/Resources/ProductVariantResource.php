@@ -39,6 +39,11 @@ class ProductVariantResource extends JsonResource
                 'length' => $this->productSize->length,
                 'width'  => $this->productSize->width,
             ] : null),
+            'product_edge'  => $this->whenLoaded('productEdge', fn () => $this->productEdge ? [
+                'id'    => $this->productEdge->id,
+                'code'  => $this->productEdge->code,
+                'title' => $this->productEdge->title,
+            ] : null),
             'created_at'    => $this->created_at?->toISOString(),
         ];
     }

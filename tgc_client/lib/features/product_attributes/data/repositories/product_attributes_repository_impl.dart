@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../products/domain/entities/color_entity.dart';
+import '../../../products/domain/entities/product_edge_entity.dart';
 import '../../../products/domain/entities/product_quality_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/domain/entities/product_type_entity.dart';
@@ -115,4 +116,26 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
   @override
   Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId}) =>
       _execute(() => remoteDataSource.deleteProductSize(id: id, replaceWithId: replaceWithId));
+
+  // ── Product Edges ──────────────────────────────────────────────────────────
+
+  @override
+  Future<Either<Failure, List<ProductEdgeEntity>>> getProductEdges() =>
+      _execute(() => remoteDataSource.getProductEdges());
+
+  @override
+  Future<Either<Failure, ProductEdgeEntity>> createProductEdge({required String code, required String title}) =>
+      _execute(() => remoteDataSource.createProductEdge(code: code, title: title));
+
+  @override
+  Future<Either<Failure, ProductEdgeEntity>> updateProductEdge({required int id, required String code, required String title}) =>
+      _execute(() => remoteDataSource.updateProductEdge(id: id, code: code, title: title));
+
+  @override
+  Future<Either<Failure, int>> checkProductEdgeUsage({required int id}) =>
+      _execute(() => remoteDataSource.checkProductEdgeUsage(id: id));
+
+  @override
+  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId}) =>
+      _execute(() => remoteDataSource.deleteProductEdge(id: id, replaceWithId: replaceWithId));
 }

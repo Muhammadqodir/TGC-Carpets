@@ -17,6 +17,9 @@ class ShipmentItemModel extends ShipmentItemEntity {
     super.sizeWidth,
     super.colorId,
     super.colorName,
+    super.productEdgeId,
+    super.edgeCode,
+    super.edgeTitle,
     super.orderId,
     super.orderDate,
   });
@@ -26,6 +29,7 @@ class ShipmentItemModel extends ShipmentItemEntity {
     final productMap  = json['product']      as Map<String, dynamic>?;
     final colorMap    = json['color']        as Map<String, dynamic>?;
     final sizeMap     = json['product_size'] as Map<String, dynamic>?;
+    final edgeMap     = variantMap?['product_edge'] as Map<String, dynamic>?;
 
     return ShipmentItemModel(
       id:               json['id'] as int,
@@ -43,8 +47,11 @@ class ShipmentItemModel extends ShipmentItemEntity {
           : null,
       sizeLength:       sizeMap?['length'] as int?,
       sizeWidth:        sizeMap?['width'] as int?,
-      colorId:   colorMap?['id'] as int?,
-      colorName: colorMap?['name'] as String?,
+      colorId:          colorMap?['id'] as int?,
+      colorName:        colorMap?['name'] as String?,
+      productEdgeId:    edgeMap?['id'] as int?,
+      edgeCode:         edgeMap?['code'] as String?,
+      edgeTitle:        edgeMap?['title'] as String?,
       orderId:   (json['order'] as Map<String, dynamic>?)?['id'] as int?,
       orderDate: (json['order'] as Map<String, dynamic>?)?['order_date'] != null
           ? DateTime.parse(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../products/domain/entities/product_color_entity.dart';
+import '../../../products/domain/entities/product_edge_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 
@@ -17,6 +18,7 @@ class OrderItemRow {
   ProductEntity? selectedProduct;
   ProductColorEntity? selectedColor;
   ProductSizeEntity? selectedSize;
+  ProductEdgeEntity? selectedEdge;
   final TextEditingController quantityCtrl;
 
   // ── Prefill data (edit mode, from server) ─────────────────────────────────
@@ -26,6 +28,9 @@ class OrderItemRow {
 
   /// product_size.id – used for submission when no entity has been picked yet.
   final int? prefilledSizeId;
+
+  /// product_edge.id – used for submission when no entity has been picked yet.
+  final int? prefilledEdgeId;
 
   final String? prefilledProductName;
   final String? prefilledColorName;
@@ -44,9 +49,13 @@ class OrderItemRow {
   final int? prefilledSizeLength;
   final int? prefilledSizeWidth;
 
+  /// Edge code for display when no entity has been selected yet.
+  final String? prefilledEdgeCode;
+
   OrderItemRow({
     this.prefilledColorId,
     this.prefilledSizeId,
+    this.prefilledEdgeId,
     this.prefilledProductName,
     this.prefilledColorName,
     this.prefilledColorImageUrl,
@@ -55,19 +64,22 @@ class OrderItemRow {
     this.prefilledProductTypeId,
     this.prefilledSizeLength,
     this.prefilledSizeWidth,
+    this.prefilledEdgeCode,
     int initialQuantity = 1,
   }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
 
   void dispose() => quantityCtrl.dispose();
 
   /// True when the row has enough data to be submitted.
-  /// Either new entity data or pre-existing server IDs.
   bool get isFilled => selectedProduct != null || prefilledColorId != null;
+
+  /// Resolved edge ID — from selected entity or prefill.
+  int? get effectiveEdgeId => selectedEdge?.id ?? prefilledEdgeId;
 
   /// Display string for size, derived from prefill integers.
   String? get prefilledSizeDimensions =>
       prefilledSizeLength != null && prefilledSizeWidth != null
-          ? '${prefilledSizeWidth}×$prefilledSizeLength'
+          ? '$prefilledSizeWidth×$prefilledSizeLength'
           : null;
 
   String get label {
@@ -75,6 +87,7 @@ class OrderItemRow {
       final parts = <String>[selectedProduct!.name];
       if (selectedColor != null) parts.add(selectedColor!.colorName);
       if (selectedSize != null) parts.add(selectedSize!.dimensions);
+      if (selectedEdge != null) parts.add('[${selectedEdge!.code}]');
       return parts.join(' / ');
     }
     if (prefilledProductName != null) {
@@ -82,6 +95,7 @@ class OrderItemRow {
       if (prefilledColorName != null) parts.add(prefilledColorName!);
       final dim = prefilledSizeDimensions;
       if (dim != null) parts.add(dim);
+      if (prefilledEdgeCode != null) parts.add('[$prefilledEdgeCode]');
       return parts.join(' / ');
     }
     return 'Mahsulot tanlanmagan';

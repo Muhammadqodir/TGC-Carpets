@@ -122,3 +122,30 @@ class ProductSizeDeleteRequested extends ProductAttributesEvent {
   @override
   List<Object?> get props => [id];
 }
+
+// ── Product Edges ─────────────────────────────────────────────────────────────
+
+class ProductEdgeCreateRequested extends ProductAttributesEvent {
+  final String code;
+  final String title;
+  const ProductEdgeCreateRequested({required this.code, required this.title});
+  @override
+  List<Object?> get props => [code, title];
+}
+
+class ProductEdgeUpdateRequested extends ProductAttributesEvent {
+  final int id;
+  final String code;
+  final String title;
+  const ProductEdgeUpdateRequested({required this.id, required this.code, required this.title});
+  @override
+  List<Object?> get props => [id, code, title];
+}
+
+class ProductEdgeDeleteRequested extends ProductAttributesEvent {
+  final int id;
+  final int? replaceWithId;
+  const ProductEdgeDeleteRequested(this.id, {this.replaceWithId});
+  @override
+  List<Object?> get props => [id, replaceWithId];
+}

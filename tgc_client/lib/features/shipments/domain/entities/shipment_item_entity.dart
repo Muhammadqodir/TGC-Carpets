@@ -16,6 +16,9 @@ class ShipmentItemEntity extends Equatable {
   final int? sizeWidth;
   final int? colorId;
   final String? colorName;
+  final int? productEdgeId;
+  final String? edgeCode;
+  final String? edgeTitle;
   final int? orderId;
   final DateTime? orderDate;
 
@@ -35,6 +38,9 @@ class ShipmentItemEntity extends Equatable {
     this.sizeWidth,
     this.colorId,
     this.colorName,
+    this.productEdgeId,
+    this.edgeCode,
+    this.edgeTitle,
     this.orderId,
     this.orderDate,
   });
@@ -69,6 +75,9 @@ class ShipmentItemEntity extends Equatable {
         sizeWidth,
         colorId,
         colorName,
+        productEdgeId,
+        edgeCode,
+        edgeTitle,
         orderId,
         orderDate,
       ];

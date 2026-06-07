@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ProductTypeSeeder::class,
             ProductSizeSeeder::class,
             ProductQualitySeeder::class,
+            ProductEdgeSeeder::class,
             ProductSeeder::class,
             UserSeeder::class,
             MachineSeeder::class,

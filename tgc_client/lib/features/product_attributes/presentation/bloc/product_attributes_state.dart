@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../products/domain/entities/color_entity.dart';
+import '../../../products/domain/entities/product_edge_entity.dart';
 import '../../../products/domain/entities/product_quality_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/domain/entities/product_type_entity.dart';
@@ -58,6 +59,7 @@ class ProductAttributesLoaded extends ProductAttributesState {
   final List<ProductTypeEntity> productTypes;
   final List<ProductQualityEntity> productQualities;
   final List<ProductSizeEntity> productSizes;
+  final List<ProductEdgeEntity> productEdges;
   final AttributeActionStatus actionStatus;
 
   const ProductAttributesLoaded({
@@ -65,6 +67,7 @@ class ProductAttributesLoaded extends ProductAttributesState {
     required this.productTypes,
     required this.productQualities,
     required this.productSizes,
+    required this.productEdges,
     this.actionStatus = const AttributeActionIdle(),
   });
 
@@ -73,6 +76,7 @@ class ProductAttributesLoaded extends ProductAttributesState {
     List<ProductTypeEntity>? productTypes,
     List<ProductQualityEntity>? productQualities,
     List<ProductSizeEntity>? productSizes,
+    List<ProductEdgeEntity>? productEdges,
     AttributeActionStatus? actionStatus,
   }) =>
       ProductAttributesLoaded(
@@ -80,11 +84,12 @@ class ProductAttributesLoaded extends ProductAttributesState {
         productTypes: productTypes ?? this.productTypes,
         productQualities: productQualities ?? this.productQualities,
         productSizes: productSizes ?? this.productSizes,
+        productEdges: productEdges ?? this.productEdges,
         actionStatus: actionStatus ?? this.actionStatus,
       );
 
   @override
-  List<Object?> get props => [colors, productTypes, productQualities, productSizes, actionStatus];
+  List<Object?> get props => [colors, productTypes, productQualities, productSizes, productEdges, actionStatus];
 }
 
 class ProductAttributesError extends ProductAttributesState {

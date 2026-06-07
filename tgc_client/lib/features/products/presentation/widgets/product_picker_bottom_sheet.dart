@@ -6,19 +6,22 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/search_picker_bottom_sheet.dart';
 import '../../data/datasources/product_remote_datasource.dart';
 import '../../domain/entities/product_color_entity.dart';
+import '../../domain/entities/product_edge_entity.dart';
 import '../../domain/entities/product_entity.dart';
+import '../../../product_attributes/data/datasources/product_attributes_remote_datasource.dart';
 
-/// Holds the product and the exact colour the user selected.
+/// Holds the product, the exact colour, and the edge the user selected.
 class ProductPickerResult {
   final ProductEntity product;
   final ProductColorEntity? color;
+  final ProductEdgeEntity? edge;
 
-  const ProductPickerResult({required this.product, this.color});
+  const ProductPickerResult({required this.product, this.color, this.edge});
 }
 
-/// Two-step picker: first choose a product, then choose a colour.
+/// Three-step picker: product → colour → edge (default R).
 ///
-/// Returns [ProductPickerResult] or null if the user dismisses either step.
+/// Returns [ProductPickerResult] or null if the user dismisses any step.
 class ProductPickerBottomSheet {
   ProductPickerBottomSheet._();
 
@@ -45,22 +48,23 @@ class ProductPickerBottomSheet {
     if (product == null) return null;
 
     // ── Step 2: pick colour ──────────────────────────────────────────────────
+    ProductColorEntity? color;
     if (product.productColors.isEmpty) {
-      return ProductPickerResult(product: product, color: null);
+      color = null;
+    } else if (product.productColors.length == 1) {
+      color = product.productColors.first;
+    } else {
+      // ignore: use_build_context_synchronously
+      color = await _ColorPickerSheet.show(context, product);
+      if (color == null) return null;
     }
 
-    if (product.productColors.length == 1) {
-      return ProductPickerResult(
-        product: product,
-        color: product.productColors.first,
-      );
-    }
-
+    // ── Step 3: pick edge (default R) ────────────────────────────────────────
     // ignore: use_build_context_synchronously
-    final color = await _ColorPickerSheet.show(context, product);
-    if (color == null) return null;
+    final edge = await _EdgePickerSheet.show(context);
+    if (edge == null) return null;
 
-    return ProductPickerResult(product: product, color: color);
+    return ProductPickerResult(product: product, color: color, edge: edge);
   }
 }
 
@@ -195,6 +199,201 @@ class _ColorTile extends StatelessWidget {
       );
 }
 
+// ── Edge picker sheet (step 3) ────────────────────────────────────────────────
+
+class _EdgePickerSheet extends StatefulWidget {
+  const _EdgePickerSheet();
+
+  static Future<ProductEdgeEntity?> show(BuildContext context) {
+    return showModalBottomSheet<ProductEdgeEntity>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _EdgePickerSheet(),
+    );
+  }
+
+  @override
+  State<_EdgePickerSheet> createState() => _EdgePickerSheetState();
+}
+
+class _EdgePickerSheetState extends State<_EdgePickerSheet> {
+  List<ProductEdgeEntity>? _edges;
+  ProductEdgeEntity? _selected;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEdges();
+  }
+
+  Future<void> _loadEdges() async {
+    try {
+      final ds = sl<ProductAttributesRemoteDataSource>();
+      final edges = await ds.getProductEdges();
+      if (!mounted) return;
+      // Default selection: the edge with code 'R', or the first one.
+      final defaultEdge = edges.firstWhere(
+        (e) => e.code == 'R',
+        orElse: () => edges.first,
+      );
+      setState(() {
+        _edges = edges;
+        _selected = defaultEdge;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 16,
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Qirra tanlang',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Standart: Tortburchak (R)',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_edges == null || _edges!.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: Text('Qirralar topilmadi.')),
+            )
+          else ...[
+            ..._edges!.map((e) => _EdgeTile(
+                  edge: e,
+                  isSelected: _selected?.id == e.id,
+                  onTap: () => setState(() => _selected = e),
+                )),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _selected != null
+                    ? () => Navigator.of(context).pop(_selected)
+                    : null,
+                child: const Text('Tasdiqlash'),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _EdgeTile extends StatelessWidget {
+  final ProductEdgeEntity edge;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _EdgeTile({
+    required this.edge,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                    : AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : AppColors.divider,
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  edge.code,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                edge.title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ProductPickerTile extends StatelessWidget {
   final ProductEntity product;
 
@@ -211,7 +410,6 @@ class _ProductPickerTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          // Product image / placeholder
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: firstImageUrl != null
@@ -233,7 +431,6 @@ class _ProductPickerTile extends StatelessWidget {
                 : _placeholder(),
           ),
           const SizedBox(width: 12),
-          // Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,8 +451,7 @@ class _ProductPickerTile extends StatelessWidget {
                     if (product.productType != null)
                       _chip(product.productType!.type, AppColors.textSecondary),
                     if (product.productQuality != null)
-                      _chip(product.productQuality!.qualityName,
-                          AppColors.primaryLight),
+                      _chip(product.productQuality!.qualityName, AppColors.primaryLight),
                     ...product.productColors.take(3).map(
                           (pc) => _chip(pc.colorName, AppColors.accent),
                         ),
@@ -278,8 +474,7 @@ class _ProductPickerTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style:
-            TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
+        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
       ),
     );
   }

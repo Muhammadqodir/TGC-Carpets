@@ -298,6 +298,7 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                   (r.selectedProduct == null && r.prefilledSizeId != null))
                 'product_size_id': r.selectedSize?.id ?? r.prefilledSizeId,
               'quantity': int.tryParse(r.quantityCtrl.text.trim()) ?? 1,
+              if (r.effectiveEdgeId != null) 'product_edge_id': r.effectiveEdgeId,
             })
         .toList();
 

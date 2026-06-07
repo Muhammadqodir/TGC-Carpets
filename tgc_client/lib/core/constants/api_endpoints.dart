@@ -24,6 +24,9 @@ class ApiEndpoints {
   static String productTypeUsage(int id) => '/product-types/$id/usage';
   static String productQualityUsage(int id) => '/product-qualities/$id/usage';
   static String productSizeUsage(int id) => '/product-sizes/$id/usage';
+  static const String productEdges = '/product-edges';
+  static String productEdgeById(int id) => '/product-edges/$id';
+  static String productEdgeUsage(int id) => '/product-edges/$id/usage';
 
   // Clients
   static const String clients = '/clients';

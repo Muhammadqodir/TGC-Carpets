@@ -13,13 +13,17 @@ class ProductVariantModel extends ProductVariantEntity {
     super.productSizeId,
     super.sizeLength,
     super.sizeWidth,
+    super.productEdgeId,
+    super.edgeCode,
+    super.edgeTitle,
   });
 
   factory ProductVariantModel.fromJson(Map<String, dynamic> json) {
-    final pcMap      = json['product_color'] as Map<String, dynamic>?;
-    final productMap = pcMap?['product']     as Map<String, dynamic>?;
-    final colorMap   = pcMap?['color']       as Map<String, dynamic>?;
-    final sizeMap    = json['product_size']  as Map<String, dynamic>?;
+    final pcMap      = json['product_color']  as Map<String, dynamic>?;
+    final productMap = pcMap?['product']      as Map<String, dynamic>?;
+    final colorMap   = pcMap?['color']        as Map<String, dynamic>?;
+    final sizeMap    = json['product_size']   as Map<String, dynamic>?;
+    final edgeMap    = json['product_edge']   as Map<String, dynamic>?;
     return ProductVariantModel(
       id:             json['id'] as int,
       barcodeValue:   json['barcode_value'] as String?,
@@ -32,6 +36,9 @@ class ProductVariantModel extends ProductVariantEntity {
       productSizeId:  sizeMap?['id'] as int?,
       sizeLength:     sizeMap?['length'] as int?,
       sizeWidth:      sizeMap?['width'] as int?,
+      productEdgeId:  edgeMap?['id'] as int?,
+      edgeCode:       edgeMap?['code'] as String?,
+      edgeTitle:      edgeMap?['title'] as String?,
     );
   }
 }

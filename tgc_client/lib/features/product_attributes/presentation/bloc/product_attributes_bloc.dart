@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/color_usecases.dart';
 import '../../domain/usecases/load_product_attributes_usecase.dart';
+import '../../domain/usecases/product_edge_usecases.dart';
 import '../../domain/usecases/product_quality_usecases.dart';
 import '../../domain/usecases/product_size_usecases.dart';
 import '../../domain/usecases/product_type_usecases.dart';
@@ -23,6 +24,9 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
   final CreateProductSizeUseCase createProductSizeUseCase;
   final UpdateProductSizeUseCase updateProductSizeUseCase;
   final DeleteProductSizeUseCase deleteProductSizeUseCase;
+  final CreateProductEdgeUseCase createProductEdgeUseCase;
+  final UpdateProductEdgeUseCase updateProductEdgeUseCase;
+  final DeleteProductEdgeUseCase deleteProductEdgeUseCase;
 
   ProductAttributesBloc({
     required this.loadUseCase,
@@ -38,6 +42,9 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     required this.createProductSizeUseCase,
     required this.updateProductSizeUseCase,
     required this.deleteProductSizeUseCase,
+    required this.createProductEdgeUseCase,
+    required this.updateProductEdgeUseCase,
+    required this.deleteProductEdgeUseCase,
   }) : super(const ProductAttributesInitial()) {
     on<ProductAttributesLoadRequested>(_onLoad);
     on<ProductAttributesRefreshRequested>(_onLoad);
@@ -57,6 +64,10 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     on<ProductSizeCreateRequested>(_onSizeCreate);
     on<ProductSizeUpdateRequested>(_onSizeUpdate);
     on<ProductSizeDeleteRequested>(_onSizeDelete);
+
+    on<ProductEdgeCreateRequested>(_onEdgeCreate);
+    on<ProductEdgeUpdateRequested>(_onEdgeUpdate);
+    on<ProductEdgeDeleteRequested>(_onEdgeDelete);
   }
 
   // ── Load ────────────────────────────────────────────────────────────────────
@@ -66,17 +77,19 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     Emitter<ProductAttributesState> emit,
   ) async {
     emit(const ProductAttributesLoading());
-    final (colors, types, qualities, sizes) = await loadUseCase();
+    final (colors, types, qualities, sizes, edges) = await loadUseCase();
 
-    final colorsData = colors.fold((f) => null, (v) => v);
-    final typesData = types.fold((f) => null, (v) => v);
+    final colorsData    = colors.fold((f) => null, (v) => v);
+    final typesData     = types.fold((f) => null, (v) => v);
     final qualitiesData = qualities.fold((f) => null, (v) => v);
-    final sizesData = sizes.fold((f) => null, (v) => v);
+    final sizesData     = sizes.fold((f) => null, (v) => v);
+    final edgesData     = edges.fold((f) => null, (v) => v);
 
     final error = colors.fold((f) => f.message, (_) => null) ??
         types.fold((f) => f.message, (_) => null) ??
         qualities.fold((f) => f.message, (_) => null) ??
-        sizes.fold((f) => f.message, (_) => null);
+        sizes.fold((f) => f.message, (_) => null) ??
+        edges.fold((f) => f.message, (_) => null);
 
     if (error != null) {
       emit(ProductAttributesError(error));
@@ -88,6 +101,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
       productTypes: typesData!,
       productQualities: qualitiesData!,
       productSizes: sizesData!,
+      productEdges: edgesData!,
     ));
   }
 
@@ -203,6 +217,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
       )),
     );
   }
+
   Future<void> _onQualityCreate(
     ProductQualityCreateRequested event,
     Emitter<ProductAttributesState> emit,
@@ -274,7 +289,6 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (s) {
-        // Clear size picker caches
         OrderProductSizeMultiPickerSheet.clearCache();
         ProductSizePickerSheet.clearCache();
         emit(current.copyWith(
@@ -305,7 +319,6 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (s) {
-        // Clear size picker caches
         OrderProductSizeMultiPickerSheet.clearCache();
         ProductSizePickerSheet.clearCache();
         final updated = current.productSizes.map((e) => e.id == s.id ? s : e).toList()
@@ -332,7 +345,6 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) {
-        // Clear size picker caches
         OrderProductSizeMultiPickerSheet.clearCache();
         ProductSizePickerSheet.clearCache();
         emit(current.copyWith(
@@ -342,6 +354,64 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
       },
     );
   }
+
+  // ── Edges ────────────────────────────────────────────────────────────────────
+
+  Future<void> _onEdgeCreate(
+    ProductEdgeCreateRequested event,
+    Emitter<ProductAttributesState> emit,
+  ) async {
+    final current = _requireLoaded(emit);
+    if (current == null) return;
+    emit(current.copyWith(actionStatus: const AttributeActionPending()));
+    final result = await createProductEdgeUseCase(code: event.code, title: event.title);
+    result.fold(
+      (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
+      (e) => emit(current.copyWith(
+        productEdges: [...current.productEdges, e]..sort((a, b) => a.title.compareTo(b.title)),
+        actionStatus: AttributeActionSuccess('"${e.title}" qirrasi qo\'shildi.'),
+      )),
+    );
+  }
+
+  Future<void> _onEdgeUpdate(
+    ProductEdgeUpdateRequested event,
+    Emitter<ProductAttributesState> emit,
+  ) async {
+    final current = _requireLoaded(emit);
+    if (current == null) return;
+    emit(current.copyWith(actionStatus: const AttributeActionPending()));
+    final result = await updateProductEdgeUseCase(id: event.id, code: event.code, title: event.title);
+    result.fold(
+      (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
+      (e) {
+        final updated = current.productEdges.map((x) => x.id == e.id ? e : x).toList()
+          ..sort((a, b) => a.title.compareTo(b.title));
+        emit(current.copyWith(
+          productEdges: updated,
+          actionStatus: AttributeActionSuccess('"${e.title}" yangilandi.'),
+        ));
+      },
+    );
+  }
+
+  Future<void> _onEdgeDelete(
+    ProductEdgeDeleteRequested event,
+    Emitter<ProductAttributesState> emit,
+  ) async {
+    final current = _requireLoaded(emit);
+    if (current == null) return;
+    emit(current.copyWith(actionStatus: const AttributeActionPending()));
+    final result = await deleteProductEdgeUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    result.fold(
+      (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
+      (_) => emit(current.copyWith(
+        productEdges: current.productEdges.where((e) => e.id != event.id).toList(),
+        actionStatus: const AttributeActionSuccess('Qirra o\'chirildi.'),
+      )),
+    );
+  }
+
   ProductAttributesLoaded? _requireLoaded(Emitter<ProductAttributesState> emit) {
     final current = state;
     if (current is ProductAttributesLoaded) return current;

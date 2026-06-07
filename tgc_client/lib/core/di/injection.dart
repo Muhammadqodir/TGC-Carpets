@@ -158,6 +158,7 @@ import '../../features/product_attributes/domain/usecases/load_product_attribute
 import '../../features/product_attributes/domain/usecases/color_usecases.dart';
 import '../../features/product_attributes/domain/usecases/product_type_usecases.dart';
 import '../../features/product_attributes/domain/usecases/product_quality_usecases.dart';
+import '../../features/product_attributes/domain/usecases/product_edge_usecases.dart';
 import '../../features/product_attributes/domain/usecases/product_size_usecases.dart';
 import '../../features/product_attributes/presentation/bloc/product_attributes_bloc.dart';
 
@@ -631,6 +632,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(
     () => DeleteProductSizeUseCase(sl<ProductAttributesRepository>()),
   );
+  sl.registerLazySingleton(
+    () => CreateProductEdgeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateProductEdgeUseCase(sl<ProductAttributesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteProductEdgeUseCase(sl<ProductAttributesRepository>()),
+  );
   sl.registerFactory(
     () => ProductAttributesBloc(
       loadUseCase: sl<LoadProductAttributesUseCase>(),
@@ -646,6 +656,9 @@ Future<void> initDependencies() async {
       createProductSizeUseCase: sl<CreateProductSizeUseCase>(),
       updateProductSizeUseCase: sl<UpdateProductSizeUseCase>(),
       deleteProductSizeUseCase: sl<DeleteProductSizeUseCase>(),
+      createProductEdgeUseCase: sl<CreateProductEdgeUseCase>(),
+      updateProductEdgeUseCase: sl<UpdateProductEdgeUseCase>(),
+      deleteProductEdgeUseCase: sl<DeleteProductEdgeUseCase>(),
     ),
   );
 

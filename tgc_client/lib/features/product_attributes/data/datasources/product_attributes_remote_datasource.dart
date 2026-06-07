@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../products/data/models/color_model.dart';
+import '../../../products/data/models/product_edge_model.dart';
 import '../../../products/data/models/product_quality_model.dart';
 import '../../../products/data/models/product_size_model.dart';
 import '../../../products/data/models/product_type_model.dart';
@@ -34,6 +35,13 @@ abstract class ProductAttributesRemoteDataSource {
   Future<ProductSizeModel> updateProductSize({required int id, required int length, required int width, required int productTypeId});
   Future<int> checkProductSizeUsage({required int id});
   Future<void> deleteProductSize({required int id, int? replaceWithId});
+
+  // Product Edges
+  Future<List<ProductEdgeModel>> getProductEdges();
+  Future<ProductEdgeModel> createProductEdge({required String code, required String title});
+  Future<ProductEdgeModel> updateProductEdge({required int id, required String code, required String title});
+  Future<int> checkProductEdgeUsage({required int id});
+  Future<void> deleteProductEdge({required int id, int? replaceWithId});
 }
 
 class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDataSource {
@@ -295,6 +303,65 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   Future<int> checkProductSizeUsage({required int id}) async {
     try {
       final response = await _dio.get(ApiEndpoints.productSizeUsage(id));
+      return (response.data as Map<String, dynamic>)['count'] as int;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  // ── Product Edges ──────────────────────────────────────────────────────────
+
+  @override
+  Future<List<ProductEdgeModel>> getProductEdges() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.productEdges);
+      final data = (response.data as Map<String, dynamic>)['data'] as List;
+      return data.map((e) => ProductEdgeModel.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductEdgeModel> createProductEdge({required String code, required String title}) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.productEdges, data: {'code': code, 'title': title});
+      return ProductEdgeModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ProductEdgeModel> updateProductEdge({required int id, required String code, required String title}) async {
+    try {
+      final response = await _dio.put(ApiEndpoints.productEdgeById(id), data: {'code': code, 'title': title});
+      return ProductEdgeModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteProductEdge({required int id, int? replaceWithId}) async {
+    try {
+      await _dio.delete(
+        ApiEndpoints.productEdgeById(id),
+        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<int> checkProductEdgeUsage({required int id}) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.productEdgeUsage(id));
       return (response.data as Map<String, dynamic>)['count'] as int;
     } on DioException catch (e) {
       _handleDioError(e);

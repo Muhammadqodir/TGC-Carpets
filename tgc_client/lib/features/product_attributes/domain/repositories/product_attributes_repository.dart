@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../products/domain/entities/color_entity.dart';
+import '../../../products/domain/entities/product_edge_entity.dart';
 import '../../../products/domain/entities/product_quality_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../../products/domain/entities/product_type_entity.dart';
@@ -33,4 +34,11 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, ProductSizeEntity>> updateProductSize({required int id, required int length, required int width, required int productTypeId});
   Future<Either<Failure, int>> checkProductSizeUsage({required int id});
   Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId});
+
+  // ── Product Edges ─────────────────────────────────────────────────────────
+  Future<Either<Failure, List<ProductEdgeEntity>>> getProductEdges();
+  Future<Either<Failure, ProductEdgeEntity>> createProductEdge({required String code, required String title});
+  Future<Either<Failure, ProductEdgeEntity>> updateProductEdge({required int id, required String code, required String title});
+  Future<Either<Failure, int>> checkProductEdgeUsage({required int id});
+  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId});
 }

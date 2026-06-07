@@ -19,6 +19,9 @@ class OrderItemModel extends OrderItemEntity {
     super.productTypeId,
     super.qualityName,
     super.productTypeName,
+    super.productEdgeId,
+    super.edgeCode,
+    super.edgeTitle,
     super.plannedQuantity,
     super.producedQuantity,
     super.remainingQuantity,
@@ -33,6 +36,7 @@ class OrderItemModel extends OrderItemEntity {
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;
     final colorInfoMap   = colorMap?['color']            as Map<String, dynamic>?;
     final sizeMap        = variantMap?['product_size']   as Map<String, dynamic>?;
+    final edgeMap        = variantMap?['product_edge']   as Map<String, dynamic>?;
     final productTypeMap = productMap?['product_type']   as Map<String, dynamic>?;
 
     return OrderItemModel(
@@ -53,6 +57,9 @@ class OrderItemModel extends OrderItemEntity {
       productTypeId:  productMap?['product_type_id'] as int?,
       qualityName:    productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
+      productEdgeId:  edgeMap?['id'] as int?,
+      edgeCode:       edgeMap?['code'] as String?,
+      edgeTitle:      edgeMap?['title'] as String?,
       plannedQuantity:            json['planned_quantity'] as int?,
       producedQuantity:           json['produced_quantity'] as int?,
       remainingQuantity: json['remaining_quantity'] as int?,

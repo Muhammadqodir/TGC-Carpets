@@ -17,7 +17,7 @@ class AddProduct extends StatelessWidget {
           final result = await ProductPickerBottomSheet.show(context);
           if (result == null || result.color == null) break;
           if (!context.mounted) break;
-          final added = ctrl.addMatrixColorRow(result.product, result.color!);
+          final added = ctrl.addMatrixColorRow(result.product, result.color!, result.edge);
           if (!added) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

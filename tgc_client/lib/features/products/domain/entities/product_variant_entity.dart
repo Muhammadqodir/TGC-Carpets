@@ -12,6 +12,9 @@ class ProductVariantEntity extends Equatable {
   final int? productSizeId;
   final int? sizeLength;
   final int? sizeWidth;
+  final int? productEdgeId;
+  final String? edgeCode;
+  final String? edgeTitle;
 
   const ProductVariantEntity({
     required this.id,
@@ -25,20 +28,24 @@ class ProductVariantEntity extends Equatable {
     this.productSizeId,
     this.sizeLength,
     this.sizeWidth,
+    this.productEdgeId,
+    this.edgeCode,
+    this.edgeTitle,
   });
 
   /// Human-readable size label, e.g. "200x300".
   String? get sizeDimensions =>
-      sizeLength != null && sizeWidth != null ? '${sizeWidth}×${sizeLength}' : null;
+      sizeLength != null && sizeWidth != null ? '$sizeWidth×$sizeLength' : null;
 
-  /// Full label combining product name, color, and size, e.g. "Carpet Pro (krem) 200x300".
+  /// Full label combining product name, color, size, and edge.
   String get label {
     final size = sizeDimensions;
     final color = colorName != null ? ' ($colorName)' : '';
     final sizeStr = size != null ? ' $size' : '';
-    return '${productName ?? '#$id'}$color$sizeStr';
+    final edgeStr = edgeCode != null ? ' [$edgeCode]' : '';
+    return '${productName ?? '#$id'}$color$sizeStr$edgeStr';
   }
 
   @override
-  List<Object?> get props => [id, barcodeValue, skuCode, productColorId, productSizeId];
+  List<Object?> get props => [id, barcodeValue, skuCode, productColorId, productSizeId, productEdgeId];
 }

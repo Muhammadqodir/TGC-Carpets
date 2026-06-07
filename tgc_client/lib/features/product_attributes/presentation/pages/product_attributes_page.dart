@@ -36,7 +36,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabs = ['Ranglar', 'Turlar', 'Sifatlar', 'O\'lchamlar'];
+  static const _tabs = ['Ranglar', 'Turlar', 'Sifatlar', 'O\'lchamlar', 'Qirralar'];
 
   @override
   void initState() {
@@ -324,6 +324,55 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             }
                           },
                         ),
+
+                        // ── Product Edges ────────────────────────────────────
+                        AttributeListPanel<dynamic>(
+                          title: 'Qirralar',
+                          items: state.productEdges,
+                          itemLabel: (e) => '${e.code as String} — ${e.title as String}',
+                          itemSubtitle: (_) => null,
+                          emptyMessage: 'Qirralar topilmadi.',
+                          onAdd: () => EdgeFormDialog.show(
+                            context,
+                            onSubmit: (ctx, code, title) {
+                              context.read<ProductAttributesBloc>().add(
+                                    ProductEdgeCreateRequested(code: code, title: title),
+                                  );
+                            },
+                          ),
+                          onEdit: (e) => EdgeFormDialog.show(
+                            context,
+                            initialCode: e.code as String,
+                            initialTitle: e.title as String,
+                            onSubmit: (ctx, code, title) {
+                              context.read<ProductAttributesBloc>().add(
+                                    ProductEdgeUpdateRequested(
+                                      id: e.id as int,
+                                      code: code,
+                                      title: title,
+                                    ),
+                                  );
+                            },
+                          ),
+                          onDelete: (e) async {
+                            final result = await DeleteWithReplaceDialog.show<dynamic>(
+                              context: context,
+                              itemName: '${e.code as String} — ${e.title as String}',
+                              attributeTypeName: 'qirra',
+                              usageFuture: sl<ProductAttributesRepository>()
+                                  .checkProductEdgeUsage(id: e.id as int)
+                                  .then((r) => r.fold((_) => 0, (v) => v)),
+                              replacements: state.productEdges.where((x) => x.id != e.id).toList(),
+                              replacementLabel: (x) => '${x.code as String} — ${x.title as String}',
+                              replacementId: (x) => x.id as int,
+                            );
+                            if (result.confirmed && context.mounted) {
+                              context.read<ProductAttributesBloc>().add(
+                                    ProductEdgeDeleteRequested(e.id as int, replaceWithId: result.replaceWithId),
+                                  );
+                            }
+                          },
+                        ),
                       ],
                     );
                   }
@@ -341,7 +390,8 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                   return DesktopStatusBar(
                     child: Text(
                       '${state.colors.length} rang  •  ${state.productTypes.length} tur  •  '
-                      '${state.productQualities.length} sifat  •  ${state.productSizes.length} o\'lcham',
+                      '${state.productQualities.length} sifat  •  ${state.productSizes.length} o\'lcham  •  '
+                      '${state.productEdges.length} qirra',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),

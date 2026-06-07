@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgc_client/features/products/domain/entities/product_color_entity.dart';
+import 'package:tgc_client/features/products/domain/entities/product_edge_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_entity.dart';
 import 'package:tgc_client/features/products/domain/entities/product_size_entity.dart';
 
@@ -114,6 +115,8 @@ class OrderFormController extends ChangeNotifier {
             'product_color_id': colorId,
             'product_size_id': size.id,
             'quantity': qty,
+            if (row.effectiveEdgeId != null)
+              'product_edge_id': row.effectiveEdgeId,
           });
         }
       }
@@ -220,11 +223,16 @@ class OrderFormController extends ChangeNotifier {
 
   /// Adds a new product+color row to the matrix. Returns false if the color is
   /// already present.
-  bool addMatrixColorRow(ProductEntity product, ProductColorEntity color) {
+  bool addMatrixColorRow(
+    ProductEntity product,
+    ProductColorEntity color, [
+    ProductEdgeEntity? edge,
+  ]) {
     if (_uniqueColorIds.contains(color.id)) return false;
     final row = OrderItemRow()
       ..selectedProduct = product
-      ..selectedColor = color;
+      ..selectedColor = color
+      ..selectedEdge = edge;
     row.quantityCtrl.addListener(notifyListeners);
     items.add(row);
     for (final s in matrixSizeColumns) {
