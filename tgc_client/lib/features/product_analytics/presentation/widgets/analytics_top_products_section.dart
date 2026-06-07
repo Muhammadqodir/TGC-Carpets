@@ -1,31 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:tgc_client/core/ui/widgets/app_thumbnail.dart';
 
-import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../data/datasources/product_analytics_remote_datasource.dart';
 import '../../domain/entities/product_analytics_entity.dart';
-import '../../data/models/product_analytics_model.dart';
+
+enum _FilterBy { type, quality }
 
 class AnalyticsTopProductsSection extends StatefulWidget {
-  final String periodFrom;
-  final String periodTo;
-  final List<AnalyticsDimensionItem> byType;
-  final List<AnalyticsDimensionItem> byQuality;
-  final List<AnalyticsDimensionItem> bySize;
-  final List<AnalyticsDimensionItem> byColor;
-  final List<AnalyticsDimensionItem> byEdge;
+  final List<TopProductItem> items;
 
-  const AnalyticsTopProductsSection({
-    super.key,
-    required this.periodFrom,
-    required this.periodTo,
-    required this.byType,
-    required this.byQuality,
-    required this.bySize,
-    required this.byColor,
-    required this.byEdge,
-  });
+  const AnalyticsTopProductsSection({super.key, required this.items});
 
   @override
   State<AnalyticsTopProductsSection> createState() =>
@@ -34,81 +18,44 @@ class AnalyticsTopProductsSection extends StatefulWidget {
 
 class _AnalyticsTopProductsSectionState
     extends State<AnalyticsTopProductsSection> {
-  static const _countOptions = [10, 20, 30, 40, 50];
+  _FilterBy _filterBy = _FilterBy.type;
+  String _selectedLabel = 'Barchasi';
 
-  int _limit = 10;
-  int? _typeId;
-  int? _qualityId;
-  int? _sizeId;
-  int? _colorId;
-  int? _edgeId;
-
-  bool _loading = false;
-  String? _error;
-  List<TopProductItem> _items = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetch();
+  List<String> get _labels {
+    final values = widget.items
+        .map((e) => _filterBy == _FilterBy.type ? e.typeName : e.qualityName)
+        .toSet()
+        .toList()
+      ..sort();
+    return ['Barchasi', ...values];
   }
 
-  @override
-  void didUpdateWidget(AnalyticsTopProductsSection old) {
-    super.didUpdateWidget(old);
-    if (old.periodFrom != widget.periodFrom ||
-        old.periodTo != widget.periodTo) {
-      _fetch();
-    }
+  /// Top 10 for the current filter selection.
+  List<TopProductItem> get _filtered {
+    final all = _selectedLabel == 'Barchasi'
+        ? widget.items
+        : widget.items.where((e) {
+            final val =
+                _filterBy == _FilterBy.type ? e.typeName : e.qualityName;
+            return val == _selectedLabel;
+          }).toList();
+    return all.take(10).toList();
   }
 
-  Future<void> _fetch() async {
+  void _onFilterByChanged(_FilterBy? val) {
+    if (val == null) return;
     setState(() {
-      _loading = true;
-      _error = null;
+      _filterBy = val;
+      _selectedLabel = 'Barchasi';
     });
-    try {
-      final ds = sl<ProductAnalyticsRemoteDataSource>();
-      final result = await ds.getTopProducts(
-        periodFrom: widget.periodFrom,
-        periodTo:   widget.periodTo,
-        limit:      _limit,
-        typeId:     _typeId,
-        qualityId:  _qualityId,
-        sizeId:     _sizeId,
-        colorId:    _colorId,
-        edgeId:     _edgeId,
-      );
-      if (mounted) setState(() => _items = result);
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
-
-  void _reset() {
-    setState(() {
-      _typeId    = null;
-      _qualityId = null;
-      _sizeId    = null;
-      _colorId   = null;
-      _edgeId    = null;
-      _limit     = 10;
-    });
-    _fetch();
-  }
-
-  bool get _hasActiveFilter =>
-      _typeId != null ||
-      _qualityId != null ||
-      _sizeId != null ||
-      _colorId != null ||
-      _edgeId != null ||
-      _limit != 10;
 
   @override
   Widget build(BuildContext context) {
+    if (widget.items.isEmpty) return const SizedBox.shrink();
+
+    final filtered = _filtered;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -131,221 +78,48 @@ class _AnalyticsTopProductsSectionState
               children: [
                 Expanded(
                   child: Text(
-                    'Top mahsulotlar ($_limit)',
+                    'Top mahsulotlar (10)',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
                   ),
                 ),
-                if (_hasActiveFilter)
-                  TextButton.icon(
-                    onPressed: _reset,
-                    icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
-                    label: const Text('Tozalash'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                  ),
+                _DimensionToggle(
+                  value: _filterBy,
+                  onChanged: _onFilterByChanged,
+                ),
               ],
             ),
           ),
 
-          // ── Filters ───────────────────────────────────────────────────
+          // ── Filter dropdown ───────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(
-              children: [
-                // Row 1: type + quality
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FilterDropdown<int?>(
-                        label: 'Tur',
-                        value: _typeId,
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Barchasi')),
-                          ...widget.byType.map((e) => DropdownMenuItem(
-                                value: e.id,
-                                child: Text(e.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _typeId = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _FilterDropdown<int?>(
-                        label: 'Sifat',
-                        value: _qualityId,
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Barchasi')),
-                          ...widget.byQuality.map((e) => DropdownMenuItem(
-                                value: e.id,
-                                child: Text(e.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _qualityId = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Row 2: size + color
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FilterDropdown<int?>(
-                        label: "O'lcham",
-                        value: _sizeId,
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Barchasi')),
-                          ...widget.bySize.map((e) => DropdownMenuItem(
-                                value: e.id,
-                                child: Text(e.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _sizeId = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _FilterDropdown<int?>(
-                        label: 'Rang',
-                        value: _colorId,
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Barchasi')),
-                          ...widget.byColor.map((e) => DropdownMenuItem(
-                                value: e.id,
-                                child: Text(e.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _colorId = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Row 3: edge + count
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FilterDropdown<int?>(
-                        label: 'Qirrа',
-                        value: _edgeId,
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Barchasi')),
-                          ...widget.byEdge.map((e) => DropdownMenuItem(
-                                value: e.id,
-                                child: Text(e.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _edgeId = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _FilterDropdown<int>(
-                        label: 'Soni',
-                        value: _limit,
-                        items: _countOptions
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text('Top $c'),
-                                ))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() => _limit = v);
-                          _fetch();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: _LabelDropdown(
+              labels: _labels,
+              selected: _selectedLabel,
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedLabel = val);
+              },
             ),
           ),
 
           const Divider(height: 1, color: AppColors.divider),
 
-          // ── Content ───────────────────────────────────────────────────
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_error != null)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline_rounded,
-                        color: AppColors.error, size: 32),
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: _fetch,
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: const Text('Qayta urinish'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (_items.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text(
-                  'Ma\'lumot topilmadi',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
-                ),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.divider),
-              itemBuilder: (context, index) => _ProductTile(
-                rank: index + 1,
-                item: _items[index],
-              ),
+          // ── Product tiles ─────────────────────────────────────────────
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: AppColors.divider),
+            itemBuilder: (context, index) => _ProductTile(
+              rank: index + 1,
+              item: filtered[index],
+              filterBy: _filterBy,
             ),
+          ),
 
           const SizedBox(height: 4),
         ],
@@ -354,56 +128,73 @@ class _AnalyticsTopProductsSectionState
   }
 }
 
-// ── Filter dropdown ───────────────────────────────────────────────────────────
+// ── Dimension toggle ──────────────────────────────────────────────────────────
 
-class _FilterDropdown<T> extends StatelessWidget {
-  final String label;
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
+class _DimensionToggle extends StatelessWidget {
+  final _FilterBy value;
+  final ValueChanged<_FilterBy?> onChanged;
 
-  const _FilterDropdown({
-    required this.label,
-    required this.value,
-    required this.items,
+  const _DimensionToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<_FilterBy>(
+      style: SegmentedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: const TextStyle(fontSize: 12),
+        visualDensity: VisualDensity.compact,
+      ),
+      segments: const [
+        ButtonSegment(value: _FilterBy.type, label: Text('Tur')),
+        ButtonSegment(value: _FilterBy.quality, label: Text('Sifat')),
+      ],
+      selected: {value},
+      onSelectionChanged: (set) => onChanged(set.firstOrNull),
+    );
+  }
+}
+
+// ── Label filter dropdown ─────────────────────────────────────────────────────
+
+class _LabelDropdown extends StatelessWidget {
+  final List<String> labels;
+  final String selected;
+  final ValueChanged<String?> onChanged;
+
+  const _LabelDropdown({
+    required this.labels,
+    required this.selected,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selected,
+          isExpanded: true,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
               ),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+          items: labels
+              .map((l) => DropdownMenuItem(
+                    value: l,
+                    child: Text(l, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: onChanged,
         ),
-        const SizedBox(height: 4),
-        Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: value,
-              isExpanded: true,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              items: items,
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -413,14 +204,21 @@ class _FilterDropdown<T> extends StatelessWidget {
 class _ProductTile extends StatelessWidget {
   final int rank;
   final TopProductItem item;
+  final _FilterBy filterBy;
 
-  const _ProductTile({required this.rank, required this.item});
+  const _ProductTile({
+    required this.rank,
+    required this.item,
+    required this.filterBy,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final badge = filterBy == _FilterBy.type ? item.typeName : item.qualityName;
     final hasDetails = item.colors.isNotEmpty || item.sizes.isNotEmpty;
 
     return Theme(
+      // Remove default ExpansionTile dividers
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -429,6 +227,7 @@ class _ProductTile extends StatelessWidget {
         trailing: hasDetails ? null : const SizedBox.shrink(),
         title: Row(
           children: [
+            // Rank
             SizedBox(
               width: 28,
               child: Text(
@@ -442,6 +241,7 @@ class _ProductTile extends StatelessWidget {
                     ),
               ),
             ),
+            // Name + badge
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,17 +255,12 @@ class _ProductTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      _Badge(label: item.typeName),
-                      const SizedBox(width: 4),
-                      _Badge(label: item.qualityName, secondary: true),
-                    ],
-                  ),
+                  _Badge(label: badge),
                 ],
               ),
             ),
             const SizedBox(width: 8),
+            // Quantity + %
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -487,7 +282,7 @@ class _ProductTile extends StatelessWidget {
           ],
         ),
         children: [
-          SizedBox(
+          Container(
             width: double.infinity,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +293,7 @@ class _ProductTile extends StatelessWidget {
                 const SizedBox(height: 8),
               ],
             ),
-          ),
+          )
         ],
       ),
     );
@@ -511,6 +306,7 @@ class _ColorBreakdown extends StatelessWidget {
   final List<ProductColorBreakdown> colors;
   const _ColorBreakdown({required this.colors});
 
+  /// Deterministic swatch fallback when no image is available.
   static Color _swatchOf(String name) {
     final hue = (name.hashCode.abs() % 360).toDouble();
     return HSLColor.fromAHSL(1.0, hue, 0.55, 0.48).toColor();
@@ -557,17 +353,12 @@ class _ColorChip extends StatelessWidget {
 
     Widget thumbnail;
     if (c.imageUrl != null) {
-      thumbnail = AppThumbnail(imageUrl: c.imageUrl!, size: 30);
-    } else {
-      thumbnail = Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: swatchOf(c.name),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.black12, width: 0.5),
-        ),
+      thumbnail = AppThumbnail(
+        imageUrl: c.imageUrl!,
+        size: 30,
       );
+    } else {
+      thumbnail = _swatchCircle(swatchOf(c.name), size);
     }
 
     return Row(
@@ -582,6 +373,18 @@ class _ColorChip extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+
+  Widget _swatchCircle(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black12, width: 0.5),
+      ),
     );
   }
 }
@@ -639,23 +442,20 @@ class _SizeBreakdown extends StatelessWidget {
 
 class _Badge extends StatelessWidget {
   final String label;
-  final bool secondary;
-
-  const _Badge({required this.label, this.secondary = false});
+  const _Badge({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final color = secondary ? AppColors.accent : AppColors.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withAlpha(20),
+        color: AppColors.primary.withAlpha(20),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
+              color: AppColors.primary,
               fontWeight: FontWeight.w500,
             ),
       ),

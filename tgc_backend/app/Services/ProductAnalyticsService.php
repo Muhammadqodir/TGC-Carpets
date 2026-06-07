@@ -17,7 +17,7 @@ class ProductAnalyticsService
      */
     public function getReport(string $from, string $to, string $trendBy = 'day'): array
     {
-        $ttl      = $this->resolveTtl($to);
+        $ttl    = $this->resolveTtl($to);
         $cacheKey = "analytics:products:{$from}:{$to}:{$trendBy}";
 
         return Cache::remember($cacheKey, $ttl, function () use ($from, $to, $trendBy): array {
@@ -28,35 +28,8 @@ class ProductAnalyticsService
                 'by_color'     => $this->queryByColor($from, $to),
                 'by_size'      => $this->queryBySize($from, $to),
                 'by_quality'   => $this->queryByQuality($from, $to),
-                'by_edge'      => $this->queryByEdge($from, $to),
                 'top_products' => $this->queryTopProducts($from, $to),
             ];
-        });
-    }
-
-    /**
-     * Return filtered & limited top products for the dedicated top-products endpoint.
-     * Supports filtering by type, quality, size, color, edge and a configurable limit.
-     */
-    public function getTopProducts(
-        string $from,
-        string $to,
-        int    $limit    = 10,
-        ?int   $typeId   = null,
-        ?int   $qualityId = null,
-        ?int   $sizeId   = null,
-        ?int   $colorId  = null,
-        ?int   $edgeId   = null,
-    ): array {
-        $ttl      = $this->resolveTtl($to);
-        $cacheKey = "analytics:top-products:{$from}:{$to}:{$limit}:{$typeId}:{$qualityId}:{$sizeId}:{$colorId}:{$edgeId}";
-
-        return Cache::remember($cacheKey, $ttl, function () use (
-            $from, $to, $limit, $typeId, $qualityId, $sizeId, $colorId, $edgeId
-        ): array {
-            return $this->queryTopProductsFiltered(
-                $from, $to, $limit, $typeId, $qualityId, $sizeId, $colorId, $edgeId
-            );
         });
     }
 
@@ -201,148 +174,6 @@ class ProductAnalyticsService
         return $this->appendPercentage($rows, $total);
     }
 
-    private function queryByEdge(string $from, string $to): array
-    {
-        $total = $this->totalItems($from, $to);
-
-        $rows = $this->baseQuery($from, $to)
-            ->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.product_edge_id')
-            ->selectRaw(
-                'product_edges.id,
-                 COALESCE(product_edges.title, ?) as name,
-                 COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
-                ['Noma\'lum']
-            )
-            ->groupBy('product_edges.id', 'product_edges.title')
-            ->orderByRaw('SUM(order_items.quantity) DESC')
-            ->get();
-
-        return $this->appendPercentage($rows, $total);
-    }
-
-    private function queryTopProductsFiltered(
-        string $from,
-        string $to,
-        int    $limit    = 10,
-        ?int   $typeId   = null,
-        ?int   $qualityId = null,
-        ?int   $sizeId   = null,
-        ?int   $colorId  = null,
-        ?int   $edgeId   = null,
-    ): array {
-        $total = $this->totalItemsFiltered($from, $to, $typeId, $qualityId, $sizeId, $colorId, $edgeId);
-
-        $query = $this->baseQuery($from, $to)
-            ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
-            ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id');
-
-        if ($sizeId !== null) {
-            $query->where('product_variants.product_size_id', $sizeId);
-        }
-        if ($colorId !== null) {
-            $query->where('product_colors.color_id', $colorId);
-        }
-        if ($edgeId !== null) {
-            $query->where('product_variants.product_edge_id', $edgeId);
-        }
-        if ($typeId !== null) {
-            $query->where('products.product_type_id', $typeId);
-        }
-        if ($qualityId !== null) {
-            $query->where('products.product_quality_id', $qualityId);
-        }
-
-        $productRows = $query
-            ->selectRaw(
-                "products.id,
-                 products.name,
-                 COALESCE(product_types.type, 'Noma\'lum') as type_name,
-                 COALESCE(product_qualities.quality_name, 'Noma\'lum') as quality_name,
-                 COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity"
-            )
-            ->groupBy('products.id', 'products.name', 'product_types.type', 'product_qualities.quality_name')
-            ->orderByRaw('SUM(order_items.quantity) DESC')
-            ->limit($limit)
-            ->get();
-
-        if ($productRows->isEmpty()) {
-            return [];
-        }
-
-        $productIds = $productRows->pluck('id')->filter()->toArray();
-
-        $colorsByProduct = $this->baseQuery($from, $to)
-            ->whereIn('products.id', $productIds)
-            ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
-            ->selectRaw(
-                "products.id as product_id,
-                 COALESCE(colors.name, 'Noma\'lum') as color_name,
-                 product_colors.image as image,
-                 COALESCE(SUM(order_items.quantity), 0) as quantity"
-            )
-            ->groupBy('products.id', 'colors.name', 'product_colors.image')
-            ->orderByRaw('SUM(order_items.quantity) DESC')
-            ->get()
-            ->groupBy(fn ($r) => (string) $r->product_id);
-
-        $sizesByProduct = $this->baseQuery($from, $to)
-            ->whereIn('products.id', $productIds)
-            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
-            ->selectRaw(
-                "products.id as product_id,
-                 product_sizes.width,
-                 product_sizes.length,
-                 COALESCE(SUM(order_items.quantity), 0) as quantity"
-            )
-            ->groupBy('products.id', 'product_sizes.width', 'product_sizes.length')
-            ->orderByRaw('SUM(order_items.quantity) DESC')
-            ->get()
-            ->groupBy(fn ($r) => (string) $r->product_id);
-
-        return $productRows->map(function ($r) use ($total, $colorsByProduct, $sizesByProduct): array {
-            $qty = (int) $r->total_quantity;
-            $pid = (string) $r->id;
-
-            $colors = ($colorsByProduct[$pid] ?? collect())->map(function ($c) use ($qty): array {
-                $cQty = (int) $c->quantity;
-                return [
-                    'name'       => $c->color_name,
-                    'image_url'  => $c->image ? Storage::disk('public')->url($c->image) : null,
-                    'quantity'   => $cQty,
-                    'percentage' => $qty > 0 ? round(($cQty / $qty) * 100, 1) : 0.0,
-                ];
-            })->values()->all();
-
-            $sizes = ($sizesByProduct[$pid] ?? collect())->map(function ($s) use ($qty): array {
-                $sQty  = (int) $s->quantity;
-                $label = ($s->width && $s->length)
-                    ? "{$s->width}x{$s->length}"
-                    : "O'lchamsiz";
-                return [
-                    'label'      => $label,
-                    'width'      => $s->width,
-                    'length'     => $s->length,
-                    'quantity'   => $sQty,
-                    'percentage' => $qty > 0 ? round(($sQty / $qty) * 100, 1) : 0.0,
-                ];
-            })->values()->all();
-
-            return [
-                'id'             => $r->id,
-                'name'           => $r->name,
-                'type_name'      => $r->type_name,
-                'quality_name'   => $r->quality_name,
-                'orders_count'   => (int) $r->orders_count,
-                'total_quantity' => $qty,
-                'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
-                'colors'         => $colors,
-                'sizes'          => $sizes,
-            ];
-        })->all();
-    }
-
     private function queryTopProducts(string $from, string $to): array
     {
         $total = $this->totalItems($from, $to);
@@ -448,27 +279,6 @@ class ProductAnalyticsService
     {
         return (int) $this->baseQuery($from, $to)
             ->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total')
-            ->value('total');
-    }
-
-    private function totalItemsFiltered(
-        string $from,
-        string $to,
-        ?int   $typeId   = null,
-        ?int   $qualityId = null,
-        ?int   $sizeId   = null,
-        ?int   $colorId  = null,
-        ?int   $edgeId   = null,
-    ): int {
-        $query = $this->baseQuery($from, $to);
-
-        if ($typeId !== null)    $query->where('products.product_type_id', $typeId);
-        if ($qualityId !== null) $query->where('products.product_quality_id', $qualityId);
-        if ($sizeId !== null)    $query->where('product_variants.product_size_id', $sizeId);
-        if ($colorId !== null)   $query->where('product_colors.color_id', $colorId);
-        if ($edgeId !== null)    $query->where('product_variants.product_edge_id', $edgeId);
-
-        return (int) $query->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total')
             ->value('total');
     }
 
