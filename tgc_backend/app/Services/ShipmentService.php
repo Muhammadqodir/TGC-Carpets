@@ -101,6 +101,7 @@ class ShipmentService
                 'items.variant.productColor.product.productQuality',
                 'items.variant.productColor.color',
                 'items.variant.productSize',
+                'items.variant.productEdge',
             ]);
         });
 
@@ -160,11 +161,12 @@ class ShipmentService
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
-                'items.variant:id,product_color_id,product_size_id',
+                'items.variant:id,product_color_id,product_size_id,product_edge_id',
                 'items.variant.productColor:id,product_id,color_id',
                 'items.variant.productColor.product:id,name,product_quality_id,unit',
                 'items.variant.productColor.product.productQuality:id,quality_name',
                 'items.variant.productSize:id,length,width',
+                'items.variant.productEdge:id,code,title',
             ])
             ->findOrFail($shipmentId);
 
@@ -207,12 +209,13 @@ class ShipmentService
                 'items' => function ($q) {
                     $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
                 },
-                'items.variant:id,product_color_id,product_size_id',
+                'items.variant:id,product_color_id,product_size_id,product_edge_id',
                 'items.variant.productColor:id,product_id,color_id',
                 'items.variant.productColor.product:id,name,product_quality_id,unit',
                 'items.variant.productColor.product.productQuality:id,quality_name',
                 'items.variant.productColor.color:id,name',
                 'items.variant.productSize:id,length,width',
+                'items.variant.productEdge:id,code,title',
             ])
             ->findOrFail($shipmentId);
 

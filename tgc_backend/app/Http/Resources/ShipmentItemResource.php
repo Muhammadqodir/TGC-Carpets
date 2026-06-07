@@ -30,6 +30,11 @@ class ShipmentItemResource extends JsonResource
                 'length' => $this->variant->productSize->length,
                 'width'  => $this->variant->productSize->width,
             ] : null),
+            'product_edge' => $this->whenLoaded('variant', fn () => $this->variant->relationLoaded('productEdge') && $this->variant->productEdge ? [
+                'id'    => $this->variant->productEdge->id,
+                'code'  => $this->variant->productEdge->code,
+                'title' => $this->variant->productEdge->title,
+            ] : null),
             'quantity'     => $this->quantity,
             'price'        => $this->price,
             'total'        => $this->computeTotal(),

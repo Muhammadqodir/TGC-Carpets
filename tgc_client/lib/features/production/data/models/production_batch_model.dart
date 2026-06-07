@@ -85,6 +85,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
     final colorInfoMap   = colorMap?['color']            as Map<String, dynamic>?;
     final sizeMap        = variantMap?['product_size']   as Map<String, dynamic>?;
     final productTypeMap = productMap?['product_type']   as Map<String, dynamic>?;
+    final edgeMap        = variantMap?['product_edge']    as Map<String, dynamic>?;
     final sourceItemMap  = json['source_order_item']     as Map<String, dynamic>?;
     final orderMap       = sourceItemMap?['order']       as Map<String, dynamic>?;
     final clientMap      = orderMap?['client']           as Map<String, dynamic>?;
@@ -117,6 +118,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
       productTypeId:            productMap?['product_type_id'] as int?,
       qualityName:              productMap?['quality_name'] as String?,
       productTypeName:          productTypeMap?['type'] as String?,
+      edgeCode:                 edgeMap?['code'] as String?,
     );
   }
 }

@@ -29,6 +29,10 @@ class SearchPickerBottomSheet<T> extends StatefulWidget {
   final String emptyText;
   final String errorText;
 
+  /// Optional widget rendered at the trailing end of the title row.
+  /// Does not affect search or selection behaviour — purely additive.
+  final Widget? titleTrailing;
+
   const SearchPickerBottomSheet({
     super.key,
     required this.title,
@@ -37,6 +41,7 @@ class SearchPickerBottomSheet<T> extends StatefulWidget {
     required this.itemBuilder,
     this.emptyText = 'Natija topilmadi.',
     this.errorText = 'Xatolik yuz berdi.',
+    this.titleTrailing,
   });
 
   /// Convenience helper that opens the sheet and returns the selected item.
@@ -48,6 +53,7 @@ class SearchPickerBottomSheet<T> extends StatefulWidget {
     required Widget Function(BuildContext context, T item) itemBuilder,
     String emptyText = 'Natija topilmadi.',
     String errorText = 'Xatolik yuz berdi.',
+    Widget? titleTrailing,
   }) {
     return showModalBottomSheet<T>(
       context: context,
@@ -64,6 +70,7 @@ class SearchPickerBottomSheet<T> extends StatefulWidget {
         itemBuilder: itemBuilder,
         emptyText: emptyText,
         errorText: errorText,
+        titleTrailing: titleTrailing,
       ),
     );
   }
@@ -149,7 +156,7 @@ class _SearchPickerBottomSheetState<T>
 
           // ── Title ──────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 8, 16, 0),
             child: Row(
               children: [
                 Expanded(
@@ -160,6 +167,7 @@ class _SearchPickerBottomSheetState<T>
                         ),
                   ),
                 ),
+                if (widget.titleTrailing != null) widget.titleTrailing!,
               ],
             ),
           ),

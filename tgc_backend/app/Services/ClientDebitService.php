@@ -87,6 +87,7 @@ class ClientDebitService
         $shipments = Shipment::with([
                 'items.variant.productColor.product',
                 'items.variant.productSize',
+                'items.variant.productEdge',
             ])
             ->where('client_id', $client->id)
             ->orderBy('shipment_datetime')

@@ -23,7 +23,7 @@ class DefectDocumentController extends Controller
      */
     public function index(Request $request, ProductionBatch $productionBatch): AnonymousResourceCollection
     {
-        $documents = DefectDocument::with(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'photos'])
+        $documents = DefectDocument::with(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'items.productionBatchItem.variant.productEdge', 'photos'])
             ->where('production_batch_id', $productionBatch->id)
             ->latest('datetime')
             ->paginate($request->integer('per_page', 50));
@@ -73,7 +73,7 @@ class DefectDocumentController extends Controller
             return $document;
         });
 
-        $document->load(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'photos']);
+        $document->load(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'items.productionBatchItem.variant.productEdge', 'photos']);
 
         return response()->json(['data' => new DefectDocumentResource($document)], 201);
     }
@@ -83,7 +83,7 @@ class DefectDocumentController extends Controller
      */
     public function show(DefectDocument $defectDocument): JsonResponse
     {
-        $defectDocument->load(['user', 'productionBatch', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'photos']);
+        $defectDocument->load(['user', 'productionBatch', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'items.productionBatchItem.variant.productEdge', 'photos']);
 
         return response()->json(['data' => new DefectDocumentResource($defectDocument)]);
     }

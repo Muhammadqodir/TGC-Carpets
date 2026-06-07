@@ -38,6 +38,7 @@ class BatchItemRow {
   // ── Extra display fields ──────────────────────────────────────────────────
   final String? prefilledQualityName;
   final String? prefilledTypeName;
+  final String? prefilledEdgeCode;
 
   BatchItemRow({
     this.prefilledColorId,
@@ -53,6 +54,7 @@ class BatchItemRow {
     this.sourceClientName,
     this.prefilledQualityName,
     this.prefilledTypeName,
+    this.prefilledEdgeCode,
     int initialQuantity = 1,
   }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
 
@@ -76,6 +78,7 @@ class BatchItemRow {
         sourceClientName: clientName,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
+        prefilledEdgeCode: item.edgeCode,
         initialQuantity: item.remainingQuantity ?? item.quantity,
       );
 
@@ -96,6 +99,7 @@ class BatchItemRow {
         sourceClientName: item.sourceClientShopName,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
+        prefilledEdgeCode: item.edgeCode,
         initialQuantity: item.plannedQuantity,
       );
 
@@ -128,6 +132,7 @@ class BatchItemRow {
       if (prefilledColorName != null) parts.add(prefilledColorName!);
       final dim = prefilledSizeDimensions;
       if (dim != null) parts.add(dim);
+      if (prefilledEdgeCode != null) parts.add('[$prefilledEdgeCode]');
       return parts.join(' / ');
     }
     return 'Mahsulot tanlanmagan';

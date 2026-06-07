@@ -506,7 +506,9 @@ class _OrderItemsTable extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       BodyText(
-                        text: item.productName,
+                        text: item.edgeCode != null
+                            ? '${item.productName} [${item.edgeCode}]'
+                            : item.productName,
                       ),
                       SubBodyText(text: item.colorName?.toUpperCase() ?? '—'),
                     ],

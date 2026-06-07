@@ -23,6 +23,7 @@ class StoreOrderRequest extends FormRequest
             'items'                    => ['required', 'array', 'min:1'],
             'items.*.product_color_id'  => ['required', 'integer', 'exists:product_colors,id'],
             'items.*.product_size_id'   => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.product_edge_id'   => ['nullable', 'integer', 'exists:product_edges,id'],
             'items.*.quantity'          => ['required', 'integer', 'min:1'],
         ];
     }

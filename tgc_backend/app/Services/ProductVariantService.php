@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ProductColor;
+use App\Models\ProductEdge;
 use App\Models\ProductSize;
 use App\Models\ProductVariant;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -24,7 +25,7 @@ class ProductVariantService
      * prevent for the "no row yet" case (MySQL UNIQUE allows multiple NULLs in
      * a composite index, so the DB-level constraint is the only reliable guard).
      */
-    public function findOrCreate(int $productColorId, ?int $sizeId): ProductVariant
+    public function findOrCreate(int $productColorId, ?int $sizeId, ?int $edgeId = null): ProductVariant
     {
         // Fast path — variant already exists.
         $existing = ProductVariant::where('product_color_id', $productColorId)
@@ -32,6 +33,11 @@ class ProductVariantService
                 $sizeId !== null,
                 fn ($q) => $q->where('product_size_id', $sizeId),
                 fn ($q) => $q->whereNull('product_size_id'),
+            )
+            ->when(
+                $edgeId !== null,
+                fn ($q) => $q->where('product_edge_id', $edgeId),
+                fn ($q) => $q->whereNull('product_edge_id'),
             )
             ->first();
 
@@ -42,6 +48,7 @@ class ProductVariantService
         // Load relationships to compute sku_code upfront.
         $pc   = ProductColor::with(['product', 'color'])->findOrFail($productColorId);
         $size = $sizeId ? ProductSize::findOrFail($sizeId) : null;
+        $edge = $edgeId ? ProductEdge::findOrFail($edgeId) : null;
 
         $sku = ProductVariant::generateSku(
             $pc->product->name,
@@ -49,13 +56,15 @@ class ProductVariantService
             $pc->product->product_type_id,
             $pc->color->name,
             $size,
+            $edge?->code,
         );
 
         try {
-            $variant = DB::transaction(function () use ($productColorId, $sizeId, $sku): ProductVariant {
+            $variant = DB::transaction(function () use ($productColorId, $sizeId, $edgeId, $sku): ProductVariant {
                 $variant = ProductVariant::create([
                     'product_color_id' => $productColorId,
                     'product_size_id'  => $sizeId,
+                    'product_edge_id'  => $edgeId,
                     'sku_code'         => $sku,
                 ]);
 
@@ -73,6 +82,11 @@ class ProductVariantService
                     $sizeId !== null,
                     fn ($q) => $q->where('product_size_id', $sizeId),
                     fn ($q) => $q->whereNull('product_size_id'),
+                )
+                ->when(
+                    $edgeId !== null,
+                    fn ($q) => $q->where('product_edge_id', $edgeId),
+                    fn ($q) => $q->whereNull('product_edge_id'),
                 )
                 ->firstOrFail();
         }

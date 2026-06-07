@@ -592,7 +592,11 @@ class _ItemsTable extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      BodyText(text: item.productName),
+                      BodyText(
+                        text: item.edgeCode != null
+                            ? '${item.productName} [${item.edgeCode}]'
+                            : item.productName,
+                      ),
                       SubBodyText(text: item.colorName?.toUpperCase() ?? '—'),
                     ],
                   ),

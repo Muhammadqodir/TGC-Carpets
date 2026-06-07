@@ -25,6 +25,7 @@ class ShipmentController extends Controller
                 'items.variant.productColor.product',
                 'items.variant.productColor.color',
                 'items.variant.productSize',
+                'items.variant.productEdge',
                 'items.orderItem.order',
             ])
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
@@ -51,6 +52,7 @@ class ShipmentController extends Controller
             'items.variant.productColor.product',
             'items.variant.productColor.color',
             'items.variant.productSize',
+            'items.variant.productEdge',
             'items.orderItem.order',
         ]);
 
@@ -71,6 +73,7 @@ class ShipmentController extends Controller
                 'items.variant.productColor.product.productQuality',
                 'items.variant.productColor.color',
                 'items.variant.productSize',
+                'items.variant.productEdge',
                 'items.shipmentItems',
                 // Note: productionBatchItems loaded without nested productionBatch to avoid circular reference
                 'items.productionBatchItems',

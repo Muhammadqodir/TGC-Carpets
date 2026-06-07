@@ -77,6 +77,13 @@ class ProductionBatchItemResource extends JsonResource
                         'width'  => $this->variant->productSize->width,
                     ]
                     : null,
+                'product_edge' => $this->variant->relationLoaded('productEdge') && $this->variant->productEdge
+                    ? [
+                        'id'    => $this->variant->productEdge->id,
+                        'code'  => $this->variant->productEdge->code,
+                        'title' => $this->variant->productEdge->title,
+                    ]
+                    : null,
             ]),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

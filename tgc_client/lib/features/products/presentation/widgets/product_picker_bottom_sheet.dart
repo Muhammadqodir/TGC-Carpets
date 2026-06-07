@@ -19,30 +19,50 @@ class ProductPickerResult {
   const ProductPickerResult({required this.product, this.color, this.edge});
 }
 
-/// Three-step picker: product → colour → edge (default R).
+/// Two-step picker: product (with inline edge dropdown) → colour.
 ///
 /// Returns [ProductPickerResult] or null if the user dismisses any step.
 class ProductPickerBottomSheet {
   ProductPickerBottomSheet._();
 
   static Future<ProductPickerResult?> show(BuildContext context) async {
-    // ── Step 1: search & pick product ───────────────────────────────────────
-    final product = await SearchPickerBottomSheet.show<ProductEntity>(
-      context,
-      title: 'Mahsulot tanlash',
-      searchHint: 'Nom yoki tur...',
-      onSearch: (query) async {
-        final datasource = sl<ProductRemoteDataSource>();
-        final result = await datasource.getProducts(
-          search: query.isEmpty ? null : query,
-          status: 'active',
-          perPage: 30,
-        );
-        return result.data;
-      },
-      itemBuilder: (context, product) => _ProductPickerTile(product: product),
-      emptyText: 'Mahsulot topilmadi.',
-      errorText: 'Mahsulotlarni yuklashda xatolik.',
+    // Holds the edge selected via the dropdown in the title row.
+    // Starts null — _EdgeSelector notifies us once it loads the default (R).
+    ProductEdgeEntity? selectedEdge;
+
+    // ── Step 1: search & pick product (edge dropdown in title row) ───────────
+    final product = await showModalBottomSheet<ProductEntity>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModalState) => SearchPickerBottomSheet<ProductEntity>(
+          title: 'Mahsulot tanlash',
+          searchHint: 'Nom yoki tur...',
+          onSearch: (query) async {
+            final datasource = sl<ProductRemoteDataSource>();
+            final result = await datasource.getProducts(
+              search: query.isEmpty ? null : query,
+              status: 'active',
+              perPage: 30,
+            );
+            return result.data;
+          },
+          itemBuilder: (context, product) => _ProductPickerTile(product: product),
+          emptyText: 'Mahsulot topilmadi.',
+          errorText: 'Mahsulotlarni yuklashda xatolik.',
+          titleTrailing: _EdgeSelector(
+            onChanged: (edge) {
+              selectedEdge = edge;
+              // StatefulBuilder rebuild not needed — dropdown manages its own state.
+            },
+          ),
+        ),
+      ),
     );
 
     if (product == null) return null;
@@ -59,12 +79,95 @@ class ProductPickerBottomSheet {
       if (color == null) return null;
     }
 
-    // ── Step 3: pick edge (default R) ────────────────────────────────────────
-    // ignore: use_build_context_synchronously
-    final edge = await _EdgePickerSheet.show(context);
-    if (edge == null) return null;
+    return ProductPickerResult(product: product, color: color, edge: selectedEdge);
+  }
+}
 
-    return ProductPickerResult(product: product, color: color, edge: edge);
+// ── Edge selector dropdown (shown in title row of step 1) ────────────────────
+
+class _EdgeSelector extends StatefulWidget {
+  final void Function(ProductEdgeEntity edge) onChanged;
+
+  const _EdgeSelector({required this.onChanged});
+
+  @override
+  State<_EdgeSelector> createState() => _EdgeSelectorState();
+}
+
+class _EdgeSelectorState extends State<_EdgeSelector> {
+  List<ProductEdgeEntity> _edges = [];
+  ProductEdgeEntity? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEdges();
+  }
+
+  Future<void> _loadEdges() async {
+    try {
+      final ds = sl<ProductAttributesRemoteDataSource>();
+      final edges = await ds.getProductEdges();
+      if (!mounted || edges.isEmpty) return;
+      final defaultEdge = edges.firstWhere(
+        (e) => e.code == 'R',
+        orElse: () => edges.first,
+      );
+      setState(() {
+        _edges = edges;
+        _selected = defaultEdge;
+      });
+      widget.onChanged(defaultEdge);
+    } catch (_) {
+      // Silently ignore — edge stays null (backend will use its own default).
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_edges.isEmpty) {
+      return const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    return Container(
+      width: 80,
+      height: 32,
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<ProductEdgeEntity>(
+          value: _selected,
+          isDense: true,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          icon: const Icon(Icons.expand_more_rounded, size: 16),
+          borderRadius: BorderRadius.circular(10),
+          items: _edges
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(
+                      e.code,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ))
+              .toList(),
+          onChanged: (edge) {
+            if (edge == null) return;
+            setState(() => _selected = edge);
+            widget.onChanged(edge);
+          },
+        ),
+      ),
+    );
   }
 }
 
@@ -199,200 +302,7 @@ class _ColorTile extends StatelessWidget {
       );
 }
 
-// ── Edge picker sheet (step 3) ────────────────────────────────────────────────
-
-class _EdgePickerSheet extends StatefulWidget {
-  const _EdgePickerSheet();
-
-  static Future<ProductEdgeEntity?> show(BuildContext context) {
-    return showModalBottomSheet<ProductEdgeEntity>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _EdgePickerSheet(),
-    );
-  }
-
-  @override
-  State<_EdgePickerSheet> createState() => _EdgePickerSheetState();
-}
-
-class _EdgePickerSheetState extends State<_EdgePickerSheet> {
-  List<ProductEdgeEntity>? _edges;
-  ProductEdgeEntity? _selected;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEdges();
-  }
-
-  Future<void> _loadEdges() async {
-    try {
-      final ds = sl<ProductAttributesRemoteDataSource>();
-      final edges = await ds.getProductEdges();
-      if (!mounted) return;
-      // Default selection: the edge with code 'R', or the first one.
-      final defaultEdge = edges.firstWhere(
-        (e) => e.code == 'R',
-        orElse: () => edges.first,
-      );
-      setState(() {
-        _edges = edges;
-        _selected = defaultEdge;
-        _loading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 16,
-        right: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Qirra tanlang',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Standart: Tortburchak (R)',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 12),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_edges == null || _edges!.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: Text('Qirralar topilmadi.')),
-            )
-          else ...[
-            ..._edges!.map((e) => _EdgeTile(
-                  edge: e,
-                  isSelected: _selected?.id == e.id,
-                  onTap: () => setState(() => _selected = e),
-                )),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _selected != null
-                    ? () => Navigator.of(context).pop(_selected)
-                    : null,
-                child: const Text('Tasdiqlash'),
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}
-
-class _EdgeTile extends StatelessWidget {
-  final ProductEdgeEntity edge;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _EdgeTile({
-    required this.edge,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
-                    : AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : AppColors.divider,
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  edge.code,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                edge.title,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// ── Product tile ──────────────────────────────────────────────────────────────
 
 class _ProductPickerTile extends StatelessWidget {
   final ProductEntity product;

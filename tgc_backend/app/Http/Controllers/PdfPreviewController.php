@@ -35,6 +35,7 @@ class PdfPreviewController extends Controller
             'items.variant.productColor.product.productQuality',
             'items.variant.productColor.color',
             'items.variant.productSize',
+            'items.variant.productEdge',
         ]);
 
         $shipmentInfo = $document->isOutgoing()
@@ -91,6 +92,7 @@ class PdfPreviewController extends Controller
             'items.variant.productColor.product.productType',
             'items.variant.productColor.color',
             'items.variant.productSize',
+            'items.variant.productEdge',
         ]);
 
         return $shipment;

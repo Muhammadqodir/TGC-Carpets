@@ -29,6 +29,7 @@ class OrderController extends Controller
                 'user',
                 'client',
                 'items.variant.productSize',
+                'items.variant.productEdge',
                 'items.productionBatchItems.productionBatch',
             ])
             ->when($request->filled('status'),    fn ($q) => $q->where('status', $request->status))
@@ -80,7 +81,7 @@ class OrderController extends Controller
 
     public function show(Order $order): JsonResponse
     {
-        $order->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.productionBatchItems.productionBatch', 'items.shipmentItems']);
+        $order->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge', 'items.productionBatchItems.productionBatch', 'items.shipmentItems']);
 
         return response()->json(['data' => new OrderResource($order)]);
     }

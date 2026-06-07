@@ -24,7 +24,11 @@ class ProductPickerCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = row.selectedProduct;
     final isPrefilled = product == null && row.prefilledColorId != null;
-    final displayName = product?.name ?? row.prefilledProductName;
+    final rawName = product?.name ?? row.prefilledProductName;
+    final displayEdgeCode = row.selectedEdge?.code ?? row.prefilledEdgeCode;
+    final displayName = rawName != null && displayEdgeCode != null
+        ? '$rawName [$displayEdgeCode]'
+        : rawName;
     final displayColor = row.selectedColor?.colorName ?? row.prefilledColorName;
     return InkWell(
       onTap: () async {

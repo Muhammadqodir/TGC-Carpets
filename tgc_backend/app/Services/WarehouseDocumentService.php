@@ -30,7 +30,7 @@ class WarehouseDocumentService
         if (! empty($data['external_uuid'])) {
             $existing = WarehouseDocument::where('external_uuid', $data['external_uuid'])->first();
             if ($existing) {
-                return $existing->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+                return $existing->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge', 'photos']);
             }
         }
 
@@ -54,7 +54,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($document);
             $document->update(['pdf_path' => $pdfPath]);
 
-            return $document->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $document->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge', 'photos']);
         });
     }
 
@@ -90,7 +90,7 @@ class WarehouseDocumentService
             $pdfPath = $this->pdfService->generatePdf($freshDocument);
             $freshDocument->update(['pdf_path' => $pdfPath]);
 
-            return $freshDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'photos']);
+            return $freshDocument->load(['user', 'items.variant.productColor.product', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge', 'photos']);
         });
     }
 

@@ -67,6 +67,7 @@ class ProductionBatchController extends Controller
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
             'variant.productSize',
+            'variant.productEdge',
             'sourceOrderItem.order.client',
         ]);
 
@@ -171,6 +172,7 @@ class ProductionBatchController extends Controller
             'variant.productColor.product.productQuality',
             'variant.productColor.color',
             'variant.productSize',
+            'variant.productEdge',
             'sourceOrderItem.order.client',
         ]);
 
@@ -207,6 +209,7 @@ class ProductionBatchController extends Controller
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',
                 'variant.productSize',
+                'variant.productEdge',
             ])
             ->whereHas('order', fn ($q) => $q->whereIn('status', ['pending', 'planned', 'on_production']))
             ->get()
@@ -252,6 +255,9 @@ class ProductionBatchController extends Controller
                         'product_size' => $oi->variant->productSize
                             ? ['id' => $oi->variant->productSize->id, 'length' => $oi->variant->productSize->length, 'width' => $oi->variant->productSize->width]
                             : null,
+                        'product_edge' => $oi->variant->productEdge
+                            ? ['id' => $oi->variant->productEdge->id, 'code' => $oi->variant->productEdge->code, 'title' => $oi->variant->productEdge->title]
+                            : null,
                     ],
                 ];
             })
@@ -275,6 +281,7 @@ class ProductionBatchController extends Controller
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',
                 'variant.productSize',
+                'variant.productEdge',
             ])
             ->whereHas('productionBatch', fn ($q) => $q->where('status', ProductionBatch::STATUS_IN_PROGRESS))
             ->get();
@@ -324,6 +331,7 @@ class ProductionBatchController extends Controller
                 'variant.productColor.product.productQuality',
                 'variant.productColor.color',
                 'variant.productSize',
+                'variant.productEdge',
                 'sourceOrderItem.order.client',
             ])
             ->where('id', $itemId)

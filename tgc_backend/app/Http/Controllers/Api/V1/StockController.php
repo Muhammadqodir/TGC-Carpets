@@ -196,7 +196,7 @@ class StockController extends Controller
      */
     public function movements(Request $request): AnonymousResourceCollection
     {
-        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'variant.productSize', 'user'])
+        $movements = StockMovement::with(['variant.productColor.product', 'variant.productColor.color', 'variant.productSize', 'variant.productEdge', 'user'])
             ->when($request->filled('product_id'),    fn ($q) => $q->whereHas('variant.productColor', fn ($q2) => $q2->where('product_id', $request->product_id)))
             ->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
             ->when($request->filled('warehouse_document_item_id'), fn ($q) => $q->where('warehouse_document_item_id', $request->warehouse_document_item_id))

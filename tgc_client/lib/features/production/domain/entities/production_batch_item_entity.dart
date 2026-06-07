@@ -36,6 +36,7 @@ class ProductionBatchItemEntity extends Equatable {
   final int? productTypeId;
   final String? qualityName;
   final String? productTypeName;
+  final String? edgeCode;
 
   const ProductionBatchItemEntity({
     required this.id,
@@ -65,6 +66,7 @@ class ProductionBatchItemEntity extends Equatable {
     this.productTypeId,
     this.qualityName,
     this.productTypeName,
+    this.edgeCode,
   });
 
   double get plannedSqm {
@@ -108,5 +110,6 @@ class ProductionBatchItemEntity extends Equatable {
         productTypeId,
         qualityName,
         productTypeName,
+        edgeCode,
       ];
 }
