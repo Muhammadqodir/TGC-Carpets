@@ -171,12 +171,25 @@ class OrderPdfExporter {
     }
     final sortedQualities = qualityGroups.keys.toList()..sort();
 
+    // Pre-compute total count and m² per quality group
+    final qualityStats = <String, ({int count, double sqm})>{};
+    for (final item in order.items) {
+      final q        = item.qualityName ?? '—';
+      final existing = qualityStats[q] ?? (count: 0, sqm: 0.0);
+      double addedSqm = 0;
+      if (item.sizeLength != null && item.sizeWidth != null) {
+        addedSqm = item.sizeLength! * item.sizeWidth! * item.quantity / 10000.0;
+      }
+      qualityStats[q] = (count: existing.count + item.quantity, sqm: existing.sqm + addedSqm);
+    }
+
     for (var qi = 0; qi < sortedQualities.length; qi++) {
       final quality        = sortedQualities[qi];
       final qualityRowKeys = qualityGroups[quality]!;
+      final stats          = qualityStats[quality] ?? (count: 0, sqm: 0.0);
 
       if (qi > 0) buildWidgets.add(pw.SizedBox(height: 8));
-      buildWidgets.add(_qualityGroupHeader(quality));
+      buildWidgets.add(_qualityGroupHeader(quality, totalCount: stats.count, totalSqm: stats.sqm));
 
       for (var ci = 0; ci < totalChunks; ci++) {
         final chunk           = sizeChunks[ci];
@@ -347,7 +360,7 @@ class OrderPdfExporter {
   }
 
   // ─── Quality-group header bar ─────────────────────────────────────────────
-  pw.Widget _qualityGroupHeader(String qualityName) {
+  pw.Widget _qualityGroupHeader(String qualityName, {required int totalCount, required double totalSqm}) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         color:  _primaryLight,
@@ -358,13 +371,27 @@ class OrderPdfExporter {
       ),
       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       margin:  const pw.EdgeInsets.only(bottom: 2),
-      child: pw.Text(
-        'Sifat: $qualityName',
-        style: pw.TextStyle(
-          fontSize:   8.5,
-          fontWeight: pw.FontWeight.bold,
-          color:      _primary,
-        ),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Text(
+              'Sifat: $qualityName',
+              style: pw.TextStyle(
+                fontSize:   8.5,
+                fontWeight: pw.FontWeight.bold,
+                color:      _primary,
+              ),
+            ),
+          ),
+          pw.Text(
+            '$totalCount dona  |  ${totalSqm.toStringAsFixed(2)} m²',
+            style: pw.TextStyle(
+              fontSize:   8.0,
+              fontWeight: pw.FontWeight.bold,
+              color:      _primary,
+            ),
+          ),
+        ],
       ),
     );
   }
