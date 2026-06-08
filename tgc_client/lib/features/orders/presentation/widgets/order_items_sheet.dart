@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_form_controller.dart';
+import 'package:tgc_client/features/orders/presentation/widgets/order_item_row.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/add_product.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/add_size.dart';
 import 'package:tgc_client/features/orders/presentation/widgets/order_items_sheet/product_picker_cell.dart';
@@ -24,7 +25,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
   late ScrollController _products;
   late ScrollController _quantities;
   final Map<String, FocusNode> _cellFocusNodes = {};
-  int? _focusedColorId;
+  String? _focusedRowKey;
   int? _focusedSizeId;
 
   // Track the last known row/column counts so we only rebuild on structure
@@ -46,21 +47,21 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
   // so that arrow-key navigation (blur A → focus B) causes only ONE rebuild
   // instead of two: the blur defers its clear to a post-frame check that is
   // a no-op once B has already claimed focus.
-  void _onCellFocusChanged(int colorId, int sizeId, bool hasFocus) {
+  void _onCellFocusChanged(String rowKey, int sizeId, bool hasFocus) {
     if (hasFocus) {
-      if (_focusedColorId == colorId && _focusedSizeId == sizeId) return;
+      if (_focusedRowKey == rowKey && _focusedSizeId == sizeId) return;
       setState(() {
-        _focusedColorId = colorId;
+        _focusedRowKey = rowKey;
         _focusedSizeId = sizeId;
       });
     } else {
       // Defer the clear so an immediately following focus event on another cell
-      // can cancel it (by having already updated _focusedColorId/_focusedSizeId).
+      // can cancel it (by having already updated _focusedRowKey/_focusedSizeId).
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (_focusedColorId == colorId && _focusedSizeId == sizeId) {
+        if (_focusedRowKey == rowKey && _focusedSizeId == sizeId) {
           setState(() {
-            _focusedColorId = null;
+            _focusedRowKey = null;
             _focusedSizeId = null;
           });
         }
@@ -77,8 +78,8 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
     _quantities = _controllers.addAndGet();
   }
 
-  FocusNode _getFocusNode(int colorId, int sizeId) {
-    final key = '${colorId}_$sizeId';
+  FocusNode _getFocusNode(String rowKey, int sizeId) {
+    final key = '${rowKey}_$sizeId';
     if (!_cellFocusNodes.containsKey(key)) {
       _cellFocusNodes[key] = FocusNode();
     }
@@ -107,15 +108,19 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
     return map;
   }
 
+  String _rowKey(OrderItemRow row) {
+    final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+    final edgeId = row.effectiveEdgeId;
+    return '${colorId}_e${edgeId ?? 0}';
+  }
+
   void _navigateToCell(int rowIndex, int columnIndex) {
     final rows = widget.ctrl.getUniqueItems();
     final cols = widget.ctrl.matrixSizeColumns;
     if (rowIndex < 0 || rowIndex >= rows.length) return;
     if (columnIndex < 0 || columnIndex >= cols.length) return;
-    final colorId = rows[rowIndex].selectedColor?.id ?? rows[rowIndex].prefilledColorId;
-    if (colorId == null) return;
     final sizeId = cols[columnIndex].id;
-    _getFocusNode(colorId, sizeId).requestFocus();
+    _getFocusNode(_rowKey(rows[rowIndex]), sizeId).requestFocus();
   }
 
   @override
@@ -154,18 +159,13 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                     child: Column(
                       children: [
                         ...widget.ctrl.getUniqueItems().map((row) {
-                          final colorId =
-                              row.selectedColor?.id ?? row.prefilledColorId;
+                          final rk = _rowKey(row);
                           return ProductPickerCell(
-                            key: ValueKey('product_$colorId'),
+                            key: ValueKey('product_$rk'),
                             row: row,
                             ctrl: widget.ctrl,
-                            isHighlighted: _focusedColorId == colorId,
-                            onDelete: () {
-                              if (colorId != null) {
-                                widget.ctrl.removeMatrixColorRow(colorId);
-                              }
-                            },
+                            isHighlighted: _focusedRowKey == rk,
+                            onDelete: () => widget.ctrl.removeMatrixRow(row),
                           );
                         }),
                         AddProduct(ctrl: widget.ctrl),
@@ -273,6 +273,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                               final row = entry.value;
                               final colorId =
                                   row.selectedColor?.id ?? row.prefilledColorId;
+                              final rk = _rowKey(row);
                               final rowTypeId =
                                   row.selectedProduct?.productTypeId ??
                                       row.prefilledProductTypeId;
@@ -280,7 +281,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                                 return const SizedBox(
                                     key: ValueKey('empty_row'), height: 40);
                               return SizedBox(
-                                key: ValueKey('quantity_row_$colorId'),
+                                key: ValueKey('quantity_row_$rk'),
                                 height: 40,
                                 child: Row(
                                   children: [
@@ -294,20 +295,20 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                                         final enabled = rowTypeId != null &&
                                             rowTypeId == size.productTypeId;
                                         return QuantityCell(
-                                          key: ValueKey('cell_${colorId}_${size.id}'),
+                                          key: ValueKey('cell_${rk}_${size.id}'),
                                           ctrl: widget.ctrl,
                                           colorId: colorId,
                                           sizeId: size.id,
+                                          edgeId: row.effectiveEdgeId,
                                           enabled: enabled,
                                           rowIndex: rowIndex,
                                           columnIndex: columnIndex,
                                           totalRows: widget.ctrl.getUniqueItems().length,
                                           totalColumns: widget.ctrl.matrixSizeColumns.length,
                                           onNavigate: _navigateToCell,
-                                          focusNode: _getFocusNode(colorId, size.id),
+                                          focusNode: _getFocusNode(rk, size.id),
                                           onFocusChanged: (hasFocus) =>
-                                              _onCellFocusChanged(
-                                                  colorId, size.id, hasFocus),
+                                              _onCellFocusChanged(rk, size.id, hasFocus),
                                         );
                                       },
                                     ),

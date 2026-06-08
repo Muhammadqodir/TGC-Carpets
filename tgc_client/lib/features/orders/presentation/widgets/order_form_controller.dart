@@ -94,29 +94,28 @@ class OrderFormController extends ChangeNotifier {
   /// Total quantity across all product rows for a given size column.
   int totalQtyForSize(int sizeId) {
     var total = 0;
-    for (final colorId in _uniqueColorIds) {
-      total += _matrixQty[_matrixKey(colorId, sizeId)] ?? 0;
+    for (final row in getUniqueItems()) {
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (colorId == null) continue;
+      total += _matrixQty[_matrixKey(colorId, sizeId, edgeId: row.effectiveEdgeId)] ?? 0;
     }
     return total;
   }
 
   List<Map<String, dynamic>> get sheetMatrixFilledItems {
-    final seen = <int>{};
     final result = <Map<String, dynamic>>[];
-    for (final row in items) {
-      if (_isRowEmpty(row)) continue;
+    for (final row in getUniqueItems()) {
       final colorId = row.selectedColor?.id ?? row.prefilledColorId;
       if (colorId == null) continue;
-      if (!seen.add(colorId)) continue; // skip duplicate color rows (edit mode)
+      final edgeId = row.effectiveEdgeId;
       for (final size in matrixSizeColumns) {
-        final qty = _matrixQty[_matrixKey(colorId, size.id)] ?? 0;
+        final qty = _matrixQty[_matrixKey(colorId, size.id, edgeId: edgeId)] ?? 0;
         if (qty > 0) {
           result.add({
             'product_color_id': colorId,
             'product_size_id': size.id,
             'quantity': qty,
-            if (row.effectiveEdgeId != null)
-              'product_edge_id': row.effectiveEdgeId,
+            if (edgeId != null) 'product_edge_id': edgeId,
           });
         }
       }
@@ -140,7 +139,7 @@ class OrderFormController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Returns one representative [OrderItemRow] per unique (product, color)
+  /// Returns one representative [OrderItemRow] per unique (product, color, edge)
   /// combination, skipping empty/sentinel rows.
   List<OrderItemRow> getUniqueItems() {
     final seen = <String>{};
@@ -149,7 +148,8 @@ class OrderFormController extends ChangeNotifier {
       if (_isRowEmpty(item)) continue;
       final colorId = item.selectedColor?.id ?? item.prefilledColorId;
       final productId = item.selectedProduct?.id;
-      if (seen.add('${productId}_$colorId')) result.add(item);
+      final edgeId = item.effectiveEdgeId;
+      if (seen.add('${productId}_${colorId}_$edgeId')) result.add(item);
     }
     return result;
   }
@@ -163,12 +163,13 @@ class OrderFormController extends ChangeNotifier {
   /// Updated eagerly on every keystroke; read at submit time.
   final Map<String, int> _matrixQty = {};
 
-  String _matrixKey(int colorId, int sizeId) => '${colorId}_$sizeId';
+  String _matrixKey(int colorId, int sizeId, {int? edgeId}) =>
+      '${colorId}_e${edgeId ?? 0}_$sizeId';
 
   /// Returns (or lazily creates) the quantity [TextEditingController] for
-  /// the cell at (colorId × sizeId) in the matrix.
-  TextEditingController matrixCellCtrl(int colorId, int sizeId) {
-    final key = _matrixKey(colorId, sizeId);
+  /// the cell at (colorId × edgeId × sizeId) in the matrix.
+  TextEditingController matrixCellCtrl(int colorId, int sizeId, {int? edgeId}) {
+    final key = _matrixKey(colorId, sizeId, edgeId: edgeId);
     return _matrixCellCtrls.putIfAbsent(key, () {
       final c = TextEditingController();
       c.addListener(() {
@@ -206,8 +207,9 @@ class OrderFormController extends ChangeNotifier {
       // Pre-fill the quantity cell.
       final qty = int.tryParse(row.quantityCtrl.text.trim()) ?? 0;
       if (qty > 0) {
-        final key = _matrixKey(colorId, sizeId);
-        final ctrl = matrixCellCtrl(colorId, sizeId);
+        final edgeId = row.effectiveEdgeId;
+        final key = _matrixKey(colorId, sizeId, edgeId: edgeId);
+        final ctrl = matrixCellCtrl(colorId, sizeId, edgeId: edgeId);
         ctrl.text = '$qty';
         _matrixQty[key] = qty;
       }
@@ -215,20 +217,19 @@ class OrderFormController extends ChangeNotifier {
     _sortMatrixSizeColumns();
   }
 
-  /// Color IDs of all currently filled unique product rows.
-  List<int> get _uniqueColorIds => getUniqueItems()
-      .map((r) => r.selectedColor?.id ?? r.prefilledColorId)
-      .whereType<int>()
-      .toList();
-
-  /// Adds a new product+color row to the matrix. Returns false if the color is
-  /// already present.
+  /// Adds a new product+color+edge row to the matrix.
+  /// Returns false if the (color, edge) combination is already present.
   bool addMatrixColorRow(
     ProductEntity product,
     ProductColorEntity color, [
     ProductEdgeEntity? edge,
   ]) {
-    if (_uniqueColorIds.contains(color.id)) return false;
+    final edgeId = edge?.id;
+    final alreadyExists = getUniqueItems().any((r) {
+      final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+      return rColorId == color.id && r.effectiveEdgeId == edgeId;
+    });
+    if (alreadyExists) return false;
     final row = OrderItemRow()
       ..selectedProduct = product
       ..selectedColor = color
@@ -236,56 +237,63 @@ class OrderFormController extends ChangeNotifier {
     row.quantityCtrl.addListener(notifyListeners);
     items.add(row);
     for (final s in matrixSizeColumns) {
-      matrixCellCtrl(color.id, s.id);
+      matrixCellCtrl(color.id, s.id, edgeId: edgeId);
     }
     notifyListeners();
     return true;
   }
 
-  /// Removes all rows for [colorId] and clears their cell data.
-  void removeMatrixColorRow(int colorId) {
-    final toRemove = items
-        .where((r) => (r.selectedColor?.id ?? r.prefilledColorId) == colorId)
-        .toList();
-    for (final r in toRemove) {
-      r.quantityCtrl.removeListener(notifyListeners);
-      r.dispose();
-      items.remove(r);
-    }
-    for (final s in matrixSizeColumns) {
-      _disposeMatrixCell(_matrixKey(colorId, s.id));
+  /// Removes the specific [row] from the matrix and disposes its cell data.
+  void removeMatrixRow(OrderItemRow row) {
+    final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+    final edgeId = row.effectiveEdgeId;
+    row.quantityCtrl.removeListener(notifyListeners);
+    row.dispose();
+    items.remove(row);
+    if (colorId != null) {
+      for (final s in matrixSizeColumns) {
+        _disposeMatrixCell(_matrixKey(colorId, s.id, edgeId: edgeId));
+      }
     }
     notifyListeners();
   }
 
-  /// Updates the product+color for all rows identified by [oldColorId].
-  /// Migrates cell quantities when the color changes.
-  /// Returns false if [newColor] is already in use by another row.
+  /// Updates the product+color+edge for the row identified by [oldColorId] and
+  /// [oldEdgeId]. Migrates cell quantities when the identity changes.
+  /// Returns false if the new (color, edge) combination is already in use.
   bool updateMatrixProductRow(
     int oldColorId,
     ProductEntity newProduct,
     ProductColorEntity newColor, [
     ProductEdgeEntity? edge,
+    int? oldEdgeId,
   ]) {
-    if (newColor.id != oldColorId && _uniqueColorIds.contains(newColor.id)) {
-      return false;
+    final newEdgeId = edge?.id;
+    final identityChanged = newColor.id != oldColorId || newEdgeId != oldEdgeId;
+    if (identityChanged) {
+      final alreadyExists = getUniqueItems().any((r) {
+        final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
+        return rColorId == newColor.id && r.effectiveEdgeId == newEdgeId;
+      });
+      if (alreadyExists) return false;
     }
     for (final r in items) {
-      if ((r.selectedColor?.id ?? r.prefilledColorId) == oldColorId) {
+      if ((r.selectedColor?.id ?? r.prefilledColorId) == oldColorId &&
+          r.effectiveEdgeId == oldEdgeId) {
         r.selectedProduct = newProduct;
         r.selectedColor = newColor;
         r.selectedEdge = edge;
       }
     }
-    if (newColor.id != oldColorId) {
+    if (identityChanged) {
       for (final s in matrixSizeColumns) {
-        final oldKey = _matrixKey(oldColorId, s.id);
+        final oldKey = _matrixKey(oldColorId, s.id, edgeId: oldEdgeId);
         final qty = _matrixQty[oldKey] ?? 0;
         _disposeMatrixCell(oldKey);
         if (qty > 0) {
-          final ctrl = matrixCellCtrl(newColor.id, s.id);
+          final ctrl = matrixCellCtrl(newColor.id, s.id, edgeId: newEdgeId);
           ctrl.text = '$qty';
-          _matrixQty[_matrixKey(newColor.id, s.id)] = qty;
+          _matrixQty[_matrixKey(newColor.id, s.id, edgeId: newEdgeId)] = qty;
         }
       }
     }
@@ -307,8 +315,10 @@ class OrderFormController extends ChangeNotifier {
     if (matrixSizeColumns.any((s) => s.id == size.id)) return false;
     matrixSizeColumns.add(size);
     _sortMatrixSizeColumns();
-    for (final colorId in _uniqueColorIds) {
-      matrixCellCtrl(colorId, size.id);
+    for (final row in getUniqueItems()) {
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (colorId == null) continue;
+      matrixCellCtrl(colorId, size.id, edgeId: row.effectiveEdgeId);
     }
     notifyListeners();
     return true;
@@ -322,14 +332,17 @@ class OrderFormController extends ChangeNotifier {
     if (idx == -1) return;
     matrixSizeColumns[idx] = newSize;
     _sortMatrixSizeColumns();
-    for (final colorId in _uniqueColorIds) {
-      final oldKey = _matrixKey(colorId, oldSizeId);
+    for (final row in getUniqueItems()) {
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (colorId == null) continue;
+      final edgeId = row.effectiveEdgeId;
+      final oldKey = _matrixKey(colorId, oldSizeId, edgeId: edgeId);
       final qty = _matrixQty[oldKey] ?? 0;
       _disposeMatrixCell(oldKey);
       if (qty > 0) {
-        final ctrl = matrixCellCtrl(colorId, newSize.id);
+        final ctrl = matrixCellCtrl(colorId, newSize.id, edgeId: edgeId);
         ctrl.text = '$qty';
-        _matrixQty[_matrixKey(colorId, newSize.id)] = qty;
+        _matrixQty[_matrixKey(colorId, newSize.id, edgeId: edgeId)] = qty;
       }
     }
     notifyListeners();
@@ -338,8 +351,10 @@ class OrderFormController extends ChangeNotifier {
   /// Removes a size column and disposes its cell controllers.
   void removeMatrixSizeColumn(int sizeId) {
     matrixSizeColumns.removeWhere((s) => s.id == sizeId);
-    for (final colorId in _uniqueColorIds) {
-      _disposeMatrixCell(_matrixKey(colorId, sizeId));
+    for (final row in getUniqueItems()) {
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (colorId == null) continue;
+      _disposeMatrixCell(_matrixKey(colorId, sizeId, edgeId: row.effectiveEdgeId));
     }
     notifyListeners();
   }
@@ -427,16 +442,22 @@ class OrderFormController extends ChangeNotifier {
       _matrixCellCtrls.clear();
       _matrixQty.clear();
 
-      // Restore matrix quantities
+      // Restore matrix quantities.
+      // Key format: '${colorId}_e${edgeId ?? 0}_${sizeId}'
       if (matrixQty != null) {
         for (final entry in matrixQty.entries) {
           _matrixQty[entry.key] = entry.value;
           final parts = entry.key.split('_');
-          if (parts.length == 2) {
+          if (parts.length == 3) {
             final colorId = int.tryParse(parts[0]);
-            final sizeId = int.tryParse(parts[1]);
+            // parts[1] is 'e{edgeId}' — strip the leading 'e'
+            final edgeRaw = int.tryParse(
+              parts[1].startsWith('e') ? parts[1].substring(1) : parts[1],
+            );
+            final edgeId = (edgeRaw != null && edgeRaw > 0) ? edgeRaw : null;
+            final sizeId = int.tryParse(parts[2]);
             if (colorId != null && sizeId != null) {
-              final ctrl = matrixCellCtrl(colorId, sizeId);
+              final ctrl = matrixCellCtrl(colorId, sizeId, edgeId: edgeId);
               ctrl.text = '${entry.value}';
             }
           }

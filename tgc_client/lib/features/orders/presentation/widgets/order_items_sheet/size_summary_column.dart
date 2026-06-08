@@ -33,7 +33,7 @@ class _SizeSummaryColumnState extends State<SizeSummaryColumn> {
     for (final row in widget.ctrl.getUniqueItems()) {
       final colorId = row.selectedColor?.id ?? row.prefilledColorId;
       if (colorId == null) continue;
-      final c = widget.ctrl.matrixCellCtrl(colorId, widget.size.id);
+      final c = widget.ctrl.matrixCellCtrl(colorId, widget.size.id, edgeId: row.effectiveEdgeId);
       c.addListener(_onValue);
       _watched.add(c);
     }

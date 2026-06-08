@@ -33,6 +33,7 @@ class ProductPickerCell extends StatelessWidget {
     return InkWell(
       onTap: () async {
         final oldColorId = row.selectedColor?.id ?? row.prefilledColorId;
+        final oldEdgeId = row.effectiveEdgeId;
         final result = await ProductPickerBottomSheet.show(context);
         if (result == null || result.color == null || oldColorId == null) {
           return;
@@ -42,6 +43,7 @@ class ProductPickerCell extends StatelessWidget {
           result.product,
           result.color!,
           result.edge,
+          oldEdgeId,
         );
         if (!updated && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

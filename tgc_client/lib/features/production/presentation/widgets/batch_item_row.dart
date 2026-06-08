@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../orders/domain/entities/order_item_entity.dart';
 import '../../../products/domain/entities/product_color_entity.dart';
+import '../../../products/domain/entities/product_edge_entity.dart';
 import '../../../products/domain/entities/product_entity.dart';
 import '../../../products/domain/entities/product_size_entity.dart';
 import '../../domain/entities/production_batch_item_entity.dart';
@@ -18,6 +19,7 @@ class BatchItemRow {
   ProductEntity?      selectedProduct;
   ProductColorEntity? selectedColor;
   ProductSizeEntity?  selectedSize;
+  ProductEdgeEntity?  selectedEdge;
   final TextEditingController quantityCtrl;
 
   // ── Prefill (edit mode) ───────────────────────────────────────────────────
@@ -103,6 +105,9 @@ class BatchItemRow {
         initialQuantity: item.plannedQuantity,
       );
 
+  /// Resolved edge code — from freshly picked entity or prefill.
+  String? get effectiveEdgeCode => selectedEdge?.code ?? prefilledEdgeCode;
+
   /// Quality name — from selected product or prefill.
   String? get qualityName =>
       selectedProduct?.productQuality?.qualityName ?? prefilledQualityName;
@@ -125,6 +130,8 @@ class BatchItemRow {
       final parts = <String>[selectedProduct!.name];
       if (selectedColor != null) parts.add(selectedColor!.colorName);
       if (selectedSize != null) parts.add(selectedSize!.dimensions);
+      final edge = effectiveEdgeCode;
+      if (edge != null) parts.add('[$edge]');
       return parts.join(' / ');
     }
     if (prefilledProductName != null) {

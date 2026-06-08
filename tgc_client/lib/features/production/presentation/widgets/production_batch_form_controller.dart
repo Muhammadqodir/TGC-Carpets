@@ -67,7 +67,8 @@ class ProductionBatchFormController extends ChangeNotifier {
         final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
         final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
         return rColorId == item.productColorId &&
-            rSizeId == item.productSizeId;
+            rSizeId == item.productSizeId &&
+            r.effectiveEdgeCode == item.edgeCode;
       });
       if (!alreadyExists) {
         _items.add(BatchItemRow.fromOrderItem(item,

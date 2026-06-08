@@ -33,7 +33,7 @@ class ProductionBatchFormProductPickerCell extends StatelessWidget {
         row.selectedColor?.colorName ?? row.prefilledColorName;
     final String? displayQuality =
         product?.productQuality?.qualityName ?? row.prefilledQualityName;
-    final String? displayEdgeCode = row.prefilledEdgeCode;
+    final String? displayEdgeCode = row.effectiveEdgeCode;
     final String colorThumbnail =
         row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl ?? '';
     return InkWell(
@@ -43,6 +43,7 @@ class ProductionBatchFormProductPickerCell extends StatelessWidget {
           row.selectedProduct = result.product;
           row.selectedColor = result.color;
           row.selectedSize = null;
+          row.selectedEdge = result.edge;
           onChanged();
         }
       },

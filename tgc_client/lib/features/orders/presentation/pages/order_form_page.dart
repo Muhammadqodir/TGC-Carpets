@@ -993,10 +993,12 @@ class _ProductPickerCell extends StatelessWidget {
         if (result != null) {
           if (result.product.productTypeId == null) {
             final incomingColorId = result.color?.id;
+            final incomingEdgeId = result.edge?.id;
             final isDuplicate = allItems.any((r) {
               if (r.id == row.id) return false;
               final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
-              return rColorId != null && rColorId == incomingColorId;
+              return rColorId != null && rColorId == incomingColorId &&
+                  r.effectiveEdgeId == incomingEdgeId;
             });
             if (isDuplicate) {
               if (context.mounted) {
@@ -1124,11 +1126,13 @@ class _SizePickerCell extends StatelessWidget {
         if (picked != null) {
           final effectiveColorId =
               row.selectedColor?.id ?? row.prefilledColorId;
+          final effectiveEdgeId = row.effectiveEdgeId;
           final isDuplicate = allItems.any((r) {
             if (r.id == row.id) return false;
             final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
             final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
-            return rColorId == effectiveColorId && rSizeId == picked.id;
+            return rColorId == effectiveColorId && rSizeId == picked.id &&
+                r.effectiveEdgeId == effectiveEdgeId;
           });
           if (isDuplicate) {
             if (context.mounted) {

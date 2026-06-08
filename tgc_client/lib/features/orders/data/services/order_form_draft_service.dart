@@ -19,7 +19,7 @@ import '../../presentation/widgets/order_item_row.dart';
 /// Storage key is versioned (v1) — bump to wipe stale drafts after
 /// breaking schema changes.
 class OrderFormDraftService {
-  static const _key = 'order_form_draft_v1';
+  static const _key = 'order_form_draft_v2';
 
   final SharedPreferences _prefs;
 
@@ -54,6 +54,8 @@ class OrderFormDraftService {
                   // Prefill fields (edit mode rows)
                   'prefilled_color_id': r.prefilledColorId,
                   'prefilled_size_id': r.prefilledSizeId,
+                  'prefilled_edge_id': r.selectedEdge?.id ?? r.prefilledEdgeId,
+                  'prefilled_edge_code': r.selectedEdge?.code ?? r.prefilledEdgeCode,
                   'prefilled_product_name': r.prefilledProductName,
                   'prefilled_color_name': r.prefilledColorName,
                   'prefilled_color_image_url': r.prefilledColorImageUrl,
@@ -104,6 +106,8 @@ class OrderFormDraftService {
         final row = OrderItemRow(
           prefilledColorId: item['prefilled_color_id'] as int?,
           prefilledSizeId: item['prefilled_size_id'] as int?,
+          prefilledEdgeId: item['prefilled_edge_id'] as int?,
+          prefilledEdgeCode: item['prefilled_edge_code'] as String?,
           prefilledProductName: item['prefilled_product_name'] as String?,
           prefilledColorName: item['prefilled_color_name'] as String?,
           prefilledColorImageUrl: item['prefilled_color_image_url'] as String?,
@@ -207,6 +211,8 @@ class OrderFormDraftService {
                 'quantity': '${item.quantity}',
                 'prefilled_color_id': item.productColorId,
                 'prefilled_size_id': item.productSizeId,
+                'prefilled_edge_id': item.productEdgeId,
+                'prefilled_edge_code': item.edgeCode,
                 'prefilled_product_name': item.productName,
                 'prefilled_color_name': item.colorName,
                 'prefilled_color_image_url': item.colorImageUrl,
@@ -225,15 +231,15 @@ class OrderFormDraftService {
 
   Map<String, int> _serializeMatrixQuantities(OrderFormController ctrl) {
     final result = <String, int>{};
-    for (final colorId in ctrl.getUniqueItems()
-        .map((r) => r.selectedColor?.id ?? r.prefilledColorId)
-        .whereType<int>()) {
+    for (final row in ctrl.getUniqueItems()) {
+      final colorId = row.selectedColor?.id ?? row.prefilledColorId;
+      if (colorId == null) continue;
+      final edgeId = row.effectiveEdgeId;
       for (final size in ctrl.matrixSizeColumns) {
-        final key = '${colorId}_${size.id}';
-        final cellCtrl = ctrl.matrixCellCtrl(colorId, size.id);
+        final cellCtrl = ctrl.matrixCellCtrl(colorId, size.id, edgeId: edgeId);
         final qty = int.tryParse(cellCtrl.text.trim()) ?? 0;
         if (qty > 0) {
-          result[key] = qty;
+          result['${colorId}_e${edgeId ?? 0}_${size.id}'] = qty;
         }
       }
     }

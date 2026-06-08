@@ -7,6 +7,7 @@ class QuantityCell extends StatefulWidget {
   final OrderFormController ctrl;
   final int colorId;
   final int sizeId;
+  final int? edgeId;
   final bool enabled;
   final int rowIndex;
   final int columnIndex;
@@ -21,6 +22,7 @@ class QuantityCell extends StatefulWidget {
     required this.ctrl,
     required this.colorId,
     required this.sizeId,
+    this.edgeId,
     required this.enabled,
     required this.rowIndex,
     required this.columnIndex,
@@ -50,7 +52,7 @@ class _QuantityCellState extends State<QuantityCell> {
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
-    _controller = widget.ctrl.matrixCellCtrl(widget.colorId, widget.sizeId);
+    _controller = widget.ctrl.matrixCellCtrl(widget.colorId, widget.sizeId, edgeId: widget.edgeId);
     _focusNode.addListener(_onFocusChange);
   }
 
@@ -58,8 +60,8 @@ class _QuantityCellState extends State<QuantityCell> {
   void didUpdateWidget(covariant QuantityCell oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Update the cell controller if the cell identity changed.
-    if (widget.colorId != oldWidget.colorId || widget.sizeId != oldWidget.sizeId) {
-      _controller = widget.ctrl.matrixCellCtrl(widget.colorId, widget.sizeId);
+    if (widget.colorId != oldWidget.colorId || widget.sizeId != oldWidget.sizeId || widget.edgeId != oldWidget.edgeId) {
+      _controller = widget.ctrl.matrixCellCtrl(widget.colorId, widget.sizeId, edgeId: widget.edgeId);
     }
     // Update the focus node if the parent passed a new one (e.g. after
     // structural rebuild triggered by adding/sorting size columns).

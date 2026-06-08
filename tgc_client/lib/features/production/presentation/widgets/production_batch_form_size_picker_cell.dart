@@ -33,11 +33,13 @@ class ProductionBatchFormSizePickerCell extends StatelessWidget {
         if (picked != null) {
           final effectiveColorId =
               row.selectedColor?.id ?? row.prefilledColorId;
+          final effectiveEdgeCode = row.effectiveEdgeCode;
           final isDuplicate = allItems.any((r) {
             if (r.id == row.id) return false;
             final rColorId = r.selectedColor?.id ?? r.prefilledColorId;
             final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
-            return rColorId == effectiveColorId && rSizeId == picked.id;
+            return rColorId == effectiveColorId && rSizeId == picked.id &&
+                r.effectiveEdgeCode == effectiveEdgeCode;
           });
           if (isDuplicate) {
             if (context.mounted) {
