@@ -115,6 +115,7 @@ class ProductionBatchModel extends ProductionBatchEntity {
       productUnit:              productMap?['unit'] as String?,
       productColorId:           colorMap?['id'] as int?,
       productSizeId:            sizeMap?['id'] as int?,
+      productEdgeId:            edgeMap?['id'] as int?,
       productTypeId:            productMap?['product_type_id'] as int?,
       qualityName:              productMap?['quality_name'] as String?,
       productTypeName:          productTypeMap?['type'] as String?,

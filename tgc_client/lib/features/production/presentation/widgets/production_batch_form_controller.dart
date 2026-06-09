@@ -68,7 +68,7 @@ class ProductionBatchFormController extends ChangeNotifier {
         final rSizeId = r.selectedSize?.id ?? r.prefilledSizeId;
         return rColorId == item.productColorId &&
             rSizeId == item.productSizeId &&
-            r.effectiveEdgeCode == item.edgeCode;
+            r.effectiveEdgeId == item.productEdgeId;
       });
       if (!alreadyExists) {
         _items.add(BatchItemRow.fromOrderItem(item,
@@ -107,11 +107,13 @@ class ProductionBatchFormController extends ChangeNotifier {
               r.selectedColor?.id ?? r.prefilledColorId;
           final sizeId =
               r.selectedSize?.id ?? r.prefilledSizeId;
+          final edgeId = r.effectiveEdgeId;
           final qty =
               int.tryParse(r.quantityCtrl.text.trim()) ?? 1;
           return {
             'product_color_id': colorId,
             'product_size_id': sizeId,
+            if (edgeId != null) 'product_edge_id': edgeId,
             'planned_quantity': qty,
             'source_type': r.sourceOrderItemId != null ? 'order_item' : 'manual',
             if (r.sourceOrderItemId != null)
