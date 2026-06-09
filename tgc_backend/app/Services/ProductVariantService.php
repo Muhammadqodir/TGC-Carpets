@@ -76,7 +76,11 @@ class ProductVariantService
                 return $variant->fresh();
             });
         } catch (UniqueConstraintViolationException) {
-            // Another request inserted the same variant concurrently — fetch it.
+            // Another request beat us to the INSERT (race condition), or the same
+            // SKU belongs to a variant with a different edge_id (old variants that
+            // were backfilled with an edge_id but whose sku_code predates the edge
+            // suffix format).  Use lockForUpdate() to bypass the REPEATABLE READ
+            // snapshot so we always read the committed row.
             $variant = ProductVariant::where('product_color_id', $productColorId)
                 ->when(
                     $sizeId !== null,
@@ -88,7 +92,11 @@ class ProductVariantService
                     fn ($q) => $q->where('product_edge_id', $edgeId),
                     fn ($q) => $q->whereNull('product_edge_id'),
                 )
-                ->firstOrFail();
+                ->lockForUpdate()
+                ->first()
+                // Fallback: the collision is on sku_code with a variant that has a
+                // different edge_id (pre-migration backfill case). Find it by SKU.
+                ?? ProductVariant::where('sku_code', $sku)->lockForUpdate()->firstOrFail();
         }
 
         return $variant;

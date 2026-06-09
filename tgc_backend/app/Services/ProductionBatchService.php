@@ -233,9 +233,25 @@ class ProductionBatchService
 
     private function syncItems(ProductionBatch $batch, array $items): void
     {
+        // Pre-load all referenced order items in one query to avoid N+1.
+        $orderItemIds = collect($items)
+            ->pluck('source_order_item_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $orderItemVariants = $orderItemIds
+            ? OrderItem::whereIn('id', $orderItemIds)->pluck('product_variant_id', 'id')
+            : collect();
+
         foreach ($items as $itemData) {
             if (!empty($itemData['product_variant_id'])) {
                 $variantId = (int) $itemData['product_variant_id'];
+            } elseif (!empty($itemData['source_order_item_id']) && isset($orderItemVariants[$itemData['source_order_item_id']])) {
+                // Use the order item's variant directly so the correct edge is
+                // always applied, even when the client omits product_edge_id.
+                $variantId = (int) $orderItemVariants[$itemData['source_order_item_id']];
             } else {
                 $variantId = $this->variantService->findOrCreate(
                     (int) $itemData['product_color_id'],
