@@ -40,7 +40,6 @@ class BatchItemRow {
   // ── Extra display fields ──────────────────────────────────────────────────
   final String? prefilledQualityName;
   final String? prefilledTypeName;
-  final int?    prefilledEdgeId;
   final String? prefilledEdgeCode;
 
   BatchItemRow({
@@ -57,7 +56,6 @@ class BatchItemRow {
     this.sourceClientName,
     this.prefilledQualityName,
     this.prefilledTypeName,
-    this.prefilledEdgeId,
     this.prefilledEdgeCode,
     int initialQuantity = 1,
   }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
@@ -82,7 +80,6 @@ class BatchItemRow {
         sourceClientName: clientName,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
-        prefilledEdgeId: item.productEdgeId,
         prefilledEdgeCode: item.edgeCode,
         initialQuantity: item.remainingQuantity ?? item.quantity,
       );
@@ -104,13 +101,9 @@ class BatchItemRow {
         sourceClientName: item.sourceClientShopName,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
-        prefilledEdgeId: item.productEdgeId,
         prefilledEdgeCode: item.edgeCode,
         initialQuantity: item.plannedQuantity,
       );
-
-  /// Resolved edge id — from freshly picked entity or prefill.
-  int? get effectiveEdgeId => selectedEdge?.id ?? prefilledEdgeId;
 
   /// Resolved edge code — from freshly picked entity or prefill.
   String? get effectiveEdgeCode => selectedEdge?.code ?? prefilledEdgeCode;
