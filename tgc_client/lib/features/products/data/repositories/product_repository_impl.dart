@@ -4,7 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/import_product_item.dart';
-import '../../domain/entities/import_summary_entity.dart';
+import '../../domain/entities/import_summary_entity.dart' show ImportItemResultEntity;
 import '../../domain/entities/product_color_entity.dart';
 import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
@@ -253,20 +253,20 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Either<Failure, ImportSummaryEntity>> importProducts({
+  Future<Either<Failure, ImportItemResultEntity>> importProduct({
     int? productQualityId,
     int? productTypeId,
-    required List<ImportProductItem> items,
+    required ImportProductItem item,
   }) async {
     try {
-      final data = await remoteDataSource.importProducts(
+      final data = await remoteDataSource.importProduct(
         productQualityId: productQualityId,
         productTypeId: productTypeId,
-        items: items,
+        item: item,
       );
-      return Right(ImportSummaryEntity(
-        createdProducts: data['created_products']!,
-        createdProductColors: data['created_product_colors']!,
+      return Right(ImportItemResultEntity(
+        createdProduct: data['created_product']!,
+        createdProductColor: data['created_product_color']!,
         skipped: data['skipped']!,
       ));
     } on NetworkException catch (e) {

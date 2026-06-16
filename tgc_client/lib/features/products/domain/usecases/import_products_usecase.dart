@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/import_product_item.dart';
-import '../entities/import_summary_entity.dart';
+import '../entities/import_summary_entity.dart' show ImportItemResultEntity;
 import '../repositories/product_repository.dart';
 
 class ImportProductsUseCase {
@@ -9,14 +9,14 @@ class ImportProductsUseCase {
 
   const ImportProductsUseCase(this._repository);
 
-  Future<Either<Failure, ImportSummaryEntity>> call({
+  Future<Either<Failure, ImportItemResultEntity>> call({
     int? productQualityId,
     int? productTypeId,
-    required List<ImportProductItem> items,
+    required ImportProductItem item,
   }) =>
-      _repository.importProducts(
+      _repository.importProduct(
         productQualityId: productQualityId,
         productTypeId: productTypeId,
-        items: items,
+        item: item,
       );
 }

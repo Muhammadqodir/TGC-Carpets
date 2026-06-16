@@ -86,6 +86,8 @@ class ImportProductsSubmitting extends ImportProductsState {
   final List<ParsedImportEntry> entries;
   final int? selectedQualityId;
   final int? selectedProductTypeId;
+  final int progress;
+  final int total;
 
   const ImportProductsSubmitting({
     required this.qualities,
@@ -94,7 +96,12 @@ class ImportProductsSubmitting extends ImportProductsState {
     required this.entries,
     this.selectedQualityId,
     this.selectedProductTypeId,
+    this.progress = 0,
+    required this.total,
   });
+
+  double get progressFraction =>
+      total == 0 ? 0.0 : (progress / total).clamp(0.0, 1.0);
 
   @override
   List<Object?> get props => [
@@ -104,6 +111,8 @@ class ImportProductsSubmitting extends ImportProductsState {
         entries,
         selectedQualityId,
         selectedProductTypeId,
+        progress,
+        total,
       ];
 }
 

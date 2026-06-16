@@ -1,11 +1,11 @@
-class ImportSummaryEntity {
-  final int createdProducts;
-  final int createdProductColors;
-  final int skipped;
+class ImportItemResultEntity {
+  final bool createdProduct;
+  final bool createdProductColor;
+  final bool skipped;
 
-  const ImportSummaryEntity({
-    required this.createdProducts,
-    required this.createdProductColors,
+  const ImportItemResultEntity({
+    required this.createdProduct,
+    required this.createdProductColor,
     required this.skipped,
   });
 }

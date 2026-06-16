@@ -115,49 +115,55 @@ class ImportProductsBloc
     final current = _currentReady();
     if (current == null || current.entries.isEmpty) return;
 
-    emit(ImportProductsSubmitting(
-      qualities: current.qualities,
-      productTypes: current.productTypes,
-      entries: current.entries,
-      selectedQualityId: current.selectedQualityId,
-      selectedProductTypeId: current.selectedProductTypeId,
-    ));
+    final total = current.entries.length;
+    int createdProducts = 0;
+    int createdColors = 0;
+    int skipped = 0;
 
-    // Resize images client-side before upload (max 1200 px on either axis).
-    final items = <ImportProductItem>[];
-    for (final entry in current.entries) {
-      String? imagePath = entry.imagePath;
-      if (imagePath != null) {
-        imagePath = await _resizeImageIfNeeded(imagePath);
-      }
-      items.add(ImportProductItem(
-        productName: entry.productName,
-        colorName: entry.colorName,
-        imagePath: imagePath,
-      ));
-    }
+    for (var i = 0; i < total; i++) {
+      final entry = current.entries[i];
 
-    final result = await importProductsUseCase(
-      productQualityId: current.selectedQualityId,
-      productTypeId: current.selectedProductTypeId,
-      items: items,
-    );
-
-    result.fold(
-      (f) => emit(ImportProductsFailure(
-        f.toString(),
+      emit(ImportProductsSubmitting(
         qualities: current.qualities,
         productTypes: current.productTypes,
         entries: current.entries,
         selectedQualityId: current.selectedQualityId,
         selectedProductTypeId: current.selectedProductTypeId,
-      )),
-      (summary) => emit(ImportProductsSuccess(
-        createdProducts: summary.createdProducts,
-        createdColors: summary.createdProductColors,
-        skipped: summary.skipped,
-      )),
-    );
+        progress: i,
+        total: total,
+      ));
+
+      // Resize image client-side before upload (max 1200 px on either axis).
+      String? imagePath = entry.imagePath;
+      if (imagePath != null) {
+        imagePath = await _resizeImageIfNeeded(imagePath);
+      }
+
+      final result = await importProductsUseCase(
+        productQualityId: current.selectedQualityId,
+        productTypeId: current.selectedProductTypeId,
+        item: ImportProductItem(
+          productName: entry.productName,
+          colorName: entry.colorName,
+          imagePath: imagePath,
+        ),
+      );
+
+      result.fold(
+        (f) => skipped++,
+        (r) {
+          if (r.createdProduct) createdProducts++;
+          if (r.createdProductColor) createdColors++;
+          if (r.skipped) skipped++;
+        },
+      );
+    }
+
+    emit(ImportProductsSuccess(
+      createdProducts: createdProducts,
+      createdColors: createdColors,
+      skipped: skipped,
+    ));
   }
 
   // ─── Image resize helper ─────────────────────────────────────────────────

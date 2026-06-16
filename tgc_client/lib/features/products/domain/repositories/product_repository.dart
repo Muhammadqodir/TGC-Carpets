@@ -3,7 +3,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/color_entity.dart';
 import '../entities/import_product_item.dart';
-import '../entities/import_summary_entity.dart';
+import '../entities/import_summary_entity.dart' show ImportItemResultEntity;
 import '../entities/product_color_entity.dart';
 import '../entities/product_entity.dart';
 import '../entities/product_quality_entity.dart';
@@ -64,9 +64,9 @@ abstract class ProductRepository {
 
   Future<Either<Failure, List<ColorEntity>>> getColors();
 
-  Future<Either<Failure, ImportSummaryEntity>> importProducts({
+  Future<Either<Failure, ImportItemResultEntity>> importProduct({
     int? productQualityId,
     int? productTypeId,
-    required List<ImportProductItem> items,
+    required ImportProductItem item,
   });
 }

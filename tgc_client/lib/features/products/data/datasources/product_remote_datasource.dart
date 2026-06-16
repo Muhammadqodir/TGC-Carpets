@@ -68,12 +68,12 @@ abstract class ProductRemoteDataSource {
   /// Returns all available colors.
   Future<List<ColorModel>> getColors();
 
-  /// Bulk-imports products+colors in a single request. Returns a summary map
-  /// with keys: created_products, created_colors, created_product_colors, skipped.
-  Future<Map<String, int>> importProducts({
+  /// Imports a single product-color entry. Returns a result map with
+  /// boolean keys: created_product, created_product_color, skipped.
+  Future<Map<String, bool>> importProduct({
     int? productQualityId,
     int? productTypeId,
-    required List<ImportProductItem> items,
+    required ImportProductItem item,
   });
 }
 
@@ -342,46 +342,41 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
-  Future<Map<String, int>> importProducts({
+  Future<Map<String, bool>> importProduct({
     int? productQualityId,
     int? productTypeId,
-    required List<ImportProductItem> items,
+    required ImportProductItem item,
   }) async {
-    final formData = FormData();
-
-    if (productQualityId != null) {
-      formData.fields.add(MapEntry('product_quality_id', productQualityId.toString()));
-    }
-    if (productTypeId != null) {
-      formData.fields.add(MapEntry('product_type_id', productTypeId.toString()));
-    }
-
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      formData.fields.add(MapEntry('items[$i][name]', item.productName));
-      formData.fields.add(MapEntry('items[$i][color]', item.colorName));
-      if (item.imagePath != null) {
-        formData.files.add(MapEntry(
-          'items[$i][image]',
-          await MultipartFile.fromFile(
-            item.imagePath!,
-            filename: item.imagePath!.split('/').last,
-          ),
-        ));
+    MultipartFile? imageFile;
+    if (item.imagePath != null) {
+      try {
+        imageFile = await MultipartFile.fromFile(
+          item.imagePath!,
+          filename: item.imagePath!.split('/').last,
+        );
+      } catch (e) {
+        throw ServerException(message: 'Rasm faylini o\'qishda xato: $e');
       }
     }
 
     try {
+      final formData = FormData.fromMap({
+        'name':  item.productName,
+        'color': item.colorName,
+        if (productQualityId != null) 'product_quality_id': productQualityId.toString(),
+        if (productTypeId != null)    'product_type_id':    productTypeId.toString(),
+        if (imageFile != null)        'image':              imageFile,
+      });
+
       final response = await _dio.post(
         ApiEndpoints.productsImport,
         data: formData,
       );
       final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
       return {
-        'created_products':       (data['created_products'] as num).toInt(),
-        'created_colors':         (data['created_colors'] as num).toInt(),
-        'created_product_colors': (data['created_product_colors'] as num).toInt(),
-        'skipped':                (data['skipped'] as num).toInt(),
+        'created_product':       data['created_product'] as bool,
+        'created_product_color': data['created_product_color'] as bool,
+        'skipped':               data['skipped'] as bool,
       };
     } on DioException catch (e) {
       _handleDioError(e);

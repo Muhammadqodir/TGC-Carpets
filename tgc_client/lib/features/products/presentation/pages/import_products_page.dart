@@ -81,12 +81,13 @@ class _ImportProductsView extends StatelessWidget {
             BlocBuilder<ImportProductsBloc, ImportProductsState>(
               builder: (context, state) {
                 if (state is ImportProductsSubmitting) {
-                  return const Padding(
-                    padding: EdgeInsets.only(right: 16),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Text(
+                      '${state.progress} / ${state.total}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                     ),
                   );
                 }
@@ -652,23 +653,24 @@ class _ProgressSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const LinearProgressIndicator(
+          LinearProgressIndicator(
+            value: state.progressFraction,
             minHeight: 3,
             backgroundColor: AppColors.divider,
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 1.5),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
-                  'Yuklanmoqda...',
-                  style: TextStyle(
+                  '${state.progress} / ${state.total} ta yuklanmoqda...',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
