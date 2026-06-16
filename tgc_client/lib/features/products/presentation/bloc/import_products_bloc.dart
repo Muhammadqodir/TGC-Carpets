@@ -58,11 +58,11 @@ class ImportProductsBloc
 
     final qualities = results[0].fold(
       (_) => <ProductQualityEntity>[],
-      (v) => v as List<ProductQualityEntity>,
+      (v) => (v as List<ProductQualityEntity>).where((q) => !q.isArchived).toList(),
     );
     final productTypes = results[1].fold(
       (_) => <ProductTypeEntity>[],
-      (v) => v as List<ProductTypeEntity>,
+      (v) => (v as List<ProductTypeEntity>).where((t) => !t.isArchived).toList(),
     );
     final colors = results[2].fold(
       (_) => <ColorEntity>[],
