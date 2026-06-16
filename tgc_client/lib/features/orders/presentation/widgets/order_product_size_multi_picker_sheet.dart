@@ -220,11 +220,15 @@ class _OrderProductSizeMultiPickerSheetState
                     );
                   }
 
-                  // Grouped by type when showing all
-                  final typeMap = {for (final t in data.types) t.id: t.type};
+                  // Grouped by type when showing all (exclude archived types)
+                  final activeTypes =
+                      data.types.where((t) => !t.isArchived).toList();
+                  final typeMap = {for (final t in activeTypes) t.id: t.type};
                   final grouped = <int, List<ProductSizeEntity>>{};
                   for (final s in data.sizes) {
-                    grouped.putIfAbsent(s.productTypeId, () => []).add(s);
+                    if (typeMap.containsKey(s.productTypeId)) {
+                      grouped.putIfAbsent(s.productTypeId, () => []).add(s);
+                    }
                   }
                   for (final list in grouped.values) {
                     list.sort((a, b) => a.width != b.width
