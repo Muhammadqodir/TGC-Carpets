@@ -243,6 +243,8 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
       (pt) {
         final updated = current.productTypes.map((t) => t.id == pt.id ? pt : t).toList();
         final msg = event.archive ? '"${pt.type}" arxivlandi.' : '"${pt.type}" arxivdan chiqarildi.';
+        OrderProductSizeMultiPickerSheet.clearCache();
+        ProductSizePickerSheet.clearCache();
         emit(current.copyWith(productTypes: updated, actionStatus: AttributeActionSuccess(msg)));
       },
     );
