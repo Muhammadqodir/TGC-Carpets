@@ -244,15 +244,27 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     required int colorId,
     String? imagePath,
   }) async {
+    // Prepare the multipart file before opening the Dio try-block so that
+    // file-system errors (missing file, permission denied, etc.) are caught
+    // separately and converted to a ServerException rather than leaking as an
+    // unhandled exception that would crash the entire import process.
+    MultipartFile? imageFile;
+    if (imagePath != null) {
+      try {
+        imageFile = await MultipartFile.fromFile(
+          imagePath,
+          filename: imagePath.split('/').last,
+        );
+      } catch (e) {
+        throw ServerException(message: 'Rasm faylini o\'qishda xato: $e');
+      }
+    }
+
     try {
       final formData = FormData.fromMap({
         'product_id': productId,
         'color_id': colorId,
-        if (imagePath != null)
-          'image': await MultipartFile.fromFile(
-            imagePath,
-            filename: imagePath.split('/').last,
-          ),
+        if (imageFile != null) 'image': imageFile,
       });
 
       final response = await _dio.post(
