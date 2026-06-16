@@ -49,7 +49,27 @@ class ProductColorController extends Controller
             'image'      => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
-        $data = collect($validated)->except('image')->toArray();
+        // Return the existing record without creating a duplicate.
+        $existing = ProductColor::where('product_id', $validated['product_id'])
+            ->where('color_id', $validated['color_id'])
+            ->first();
+
+        if ($existing) {
+            $existing->load(['color', 'product']);
+            return response()->json([
+                'data' => [
+                    'id'        => $existing->id,
+                    'product'   => ['id' => $existing->product->id, 'name' => $existing->product->name],
+                    'color'     => ['id' => $existing->color->id, 'name' => $existing->color->name],
+                    'image_url' => $existing->image ? Storage::disk('public')->url($existing->image) : null,
+                ],
+            ], 200);
+        }
+
+        $data = [
+            'product_id' => $validated['product_id'],
+            'color_id'   => $validated['color_id'],
+        ];
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('products', 'public');

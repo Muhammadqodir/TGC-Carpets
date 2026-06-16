@@ -32,10 +32,19 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $product = Product::create($request->validated());
+        $validated = $request->validated();
+
+        $product = Product::firstOrCreate(
+            ['name' => $validated['name']],
+            collect($validated)->except('name')->toArray()
+        );
+
         $product->refresh();
 
-        return response()->json(['data' => new ProductResource($product)], 201);
+        return response()->json(
+            ['data' => new ProductResource($product)],
+            $product->wasRecentlyCreated ? 201 : 200
+        );
     }
 
     public function show(Product $product): JsonResponse

@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/entities/color_entity.dart';
-import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
 import '../../domain/usecases/create_product_color_usecase.dart';
@@ -175,37 +174,6 @@ class ImportProductsBloc
       total: totalItems,
     ));
 
-    // Fetch ALL existing products for name-based de-duplication.
-    // Paginate until all pages are consumed so we never miss a product and
-    // accidentally create a duplicate.
-    final productMap = <String, ProductEntity>{};
-    {
-      int page = 1;
-      const batchSize = 500;
-      while (true) {
-        final batch =
-            await getProductsUseCase(page: page, perPage: batchSize);
-        final resp = batch.fold<dynamic>((_) => null, (r) => r);
-        if (resp == null) {
-          emit(ImportProductsFailure(
-            'Mahsulotlar ro\'yxatini yuklashda xato yuz berdi.',
-            qualities: current.qualities,
-            productTypes: current.productTypes,
-            colors: current.colors,
-            entries: current.entries,
-            selectedQualityId: current.selectedQualityId,
-            selectedProductTypeId: current.selectedProductTypeId,
-          ));
-          return;
-        }
-        for (final p in resp.data as List<ProductEntity>) {
-          productMap[p.name.toLowerCase()] = p;
-        }
-        if (page >= (resp.lastPage as int)) break;
-        page++;
-      }
-    }
-
     // Group entries by product name, preserving original casing + imagePath per color.
     final grouped = <String,
         ({
@@ -236,43 +204,37 @@ class ImportProductsBloc
 
     try {
       for (final groupEntry in grouped.entries) {
-        final key = groupEntry.key;
         final originalName = groupEntry.value.originalName;
         final colorEntries = groupEntry.value.colorEntries;
 
-        // ── Step 1: find or create the product ────────────────────────────
-        ProductEntity product;
-        if (productMap.containsKey(key)) {
-          product = productMap[key]!;
-        } else {
-          final result = await createProductUseCase(
-            name: originalName,
-            productTypeId: current.selectedProductTypeId,
-            productQualityId: current.selectedQualityId,
-            unit: 'piece',
-          );
-          if (result.isLeft()) {
-            skipped += colorEntries.length;
-            processed += colorEntries.length;
-            emit(ImportProductsSubmitting(
-              qualities: current.qualities,
-              productTypes: current.productTypes,
-              colors: current.colors,
-              entries: current.entries,
-              selectedQualityId: current.selectedQualityId,
-              selectedProductTypeId: current.selectedProductTypeId,
-              progress: processed,
-              total: totalItems,
-            ));
-            continue;
-          }
-          product =
-              result.fold((_) => throw StateError('unreachable'), (p) => p);
-          productMap[key] = product;
-          createdProducts++;
+        // ── Step 1: find or create the product (backend deduplicates by name) ──
+        final productResult = await createProductUseCase(
+          name: originalName,
+          productTypeId: current.selectedProductTypeId,
+          productQualityId: current.selectedQualityId,
+          unit: 'piece',
+        );
+
+        if (productResult.isLeft()) {
+          skipped += colorEntries.length;
+          processed += colorEntries.length;
+          emit(ImportProductsSubmitting(
+            qualities: current.qualities,
+            productTypes: current.productTypes,
+            colors: current.colors,
+            entries: current.entries,
+            selectedQualityId: current.selectedQualityId,
+            selectedProductTypeId: current.selectedProductTypeId,
+            progress: processed,
+            total: totalItems,
+          ));
+          continue;
         }
 
-        // ── Step 2: add colors one by one ─────────────────────────────────
+        final product = productResult.fold((_) => throw StateError('unreachable'), (p) => p);
+        createdProducts++;
+
+        // ── Step 2: add colors one by one (backend deduplicates by product+color) ──
         for (final colorEntry in colorEntries) {
           ColorEntity? matchedColor;
           for (final c in current.colors) {
@@ -298,31 +260,12 @@ class ImportProductsBloc
             continue;
           }
 
-          final alreadyHas = product.productColors
-              .any((pc) => pc.colorId == matchedColor!.id);
-          if (alreadyHas) {
-            skipped++;
-            processed++;
-            emit(ImportProductsSubmitting(
-              qualities: current.qualities,
-              productTypes: current.productTypes,
-              colors: current.colors,
-              entries: current.entries,
-              selectedQualityId: current.selectedQualityId,
-              selectedProductTypeId: current.selectedProductTypeId,
-              progress: processed,
-              total: totalItems,
-            ));
-            continue;
-          }
-
           // Resize image if it's too large (max 1200px on either axis)
           String? uploadPath = colorEntry.imagePath;
           if (uploadPath != null) {
             uploadPath = await _resizeImageIfNeeded(uploadPath);
           }
 
-          // Send request individually (not bulk)
           final result = await createProductColorUseCase(
             productId: product.id,
             colorId: matchedColor.id,
@@ -331,13 +274,7 @@ class ImportProductsBloc
 
           result.fold(
             (_) => skipped++,
-            (newColor) {
-              product = product.copyWith(
-                productColors: [...product.productColors, newColor],
-              );
-              productMap[key] = product;
-              createdColors++;
-            },
+            (_) => createdColors++,
           );
 
           processed++;
