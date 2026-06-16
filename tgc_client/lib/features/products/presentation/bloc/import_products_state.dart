@@ -51,11 +51,28 @@ class ImportProductsReady extends ImportProductsState {
   const ImportProductsReady({
     required this.qualities,
     required this.productTypes,
-    required this.colors,
+    this.colors = const [],
     this.entries = const [],
     this.selectedQualityId,
     this.selectedProductTypeId,
   });
+
+  ImportProductsReady copyWith({
+    List<ParsedImportEntry>? entries,
+    int? selectedQualityId,
+    int? selectedProductTypeId,
+    bool clearQualityId = false,
+    bool clearTypeId = false,
+  }) {
+    return ImportProductsReady(
+      qualities: qualities,
+      productTypes: productTypes,
+      colors: colors,
+      entries: entries ?? this.entries,
+      selectedQualityId: clearQualityId ? null : (selectedQualityId ?? this.selectedQualityId),
+      selectedProductTypeId: clearTypeId ? null : (selectedProductTypeId ?? this.selectedProductTypeId),
+    );
+  }
 
   @override
   List<Object?> get props =>
@@ -70,25 +87,14 @@ class ImportProductsSubmitting extends ImportProductsState {
   final int? selectedQualityId;
   final int? selectedProductTypeId;
 
-  /// Number of entries already processed (for progress display).
-  final int progress;
-
-  /// Total number of entries to process.
-  final int total;
-
   const ImportProductsSubmitting({
     required this.qualities,
     required this.productTypes,
-    required this.colors,
+    this.colors = const [],
     required this.entries,
     this.selectedQualityId,
     this.selectedProductTypeId,
-    this.progress = 0,
-    this.total = 0,
   });
-
-  double get progressFraction =>
-      total == 0 ? 0.0 : (progress / total).clamp(0.0, 1.0);
 
   @override
   List<Object?> get props => [
@@ -98,8 +104,6 @@ class ImportProductsSubmitting extends ImportProductsState {
         entries,
         selectedQualityId,
         selectedProductTypeId,
-        progress,
-        total,
       ];
 }
 
@@ -131,7 +135,7 @@ class ImportProductsFailure extends ImportProductsState {
     this.message, {
     required this.qualities,
     required this.productTypes,
-    required this.colors,
+    this.colors = const [],
     required this.entries,
     this.selectedQualityId,
     this.selectedProductTypeId,

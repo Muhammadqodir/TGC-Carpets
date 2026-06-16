@@ -34,6 +34,7 @@ import '../../features/products/domain/usecases/create_product_color_usecase.dar
 import '../../features/products/domain/usecases/update_product_color_usecase.dart';
 import '../../features/products/domain/usecases/delete_product_color_usecase.dart';
 import '../../features/products/domain/usecases/get_colors_usecase.dart';
+import '../../features/products/domain/usecases/import_products_usecase.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 import '../../features/products/presentation/bloc/product_form_bloc.dart';
 import '../../features/products/presentation/bloc/product_color_form_bloc.dart';
@@ -315,13 +316,10 @@ Future<void> initDependencies() async {
     () => ImportProductsBloc(
       getProductQualitiesUseCase: sl<GetProductQualitiesUseCase>(),
       getProductTypesUseCase: sl<GetProductTypesUseCase>(),
-      getColorsUseCase: sl<GetColorsUseCase>(),
-      getProductsUseCase: sl<GetProductsUseCase>(),
-      createProductUseCase: sl<CreateProductUseCase>(),
-      createProductColorUseCase: sl<CreateProductColorUseCase>(),
-      createColorUseCase: sl<CreateColorUseCase>(),
+      importProductsUseCase: sl<ImportProductsUseCase>(),
     ),
   );
+  sl.registerLazySingleton(() => ImportProductsUseCase(sl<ProductRepository>()));
 
   // ─── Clients Feature ──────────────────────────────────────────────────────
   sl.registerLazySingleton<ClientRemoteDataSource>(

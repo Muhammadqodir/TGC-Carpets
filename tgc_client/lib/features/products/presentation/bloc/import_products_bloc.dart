@@ -1,20 +1,15 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../domain/entities/color_entity.dart';
+import '../../domain/entities/import_product_item.dart';
 import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
-import '../../../product_attributes/domain/usecases/color_usecases.dart';
-import '../../domain/usecases/create_product_color_usecase.dart';
-import '../../domain/usecases/create_product_usecase.dart';
-import '../../domain/usecases/get_colors_usecase.dart';
 import '../../domain/usecases/get_product_qualities_usecase.dart';
 import '../../domain/usecases/get_product_types_usecase.dart';
-import '../../domain/usecases/get_products_usecase.dart';
+import '../../domain/usecases/import_products_usecase.dart';
 import 'import_products_event.dart';
 import 'import_products_state.dart';
 
@@ -22,20 +17,12 @@ class ImportProductsBloc
     extends Bloc<ImportProductsEvent, ImportProductsState> {
   final GetProductQualitiesUseCase getProductQualitiesUseCase;
   final GetProductTypesUseCase getProductTypesUseCase;
-  final GetColorsUseCase getColorsUseCase;
-  final GetProductsUseCase getProductsUseCase;
-  final CreateProductUseCase createProductUseCase;
-  final CreateProductColorUseCase createProductColorUseCase;
-  final CreateColorUseCase createColorUseCase;
+  final ImportProductsUseCase importProductsUseCase;
 
   ImportProductsBloc({
     required this.getProductQualitiesUseCase,
     required this.getProductTypesUseCase,
-    required this.getColorsUseCase,
-    required this.getProductsUseCase,
-    required this.createProductUseCase,
-    required this.createProductColorUseCase,
-    required this.createColorUseCase,
+    required this.importProductsUseCase,
   }) : super(const ImportProductsInitial()) {
     on<ImportProductsStarted>(_onStarted);
     on<ImportProductsEntriesAdded>(_onEntriesAdded);
@@ -56,7 +43,6 @@ class ImportProductsBloc
     final results = await Future.wait([
       getProductQualitiesUseCase(),
       getProductTypesUseCase(),
-      getColorsUseCase(),
     ]);
 
     final qualities = results[0].fold(
@@ -67,15 +53,10 @@ class ImportProductsBloc
       (_) => <ProductTypeEntity>[],
       (v) => (v as List<ProductTypeEntity>).where((t) => !t.isArchived).toList(),
     );
-    final colors = results[2].fold(
-      (_) => <ColorEntity>[],
-      (v) => v as List<ColorEntity>,
-    );
 
     emit(ImportProductsReady(
       qualities: qualities,
       productTypes: productTypes,
-      colors: colors,
     ));
   }
 
@@ -88,20 +69,12 @@ class ImportProductsBloc
 
     final combined = [...current.entries, ...event.entries];
 
-    // Deduplicate by productName|colorName (case-insensitive key)
     final seen = <String>{};
     final deduped = combined.where((e) {
       return seen.add('${e.productName.toLowerCase()}|${e.colorName.toLowerCase()}');
     }).toList();
 
-    emit(ImportProductsReady(
-      qualities: current.qualities,
-      productTypes: current.productTypes,
-      colors: current.colors,
-      entries: deduped,
-      selectedQualityId: current.selectedQualityId,
-      selectedProductTypeId: current.selectedProductTypeId,
-    ));
+    emit(current.copyWith(entries: deduped));
   }
 
   void _onItemRemoved(
@@ -114,14 +87,7 @@ class ImportProductsBloc
     final updated = List<ParsedImportEntry>.from(current.entries)
       ..removeAt(event.index);
 
-    emit(ImportProductsReady(
-      qualities: current.qualities,
-      productTypes: current.productTypes,
-      colors: current.colors,
-      entries: updated,
-      selectedQualityId: current.selectedQualityId,
-      selectedProductTypeId: current.selectedProductTypeId,
-    ));
+    emit(current.copyWith(entries: updated));
   }
 
   void _onQualityChanged(
@@ -130,15 +96,7 @@ class ImportProductsBloc
   ) {
     final current = _currentReady();
     if (current == null) return;
-
-    emit(ImportProductsReady(
-      qualities: current.qualities,
-      productTypes: current.productTypes,
-      colors: current.colors,
-      entries: current.entries,
-      selectedQualityId: event.qualityId,
-      selectedProductTypeId: current.selectedProductTypeId,
-    ));
+    emit(current.copyWith(selectedQualityId: event.qualityId, clearQualityId: event.qualityId == null));
   }
 
   void _onTypeChanged(
@@ -147,15 +105,7 @@ class ImportProductsBloc
   ) {
     final current = _currentReady();
     if (current == null) return;
-
-    emit(ImportProductsReady(
-      qualities: current.qualities,
-      productTypes: current.productTypes,
-      colors: current.colors,
-      entries: current.entries,
-      selectedQualityId: current.selectedQualityId,
-      selectedProductTypeId: event.typeId,
-    ));
+    emit(current.copyWith(selectedProductTypeId: event.typeId, clearTypeId: event.typeId == null));
   }
 
   Future<void> _onSubmitted(
@@ -165,184 +115,53 @@ class ImportProductsBloc
     final current = _currentReady();
     if (current == null || current.entries.isEmpty) return;
 
-    final totalItems = current.entries.length;
-
     emit(ImportProductsSubmitting(
       qualities: current.qualities,
       productTypes: current.productTypes,
-      colors: current.colors,
       entries: current.entries,
       selectedQualityId: current.selectedQualityId,
       selectedProductTypeId: current.selectedProductTypeId,
-      progress: 0,
-      total: totalItems,
     ));
 
-    // Group entries by product name, preserving original casing + imagePath per color.
-    final grouped = <String,
-        ({
-          String originalName,
-          List<({String colorName, String? imagePath})> colorEntries,
-        })>{};
-
+    // Resize images client-side before upload (max 1200 px on either axis).
+    final items = <ImportProductItem>[];
     for (final entry in current.entries) {
-      final key = entry.productName.toLowerCase();
-      if (grouped.containsKey(key)) {
-        grouped[key]!.colorEntries.add(
-          (colorName: entry.colorName, imagePath: entry.imagePath),
-        );
-      } else {
-        grouped[key] = (
-          originalName: entry.productName,
-          colorEntries: [
-            (colorName: entry.colorName, imagePath: entry.imagePath)
-          ],
-        );
+      String? imagePath = entry.imagePath;
+      if (imagePath != null) {
+        imagePath = await _resizeImageIfNeeded(imagePath);
       }
+      items.add(ImportProductItem(
+        productName: entry.productName,
+        colorName: entry.colorName,
+        imagePath: imagePath,
+      ));
     }
 
-    int processed = 0;
-    int createdProducts = 0;
-    int createdColors = 0;
-    int skipped = 0;
+    final result = await importProductsUseCase(
+      productQualityId: current.selectedQualityId,
+      productTypeId: current.selectedProductTypeId,
+      items: items,
+    );
 
-    // Mutable local copy so newly created colors are visible within the same import run.
-    final knownColors = List<ColorEntity>.from(current.colors);
-
-    try {
-      for (final groupEntry in grouped.entries) {
-        final originalName = groupEntry.value.originalName;
-        final colorEntries = groupEntry.value.colorEntries;
-
-        // ── Step 1: find or create the product (backend deduplicates by name) ──
-        final productResult = await createProductUseCase(
-          name: originalName,
-          productTypeId: current.selectedProductTypeId,
-          productQualityId: current.selectedQualityId,
-          unit: 'piece',
-        );
-
-        if (productResult.isLeft()) {
-          productResult.fold(
-            (f) => debugPrint('[Import] Product "$originalName" failed: $f'),
-            (_) {},
-          );
-          skipped += colorEntries.length;
-          processed += colorEntries.length;
-          emit(ImportProductsSubmitting(
-            qualities: current.qualities,
-            productTypes: current.productTypes,
-            colors: current.colors,
-            entries: current.entries,
-            selectedQualityId: current.selectedQualityId,
-            selectedProductTypeId: current.selectedProductTypeId,
-            progress: processed,
-            total: totalItems,
-          ));
-          continue;
-        }
-
-        final product = productResult.fold((_) => throw StateError('unreachable'), (p) => p);
-        createdProducts++;
-
-        // ── Step 2: add colors one by one (backend deduplicates by product+color) ──
-        for (final colorEntry in colorEntries) {
-          // Look up in the local list (includes colors created during this run).
-          ColorEntity? matchedColor;
-          for (final c in knownColors) {
-            if (c.name.toLowerCase() == colorEntry.colorName.toLowerCase()) {
-              matchedColor = c;
-              break;
-            }
-          }
-
-          if (matchedColor == null) {
-            // Color doesn't exist — create it on the backend.
-            final colorResult = await createColorUseCase(name: colorEntry.colorName);
-            colorResult.fold(
-              (f) => debugPrint('[Import] Failed to create color "${colorEntry.colorName}": $f'),
-              (newColor) {
-                matchedColor = newColor;
-                knownColors.add(newColor);
-              },
-            );
-          }
-
-          if (matchedColor == null) {
-            skipped++;
-            processed++;
-            emit(ImportProductsSubmitting(
-              qualities: current.qualities,
-              productTypes: current.productTypes,
-              colors: current.colors,
-              entries: current.entries,
-              selectedQualityId: current.selectedQualityId,
-              selectedProductTypeId: current.selectedProductTypeId,
-              progress: processed,
-              total: totalItems,
-            ));
-            continue;
-          }
-
-          // Resize image if it's too large (max 1200px on either axis)
-          final color = matchedColor!;
-          String? uploadPath = colorEntry.imagePath;
-          if (uploadPath != null) {
-            uploadPath = await _resizeImageIfNeeded(uploadPath);
-          }
-
-          final result = await createProductColorUseCase(
-            productId: product.id,
-            colorId: color.id,
-            imagePath: uploadPath,
-          );
-
-          result.fold(
-            (f) {
-              debugPrint('[Import] Color "${colorEntry.colorName}" for "$originalName" failed: $f');
-              skipped++;
-            },
-            (_) => createdColors++,
-          );
-
-          processed++;
-          emit(ImportProductsSubmitting(
-            qualities: current.qualities,
-            productTypes: current.productTypes,
-            colors: current.colors,
-            entries: current.entries,
-            selectedQualityId: current.selectedQualityId,
-            selectedProductTypeId: current.selectedProductTypeId,
-            progress: processed,
-            total: totalItems,
-          ));
-        }
-      }
-    } catch (e) {
-      emit(ImportProductsFailure(
-        'Import jarayonida kutilmagan xato: $e',
+    result.fold(
+      (f) => emit(ImportProductsFailure(
+        f.toString(),
         qualities: current.qualities,
         productTypes: current.productTypes,
-        colors: current.colors,
         entries: current.entries,
         selectedQualityId: current.selectedQualityId,
         selectedProductTypeId: current.selectedProductTypeId,
-      ));
-      return;
-    }
-
-    emit(ImportProductsSuccess(
-      createdProducts: createdProducts,
-      createdColors: createdColors,
-      skipped: skipped,
-    ));
+      )),
+      (summary) => emit(ImportProductsSuccess(
+        createdProducts: summary.createdProducts,
+        createdColors: summary.createdProductColors,
+        skipped: summary.skipped,
+      )),
+    );
   }
 
   // ─── Image resize helper ─────────────────────────────────────────────────
 
-  /// Resizes the image at [filePath] so neither dimension exceeds 1200 px.
-  /// Returns the original path if no resize is needed, or the path to a
-  /// temporary PNG file when resizing was performed.
   static Future<String> _resizeImageIfNeeded(String filePath) async {
     const maxDimension = 1200;
     try {
@@ -360,12 +179,9 @@ class ImportProductsBloc
       }
 
       final scale = maxDimension / (w > h ? w : h);
-      final targetWidth = (w * scale).round();
-      final targetHeight = (h * scale).round();
-
       final codec = await descriptor.instantiateCodec(
-        targetWidth: targetWidth,
-        targetHeight: targetHeight,
+        targetWidth: (w * scale).round(),
+        targetHeight: (h * scale).round(),
       );
       descriptor.dispose();
       buffer.dispose();
@@ -374,8 +190,7 @@ class ImportProductsBloc
       final image = frame.image;
       codec.dispose();
 
-      final byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
 
       if (byteData == null) return filePath;
@@ -387,15 +202,12 @@ class ImportProductsBloc
       await tempFile.writeAsBytes(byteData.buffer.asUint8List());
       return tempFile.path;
     } catch (_) {
-      // On any error, fall back to the original file
       return filePath;
     }
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
-  /// Returns the current ready state regardless of whether it is [ImportProductsReady]
-  /// or [ImportProductsFailure] (recovery).
   ImportProductsReady? _currentReady() {
     final s = state;
     if (s is ImportProductsReady) return s;
@@ -403,7 +215,6 @@ class ImportProductsBloc
       return ImportProductsReady(
         qualities: s.qualities,
         productTypes: s.productTypes,
-        colors: s.colors,
         entries: s.entries,
         selectedQualityId: s.selectedQualityId,
         selectedProductTypeId: s.selectedProductTypeId,

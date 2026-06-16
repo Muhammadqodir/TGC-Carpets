@@ -3,6 +3,8 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/color_entity.dart';
+import '../../domain/entities/import_product_item.dart';
+import '../../domain/entities/import_summary_entity.dart';
 import '../../domain/entities/product_color_entity.dart';
 import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
@@ -241,6 +243,32 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       final colors = await remoteDataSource.getColors();
       return Right(colors);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ImportSummaryEntity>> importProducts({
+    int? productQualityId,
+    int? productTypeId,
+    required List<ImportProductItem> items,
+  }) async {
+    try {
+      final data = await remoteDataSource.importProducts(
+        productQualityId: productQualityId,
+        productTypeId: productTypeId,
+        items: items,
+      );
+      return Right(ImportSummaryEntity(
+        createdProducts: data['created_products']!,
+        createdProductColors: data['created_product_colors']!,
+        skipped: data['skipped']!,
+      ));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on UnauthorizedException {

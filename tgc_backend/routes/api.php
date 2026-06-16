@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ShipmentController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
 use App\Http\Controllers\Api\V1\ProductAnalyticsController;
+use App\Http\Controllers\Api\V1\ProductImportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,6 +66,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('analytics/top-products', [ProductAnalyticsController::class, 'topProducts'])->name('analytics.top-products');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
+        // Literal sub-routes must be declared before apiResource to avoid {product} capture.
+        Route::post('products/import', [ProductImportController::class, 'store'])->name('products.import');
         Route::apiResource('products', ProductController::class);
 
         // Product types

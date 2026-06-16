@@ -81,25 +81,12 @@ class _ImportProductsView extends StatelessWidget {
             BlocBuilder<ImportProductsBloc, ImportProductsState>(
               builder: (context, state) {
                 if (state is ImportProductsSubmitting) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${state.progress} / ${state.total}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ],
+                  return const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   );
                 }
@@ -277,14 +264,21 @@ class _ImportProductsView extends StatelessWidget {
         : filename;
 
     final firstIdx = nameWithoutExt.indexOf('_');
-    if (firstIdx < 0) return null; // no underscore → unrecognised
+    if (firstIdx < 0) {
+      debugPrint('[Import] PARSE SKIP (no underscore): "$filename"');
+      return null;
+    }
 
     final lastIdx = nameWithoutExt.lastIndexOf('_');
     final productName = nameWithoutExt.substring(0, firstIdx).trim();
     final colorName = nameWithoutExt.substring(lastIdx + 1).trim();
 
-    if (productName.isEmpty || colorName.isEmpty) return null;
+    if (productName.isEmpty || colorName.isEmpty) {
+      debugPrint('[Import] PARSE SKIP (empty name/color): "$filename" → product="$productName" color="$colorName"');
+      return null;
+    }
 
+    debugPrint('[Import] PARSED: "$filename" → product="$productName" color="$colorName"');
     return ParsedImportEntry(
       productName: productName,
       colorName: colorName,
@@ -653,41 +647,30 @@ class _ProgressSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fraction = state.progressFraction;
     return Container(
       color: AppColors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LinearProgressIndicator(
-            value: fraction,
+          const LinearProgressIndicator(
             minHeight: 3,
             backgroundColor: AppColors.divider,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 1.5),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text(
-                  'Yuklanmoqda: ${state.progress} / ${state.total}',
-                  style: const TextStyle(
+                  'Yuklanmoqda...',
+                  style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${(fraction * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
                   ),
                 ),
               ],

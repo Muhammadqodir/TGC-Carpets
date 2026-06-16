@@ -2,6 +2,8 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/color_entity.dart';
+import '../entities/import_product_item.dart';
+import '../entities/import_summary_entity.dart';
 import '../entities/product_color_entity.dart';
 import '../entities/product_entity.dart';
 import '../entities/product_quality_entity.dart';
@@ -61,4 +63,10 @@ abstract class ProductRepository {
   Future<Either<Failure, void>> deleteProductColor({required int productColorId});
 
   Future<Either<Failure, List<ColorEntity>>> getColors();
+
+  Future<Either<Failure, ImportSummaryEntity>> importProducts({
+    int? productQualityId,
+    int? productTypeId,
+    required List<ImportProductItem> items,
+  });
 }
