@@ -64,6 +64,10 @@ class ProductQualityController extends Controller
     {
         $productQuality->update(['status' => ProductQuality::STATUS_ACTIVE]);
 
+        Product::where('product_quality_id', $productQuality->id)
+            ->where('status', Product::STATUS_ARCHIVED)
+            ->update(['status' => Product::STATUS_ACTIVE]);
+
         return response()->json(['data' => new ProductQualityResource($productQuality)]);
     }
 

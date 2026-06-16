@@ -60,6 +60,10 @@ class ProductTypeController extends Controller
     {
         $productType->update(['status' => ProductType::STATUS_ACTIVE]);
 
+        Product::where('product_type_id', $productType->id)
+            ->where('status', Product::STATUS_ARCHIVED)
+            ->update(['status' => Product::STATUS_ACTIVE]);
+
         return response()->json(['data' => new ProductTypeResource($productType)]);
     }
 
