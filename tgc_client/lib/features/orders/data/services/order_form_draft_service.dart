@@ -33,7 +33,6 @@ class OrderFormDraftService {
     int? clientId,
     String? clientShopName,
   }) async {
-    print('DEBUG: save() called with ${ctrl.filledItems.length} filled items');
     final payload = {
       'notes': ctrl.notesCtrl.text,
       'order_date': orderDate?.toIso8601String(),
@@ -43,7 +42,6 @@ class OrderFormDraftService {
       'items': ctrl.filledItems
           .map((r) {
                 final qty = r.quantityCtrl.text;
-                print('DEBUG: Saving item - product: ${r.selectedProduct?.name}, color: ${r.selectedColor?.colorName}, quantity: "$qty"');
                 return {
                   'product':
                       r.selectedProduct != null ? _productToJson(r.selectedProduct!) : null,
@@ -73,17 +71,13 @@ class OrderFormDraftService {
           .toList(),
       if (ctrl.isMatrixMode) 'matrix_quantities': _serializeMatrixQuantities(ctrl),
     };
-    final jsonStr = jsonEncode(payload);
-    print('DEBUG: Saving draft, JSON length: ${jsonStr.length} bytes');
-    await _prefs.setString(_key, jsonStr);
-    print('DEBUG: Draft saved successfully');
+    await _prefs.setString(_key, jsonEncode(payload));
   }
 
   /// Restores a previously saved draft into [ctrl].
   /// Returns [DraftData] if a draft was found, null otherwise.
   Future<DraftData?> restore() async {
     final raw = _prefs.getString(_key);
-    print('DEBUG restore(): raw=${raw == null ? "null" : "found (${raw.length} bytes)"}');
     if (raw == null) return null;
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -101,7 +95,6 @@ class OrderFormDraftService {
         // Parse quantity first so we can pass it to the constructor
         final quantityStr = (item['quantity'] as String?) ?? '1';
         final initialQty = int.tryParse(quantityStr) ?? 1;
-        print('DEBUG: Restoring item with quantity string: $quantityStr, parsed: $initialQty');
 
         final row = OrderItemRow(
           prefilledColorId: item['prefilled_color_id'] as int?,
@@ -134,7 +127,6 @@ class OrderFormDraftService {
           row.selectedSize = ProductSizeModel.fromJson(rawSize);
         }
 
-        print('DEBUG: After creating row, quantityCtrl.text = ${row.quantityCtrl.text}');
         rows.add(row);
       }
 
@@ -165,9 +157,8 @@ class OrderFormDraftService {
         matrixSizeColumns: matrixSizeColumns,
         matrixQuantities: matrixQuantities,
       );
-    } catch (e, st) {
-      // Corrupted / incompatible draft — clear and report
-      print('DEBUG restore() EXCEPTION: $e\n$st');
+    } catch (_) {
+      // Corrupted / incompatible draft — clear and continue
       await clear();
       return null;
     }
@@ -180,8 +171,6 @@ class OrderFormDraftService {
   /// [items] (copy-order flow). Client data is intentionally omitted so
   /// the user can pick a new client on the add-order page.
   Future<void> saveFromOrderItems(List<OrderItemEntity> items) async {
-    print('DEBUG saveFromOrderItems: saving ${items.length} items');
-
     // Sort by product type → product name → color name.
     // Size columns are sorted separately by seedMatrixFromPrefill → _sortMatrixSizeColumns.
     final sortedItems = List<OrderItemEntity>.from(items)
@@ -194,9 +183,6 @@ class OrderFormDraftService {
         return (a.colorName ?? '').compareTo(b.colorName ?? '');
       });
 
-    for (int i = 0; i < sortedItems.length; i++) {
-      print('DEBUG saveFromOrderItems: item[$i] productName=${sortedItems[i].productName}, productColorId=${sortedItems[i].productColorId}, qty=${sortedItems[i].quantity}');
-    }
     final payload = {
       'notes': '',
       'order_date': null,

@@ -319,6 +319,7 @@ Future<void> initDependencies() async {
       getProductsUseCase: sl<GetProductsUseCase>(),
       createProductUseCase: sl<CreateProductUseCase>(),
       createProductColorUseCase: sl<CreateProductColorUseCase>(),
+      createColorUseCase: sl<CreateColorUseCase>(),
     ),
   );
 

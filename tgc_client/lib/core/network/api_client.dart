@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../constants/app_constants.dart';
 import 'interceptors/auth_interceptor.dart';
 
@@ -18,15 +17,6 @@ class ApiClient {
       ),
     );
 
-    _dio.interceptors.addAll([
-      authInterceptor,
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: false,
-        compact: true,
-      ),
-    ]);
+    _dio.interceptors.add(authInterceptor);
   }
 }

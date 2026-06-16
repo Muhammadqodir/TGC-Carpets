@@ -418,15 +418,9 @@ class OrderFormController extends ChangeNotifier {
     notesCtrl.addListener(notifyListeners);
 
     // Add new items
-    print('DEBUG: restoreFrom - adding ${newItems.length} items');
     for (final row in newItems) {
-      print('DEBUG: Adding row with quantity: ${row.quantityCtrl.text}');
       row.quantityCtrl.addListener(notifyListeners);
       items.add(row);
-    }
-    print('DEBUG: After adding items, items.length = ${items.length}');
-    for (int i = 0; i < items.length; i++) {
-      print('DEBUG: Item $i quantity: ${items[i].quantityCtrl.text}');
     }
 
     // Restore matrix mode if applicable
@@ -469,14 +463,9 @@ class OrderFormController extends ChangeNotifier {
       // prefilledSizeLength / prefilledSizeWidth / initialQuantity but no
       // separate matrix_size_columns blob was saved.
       seedMatrixFromPrefill();
-      print('DEBUG: restoreFrom - seeded matrix from prefill, columns=${matrixSizeColumns.length}');
     }
 
     _ensureEmptyRowAtEnd();
-    print('DEBUG: After _ensureEmptyRowAtEnd, items.length = ${items.length}');
-    for (int i = 0; i < items.length; i++) {
-      print('DEBUG: Final item $i quantity: "${items[i].quantityCtrl.text}"');
-    }
     // Force a rebuild by notifying listeners AFTER everything is set up
     notifyListeners();
   }

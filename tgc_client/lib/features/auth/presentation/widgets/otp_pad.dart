@@ -43,7 +43,6 @@ class _OTPPadState extends State<OTPPad> {
             buttonBorderRadius: 30,
             useBackspace: true,
             onPressed: (v) {
-              print(v);
               setState(() {
                 if (v == 'BACKSPACE') {
                   if (_value.isNotEmpty) {

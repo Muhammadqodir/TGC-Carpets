@@ -26,12 +26,15 @@ class ColorController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('colors', 'name')],
+            'name' => ['required', 'string', 'max:100'],
         ]);
 
-        $color = Color::create($validated);
+        $color = Color::firstOrCreate(['name' => $validated['name']]);
 
-        return response()->json(['data' => new ColorResource($color)], 201);
+        return response()->json(
+            ['data' => new ColorResource($color)],
+            $color->wasRecentlyCreated ? 201 : 200
+        );
     }
 
     public function update(Request $request, Color $color): JsonResponse

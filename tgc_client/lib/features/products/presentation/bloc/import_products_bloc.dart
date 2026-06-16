@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/entities/color_entity.dart';
 import '../../domain/entities/product_quality_entity.dart';
 import '../../domain/entities/product_type_entity.dart';
+import '../../../product_attributes/domain/usecases/color_usecases.dart';
 import '../../domain/usecases/create_product_color_usecase.dart';
 import '../../domain/usecases/create_product_usecase.dart';
 import '../../domain/usecases/get_colors_usecase.dart';
@@ -24,6 +26,7 @@ class ImportProductsBloc
   final GetProductsUseCase getProductsUseCase;
   final CreateProductUseCase createProductUseCase;
   final CreateProductColorUseCase createProductColorUseCase;
+  final CreateColorUseCase createColorUseCase;
 
   ImportProductsBloc({
     required this.getProductQualitiesUseCase,
@@ -32,6 +35,7 @@ class ImportProductsBloc
     required this.getProductsUseCase,
     required this.createProductUseCase,
     required this.createProductColorUseCase,
+    required this.createColorUseCase,
   }) : super(const ImportProductsInitial()) {
     on<ImportProductsStarted>(_onStarted);
     on<ImportProductsEntriesAdded>(_onEntriesAdded);
@@ -202,6 +206,9 @@ class ImportProductsBloc
     int createdColors = 0;
     int skipped = 0;
 
+    // Mutable local copy so newly created colors are visible within the same import run.
+    final knownColors = List<ColorEntity>.from(current.colors);
+
     try {
       for (final groupEntry in grouped.entries) {
         final originalName = groupEntry.value.originalName;
@@ -216,6 +223,10 @@ class ImportProductsBloc
         );
 
         if (productResult.isLeft()) {
+          productResult.fold(
+            (f) => debugPrint('[Import] Product "$originalName" failed: $f'),
+            (_) {},
+          );
           skipped += colorEntries.length;
           processed += colorEntries.length;
           emit(ImportProductsSubmitting(
@@ -236,12 +247,25 @@ class ImportProductsBloc
 
         // ── Step 2: add colors one by one (backend deduplicates by product+color) ──
         for (final colorEntry in colorEntries) {
+          // Look up in the local list (includes colors created during this run).
           ColorEntity? matchedColor;
-          for (final c in current.colors) {
+          for (final c in knownColors) {
             if (c.name.toLowerCase() == colorEntry.colorName.toLowerCase()) {
               matchedColor = c;
               break;
             }
+          }
+
+          if (matchedColor == null) {
+            // Color doesn't exist — create it on the backend.
+            final colorResult = await createColorUseCase(name: colorEntry.colorName);
+            colorResult.fold(
+              (f) => debugPrint('[Import] Failed to create color "${colorEntry.colorName}": $f'),
+              (newColor) {
+                matchedColor = newColor;
+                knownColors.add(newColor);
+              },
+            );
           }
 
           if (matchedColor == null) {
@@ -261,6 +285,7 @@ class ImportProductsBloc
           }
 
           // Resize image if it's too large (max 1200px on either axis)
+          final color = matchedColor!;
           String? uploadPath = colorEntry.imagePath;
           if (uploadPath != null) {
             uploadPath = await _resizeImageIfNeeded(uploadPath);
@@ -268,12 +293,15 @@ class ImportProductsBloc
 
           final result = await createProductColorUseCase(
             productId: product.id,
-            colorId: matchedColor.id,
+            colorId: color.id,
             imagePath: uploadPath,
           );
 
           result.fold(
-            (_) => skipped++,
+            (f) {
+              debugPrint('[Import] Color "${colorEntry.colorName}" for "$originalName" failed: $f');
+              skipped++;
+            },
             (_) => createdColors++,
           );
 

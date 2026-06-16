@@ -129,18 +129,15 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
     if (mounted) {
       setState(() {
         _ready = true;
-        print('DEBUG: _ready set to true');
       });
     }
   }
 
   Future<void> _restoreDraft() async {
     if (_draftService == null) return;
-    print('DEBUG: Starting draft restoration');
     _isRestoringDraft = true;
     final draft = await _draftService!.restore();
     if (draft != null && mounted) {
-      print('DEBUG: Draft found with ${draft.rows.length} rows');
       widget.controller.restoreFrom(
         newItems: draft.rows,
         notes: draft.notes,
@@ -160,25 +157,19 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
           _isRestoringDraft = false;
         });
       }
-      print('DEBUG: Draft restoration complete');
     } else {
-      print('DEBUG: No draft found or not mounted');
       _isRestoringDraft = false;
     }
   }
 
   void _onControllerChanged() {
-    print('DEBUG: _onControllerChanged called - _ready=$_ready, _isRestoringDraft=$_isRestoringDraft');
     if (_ready && !_isRestoringDraft && _draftService != null) {
-      print('DEBUG: Saving draft...');
       _draftService!.save(
         widget.controller,
         orderDate: _orderDate,
         clientId: _newClient?.id,
         clientShopName: _newClient?.shopName,
       );
-    } else {
-      print('DEBUG: Skipping save - conditions not met');
     }
   }
 
