@@ -1,11 +1,16 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
+import 'package:tgc_client/core/di/injection.dart';
 import 'package:tgc_client/core/theme/app_colors.dart';
 import 'package:tgc_client/core/ui/pages/pdf_viewer.dart';
 import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
+import 'package:tgc_client/core/utils/excel_downloader.dart';
 
 import '../../domain/entities/shipment_entity.dart';
 
@@ -34,7 +39,7 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(
         label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.center),
-    AppTableColumn(label: '', fixedWidth: 100, alignment: Alignment.center),
+    AppTableColumn(label: '', fixedWidth: 144, alignment: Alignment.center),
   ];
 
   static const _mobileColumns = <AppTableColumn>[
@@ -230,7 +235,9 @@ class ShipmentTable extends StatelessWidget {
         ),
         surfaceTintColor: AppColors.surface,
         color: AppColors.surface,
-        enabled: shipment.pdfUrl != null || shipment.invoiceUrl != null,
+        enabled: shipment.pdfUrl != null ||
+            shipment.invoiceUrl != null ||
+            shipment.xlsxUrl != null,
         onSelected: (value) {
           switch (value) {
             case 'pdf':
@@ -255,6 +262,11 @@ class ShipmentTable extends StatelessWidget {
                     ),
                   ),
                 );
+              }
+              break;
+            case 'xlsx':
+              if (shipment.xlsxUrl != null) {
+                _downloadXlsx(context, shipment);
               }
               break;
           }
@@ -289,6 +301,22 @@ class ShipmentTable extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   const Text('Hisob-faktura'),
+                ],
+              ),
+            ),
+          if (shipment.xlsxUrl != null)
+            PopupMenuItem(
+              value: 'xlsx',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedFileDownload,
+                    color: AppColors.success,
+                    strokeWidth: 2,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Excel yuklab olish'),
                 ],
               ),
             ),
@@ -343,8 +371,43 @@ class ShipmentTable extends StatelessWidget {
                   )
               : null,
         ),
+        _ActionButton(
+          icon: HugeIcon(
+            icon: HugeIcons.strokeRoundedFileDownload,
+            color: shipment.xlsxUrl != null
+                ? AppColors.success
+                : AppColors.textSecondary,
+            size: 22,
+            strokeWidth: 1.5,
+          ),
+          tooltip: 'Excel yuklab olish',
+          color: AppColors.success,
+          onTap: shipment.xlsxUrl != null
+              ? () => _downloadXlsx(context, shipment)
+              : null,
+        ),
       ],
     );
+  }
+}
+
+Future<void> _downloadXlsx(
+    BuildContext context, ShipmentEntity shipment) async {
+  final url = shipment.xlsxUrl!;
+  try {
+    final response = await sl<Dio>().get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    if (response.data == null) return;
+    final bytes = Uint8List.fromList(response.data!);
+    await downloadExcel(bytes, 'shipment_${shipment.id}.xlsx');
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Excel yuklab olishda xatolik yuz berdi')),
+      );
+    }
   }
 }
 

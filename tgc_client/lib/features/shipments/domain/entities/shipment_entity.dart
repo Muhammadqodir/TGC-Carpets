@@ -8,6 +8,7 @@ class ShipmentEntity extends Equatable {
   final String? notes;
   final String? pdfUrl;
   final String? invoiceUrl;
+  final String? xlsxUrl;
   final int? clientId;
   final String? clientShopName;
   final String? clientRegion;
@@ -23,6 +24,7 @@ class ShipmentEntity extends Equatable {
     this.notes,
     this.pdfUrl,
     this.invoiceUrl,
+    this.xlsxUrl,
     this.clientId,
     this.clientShopName,
     this.clientRegion,
@@ -68,6 +70,7 @@ class ShipmentEntity extends Equatable {
         notes,
         pdfUrl,
         invoiceUrl,
+        xlsxUrl,
         clientId,
         clientShopName,
         clientRegion,

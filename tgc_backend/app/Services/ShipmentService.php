@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ShipmentService
 {
@@ -121,6 +126,16 @@ class ShipmentService
             $this->generateAndStoreHisobFaktura($shipment->id);
         } catch (\Exception $e) {
             Log::error('Failed to generate hisob faktura', [
+                'shipment_id' => $shipment->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+
+        try {
+            $this->generateAndStoreXlsx($shipment->id);
+        } catch (\Exception $e) {
+            Log::error('Failed to generate shipment XLSX', [
                 'shipment_id' => $shipment->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -241,6 +256,129 @@ class ShipmentService
 
         // Clear memory
         unset($shipment, $pdf);
+        gc_collect_cycles();
+    }
+
+    /**
+     * Generate an XLSX shipment list with per-item detail rows, store it, and
+     * update xlsx_path on the shipment record.
+     *
+     * Columns: Yuk chiqarish, Sana, Toliq nomi, Barcode, Yuklandi(soni),
+     *          Yuklandi(m2), Sifat, Model, Rang, O'lcham, Kengligi, Uzunligi
+     */
+    public function generateAndStoreXlsx(int $shipmentId): void
+    {
+        $shipment = Shipment::select(['id', 'client_id', 'shipment_datetime'])
+            ->with([
+                'client:id,shop_name',
+                'items' => fn ($q) => $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity']),
+                'items.variant:id,product_color_id,product_size_id,product_edge_id,barcode_value',
+                'items.variant.productColor:id,product_id,color_id',
+                'items.variant.productColor.product:id,name,product_quality_id,unit',
+                'items.variant.productColor.product.productQuality:id,quality_name',
+                'items.variant.productColor.color:id,name',
+                'items.variant.productSize:id,length,width',
+                'items.variant.productEdge:id,code',
+            ])
+            ->findOrFail($shipmentId);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Yuk ro\'yxati');
+
+        // ── Header row ─────────────────────────────────────────────────────
+        $headers = [
+            'A' => 'Yuk chiqarish',
+            'B' => 'Sana',
+            'C' => 'Toliq nomi',
+            'D' => 'Barcode',
+            'E' => 'Yuklandi (soni)',
+            'F' => 'Yuklandi (m2)',
+            'G' => 'Sifat',
+            'H' => 'Model',
+            'I' => 'Rang',
+            'J' => "O'lcham",
+            'K' => 'Kengligi',
+            'L' => 'Uzunligi',
+        ];
+
+        foreach ($headers as $col => $label) {
+            $sheet->setCellValue("{$col}1", $label);
+        }
+
+        $headerStyle = [
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2E5BA8']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']]],
+        ];
+        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(22);
+
+        // ── Data rows ──────────────────────────────────────────────────────
+        $shipmentDate = $shipment->shipment_datetime?->format('d.m.Y') ?? '';
+
+        $row = 2;
+        foreach ($shipment->items as $item) {
+            $variant = $item->variant;
+            $product = $variant?->productColor?->product;
+            $color   = $variant?->productColor?->color;
+            $size    = $variant?->productSize;
+            $edge    = $variant?->productEdge;
+            $quality = $product?->productQuality;
+
+            $width   = $size?->width   ?? 0;
+            $length  = $size?->length  ?? 0;
+            $qty     = $item->quantity;
+            $sqm     = ($width * $length * $qty) / 10000.0;
+
+            $sizeLabel    = ($width && $length) ? "{$width}x{$length}" : '';
+            $qualityName  = $quality?->quality_name  ?? '';
+            $productName  = $product?->name          ?? '';
+            $colorName    = $color?->name            ?? '';
+            $edgeCode     = $edge?->code             ?? '';
+            $fullName     = trim("{$qualityName} {$productName} {$colorName} {$sizeLabel} {$edgeCode}");
+
+            $sheet->setCellValue("A{$row}", $shipmentId);
+            $sheet->setCellValue("B{$row}", $shipmentDate);
+            $sheet->setCellValue("C{$row}", $fullName);
+            $sheet->setCellValue("D{$row}", $variant?->barcode_value ?? '');
+            $sheet->setCellValue("E{$row}", $qty);
+            $sheet->setCellValue("F{$row}", round($sqm, 4));
+            $sheet->setCellValue("G{$row}", $qualityName);
+            $sheet->setCellValue("H{$row}", $productName);
+            $sheet->setCellValue("I{$row}", $colorName);
+            $sheet->setCellValue("J{$row}", $sizeLabel);
+            $sheet->setCellValue("K{$row}", $width);
+            $sheet->setCellValue("L{$row}", $length);
+
+            $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'DDDDDD']]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+
+            $row++;
+        }
+
+        // ── Column widths ──────────────────────────────────────────────────
+        $widths = ['A' => 14, 'B' => 12, 'C' => 40, 'D' => 18, 'E' => 14, 'F' => 14,
+                   'G' => 14, 'H' => 20, 'I' => 14, 'J' => 10, 'K' => 10, 'L' => 10];
+        foreach ($widths as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        // ── Write to storage ───────────────────────────────────────────────
+        $relativePath = "shipments/xlsx/shipment_{$shipmentId}.xlsx";
+        $absolutePath = Storage::disk('public')->path($relativePath);
+
+        Storage::disk('public')->makeDirectory('shipments/xlsx');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($absolutePath);
+
+        Shipment::where('id', $shipmentId)->update(['xlsx_path' => $relativePath]);
+
+        unset($spreadsheet, $writer, $shipment);
         gc_collect_cycles();
     }
 

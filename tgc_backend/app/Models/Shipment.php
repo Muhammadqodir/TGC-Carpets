@@ -19,6 +19,7 @@ class Shipment extends Model
         'notes',
         'pdf_path',
         'invoice_path',
+        'xlsx_path',
     ];
 
     protected function casts(): array
