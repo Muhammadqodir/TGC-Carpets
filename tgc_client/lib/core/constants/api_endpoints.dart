@@ -46,6 +46,11 @@ class ApiEndpoints {
   static const String warehouseImportQualities = '/warehouse-import/qualities';
   static const String warehouseImportItems = '/warehouse-import/items';
 
+  // Shipment Import (step-by-step import from stock for shipment form)
+  static const String shipmentImportClients = '/shipment-import/clients';
+  static const String shipmentImportQualities = '/shipment-import/qualities';
+  static const String shipmentImportItems = '/shipment-import/items';
+
   // Stock
   static const String stock = '/stock';
   static const String stockVariants = '/stock/variants';

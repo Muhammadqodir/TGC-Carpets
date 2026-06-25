@@ -19,6 +19,8 @@ import '../bloc/shipment_form_event.dart';
 import '../bloc/shipment_form_state.dart';
 import '../widgets/order_picker_for_shipment_sheet.dart'
     show OrderImportResult, OrderPickerForShipmentSheet;
+import '../widgets/stock_picker_for_shipment_sheet.dart'
+    show StockPickerForShipmentSheet;
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
 import '../../domain/repositories/shipment_repository.dart';
@@ -76,6 +78,39 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       // Re-fetch prices for loaded rows when client changes
       _refreshLastPrices();
     }
+  }
+
+  Future<void> _importFromStock() async {
+    final result = await StockPickerForShipmentSheet.show(context);
+    if (result == null || !mounted) return;
+
+    if (_selectedClient == null) {
+      setState(() {
+        _selectedClient = ClientEntity(
+          id: result.client.id,
+          uuid: '',
+          shopName: result.client.shopName,
+          region: result.client.region,
+          phone: null,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      });
+    }
+
+    final clientId = _selectedClient?.id ?? result.client.id;
+    final repo = sl<ShipmentRepository>();
+    final lastPrices = <int, double>{};
+    for (final item in result.selectedItems) {
+      final r =
+          await repo.getLastPrice(variantId: item.variantId, clientId: clientId);
+      r.fold((_) {}, (price) {
+        if (price != null) lastPrices[item.variantId] = price;
+      });
+    }
+
+    if (!mounted) return;
+    _ctrl.importFromStock(result.selectedItems, lastPrices);
   }
 
   Future<void> _importFromOrder() async {
@@ -409,6 +444,15 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
+                          child: TextButton.icon(
+                            onPressed: _importFromStock,
+                            icon: const Icon(Icons.inventory_2_outlined,
+                                size: 16),
+                            label: const Text('Stokdan import'),
                           ),
                         ),
                         Padding(

@@ -4,6 +4,7 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../../orders/data/models/order_model.dart';
+import '../models/shipment_import_models.dart';
 import '../models/shipment_model.dart';
 
 abstract class ShipmentRemoteDataSource {
@@ -32,6 +33,17 @@ abstract class ShipmentRemoteDataSource {
   Future<double?> getLastPrice({
     required int variantId,
     required int clientId,
+  });
+
+  Future<List<ShipmentImportClientModel>> getShipmentImportClients();
+
+  Future<List<ShipmentImportQualityModel>> getShipmentImportQualities({
+    required int clientId,
+  });
+
+  Future<List<ShipmentImportItemModel>> getShipmentImportItems({
+    required int clientId,
+    required String qualityName,
   });
 }
 
@@ -160,6 +172,59 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
       final raw = data['price'];
       if (raw == null) return null;
       return double.tryParse('$raw');
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ShipmentImportClientModel>> getShipmentImportClients() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.shipmentImportClients);
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ShipmentImportClientModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ShipmentImportQualityModel>> getShipmentImportQualities({
+    required int clientId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.shipmentImportQualities,
+        queryParameters: {'client_id': clientId},
+      );
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ShipmentImportQualityModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ShipmentImportItemModel>> getShipmentImportItems({
+    required int clientId,
+    required String qualityName,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.shipmentImportItems,
+        queryParameters: {
+          'client_id': clientId,
+          'quality_name': qualityName,
+        },
+      );
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ShipmentImportItemModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       _handleDioError(e);
     }

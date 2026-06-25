@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../orders/domain/entities/order_item_entity.dart';
+import '../../domain/entities/shipment_import_entities.dart';
 
 /// View-layer model for a single line item in the "add shipment" form.
 ///
@@ -52,6 +53,29 @@ class ShipmentItemRow {
             TextEditingController(text: '$initialQuantity'),
         priceCtrl = TextEditingController(
             text: initialPrice != null ? initialPrice.toStringAsFixed(2) : '');
+
+  factory ShipmentItemRow.fromImportItem(
+    ShipmentImportItemEntity item, {
+    double? lastPrice,
+  }) {
+    return ShipmentItemRow(
+      orderItemId: item.orderItemId,
+      variantId: item.variantId,
+      productName: item.productName,
+      colorName: item.colorName,
+      colorImageUrl: item.colorImageUrl,
+      qualityName: item.qualityName,
+      typeName: item.typeName,
+      sizeLength: item.sizeLength,
+      sizeWidth: item.sizeWidth,
+      productUnit: item.productUnit,
+      edgeCode: item.edgeCode,
+      edgeTitle: item.edgeTitle,
+      availableQuantity: item.availableQuantity,
+      initialQuantity: item.availableQuantity > 0 ? item.availableQuantity : 1,
+      initialPrice: lastPrice,
+    );
+  }
 
   factory ShipmentItemRow.fromOrderItem(
     OrderItemEntity item, {

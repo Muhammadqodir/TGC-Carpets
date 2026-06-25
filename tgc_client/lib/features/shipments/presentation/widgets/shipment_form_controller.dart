@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../orders/domain/entities/order_entity.dart';
+import '../../domain/entities/shipment_import_entities.dart';
 import 'shipment_item_row.dart';
 
 /// Holds all mutable state for the "add shipment" form.
@@ -42,6 +43,28 @@ class ShipmentFormController extends ChangeNotifier {
       if (alreadyShipped >= item.quantity) continue; // fully shipped — skip
 
       final row = ShipmentItemRow.fromOrderItem(
+        item,
+        lastPrice: lastPrices[item.variantId],
+      );
+      _hookRow(row);
+      _items.add(row);
+    }
+
+    notifyListeners();
+  }
+
+  /// Replaces all current rows with items from the stock import wizard.
+  /// [lastPrices] maps variantId → last known price for the client.
+  void importFromStock(
+    List<ShipmentImportItemEntity> items,
+    Map<int, double> lastPrices,
+  ) {
+    _clearRows();
+    importedOrder = null;
+
+    for (final item in items) {
+      if (item.availableQuantity <= 0) continue;
+      final row = ShipmentItemRow.fromImportItem(
         item,
         lastPrice: lastPrices[item.variantId],
       );

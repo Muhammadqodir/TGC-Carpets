@@ -5,6 +5,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../../orders/domain/entities/order_entity.dart';
 import '../../domain/entities/shipment_entity.dart';
+import '../../domain/entities/shipment_import_entities.dart';
 import '../../domain/repositories/shipment_repository.dart';
 import '../datasources/shipment_remote_datasource.dart';
 
@@ -114,6 +115,56 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
         clientId: clientId,
       );
       return Right(price);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ShipmentImportClientEntity>>> getShipmentImportClients() async {
+    try {
+      final result = await remoteDataSource.getShipmentImportClients();
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ShipmentImportQualityEntity>>> getShipmentImportQualities({
+    required int clientId,
+  }) async {
+    try {
+      final result = await remoteDataSource.getShipmentImportQualities(clientId: clientId);
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ShipmentImportItemEntity>>> getShipmentImportItems({
+    required int clientId,
+    required String qualityName,
+  }) async {
+    try {
+      final result = await remoteDataSource.getShipmentImportItems(
+        clientId: clientId,
+        qualityName: qualityName,
+      );
+      return Right(result);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on UnauthorizedException {

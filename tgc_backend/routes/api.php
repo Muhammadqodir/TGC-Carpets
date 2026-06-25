@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ShipmentController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
+use App\Http\Controllers\Api\V1\ShipmentImportController;
 use App\Http\Controllers\Api\V1\WarehouseImportController;
 use App\Http\Controllers\Api\V1\ProductAnalyticsController;
 use App\Http\Controllers\Api\V1\ProductImportController;
@@ -111,6 +112,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('warehouse-import/clients',   [WarehouseImportController::class, 'clients'])->name('warehouse-import.clients');
         Route::get('warehouse-import/qualities', [WarehouseImportController::class, 'qualities'])->name('warehouse-import.qualities');
         Route::get('warehouse-import/items',     [WarehouseImportController::class, 'items'])->name('warehouse-import.items');
+
+        Route::get('shipment-import/clients',    [ShipmentImportController::class, 'clients'])->name('shipment-import.clients');
+        Route::get('shipment-import/qualities',  [ShipmentImportController::class, 'qualities'])->name('shipment-import.qualities');
+        Route::get('shipment-import/items',      [ShipmentImportController::class, 'items'])->name('shipment-import.items');
 
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);

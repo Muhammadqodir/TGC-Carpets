@@ -4,6 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../../orders/domain/entities/order_entity.dart';
 import '../entities/shipment_entity.dart';
+import '../entities/shipment_import_entities.dart';
 
 abstract class ShipmentRepository {
   Future<Either<Failure, PaginatedResponse<ShipmentEntity>>> getShipments({
@@ -31,5 +32,16 @@ abstract class ShipmentRepository {
   Future<Either<Failure, double?>> getLastPrice({
     required int variantId,
     required int clientId,
+  });
+
+  Future<Either<Failure, List<ShipmentImportClientEntity>>> getShipmentImportClients();
+
+  Future<Either<Failure, List<ShipmentImportQualityEntity>>> getShipmentImportQualities({
+    required int clientId,
+  });
+
+  Future<Either<Failure, List<ShipmentImportItemEntity>>> getShipmentImportItems({
+    required int clientId,
+    required String qualityName,
   });
 }
