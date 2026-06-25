@@ -41,6 +41,11 @@ class ApiEndpoints {
   static const String warehouseDocuments = '/warehouse-documents';
   static String warehouseDocumentById(int id) => '/warehouse-documents/$id';
 
+  // Warehouse Import (step-by-step import from production)
+  static const String warehouseImportClients = '/warehouse-import/clients';
+  static const String warehouseImportQualities = '/warehouse-import/qualities';
+  static const String warehouseImportItems = '/warehouse-import/items';
+
   // Stock
   static const String stock = '/stock';
   static const String stockVariants = '/stock/variants';

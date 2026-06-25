@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ShipmentController;
 use App\Http\Controllers\Api\V1\WarehouseDocumentController;
+use App\Http\Controllers\Api\V1\WarehouseImportController;
 use App\Http\Controllers\Api\V1\ProductAnalyticsController;
 use App\Http\Controllers\Api\V1\ProductImportController;
 use Illuminate\Support\Facades\Route;
@@ -105,6 +106,11 @@ Route::prefix('v1')->group(function (): void {
 
         // Employees (users management)
         Route::apiResource('employees', EmployeeController::class);
+
+        // Warehouse import (step-by-step: clients → qualities → items)
+        Route::get('warehouse-import/clients',   [WarehouseImportController::class, 'clients'])->name('warehouse-import.clients');
+        Route::get('warehouse-import/qualities', [WarehouseImportController::class, 'qualities'])->name('warehouse-import.qualities');
+        Route::get('warehouse-import/items',     [WarehouseImportController::class, 'items'])->name('warehouse-import.items');
 
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);

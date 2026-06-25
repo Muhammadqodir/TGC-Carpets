@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../entities/warehouse_document_entity.dart';
+import '../entities/warehouse_import_entities.dart';
 
 abstract class WarehouseRepository {
   Future<Either<Failure, PaginatedResponse<WarehouseDocumentEntity>>> getDocuments({
@@ -22,5 +23,16 @@ abstract class WarehouseRepository {
     required List<Map<String, dynamic>> items,
     String? notes,
     String? externalUuid,
+  });
+
+  Future<Either<Failure, List<ImportClientEntity>>> getImportClients();
+
+  Future<Either<Failure, List<ImportQualityEntity>>> getImportQualities({
+    required int clientId,
+  });
+
+  Future<Either<Failure, List<ImportItemEntity>>> getImportItems({
+    required int clientId,
+    required String qualityName,
   });
 }

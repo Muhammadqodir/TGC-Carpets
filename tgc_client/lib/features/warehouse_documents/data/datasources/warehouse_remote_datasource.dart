@@ -4,6 +4,7 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../models/warehouse_document_model.dart';
+import '../models/warehouse_import_models.dart';
 
 abstract class WarehouseRemoteDataSource {
   Future<PaginatedResponse<WarehouseDocumentModel>> getDocuments({
@@ -23,6 +24,18 @@ abstract class WarehouseRemoteDataSource {
     required List<Map<String, dynamic>> items,
     String? notes,
     String? externalUuid,
+  });
+
+  /// Returns all clients that have ready (not fully warehouse-received) production items.
+  Future<List<ImportClientModel>> getImportClients();
+
+  /// Returns distinct quality names available for the given [clientId].
+  Future<List<ImportQualityModel>> getImportQualities({required int clientId});
+
+  /// Returns all ready items for the given [clientId] and [qualityName].
+  Future<List<ImportItemModel>> getImportItems({
+    required int clientId,
+    required String qualityName,
   });
 }
 
@@ -111,6 +124,59 @@ class WarehouseRemoteDataSourceImpl implements WarehouseRemoteDataSource {
       return WarehouseDocumentModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ImportClientModel>> getImportClients() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.warehouseImportClients);
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ImportClientModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ImportQualityModel>> getImportQualities({
+    required int clientId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.warehouseImportQualities,
+        queryParameters: {'client_id': clientId},
+      );
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ImportQualityModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<ImportItemModel>> getImportItems({
+    required int clientId,
+    required String qualityName,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.warehouseImportItems,
+        queryParameters: {
+          'client_id': clientId,
+          'quality_name': qualityName,
+        },
+      );
+      final body = response.data as Map<String, dynamic>;
+      return (body['data'] as List)
+          .map((e) => ImportItemModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       _handleDioError(e);
     }

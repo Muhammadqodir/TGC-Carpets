@@ -57,6 +57,9 @@ import '../../features/warehouse_documents/data/repositories/warehouse_repositor
 import '../../features/warehouse_documents/domain/repositories/warehouse_repository.dart';
 import '../../features/warehouse_documents/domain/usecases/get_warehouse_documents_usecase.dart';
 import '../../features/warehouse_documents/domain/usecases/create_warehouse_document_usecase.dart';
+import '../../features/warehouse_documents/domain/usecases/get_import_clients_usecase.dart';
+import '../../features/warehouse_documents/domain/usecases/get_import_qualities_usecase.dart';
+import '../../features/warehouse_documents/domain/usecases/get_import_items_usecase.dart';
 import '../../features/warehouse_documents/presentation/bloc/warehouse_docs_bloc.dart';
 import '../../features/warehouse_documents/presentation/bloc/warehouse_form_bloc.dart';
 
@@ -357,6 +360,15 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton(
     () => CreateWarehouseDocumentUseCase(sl<WarehouseRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetImportClientsUseCase(sl<WarehouseRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetImportQualitiesUseCase(sl<WarehouseRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetImportItemsUseCase(sl<WarehouseRepository>()),
   );
   sl.registerFactory(
     () => WarehouseDocsBloc(

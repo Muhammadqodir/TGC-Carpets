@@ -4,6 +4,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../domain/entities/warehouse_document_entity.dart';
+import '../../domain/entities/warehouse_import_entities.dart';
 import '../../domain/repositories/warehouse_repository.dart';
 import '../datasources/warehouse_remote_datasource.dart';
 
@@ -80,6 +81,56 @@ class WarehouseRepositoryImpl implements WarehouseRepository {
         externalUuid: externalUuid,
       );
       return Right(document);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ImportClientEntity>>> getImportClients() async {
+    try {
+      final result = await remoteDataSource.getImportClients();
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ImportQualityEntity>>> getImportQualities({
+    required int clientId,
+  }) async {
+    try {
+      final result = await remoteDataSource.getImportQualities(clientId: clientId);
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ImportItemEntity>>> getImportItems({
+    required int clientId,
+    required String qualityName,
+  }) async {
+    try {
+      final result = await remoteDataSource.getImportItems(
+        clientId: clientId,
+        qualityName: qualityName,
+      );
+      return Right(result);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on UnauthorizedException {

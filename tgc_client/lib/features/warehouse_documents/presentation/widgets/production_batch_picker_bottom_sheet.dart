@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../production/domain/entities/production_batch_entity.dart';
-import '../../../production/domain/entities/production_batch_item_entity.dart';
-import '../../../production/domain/usecases/get_production_batch_usecase.dart';
-import '../../../production/domain/usecases/get_production_batches_usecase.dart';
+import '../../domain/entities/warehouse_import_entities.dart';
+import '../../domain/usecases/get_import_clients_usecase.dart';
+import '../../domain/usecases/get_import_items_usecase.dart';
+import '../../domain/usecases/get_import_qualities_usecase.dart';
 import 'warehouse_document_form_controller.dart';
 import 'warehouse_item_row.dart';
 
@@ -17,25 +17,10 @@ class BatchImportResult {
   const BatchImportResult({required this.entries});
 }
 
-/// A ready batch item together with its batch context, used for order-grouped
-/// display and selection.
-class _ReadyItem {
-  final ProductionBatchItemEntity item;
-  final ProductionBatchEntity batch;
-  /// Available = produced - warehouseReceived (clamped ≥ 0).
-  final int available;
+// ── Navigation step ────────────────────────────────────────────────────────────
 
-  const _ReadyItem({
-    required this.item,
-    required this.batch,
-    required this.available,
-  });
-}
+enum _Step { clients, qualities, items }
 
-/// Bottom sheet that shows all ready production batch items grouped by order.
-/// The user multi-selects items across any order/batch and confirms once.
-///
-/// Returns [BatchImportResult] or null if dismissed.
 class ProductionBatchPickerBottomSheet extends StatefulWidget {
   final List<WarehouseItemRow> existingRows;
 
@@ -67,203 +52,126 @@ class ProductionBatchPickerBottomSheet extends StatefulWidget {
       _ProductionBatchPickerBottomSheetState();
 }
 
-// ── Data models ───────────────────────────────────────────────────────────────
-
-class _OrderGroup {
-  final int? orderId; // null = stock items
-  final String label;
-  final String? shopName;
-  final String? region;
-  final List<_ReadyItem> items;
-
-  _OrderGroup({
-    required this.orderId,
-    required this.label,
-    this.shopName,
-    this.region,
-    required this.items,
-  });
-}
-
-class _QualityGroup {
-  final String? qualityName;
-  final String label;
-  final List<_ReadyItem> items;
-
-  _QualityGroup({
-    required this.qualityName,
-    required this.label,
-    required this.items,
-  });
-}
-
-// ── Navigation step ────────────────────────────────────────────────────────────
-
-enum _Step { orders, qualities, items }
-
 class _ProductionBatchPickerBottomSheetState
     extends State<ProductionBatchPickerBottomSheet> {
   // ── Loading ────────────────────────────────────────────────────────────────
   bool _loading = true;
   String? _error;
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  List<_OrderGroup> _orderGroups = [];
-
   // ── Navigation ────────────────────────────────────────────────────────────
-  _Step _step = _Step.orders;
-  _OrderGroup? _activeOrder;
-  List<_QualityGroup> _qualityGroups = [];
-  _QualityGroup? _activeQuality;
+  _Step _step = _Step.clients;
 
-  // ── Selection (no default) ────────────────────────────────────────────────
+  // ── Data per step ─────────────────────────────────────────────────────────
+  List<ImportClientEntity> _clients = [];
+  ImportClientEntity? _activeClient;
+
+  List<ImportQualityEntity> _qualities = [];
+  ImportQualityEntity? _activeQuality;
+
+  List<ImportItemEntity> _items = [];
+
+  // ── Selection ────────────────────────────────────────────────────────────
   final Set<int> _selectedItemIds = {};
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadClients();
   }
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
-  Future<void> _load() async {
+  Future<void> _loadClients() async {
     if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    final batchesResult = await sl<GetProductionBatchesUseCase>()(
-      perPage: 100,
-      excludeWarehouseReceived: true,
-    );
+    final result = await sl<GetImportClientsUseCase>()();
 
     if (!mounted) return;
 
-    final batches = batchesResult.fold<List<ProductionBatchEntity>?>(
-      (_) => null,
-      (page) => page.data,
-    );
-
-    if (batches == null) {
-      setState(() {
-        _error = 'Partiyalar yuklanmadi';
+    result.fold(
+      (failure) => setState(() {
+        _error = "Mijozlar yuklanmadi: ${failure.message}";
         _loading = false;
-      });
-      return;
-    }
-
-    final detailResults = await Future.wait(
-      batches.map(
-        (b) => sl<GetProductionBatchUseCase>()(
-          b.id,
-          excludeWarehouseReceived: true,
-        ),
-      ),
+      }),
+      (clients) => setState(() {
+        _clients = clients;
+        _loading = false;
+      }),
     );
-
-    if (!mounted) return;
-
-    final allItems = <_ReadyItem>[];
-    for (int i = 0; i < batches.length; i++) {
-      detailResults[i].fold((_) {}, (detail) {
-        for (final item in detail.items) {
-          final available = ((item.producedQuantity ?? 0) -
-                  (item.warehouseReceivedQuantity ?? 0))
-              .clamp(0, item.producedQuantity ?? 0);
-          if (available > 0) {
-            allItems.add(
-              _ReadyItem(item: item, batch: detail, available: available),
-            );
-          }
-        }
-      });
-    }
-
-    final Map<int?, List<_ReadyItem>> byOrder = {};
-    for (final ri in allItems) {
-      byOrder.putIfAbsent(ri.item.sourceOrderId, () => []).add(ri);
-    }
-
-    final orderKeys = byOrder.keys.where((k) => k != null).toList()
-      ..sort((a, b) => a!.compareTo(b!));
-
-    final groups = <_OrderGroup>[];
-    for (final orderId in orderKeys) {
-      final items = byOrder[orderId]!;
-      final first = items.first;
-      groups.add(_OrderGroup(
-        orderId: orderId,
-        label: 'Buyurtma #$orderId',
-        shopName: first.item.sourceClientShopName,
-        region: first.item.sourceClientRegion,
-        items: items,
-      ));
-    }
-
-    if (byOrder.containsKey(null)) {
-      groups.add(_OrderGroup(
-        orderId: null,
-        label: 'Ombor uchun (stok)',
-        items: byOrder[null]!,
-      ));
-    }
-
-    setState(() {
-      _orderGroups = groups;
-      _loading = false;
-    });
   }
 
-  // ── Navigation helpers ─────────────────────────────────────────────────────
-
-  void _selectOrder(_OrderGroup order) {
+  Future<void> _loadQualities(ImportClientEntity client) async {
+    if (!mounted) return;
     setState(() {
-      _activeOrder = order;
-      _qualityGroups = _buildQualityGroups(order.items);
+      _loading = true;
+      _error = null;
+      _activeClient = client;
       _step = _Step.qualities;
     });
+
+    final result = await sl<GetImportQualitiesUseCase>()(clientId: client.id);
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) => setState(() {
+        _error = "Sifatlar yuklanmadi: ${failure.message}";
+        _loading = false;
+      }),
+      (qualities) => setState(() {
+        _qualities = qualities;
+        _loading = false;
+      }),
+    );
   }
 
-  void _selectQuality(_QualityGroup quality) {
+  Future<void> _loadItems(ImportQualityEntity quality) async {
+    if (!mounted) return;
     setState(() {
+      _loading = true;
+      _error = null;
       _activeQuality = quality;
       _step = _Step.items;
     });
+
+    final result = await sl<GetImportItemsUseCase>()(
+      clientId: _activeClient!.id,
+      qualityName: quality.qualityName,
+    );
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) => setState(() {
+        _error = "Mahsulotlar yuklanmadi: ${failure.message}";
+        _loading = false;
+      }),
+      (items) => setState(() {
+        _items = items;
+        _loading = false;
+      }),
+    );
   }
+
+  // ── Navigation helpers ─────────────────────────────────────────────────────
 
   void _back() {
     setState(() {
       if (_step == _Step.items) {
         _step = _Step.qualities;
         _activeQuality = null;
+        _items = [];
       } else if (_step == _Step.qualities) {
-        _step = _Step.orders;
-        _activeOrder = null;
-        _qualityGroups = [];
+        _step = _Step.clients;
+        _activeClient = null;
+        _qualities = [];
       }
+      _error = null;
     });
-  }
-
-  List<_QualityGroup> _buildQualityGroups(List<_ReadyItem> items) {
-    final Map<String?, List<_ReadyItem>> byQuality = {};
-    for (final ri in items) {
-      byQuality.putIfAbsent(ri.item.qualityName, () => []).add(ri);
-    }
-    final keys = byQuality.keys.toList()
-      ..sort((a, b) {
-        if (a == null) return 1;
-        if (b == null) return -1;
-        return a.compareTo(b);
-      });
-    return keys
-        .map((k) => _QualityGroup(
-              qualityName: k,
-              label: k ?? "Noma'lum sifat",
-              items: byQuality[k]!,
-            ))
-        .toList();
   }
 
   // ── Selection helpers ──────────────────────────────────────────────────────
@@ -278,13 +186,13 @@ class _ProductionBatchPickerBottomSheetState
     });
   }
 
-  void _selectAllInQuality(_QualityGroup quality, bool select) {
+  void _selectAll(bool select) {
     setState(() {
-      for (final ri in quality.items) {
+      for (final item in _items) {
         if (select) {
-          _selectedItemIds.add(ri.item.id);
+          _selectedItemIds.add(item.id);
         } else {
-          _selectedItemIds.remove(ri.item.id);
+          _selectedItemIds.remove(item.id);
         }
       }
     });
@@ -293,18 +201,16 @@ class _ProductionBatchPickerBottomSheetState
   // ── Confirm ────────────────────────────────────────────────────────────────
 
   void _confirm() {
-    final entries = <BatchItemImportEntry>[];
-    for (final group in _orderGroups) {
-      for (final ri in group.items) {
-        if (!_selectedItemIds.contains(ri.item.id)) continue;
-        entries.add(BatchItemImportEntry(
-          item: ri.item,
-          batchId: ri.batch.id,
-          batchTitle: ri.batch.batchTitle,
-          quantity: max(1, ri.available),
-        ));
-      }
-    }
+    final entries = _items
+        .where((item) => _selectedItemIds.contains(item.id))
+        .map((item) => BatchItemImportEntry(
+              item: item,
+              batchId: item.batchId,
+              batchTitle: item.batchTitle,
+              quantity: max(1, item.available),
+            ))
+        .toList();
+
     if (entries.isEmpty) return;
     Navigator.of(context).pop(BatchImportResult(entries: entries));
   }
@@ -312,15 +218,15 @@ class _ProductionBatchPickerBottomSheetState
   // ── Title helpers ──────────────────────────────────────────────────────────
 
   String get _titleText => switch (_step) {
-        _Step.orders    => 'Buyurtmani tanlang',
-        _Step.qualities => _activeOrder?.label ?? 'Sifatni tanlang',
-        _Step.items     => _activeQuality?.label ?? 'Mahsulotlar',
+        _Step.clients   => 'Mijozni tanlang',
+        _Step.qualities => _activeClient?.displayName ?? 'Sifatni tanlang',
+        _Step.items     => _activeQuality?.qualityName ?? 'Mahsulotlar',
       };
 
   String get _subtitleText => switch (_step) {
-        _Step.orders    => 'Tayyor mahsulotlar mavjud buyurtmalar',
+        _Step.clients   => 'Tayyor mahsuloti mavjud mijozlar',
         _Step.qualities => 'Sifat turini tanlang',
-        _Step.items     => _activeOrder?.label ?? '',
+        _Step.items     => _activeClient?.displayName ?? '',
       };
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -353,7 +259,7 @@ class _ProductionBatchPickerBottomSheetState
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Row(
               children: [
-                if (_step != _Step.orders)
+                if (_step != _Step.clients)
                   IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, size: 20),
                     onPressed: _back,
@@ -396,14 +302,14 @@ class _ProductionBatchPickerBottomSheetState
 
           const Divider(height: 1),
 
-          // Step indicator (only when data is loaded)
-          if (!_loading && _error == null && _orderGroups.isNotEmpty)
+          // Step indicator
+          if (!_loading && _error == null)
             _StepIndicator(step: _step),
 
           // Content
           Flexible(child: _buildContent()),
 
-          // Confirm button — visible whenever items are selected
+          // Confirm button
           if (_selectedItemIds.isNotEmpty)
             SafeArea(
               top: false,
@@ -446,10 +352,15 @@ class _ProductionBatchPickerBottomSheetState
                     .textTheme
                     .bodyMedium
                     ?.copyWith(color: AppColors.error),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               TextButton.icon(
-                onPressed: _load,
+                onPressed: switch (_step) {
+                  _Step.clients   => _loadClients,
+                  _Step.qualities => () => _loadQualities(_activeClient!),
+                  _Step.items     => () => _loadItems(_activeQuality!),
+                },
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Qayta urinish'),
               ),
@@ -460,40 +371,39 @@ class _ProductionBatchPickerBottomSheetState
     }
 
     return switch (_step) {
-      _Step.orders    => _buildOrdersList(),
+      _Step.clients   => _buildClientsList(),
       _Step.qualities => _buildQualitiesList(),
       _Step.items     => _buildItemsList(),
     };
   }
 
-  // ── Step 1: Orders ─────────────────────────────────────────────────────────
+  // ── Step 1: Clients ────────────────────────────────────────────────────────
 
-  Widget _buildOrdersList() {
-    if (_orderGroups.isEmpty) {
+  Widget _buildClientsList() {
+    if (_clients.isEmpty) {
       return Center(
-        child: Text(
-          'Tayyor mahsulotlar topilmadi',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textSecondary),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Tayyor mahsulotli mijozlar topilmadi',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
-      itemCount: _orderGroups.length,
+      itemCount: _clients.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
-        final group = _orderGroups[i];
-        final selectedInGroup = group.items
-            .where((ri) => _selectedItemIds.contains(ri.item.id))
-            .length;
-        final isOrder = group.orderId != null;
-
+        final client = _clients[i];
         return InkWell(
-          onTap: () => _selectOrder(group),
+          onTap: () => _loadQualities(client),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -502,19 +412,13 @@ class _ProductionBatchPickerBottomSheetState
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color:
-                        (isOrder ? AppColors.primary : AppColors.textSecondary)
-                            .withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    isOrder
-                        ? Icons.receipt_long_rounded
-                        : Icons.inventory_2_outlined,
+                  child: const Icon(
+                    Icons.storefront_rounded,
                     size: 20,
-                    color: isOrder
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
+                    color: AppColors.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -523,55 +427,33 @@ class _ProductionBatchPickerBottomSheetState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        group.label,
+                        client.shopName,
                         style: Theme.of(context)
                             .textTheme
                             .bodyMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      if (group.shopName != null || group.region != null) ...[
-                        const SizedBox(height: 1),
-                        Text(
-                          [group.shopName, group.region]
-                              .whereType<String>()
-                              .join(', '),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
                       const SizedBox(height: 1),
                       Text(
-                        '${group.items.length} ta mahsulot',
+                        client.region,
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
+                      if (client.itemCount > 0) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          '${client.itemCount} ta mahsulot',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                if (selectedInGroup > 0) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$selectedInGroup',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 const Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
@@ -588,18 +470,30 @@ class _ProductionBatchPickerBottomSheetState
   // ── Step 2: Qualities ──────────────────────────────────────────────────────
 
   Widget _buildQualitiesList() {
+    if (_qualities.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Bu mijoz uchun tayyor mahsulotlar topilmadi',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
-      itemCount: _qualityGroups.length,
+      itemCount: _qualities.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
-        final quality = _qualityGroups[i];
-        final selectedInQuality = quality.items
-            .where((ri) => _selectedItemIds.contains(ri.item.id))
-            .length;
-
+        final quality = _qualities[i];
         return InkWell(
-          onTap: () => _selectQuality(quality),
+          onTap: () => _loadItems(quality),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -623,7 +517,7 @@ class _ProductionBatchPickerBottomSheetState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        quality.label,
+                        quality.qualityName,
                         style: Theme.of(context)
                             .textTheme
                             .bodyMedium
@@ -631,7 +525,7 @@ class _ProductionBatchPickerBottomSheetState
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        '${quality.items.length} ta mahsulot',
+                        '${quality.itemCount} ta mahsulot',
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall
@@ -640,24 +534,6 @@ class _ProductionBatchPickerBottomSheetState
                     ],
                   ),
                 ),
-                if (selectedInQuality > 0) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$selectedInQuality',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 const Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
@@ -674,30 +550,37 @@ class _ProductionBatchPickerBottomSheetState
   // ── Step 3: Items ──────────────────────────────────────────────────────────
 
   Widget _buildItemsList() {
-    final quality = _activeQuality!;
-    final allSelected =
-        quality.items.every((ri) => _selectedItemIds.contains(ri.item.id));
-    final anySelected =
-        quality.items.any((ri) => _selectedItemIds.contains(ri.item.id));
+    if (_items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Mahsulotlar topilmadi',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
+
+    final allSelected = _items.every((i) => _selectedItemIds.contains(i.id));
+    final anySelected = _items.any((i) => _selectedItemIds.contains(i.id));
 
     return Column(
       children: [
         // Select-all row
         InkWell(
-          onTap: () => _selectAllInQuality(quality, !allSelected),
+          onTap: () => _selectAll(!allSelected),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               children: [
                 Checkbox(
-                  value: allSelected
-                      ? true
-                      : anySelected
-                          ? null
-                          : false,
+                  value: allSelected ? true : anySelected ? null : false,
                   tristate: true,
-                  onChanged: (_) =>
-                      _selectAllInQuality(quality, !allSelected),
+                  onChanged: (_) => _selectAll(!allSelected),
                   visualDensity: VisualDensity.compact,
                 ),
                 const SizedBox(width: 8),
@@ -710,7 +593,7 @@ class _ProductionBatchPickerBottomSheetState
                 ),
                 const Spacer(),
                 Text(
-                  '${quality.items.where((ri) => _selectedItemIds.contains(ri.item.id)).length} / ${quality.items.length}',
+                  '${_items.where((i) => _selectedItemIds.contains(i.id)).length} / ${_items.length}',
                   style: Theme.of(context)
                       .textTheme
                       .labelSmall
@@ -724,24 +607,23 @@ class _ProductionBatchPickerBottomSheetState
         Flexible(
           child: ListView.separated(
             padding: EdgeInsets.zero,
-            itemCount: quality.items.length,
+            itemCount: _items.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) => _buildItemTile(quality.items[i]),
+            itemBuilder: (context, i) => _buildItemTile(_items[i]),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildItemTile(_ReadyItem ri) {
-    final item = ri.item;
+  Widget _buildItemTile(ImportItemEntity item) {
     final isSelected = _selectedItemIds.contains(item.id);
     final matchingRows =
         widget.existingRows.where((r) => r.sourceBatchItemId == item.id);
     final inRow = matchingRows.isEmpty
         ? 0
         : (int.tryParse(matchingRows.first.quantityCtrl.text) ?? 0);
-    final available = (ri.available - inRow).clamp(0, ri.available);
+    final available = (item.available - inRow).clamp(0, item.available);
 
     return InkWell(
       onTap: () => _toggleItem(item.id),
@@ -787,13 +669,16 @@ class _ProductionBatchPickerBottomSheetState
                           style: Theme.of(context)
                               .textTheme
                               .labelMedium
-                              ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    ri.batch.batchTitle,
+                    item.batchTitle,
                     style: Theme.of(context)
                         .textTheme
                         .labelSmall
@@ -859,11 +744,11 @@ class _StepIndicator extends StatelessWidget {
         children: [
           _StepDot(
             index: 1,
-            label: 'Buyurtma',
-            active: step == _Step.orders,
-            done: step != _Step.orders,
+            label: 'Mijoz',
+            active: step == _Step.clients,
+            done: step != _Step.clients,
           ),
-          _StepLine(done: step != _Step.orders),
+          _StepLine(done: step != _Step.clients),
           _StepDot(
             index: 2,
             label: 'Sifat',
