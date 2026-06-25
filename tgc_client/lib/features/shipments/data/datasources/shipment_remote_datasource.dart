@@ -232,8 +232,10 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
 
   Never _handleDioError(DioException e) {
     final statusCode = e.response?.statusCode;
-    final message = (e.response?.data as Map<String, dynamic>?)?['message']
-        as String?;
+    final data = e.response?.data;
+    final message = data is Map<String, dynamic>
+        ? data['message'] as String?
+        : null;
     throw ServerException(
       message: message ?? e.message ?? 'Server error',
       statusCode: statusCode,

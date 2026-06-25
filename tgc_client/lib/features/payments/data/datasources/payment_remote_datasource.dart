@@ -107,8 +107,10 @@ class PaymentRemoteDataSourceImpl implements PaymentRemoteDataSource {
 
   Never _handleDioError(DioException e) {
     final statusCode = e.response?.statusCode;
-    final message =
-        (e.response?.data as Map<String, dynamic>?)?['message'] as String?;
+    final body = e.response?.data;
+    final message = body is Map<String, dynamic>
+        ? body['message'] as String?
+        : null;
     throw ServerException(
       message: message ?? e.message ?? 'Server error',
       statusCode: statusCode,

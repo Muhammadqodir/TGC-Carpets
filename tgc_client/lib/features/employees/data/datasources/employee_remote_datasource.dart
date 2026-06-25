@@ -140,8 +140,10 @@ class EmployeeRemoteDataSourceImpl implements EmployeeRemoteDataSource {
       throw NetworkException('Tarmoq xatosi. Internetni tekshiring.');
     }
     if (e.response?.statusCode == 401) throw const UnauthorizedException();
-    final message = (e.response?.data as Map<String, dynamic>?)?['message'] as String? ??
-        'Server xatosi yuz berdi.';
+    final body = e.response?.data;
+    final message = body is Map<String, dynamic>
+        ? body['message'] as String? ?? 'Server xatosi yuz berdi.'
+        : 'Server xatosi yuz berdi.';
     throw ServerException(message: message, statusCode: e.response?.statusCode);
   }
 }

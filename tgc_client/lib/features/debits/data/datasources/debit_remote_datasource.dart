@@ -119,10 +119,10 @@ class DebitRemoteDataSourceImpl implements DebitRemoteDataSource {
     }
     final code = e.response?.statusCode;
     if (code == 401) throw const UnauthorizedException();
-    final message =
-        (e.response?.data as Map<String, dynamic>?)?['message'] as String? ??
-            e.message ??
-            'Server xatosi';
+    final body = e.response?.data;
+    final message = body is Map<String, dynamic>
+        ? body['message'] as String? ?? 'Server xatosi'
+        : e.message ?? 'Server xatosi';
     throw ServerException(message: message, statusCode: code);
   }
 }

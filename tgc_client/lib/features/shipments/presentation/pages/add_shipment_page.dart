@@ -17,8 +17,6 @@ import '../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
 import '../bloc/shipment_form_bloc.dart';
 import '../bloc/shipment_form_event.dart';
 import '../bloc/shipment_form_state.dart';
-import '../widgets/order_picker_for_shipment_sheet.dart'
-    show OrderImportResult, OrderPickerForShipmentSheet;
 import '../widgets/stock_picker_for_shipment_sheet.dart'
     show StockPickerForShipmentSheet;
 import '../widgets/shipment_form_controller.dart';
@@ -80,7 +78,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     }
   }
 
-  Future<void> _importFromStock() async {
+  Future<void> _importFromOrder() async {
     final result = await StockPickerForShipmentSheet.show(context);
     if (result == null || !mounted) return;
 
@@ -102,8 +100,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     final repo = sl<ShipmentRepository>();
     final lastPrices = <int, double>{};
     for (final item in result.selectedItems) {
-      final r =
-          await repo.getLastPrice(variantId: item.variantId, clientId: clientId);
+      final r = await repo.getLastPrice(
+          variantId: item.variantId, clientId: clientId);
       r.fold((_) {}, (price) {
         if (price != null) lastPrices[item.variantId] = price;
       });
@@ -113,69 +111,9 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     _ctrl.importFromStock(result.selectedItems, lastPrices);
   }
 
-  Future<void> _importFromOrder() async {
-    final result = await OrderPickerForShipmentSheet.show(
-      context,
-      clientId: _selectedClient?.id,
-    );
-    if (result == null || !mounted) return;
-
-    // Autofill client from the imported order when none is selected yet
-    if (_selectedClient == null && result.order.clientId != null) {
-      setState(() {
-        _selectedClient = ClientEntity(
-          id: result.order.clientId!,
-          uuid: '',
-          shopName: result.order.clientShopName ?? 'Noma\'lum',
-          region: result.order.clientRegion ?? '',
-          phone: result.order.clientPhone,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-      });
-    }
-
-    final lastPrices = await _fetchLastPrices(
-      result,
-      clientId: _selectedClient?.id ?? result.order.clientId,
-    );
-
-    if (!mounted) return;
-    _ctrl.importFromOrder(
-      result.order,
-      lastPrices,
-      selectedItemIds: result.selectedItemIds,
-    );
-  }
-
-  Future<Map<int, double>> _fetchLastPrices(
-    OrderImportResult result, {
-    int? clientId,
-  }) async {
-    if (clientId == null) return {};
-
-    final repo = sl<ShipmentRepository>();
-    final itemsToFetch = result.order.items
-        .where((i) => result.selectedItemIds.contains(i.id))
-        .toList();
-    final prices = <int, double>{};
-
-    for (final item in itemsToFetch) {
-      final r = await repo.getLastPrice(
-        variantId: item.variantId,
-        clientId: clientId,
-      );
-      r.fold((_) {}, (price) {
-        if (price != null) prices[item.variantId] = price;
-      });
-    }
-    return prices;
-  }
-
   Future<void> _refreshLastPrices() async {
-    final order = _ctrl.importedOrder;
     final clientId = _selectedClient?.id;
-    if (order == null || clientId == null) return;
+    if (clientId == null || _ctrl.items.isEmpty) return;
 
     final repo = sl<ShipmentRepository>();
     final prices = <int, double>{};
@@ -444,15 +382,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
-                          child: TextButton.icon(
-                            onPressed: _importFromStock,
-                            icon: const Icon(Icons.inventory_2_outlined,
-                                size: 16),
-                            label: const Text('Stokdan import'),
                           ),
                         ),
                         Padding(
