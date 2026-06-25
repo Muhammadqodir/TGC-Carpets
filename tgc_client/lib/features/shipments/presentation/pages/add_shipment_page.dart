@@ -96,19 +96,28 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       });
     }
 
+    // Add items immediately so the user sees them right away
+    _ctrl.importFromStock(result.selectedItems, {});
+
+    // Fetch last prices in the background and fill them in as they arrive
     final clientId = _selectedClient?.id ?? result.client.id;
     final repo = sl<ShipmentRepository>();
-    final lastPrices = <int, double>{};
     for (final item in result.selectedItems) {
+      if (!mounted) return;
       final r = await repo.getLastPrice(
           variantId: item.variantId, clientId: clientId);
+      if (!mounted) return;
       r.fold((_) {}, (price) {
-        if (price != null) lastPrices[item.variantId] = price;
+        if (price == null) return;
+        for (final row in _ctrl.items) {
+          if (row.orderItemId == item.orderItemId &&
+              row.priceCtrl.text.isEmpty) {
+            row.priceCtrl.text = price.toStringAsFixed(2);
+          }
+        }
+        _ctrl.notifyChanged();
       });
     }
-
-    if (!mounted) return;
-    _ctrl.importFromStock(result.selectedItems, lastPrices);
   }
 
   Future<void> _refreshLastPrices() async {
@@ -153,17 +162,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Kamida bitta mahsulot bo\'lishi shart.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    final hasZeroPrice = filled.any((r) => r.parsedPrice <= 0);
-    if (hasZeroPrice) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Barcha mahsulotlar uchun narx kiriting.'),
           backgroundColor: AppColors.error,
         ),
       );

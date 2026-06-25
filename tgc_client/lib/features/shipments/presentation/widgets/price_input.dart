@@ -26,13 +26,7 @@ class PriceInput extends StatelessWidget {
           hintText: '0.00',
           prefixText: '\$ ',
         ),
-        validator: (v) {
-          final val = double.tryParse(v?.trim().replaceAll(',', '.') ?? '');
-          if (val == null || val <= 0) {
-            return 'Narx kiriting';
-          }
-          return null;
-        },
+        validator: null,
         onChanged: (_) => onChanged(),
       ),
     );
