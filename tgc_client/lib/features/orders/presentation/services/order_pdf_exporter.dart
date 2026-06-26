@@ -41,9 +41,9 @@ class OrderPdfExporter {
   static const _kMargin  = 14.0;
   static const _kColNum  = 20.0;  // # column
   static const _kColMeta = 130.0; // product / colour / quality
-  static const _kColSize = 40.8;  // each size column
+  static const _kColSize = 20.0;  // each size column
   static const _kColTot  = 52.0;  // Jami m²
-  static const _kRowH    = 22.0;  // data row height (fits 2 lines at 7pt)
+  static const _kRowH    = 14.0;  // data row height (fits 2 lines at 7pt)
   static const _kHdrH    = 22.0;  // column-header row
   static const _kTypeH   = 13.0;  // type-label row
 
@@ -461,12 +461,12 @@ class OrderPdfExporter {
     // Row 1: column-header row
     final colHdrCells = <pw.Widget>[
       _tc(text: '#',                             height: _kHdrH, bg: _primary, fg: PdfColors.white, bold: true, fontSize: _fsTh),
-      _tc(text: 'Mahsulot / Rang\nSifat / Tur', height: _kHdrH, bg: _primary, fg: PdfColors.white, bold: true, fontSize: _fsTh, align: pw.TextAlign.left),
+      _tc(text: 'Mahsulot / O\'lcham', height: _kHdrH, bg: _primary, fg: PdfColors.white, bold: true, fontSize: _fsTh, align: pw.TextAlign.left),
     ];
     for (var j = 0; j < chunk.length; j++) {
       final m      = sizeMeta[chunk[j]];
       final label  = (m?.sizeWidth != null && m?.sizeLength != null)
-          ? '${m!.sizeWidth}×${m.sizeLength}'
+          ? '${_fmtM(m!.sizeWidth)}\n${_fmtM(m.sizeLength)}'
           : "O'lcham ${j + 1}";
       final typeId = typeByJ[j] ?? 0;
       final bg     = _typePalette[typeColorMap[typeId] ?? 0];
@@ -498,8 +498,7 @@ class OrderPdfExporter {
       final cells = <pw.Widget>[
         _tc(text: '$rowNumber', height: _kRowH, bg: rowBg, fontSize: _fsTd),
         _tc(
-          text:     '${meta.productName}${meta.edgeCode != null ? ' [${meta.edgeCode}]' : ''}  |  ${meta.colorName?.toUpperCase() ?? "—"}\n'
-                    '${meta.qualityName ?? "—"} / ${meta.productTypeName ?? "—"}',
+          text:     '${meta.productName}${meta.edgeCode != null ? ' [${meta.edgeCode}]' : ''}  |  ${meta.colorName?.toUpperCase() ?? "—"} | ${meta.qualityName ?? "—"}',
           height:   _kRowH,
           bg:       rowBg,
           fontSize: _fsTd - 0.5,
@@ -669,12 +668,18 @@ class OrderPdfExporter {
         ),
         textAlign: align,
         maxLines:  2,
-        overflow:  pw.TextOverflow.clip,
+        overflow:  pw.TextOverflow.span,
       ),
     );
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+  String _fmtM(num? cm) {
+    if (cm == null) return '?';
+    final m = cm / 100;
+    return m % 1 == 0 ? m.toInt().toString() : m.toStringAsFixed(1);
+  }
+
   String _statusLabel(String s) => switch (s) {
         'pending'       => 'Kutilmoqda',
         'planned'       => 'Rejalashtirilgan',

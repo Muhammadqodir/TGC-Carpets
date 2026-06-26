@@ -46,17 +46,19 @@ class ColorDeleteRequested extends ProductAttributesEvent {
 
 class ProductTypeCreateRequested extends ProductAttributesEvent {
   final String type;
-  const ProductTypeCreateRequested(this.type);
+  final bool isPrintable;
+  const ProductTypeCreateRequested(this.type, {this.isPrintable = true});
   @override
-  List<Object?> get props => [type];
+  List<Object?> get props => [type, isPrintable];
 }
 
 class ProductTypeUpdateRequested extends ProductAttributesEvent {
   final int id;
   final String type;
-  const ProductTypeUpdateRequested({required this.id, required this.type});
+  final bool isPrintable;
+  const ProductTypeUpdateRequested({required this.id, required this.type, this.isPrintable = true});
   @override
-  List<Object?> get props => [id, type];
+  List<Object?> get props => [id, type, isPrintable];
 }
 
 class ProductTypeDeleteRequested extends ProductAttributesEvent {

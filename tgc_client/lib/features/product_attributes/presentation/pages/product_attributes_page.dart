@@ -166,7 +166,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                           title: 'Mahsulot turlari',
                           items: state.productTypes,
                           itemLabel: (t) => t.type as String,
-                          itemSubtitle: (_) => null,
+                          itemSubtitle: (t) => (t.isPrintable as bool) ? null : 'Yorliqlashda ko\'rinmaydi',
                           emptyMessage: 'Mahsulot turlari topilmadi.',
                           isArchived: (t) => (t.isArchived as bool),
                           onArchiveToggle: (t, archive) {
@@ -177,24 +177,21 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                                   ),
                                 );
                           },
-                          onAdd: () => SimpleAttributeFormDialog.show(
+                          onAdd: () => ProductTypeFormDialog.show(
                             context,
-                            title: 'Tur qo\'shish',
-                            fieldLabel: 'Tur nomi',
-                            fieldHint: 'masalan: Gilam',
-                            onSubmit: (ctx, value) {
-                              context.read<ProductAttributesBloc>().add(ProductTypeCreateRequested(value));
+                            onSubmit: (ctx, type, isPrintable) {
+                              context.read<ProductAttributesBloc>().add(
+                                    ProductTypeCreateRequested(type, isPrintable: isPrintable),
+                                  );
                             },
                           ),
-                          onEdit: (t) => SimpleAttributeFormDialog.show(
+                          onEdit: (t) => ProductTypeFormDialog.show(
                             context,
-                            title: 'Turni tahrirlash',
-                            fieldLabel: 'Tur nomi',
-                            fieldHint: 'masalan: Gilam',
-                            initialValue: t.type as String,
-                            onSubmit: (ctx, value) {
+                            initialType: t.type as String,
+                            initialIsPrintable: t.isPrintable as bool,
+                            onSubmit: (ctx, type, isPrintable) {
                               context.read<ProductAttributesBloc>().add(
-                                    ProductTypeUpdateRequested(id: t.id as int, type: value),
+                                    ProductTypeUpdateRequested(id: t.id as int, type: type, isPrintable: isPrintable),
                                   );
                             },
                           ),

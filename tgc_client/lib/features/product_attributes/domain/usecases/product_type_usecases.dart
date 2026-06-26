@@ -6,15 +6,15 @@ import '../repositories/product_attributes_repository.dart';
 class CreateProductTypeUseCase {
   final ProductAttributesRepository _repository;
   const CreateProductTypeUseCase(this._repository);
-  Future<Either<Failure, ProductTypeEntity>> call({required String type}) =>
-      _repository.createProductType(type: type);
+  Future<Either<Failure, ProductTypeEntity>> call({required String type, bool isPrintable = true}) =>
+      _repository.createProductType(type: type, isPrintable: isPrintable);
 }
 
 class UpdateProductTypeUseCase {
   final ProductAttributesRepository _repository;
   const UpdateProductTypeUseCase(this._repository);
-  Future<Either<Failure, ProductTypeEntity>> call({required int id, required String type}) =>
-      _repository.updateProductType(id: id, type: type);
+  Future<Either<Failure, ProductTypeEntity>> call({required int id, required String type, bool isPrintable = true}) =>
+      _repository.updateProductType(id: id, type: type, isPrintable: isPrintable);
 }
 
 class ArchiveProductTypeUseCase {

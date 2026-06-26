@@ -132,6 +132,144 @@ class _SimpleAttributeFormDialogState extends State<SimpleAttributeFormDialog> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Product type form dialog (type name + is_printable toggle)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ProductTypeFormDialog extends StatefulWidget {
+  const ProductTypeFormDialog({
+    super.key,
+    this.initialType,
+    this.initialIsPrintable = true,
+    required this.onSubmit,
+  });
+
+  final String? initialType;
+  final bool initialIsPrintable;
+  final void Function(BuildContext context, String type, bool isPrintable) onSubmit;
+
+  static void show(
+    BuildContext context, {
+    String? initialType,
+    bool initialIsPrintable = true,
+    required void Function(BuildContext context, String type, bool isPrintable) onSubmit,
+  }) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BlocProvider.value(
+        value: context.read<ProductAttributesBloc>(),
+        child: ProductTypeFormDialog(
+          initialType: initialType,
+          initialIsPrintable: initialIsPrintable,
+          onSubmit: onSubmit,
+        ),
+      ),
+    );
+  }
+
+  @override
+  State<ProductTypeFormDialog> createState() => _ProductTypeFormDialogState();
+}
+
+class _ProductTypeFormDialogState extends State<ProductTypeFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _typeCtrl;
+  late bool _isPrintable;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _typeCtrl = TextEditingController(text: widget.initialType ?? '');
+    _isPrintable = widget.initialIsPrintable;
+  }
+
+  @override
+  void dispose() {
+    _typeCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    widget.onSubmit(context, _typeCtrl.text.trim(), _isPrintable);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<ProductAttributesBloc, ProductAttributesState>(
+      listenWhen: (prev, curr) =>
+          curr is ProductAttributesLoaded &&
+          prev is ProductAttributesLoaded &&
+          curr.actionStatus != prev.actionStatus,
+      listener: (context, state) {
+        if (state is ProductAttributesLoaded) {
+          final status = state.actionStatus;
+          if (status is AttributeActionSuccess) {
+            if (mounted) Navigator.of(context).pop();
+          } else if (status is AttributeActionFailure) {
+            if (mounted) {
+              setState(() => _submitting = false);
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: AlertDialog(
+        title: Text(widget.initialType != null ? 'Turni tahrirlash' : 'Tur qo\'shish'),
+        content: Form(
+          key: _formKey,
+          child: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _typeCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Tur nomi',
+                    hintText: 'masalan: Gilam',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Bu maydon majburiy.' : null,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  value: _isPrintable,
+                  onChanged: (v) => setState(() => _isPrintable = v),
+                  title: const Text('Yorliqlash uchun'),
+                  subtitle: Text(
+                    _isPrintable
+                        ? 'Bu turdagi mahsulotlar yorliqlashda ko\'rinadi'
+                        : 'Bu turdagi mahsulotlar yorliqlashda ko\'rinmaydi',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Quality form dialog (quality_name + density)
 // ─────────────────────────────────────────────────────────────────────────────
 

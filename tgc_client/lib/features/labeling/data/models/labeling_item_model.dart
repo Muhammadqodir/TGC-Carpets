@@ -21,6 +21,7 @@ class LabelingItemModel extends LabelingItemEntity {
     super.sizeWidth,
     super.qualityName,
     super.productTypeName,
+    super.isTypePrintable = true,
     super.edgeCode,
   });
 
@@ -53,6 +54,7 @@ class LabelingItemModel extends LabelingItemEntity {
       sizeWidth:       sizeMap?['width']  as int?,
       qualityName:     productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
+      isTypePrintable: productTypeMap?['is_printable'] as bool? ?? true,
       edgeCode:        edgeMap?['code'] as String?,
     );
   }

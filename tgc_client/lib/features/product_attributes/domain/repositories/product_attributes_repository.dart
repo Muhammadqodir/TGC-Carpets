@@ -16,8 +16,8 @@ abstract class ProductAttributesRepository {
 
   // ── Product Types ─────────────────────────────────────────────────────────
   Future<Either<Failure, List<ProductTypeEntity>>> getProductTypes();
-  Future<Either<Failure, ProductTypeEntity>> createProductType({required String type});
-  Future<Either<Failure, ProductTypeEntity>> updateProductType({required int id, required String type});
+  Future<Either<Failure, ProductTypeEntity>> createProductType({required String type, bool isPrintable = true});
+  Future<Either<Failure, ProductTypeEntity>> updateProductType({required int id, required String type, bool isPrintable = true});
   Future<Either<Failure, int>> checkProductTypeUsage({required int id});
   Future<Either<Failure, ProductTypeEntity>> archiveProductType({required int id});
   Future<Either<Failure, ProductTypeEntity>> unarchiveProductType({required int id});

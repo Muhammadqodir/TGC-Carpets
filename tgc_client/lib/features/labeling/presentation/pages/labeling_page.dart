@@ -235,28 +235,30 @@ class _LabelingViewState extends State<_LabelingView> {
     _cachedClient = _selectedClient;
     _cachedSize = _selectedSize;
 
+    final printableItems = items.where((item) => item.isTypePrintable).toList(growable: false);
+
     final machineGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
+    for (final item in printableItems) {
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
       if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
       machineGroups.putIfAbsent(item.machineName ?? '—', () => []).add(item);
     }
 
     final clientGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
+    for (final item in printableItems) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
       if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
       clientGroups.putIfAbsent(item.clientName ?? '—', () => []).add(item);
     }
 
     final sizeGroups = <String, List<LabelingItemEntity>>{};
-    for (final item in items) {
+    for (final item in printableItems) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
       sizeGroups.putIfAbsent(item.sizeLabel, () => []).add(item);
     }
 
-    final displayed = items.where((item) {
+    final displayed = printableItems.where((item) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) return false;
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) return false;
       if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;

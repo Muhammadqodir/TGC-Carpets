@@ -58,12 +58,12 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.getProductTypes());
 
   @override
-  Future<Either<Failure, ProductTypeEntity>> createProductType({required String type}) =>
-      _execute(() => remoteDataSource.createProductType(type: type));
+  Future<Either<Failure, ProductTypeEntity>> createProductType({required String type, bool isPrintable = true}) =>
+      _execute(() => remoteDataSource.createProductType(type: type, isPrintable: isPrintable));
 
   @override
-  Future<Either<Failure, ProductTypeEntity>> updateProductType({required int id, required String type}) =>
-      _execute(() => remoteDataSource.updateProductType(id: id, type: type));
+  Future<Either<Failure, ProductTypeEntity>> updateProductType({required int id, required String type, bool isPrintable = true}) =>
+      _execute(() => remoteDataSource.updateProductType(id: id, type: type, isPrintable: isPrintable));
 
   @override
   Future<Either<Failure, int>> checkProductTypeUsage({required int id}) =>

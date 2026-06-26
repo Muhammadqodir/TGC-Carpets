@@ -179,7 +179,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await createProductTypeUseCase(type: event.type);
+    final result = await createProductTypeUseCase(type: event.type, isPrintable: event.isPrintable);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (pt) => emit(current.copyWith(
@@ -196,7 +196,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await updateProductTypeUseCase(id: event.id, type: event.type);
+    final result = await updateProductTypeUseCase(id: event.id, type: event.type, isPrintable: event.isPrintable);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (pt) {

@@ -21,7 +21,8 @@ class ProductTypeController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')],
+            'type'         => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')],
+            'is_printable' => ['sometimes', 'boolean'],
         ]);
 
         $productType = ProductType::create($validated);
@@ -32,7 +33,8 @@ class ProductTypeController extends Controller
     public function update(Request $request, ProductType $productType): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')->ignore($productType->id)],
+            'type'         => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')->ignore($productType->id)],
+            'is_printable' => ['sometimes', 'boolean'],
         ]);
 
         $productType->update($validated);

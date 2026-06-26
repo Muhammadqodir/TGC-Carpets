@@ -23,6 +23,7 @@ class LabelingItemEntity extends Equatable {
   final int? sizeWidth;
   final String? qualityName;
   final String? productTypeName;
+  final bool isTypePrintable;
   final String? edgeCode;
 
   const LabelingItemEntity({
@@ -45,6 +46,7 @@ class LabelingItemEntity extends Equatable {
     this.sizeWidth,
     this.qualityName,
     this.productTypeName,
+    this.isTypePrintable = true,
     this.edgeCode,
   });
 
@@ -80,6 +82,7 @@ class LabelingItemEntity extends Equatable {
       sizeWidth: sizeWidth,
       qualityName: qualityName,
       productTypeName: productTypeName,
+      isTypePrintable: isTypePrintable,
       edgeCode: edgeCode,
     );
   }

@@ -17,8 +17,8 @@ abstract class ProductAttributesRemoteDataSource {
 
   // Product Types
   Future<List<ProductTypeModel>> getProductTypes();
-  Future<ProductTypeModel> createProductType({required String type});
-  Future<ProductTypeModel> updateProductType({required int id, required String type});
+  Future<ProductTypeModel> createProductType({required String type, bool isPrintable = true});
+  Future<ProductTypeModel> updateProductType({required int id, required String type, bool isPrintable = true});
   Future<int> checkProductTypeUsage({required int id});
   Future<ProductTypeModel> archiveProductType({required int id});
   Future<ProductTypeModel> unarchiveProductType({required int id});
@@ -129,9 +129,9 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<ProductTypeModel> createProductType({required String type}) async {
+  Future<ProductTypeModel> createProductType({required String type, bool isPrintable = true}) async {
     try {
-      final response = await _dio.post(ApiEndpoints.productTypes, data: {'type': type});
+      final response = await _dio.post(ApiEndpoints.productTypes, data: {'type': type, 'is_printable': isPrintable});
       return ProductTypeModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
@@ -141,9 +141,9 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<ProductTypeModel> updateProductType({required int id, required String type}) async {
+  Future<ProductTypeModel> updateProductType({required int id, required String type, bool isPrintable = true}) async {
     try {
-      final response = await _dio.put(ApiEndpoints.productTypeById(id), data: {'type': type});
+      final response = await _dio.put(ApiEndpoints.productTypeById(id), data: {'type': type, 'is_printable': isPrintable});
       return ProductTypeModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );
