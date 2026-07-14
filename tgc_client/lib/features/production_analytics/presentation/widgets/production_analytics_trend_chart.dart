@@ -118,12 +118,16 @@ class ProductionAnalyticsTrendChart extends StatelessWidget {
           ],
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
-              getTooltipItems: (spots) => spots
-                  .map((s) => LineTooltipItem(
-                        '${s.y.toInt()} dona',
-                        const TextStyle(color: Colors.white, fontSize: 12),
-                      ))
-                  .toList(),
+              getTooltipItems: (spots) => spots.map((s) {
+                final idx = s.x.toInt();
+                final sqm = idx >= 0 && idx < trend.length
+                    ? trend[idx].totalSqm
+                    : 0.0;
+                return LineTooltipItem(
+                  '${s.y.toInt()} dona · ${sqm.toStringAsFixed(1)} m²',
+                  const TextStyle(color: Colors.white, fontSize: 12),
+                );
+              }).toList(),
             ),
           ),
         ),

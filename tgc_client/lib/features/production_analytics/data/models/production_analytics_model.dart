@@ -6,6 +6,7 @@ class ProductionDimensionItemModel extends ProductionDimensionItem {
     required super.name,
     required super.batchesCount,
     required super.totalQuantity,
+    required super.totalSqm,
     required super.percentage,
   });
 
@@ -15,6 +16,7 @@ class ProductionDimensionItemModel extends ProductionDimensionItem {
       name:          json['name'] as String? ?? '',
       batchesCount:  json['batches_count'] as int? ?? 0,
       totalQuantity: json['total_quantity'] as int? ?? 0,
+      totalSqm:      (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
       percentage:    (json['percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -25,6 +27,7 @@ class ProductionTrendPointModel extends ProductionTrendPoint {
     required super.label,
     required super.batchesCount,
     required super.totalQuantity,
+    required super.totalSqm,
   });
 
   factory ProductionTrendPointModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +35,7 @@ class ProductionTrendPointModel extends ProductionTrendPoint {
       label:         json['label'] as String? ?? '',
       batchesCount:  json['batches_count'] as int? ?? 0,
       totalQuantity: json['total_quantity'] as int? ?? 0,
+      totalSqm:      (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -40,12 +44,14 @@ class ProductionAnalyticsSummaryModel extends ProductionAnalyticsSummary {
   const ProductionAnalyticsSummaryModel({
     required super.totalBatches,
     required super.totalProduced,
+    required super.totalSqm,
   });
 
   factory ProductionAnalyticsSummaryModel.fromJson(Map<String, dynamic> json) {
     return ProductionAnalyticsSummaryModel(
       totalBatches:  json['total_batches'] as int? ?? 0,
       totalProduced: json['total_produced'] as int? ?? 0,
+      totalSqm:      (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

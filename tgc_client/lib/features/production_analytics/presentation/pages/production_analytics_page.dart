@@ -184,6 +184,7 @@ class _AnalyticsContent extends StatelessWidget {
           ProductionAnalyticsSummaryCards(
             totalBatches:  data.summary.totalBatches,
             totalProduced: data.summary.totalProduced,
+            totalSqm:      data.summary.totalSqm,
           ),
 
           // Trend chart

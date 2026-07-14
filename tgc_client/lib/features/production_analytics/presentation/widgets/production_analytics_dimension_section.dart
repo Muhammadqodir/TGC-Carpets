@@ -178,9 +178,9 @@ class _ChartView extends StatelessWidget {
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
                 getTooltipItem: (group, _, rod, __) {
-                  final name = display[group.x].name;
+                  final item = display[group.x];
                   return BarTooltipItem(
-                    '$name\n${rod.toY.toInt()} dona',
+                    '${item.name}\n${rod.toY.toInt()} dona · ${item.totalSqm.toStringAsFixed(1)} m²',
                     const TextStyle(color: Colors.white, fontSize: 11),
                   );
                 },
@@ -320,12 +320,23 @@ class _ListView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '${items[index].totalQuantity} dona',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${items[index].totalQuantity} dona',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                        Text(
+                          '${items[index].totalSqm.toStringAsFixed(1)} m²',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
