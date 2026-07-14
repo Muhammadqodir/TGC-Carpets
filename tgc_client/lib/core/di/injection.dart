@@ -204,6 +204,11 @@ import '../../features/product_analytics/domain/repositories/product_analytics_r
 import '../../features/product_analytics/domain/usecases/get_product_analytics_usecase.dart';
 import '../../features/product_analytics/domain/usecases/get_top_products_usecase.dart';
 import '../../features/product_analytics/presentation/bloc/product_analytics_bloc.dart';
+import '../../features/production_analytics/data/datasources/production_analytics_remote_datasource.dart';
+import '../../features/production_analytics/data/repositories/production_analytics_repository_impl.dart';
+import '../../features/production_analytics/domain/repositories/production_analytics_repository.dart';
+import '../../features/production_analytics/domain/usecases/get_production_analytics_usecase.dart';
+import '../../features/production_analytics/presentation/bloc/production_analytics_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -776,6 +781,22 @@ Future<void> initDependencies() async {
   sl.registerFactory(
     () => ProductAnalyticsBloc(
       getAnalyticsUseCase: sl<GetProductAnalyticsUseCase>(),
+    ),
+  );
+
+  // ─── Production Analytics Feature ─────────────────────────────────────────
+  sl.registerLazySingleton<ProductionAnalyticsRemoteDataSource>(
+    () => ProductionAnalyticsRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ProductionAnalyticsRepository>(
+    () => ProductionAnalyticsRepositoryImpl(sl<ProductionAnalyticsRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(
+    () => GetProductionAnalyticsUseCase(sl<ProductionAnalyticsRepository>()),
+  );
+  sl.registerFactory(
+    () => ProductionAnalyticsBloc(
+      getAnalyticsUseCase: sl<GetProductionAnalyticsUseCase>(),
     ),
   );
 }

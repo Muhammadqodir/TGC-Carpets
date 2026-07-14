@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_routes.dart';
@@ -134,6 +135,15 @@ class _ProductionBatchesContentState
           icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
         actions: [
+          IconButton(
+            onPressed: () => context.pushNamed(AppRoutes.productionAnalyticsName),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedChartAnalysis,
+              size: 20,
+              strokeWidth: 2.5,
+            ),
+            tooltip: 'Tahlil',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Yangi batch',

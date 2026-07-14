@@ -85,6 +85,9 @@ class AppRoutes {
   static const String defectDocumentForm     = '/production/defect';
   static const String defectDocumentFormName = 'defectDocumentForm';
 
+  static const String productionAnalytics     = '/production/analytics';
+  static const String productionAnalyticsName = 'productionAnalytics';
+
   static const String labeling     = '/labeling';
   static const String labelingName = 'labeling';
 

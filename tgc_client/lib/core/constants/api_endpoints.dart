@@ -69,6 +69,7 @@ class ApiEndpoints {
   // Analytics
   static const String analyticsProducts    = '/analytics/products';
   static const String analyticsTopProducts = '/analytics/top-products';
+  static const String analyticsProduction  = '/analytics/production';
 
   // Orders
   static const String orders = '/orders';

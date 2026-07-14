@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\WarehouseDocumentController;
 use App\Http\Controllers\Api\V1\ShipmentImportController;
 use App\Http\Controllers\Api\V1\WarehouseImportController;
 use App\Http\Controllers\Api\V1\ProductAnalyticsController;
+use App\Http\Controllers\Api\V1\ProductionAnalyticsController;
 use App\Http\Controllers\Api\V1\ProductImportController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,9 @@ Route::prefix('v1')->group(function (): void {
         // Product Analytics
         Route::get('analytics/products',     [ProductAnalyticsController::class, 'index'])->name('analytics.products');
         Route::get('analytics/top-products', [ProductAnalyticsController::class, 'topProducts'])->name('analytics.top-products');
+
+        // Production Analytics (produced items statistics)
+        Route::get('analytics/production', [ProductionAnalyticsController::class, 'index'])->name('analytics.production');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         // Literal sub-routes must be declared before apiResource to avoid {product} capture.

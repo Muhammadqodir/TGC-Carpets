@@ -49,6 +49,7 @@ import '../../features/raw_materials/presentation/pages/raw_materials_page.dart'
 import '../../features/raw_materials/presentation/pages/add_raw_material_page.dart';
 import '../../features/raw_materials/presentation/pages/raw_material_batch_movement_page.dart';
 import '../../features/product_analytics/presentation/pages/product_analytics_page.dart';
+import '../../features/production_analytics/presentation/pages/production_analytics_page.dart';
 import '../storage/token_storage.dart';
 import 'app_routes.dart';
 
@@ -220,6 +221,11 @@ class AppRouter {
               final batch = state.extra as ProductionBatchEntity;
               return DefectDocumentFormPage(batch: batch);
             },
+          ),
+          GoRoute(
+            path: AppRoutes.productionAnalytics,
+            name: AppRoutes.productionAnalyticsName,
+            builder: (context, state) => const ProductionAnalyticsPage(),
           ),
           GoRoute(
             path: AppRoutes.labeling,
