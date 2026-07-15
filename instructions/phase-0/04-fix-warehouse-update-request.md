@@ -6,6 +6,8 @@
 
 **Finding:** LOGIC-2 · **Depends on:** `phase-0/02` — **do that first**, see the warning below
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## ⚠️ Order matters
 
 Fixing this endpoint **unmasks `phase-0/02`**. Right now the item-replacement branch in `WarehouseDocumentService::update()` always aborts and rolls back, which accidentally prevents the reversal-direction bug from ever executing on that path. Repair this endpoint before fixing the reversal, and you turn a dead endpoint into a live data-corruption endpoint.

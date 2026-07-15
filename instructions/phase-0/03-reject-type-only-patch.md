@@ -6,6 +6,8 @@ Changing a document's type without replacing its items is accepted and persisted
 
 **Finding:** LOGIC-1 (step 2) · **Depends on:** nothing · **Related:** `phase-0/02`
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Http/Requests/WarehouseDocument/UpdateWarehouseDocumentRequest.php:19` allows `type` to change independently of `items`:

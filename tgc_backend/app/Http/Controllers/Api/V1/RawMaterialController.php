@@ -47,7 +47,7 @@ class RawMaterialController extends Controller
             ->selectSub($stockSub, 'stock_quantity')
             ->orderBy('type')
             ->orderBy('name')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return response()->json([
             'data' => RawMaterialResource::collection($materials),
@@ -123,7 +123,7 @@ class RawMaterialController extends Controller
             ->when($request->filled('date_from'),   fn ($q) => $q->whereDate('date_time', '>=', $request->date_from))
             ->when($request->filled('date_to'),     fn ($q) => $q->whereDate('date_time', '<=', $request->date_to))
             ->latest('date_time')
-            ->paginate($request->integer('per_page', 30));
+            ->paginate($this->perPage($request, 30));
 
         return RawMaterialStockMovementResource::collection($movements);
     }

@@ -65,7 +65,7 @@ class OrderController extends Controller
                   });
             })
             ->latest()
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return OrderListResource::collection($orders);
     }

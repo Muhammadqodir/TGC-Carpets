@@ -6,6 +6,8 @@ The dashboard has **two** independent fatal bugs. The first masks the second, so
 
 **Finding:** CALC-2 · **Blocks:** nothing · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `GET /api/v1/dashboard/stats` (registered at `routes/api.php:65`) is called by the Flutter client at `tgc_client/lib/features/dashboard/data/datasources/dashboard_remote_datasource.dart:25`. It has been down since the `Improved stock calculations` commit. This is not "sometimes wrong" — it is a guaranteed 500 on every call.

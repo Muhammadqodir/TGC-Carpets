@@ -6,6 +6,8 @@
 
 **Finding:** PROD-2 · **Superseded by:** `phase-2/05` — this is the interim guard, not the real fix
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Http/Controllers/Api/V1/DefectDocumentController.php:56` increments on create:

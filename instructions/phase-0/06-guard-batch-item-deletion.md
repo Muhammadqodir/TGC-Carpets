@@ -6,6 +6,8 @@
 
 **Finding:** PROD-1 · **Superseded by:** `phase-2/01` — this is a guard, not the fix
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Services/ProductionBatchService.php:86`:

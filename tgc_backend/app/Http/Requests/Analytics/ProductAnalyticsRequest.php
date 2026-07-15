@@ -25,16 +25,22 @@ class ProductAnalyticsRequest extends FormRequest
      */
     public function periodFrom(): string
     {
-        return $this->input('period_from', now()->subDays(30)->toDateString());
+        return $this->filled('period_from')
+            ? $this->input('period_from')
+            : now()->subDays(30)->toDateString();
     }
 
     public function periodTo(): string
     {
-        return $this->input('period_to', now()->toDateString());
+        return $this->filled('period_to')
+            ? $this->input('period_to')
+            : now()->toDateString();
     }
 
     public function trendBy(): string
     {
-        return $this->input('trend_by', 'day');
+        return $this->filled('trend_by')
+            ? $this->input('trend_by')
+            : 'day';
     }
 }

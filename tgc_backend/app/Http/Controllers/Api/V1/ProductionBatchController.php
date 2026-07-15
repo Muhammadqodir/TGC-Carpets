@@ -46,7 +46,7 @@ class ProductionBatchController extends Controller
                 $iq->whereRaw('(COALESCE(produced_quantity, 0) - COALESCE(warehouse_received_quantity, 0)) > 0')
             ))
             ->latest('production_batches.id')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return ProductionBatchResource::collection($batches);
     }
@@ -317,9 +317,12 @@ class ProductionBatchController extends Controller
     {
         $code = $request->input('code');
 
-        // Parse format: "PB{123} PBI{456}"
-        if (!preg_match('/PB\{(\d+)\}\s+PBI\{(\d+)\}/', $code, $matches)) {
-            return response()->json(['message' => 'Invalid QR code format. Expected: PB{batchId} PBI{itemId}'], 400);
+        // Accept both formats physically printed on labels:
+        //   P{batchId} I{itemId}      — labeling_page.dart, all existing physical labels
+        //   PB{batchId} PBI{itemId}   — the originally documented format
+        // Anchored, so garbage before/after the code is rejected rather than parsed.
+        if (!preg_match('/^P(?:B)?\{?(\d+)\}?\s+(?:PB)?I\{?(\d+)\}?$/i', trim((string) $code), $matches)) {
+            return response()->json(['message' => 'QR kod formati noto\'g\'ri. Kutilgan format: P{batchId} I{itemId}'], 400);
         }
 
         $batchId = (int) $matches[1];

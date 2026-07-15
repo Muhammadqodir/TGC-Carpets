@@ -6,6 +6,8 @@
 
 **Finding:** CALC-4 · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 This document goes to the client. It currently disagrees with itself on the same page, which is the kind of thing that costs you an argument you should win.

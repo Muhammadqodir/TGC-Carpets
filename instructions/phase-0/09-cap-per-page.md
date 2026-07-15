@@ -6,6 +6,8 @@ Sixteen paginated endpoints accept an unbounded `per_page`. `?per_page=1000000` 
 
 **Finding:** LOGIC-6 · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 Every paginated endpoint does this:

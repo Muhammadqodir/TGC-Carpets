@@ -13,6 +13,7 @@ import 'package:usb_label_print/usb_label_print.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/services/print_history_service.dart';
 import '../../domain/entities/print_history_entity.dart';
+import '../../domain/label_qr_format.dart';
 
 // ── Shared preference keys (same as labeling_page) ───────────────────────────
 const _kPrefLabelStyle = 'labeling_label_style';
@@ -273,7 +274,15 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
             final barcodeValue = item.variantBarcode?.isNotEmpty == true
                 ? item.variantBarcode!
                 : 'TGC-VAR-${item.variantId.toString().padLeft(8, '0')}';
-            final qrData = 'PB{${item.batchId}} VAR{${item.variantId}}';
+            // item.itemId is the production_batch_item id — the entity the
+            // backend scan endpoint needs, not item.variantId. History
+            // entries saved before this field existed have no itemId; there
+            // is no way to recover it, so they fall back to the old (already
+            // unscannable) format rather than risk resolving to a different,
+            // wrong carpet. See instructions/phase-0/11.
+            final qrData = item.itemId != null
+                ? buildLabelQr(batchId: item.batchId, itemId: item.itemId!)
+                : 'PB{${item.batchId}} VAR{${item.variantId}}';
 
             return Positioned(
               left: -5000,

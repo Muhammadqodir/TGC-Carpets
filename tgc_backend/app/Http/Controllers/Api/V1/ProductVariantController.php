@@ -23,7 +23,7 @@ class ProductVariantController extends Controller
             ->when($request->filled('product_color_id'), fn ($q) => $q->where('product_color_id', $request->integer('product_color_id')))
             ->when($request->filled('barcode'),          fn ($q) => $q->where('barcode_value', $request->barcode))
             ->latest()
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return ProductVariantResource::collection($variants);
     }

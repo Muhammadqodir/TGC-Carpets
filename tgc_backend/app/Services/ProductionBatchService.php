@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductionBatchService
 {
@@ -83,6 +84,8 @@ class ProductionBatchService
             ], fn ($v) => $v !== null));
 
             if (isset($data['items'])) {
+                $this->assertNoRecordedProduction($batch);
+
                 // Remove old items and re-sync
                 $batch->items()->delete();
                 $this->syncItems($batch, $data['items']);
@@ -91,6 +94,30 @@ class ProductionBatchService
 
             return $batch->fresh()->load(self::EAGER_LOAD);
         });
+    }
+
+    /**
+     * Refuse to replace a batch's items once any of them has recorded
+     * production — deleting and re-creating resets produced_quantity,
+     * defect_quantity and warehouse_received_quantity to 0, orphans printed
+     * QR labels (which encode the item id), and can hit an FK RESTRICT from
+     * defect_document_items. See instructions/phase-0/06.
+     */
+    private function assertNoRecordedProduction(ProductionBatch $batch): void
+    {
+        $hasProduction = $batch->items()
+            ->where(function ($q) {
+                $q->where('produced_quantity', '>', 0)
+                    ->orWhere('defect_quantity', '>', 0)
+                    ->orWhere('warehouse_received_quantity', '>', 0);
+            })
+            ->exists();
+
+        if ($hasProduction) {
+            throw ValidationException::withMessages([
+                'items' => 'Ishlab chiqarish boshlangan partiya mahsulotlarini o\'zgartirib bo\'lmaydi.',
+            ]);
+        }
     }
 
     /**
@@ -222,6 +249,8 @@ class ProductionBatchService
     public function delete(ProductionBatch $batch): void
     {
         DB::transaction(function () use ($batch): void {
+            $this->assertNoRecordedProduction($batch);
+
             // Must run before items are deleted so the coverage query still works.
             $this->revertOrderStatusesOnCancel($batch);
             $batch->items()->delete();

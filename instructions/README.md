@@ -3,7 +3,7 @@
 Working documents for fixing the ERP backend, from the audit of **14 July 2026**.
 
 - **[00-audit-report.md](00-audit-report.md)** — the full audit. Read this first. Every instruction file below refers back to a finding ID (`CALC-1`, `PROD-2`, `STRUCT-3`, `LOGIC-1`, `SCAN-1`…) defined there.
-- **phase-0/** — stop the bleeding. 11 steps, ~3 days. Ship immediately.
+- **phase-0/** — stop the bleeding. 11 steps, ~3 days. Ship immediately. All 11 are implemented — see [phase-0/DEPLOY.md](phase-0/DEPLOY.md) for how to ship them without downtime or data loss, and [phase-0/reconcile-before-deploy.sql](phase-0/reconcile-before-deploy.sql) for the read-only queries to run first.
 - **phase-1/** — make the money and stock trustworthy. 9 steps, ~2 weeks.
 - **phase-2/** — the data structure upgrade. 8 steps, ~3 weeks. The main event.
 - **phase-3/** — make it an advanced ERP. 8 steps, ongoing.

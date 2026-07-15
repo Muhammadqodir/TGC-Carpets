@@ -69,11 +69,7 @@ class ProductAnalyticsService
                 ->orderByRaw('SUM(order_items.quantity) DESC')
                 ->limit($limit);
 
-            if ($typeId !== null)    $query->where('products.product_type_id', $typeId);
-            if ($qualityId !== null) $query->where('products.product_quality_id', $qualityId);
-            if ($colorId !== null)   $query->where('product_colors.color_id', $colorId);
-            if ($sizeId !== null)    $query->where('product_variants.product_size_id', $sizeId);
-            if ($edgeId !== null)    $query->where('product_variants.product_edge_id', $edgeId);
+            $this->applyFilters($query, $typeId, $qualityId, $colorId, $sizeId, $edgeId);
 
             $productRows = $query->get();
 
@@ -81,8 +77,13 @@ class ProductAnalyticsService
 
             $productIds = $productRows->pluck('id')->filter()->toArray();
 
-            $colorsByProduct = $this->baseQuery($from, $to)
-                ->whereIn('products.id', $productIds)
+            // The breakdowns must carry the same filters as the parent query above —
+            // otherwise percentages are computed from an unfiltered numerator over a
+            // filtered denominator and can exceed 100%. See instructions/phase-0/10.
+            $colorsByProduct = $this->applyFilters(
+                $this->baseQuery($from, $to)->whereIn('products.id', $productIds),
+                $typeId, $qualityId, $colorId, $sizeId, $edgeId,
+            )
                 ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
                 ->selectRaw(
                     "products.id as product_id,
@@ -95,8 +96,10 @@ class ProductAnalyticsService
                 ->get()
                 ->groupBy(fn ($r) => (string) $r->product_id);
 
-            $sizesByProduct = $this->baseQuery($from, $to)
-                ->whereIn('products.id', $productIds)
+            $sizesByProduct = $this->applyFilters(
+                $this->baseQuery($from, $to)->whereIn('products.id', $productIds),
+                $typeId, $qualityId, $colorId, $sizeId, $edgeId,
+            )
                 ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
                 ->selectRaw(
                     "products.id as product_id,
@@ -416,16 +419,28 @@ class ProductAnalyticsService
         string $from, string $to,
         ?int $typeId, ?int $qualityId, ?int $colorId, ?int $sizeId, ?int $edgeId,
     ): int {
-        $query = $this->baseQuery($from, $to)
-            ->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total');
+        $query = $this->applyFilters(
+            $this->baseQuery($from, $to)->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total'),
+            $typeId, $qualityId, $colorId, $sizeId, $edgeId,
+        );
 
+        return (int) $query->value('total');
+    }
+
+    /**
+     * Apply the top-products attribute filters to a query builder. Extracted so
+     * the main query and both breakdown queries can never drift apart again —
+     * see instructions/phase-0/10.
+     */
+    private function applyFilters($query, ?int $typeId, ?int $qualityId, ?int $colorId, ?int $sizeId, ?int $edgeId)
+    {
         if ($typeId !== null)    $query->where('products.product_type_id', $typeId);
         if ($qualityId !== null) $query->where('products.product_quality_id', $qualityId);
         if ($colorId !== null)   $query->where('product_colors.color_id', $colorId);
         if ($sizeId !== null)    $query->where('product_variants.product_size_id', $sizeId);
         if ($edgeId !== null)    $query->where('product_variants.product_edge_id', $edgeId);
 
-        return (int) $query->value('total');
+        return $query;
     }
 
     private function totalItems(string $from, string $to): int

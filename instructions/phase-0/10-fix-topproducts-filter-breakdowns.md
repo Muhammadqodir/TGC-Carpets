@@ -6,6 +6,8 @@ The breakdowns are re-derived from a fresh **unfiltered** query, then divided by
 
 **Finding:** CALC-5 · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 In `app/Services/ProductAnalyticsService.php`, `getFilteredTopProducts()` applies five filters to the main query:

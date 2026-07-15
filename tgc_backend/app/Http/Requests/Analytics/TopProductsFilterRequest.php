@@ -14,8 +14,8 @@ class TopProductsFilterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'period_from' => ['nullable', 'date'],
-            'period_to'   => ['nullable', 'date'],
+            'period_from' => ['nullable', 'date', 'before_or_equal:period_to'],
+            'period_to'   => ['nullable', 'date', 'after_or_equal:period_from'],
             'type_id'     => ['nullable', 'integer'],
             'quality_id'  => ['nullable', 'integer'],
             'color_id'    => ['nullable', 'integer'],
@@ -25,8 +25,8 @@ class TopProductsFilterRequest extends FormRequest
         ];
     }
 
-    public function periodFrom(): string { return $this->input('period_from', now()->subDays(30)->toDateString()); }
-    public function periodTo(): string   { return $this->input('period_to', now()->toDateString()); }
+    public function periodFrom(): string { return $this->filled('period_from') ? $this->input('period_from') : now()->subDays(30)->toDateString(); }
+    public function periodTo(): string   { return $this->filled('period_to')   ? $this->input('period_to')   : now()->toDateString(); }
     public function typeId(): ?int       { return $this->filled('type_id')    ? (int) $this->input('type_id')    : null; }
     public function qualityId(): ?int    { return $this->filled('quality_id') ? (int) $this->input('quality_id') : null; }
     public function colorId(): ?int      { return $this->filled('color_id')   ? (int) $this->input('color_id')   : null; }

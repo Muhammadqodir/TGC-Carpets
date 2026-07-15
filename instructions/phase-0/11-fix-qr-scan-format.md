@@ -6,6 +6,8 @@ The backend regex accepts a format the client has never printed. All three clien
 
 **Finding:** SCAN-1 · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Http/Controllers/Api/V1/ProductionBatchController.php:321`:

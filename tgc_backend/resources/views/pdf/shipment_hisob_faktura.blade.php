@@ -221,15 +221,18 @@
                         $qty     = $item->quantity;
                         $price   = (float) $item->price;
 
-                        $sqm = ($size && $unit === 'm2')
-                            ? round(($size->length * $size->width * $qty) / 10000, 4)
+                        // TODO: replace with ShipmentItem::lineTotal() — see instructions/phase-1/01
+                        $sqmPerUnit = ($size && $unit === 'm2')
+                            ? ($size->length * $size->width) / 10000
                             : 0;
 
-                        $lineTotal = ($unit === 'm2' && $sqm > 0)
-                            ? round($price * $sqm, 2)
+                        $sqmTotal = $sqmPerUnit * $qty;
+
+                        $lineTotal = ($unit === 'm2' && $sqmTotal > 0)
+                            ? round($price * $sqmTotal, 2)
                             : round($price * $qty, 2);
 
-                        $grandTotalSqm   += $sqm;
+                        $grandTotalSqm   += $sqmTotal;
                         $grandTotalQty   += $qty;
                         $grandTotalPrice += $lineTotal;
                     @endphp
@@ -246,16 +249,16 @@
                             @endif
                         </td>
                         <td class="right">
-                            @if ($sqm > 0)
-                                {{ number_format($sqm, 2) }} m²
+                            @if ($sqmPerUnit > 0)
+                                {{ number_format($sqmPerUnit, 2) }} m²
                             @else
                                 —
                             @endif
                         </td>
                         <td class="right">{{ $qty }}</td>
                         <td class="right">
-                            @if ($sqm > 0)
-                                {{ number_format($sqm * $qty, 2) }} m²
+                            @if ($sqmTotal > 0)
+                                {{ number_format($sqmTotal, 2) }} m²
                             @else
                                 —
                             @endif

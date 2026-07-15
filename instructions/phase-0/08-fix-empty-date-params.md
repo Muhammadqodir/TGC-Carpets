@@ -6,6 +6,8 @@
 
 **Finding:** CALC-5 · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Http/Requests/Analytics/ProductAnalyticsRequest.php`:

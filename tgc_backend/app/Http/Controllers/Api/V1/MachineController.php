@@ -16,7 +16,7 @@ class MachineController extends Controller
         $machines = Machine::query()
             ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%' . $request->search . '%'))
             ->orderBy('name')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return MachineResource::collection($machines);
     }

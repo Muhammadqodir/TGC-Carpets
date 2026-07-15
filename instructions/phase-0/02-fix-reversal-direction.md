@@ -6,6 +6,8 @@ The reversal direction is read from a mutable column that `update()` has already
 
 **Finding:** LOGIC-1 · **Blocks:** `phase-0/04` — fix this **first** · **Depends on:** nothing
 
+**Status:** ✅ Implemented 2026-07-15 — see [DEPLOY.md](DEPLOY.md) before shipping.
+
 ## Why this matters
 
 `app/Services/WarehouseDocumentService.php:177` decides what to reverse by reading `$document->type`:

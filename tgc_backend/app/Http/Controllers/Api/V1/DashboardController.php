@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\StockMovement;
 use App\Models\WarehouseDocument;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,18 +54,23 @@ class DashboardController extends Controller
             )
             ->sum('shipment_items.quantity');
 
-        // Shipments revenue: total shipment item amounts in range
-        $shipmentsAmount = DB::table('shipment_items')
-            ->join('shipments', 'shipments.id', '=', 'shipment_items.shipment_id')
-            ->whereBetween(DB::raw('DATE(shipments.shipment_datetime)'), [$from, $to])
-            ->sum('shipment_items.total');
+        // TODO(instructions/phase-0/01): shipments_amount was removed here because
+        // shipment_items.total no longer exists (dropped in
+        // 2026_04_16_000001_drop_total_from_shipment_items_table). Reinstate it in
+        // phase-1/01 using the shared line-total formula instead of a fifth copy.
+        //
+        // TODO(instructions/phase-0/01): warehouse_stock (below) ignores $from/$to —
+        // it nets ALL movements ever, not just the period. LOGIC-6, out of scope here.
+        //
+        // TODO(instructions/phase-0/01): production_quantity counts warehouse 'in'
+        // document items, including supplier deliveries and not excluding cancelled
+        // batches, so it can never reconcile with Production Analytics. LOGIC-6.
 
         return response()->json([
             'data' => [
                 'production_quantity'  => (int) $productionQuantity,
                 'warehouse_stock'      => (int) $warehouseStock,
                 'shipments_quantity'   => (int) $shipmentsQuantity,
-                'shipments_amount'     => (float) $shipmentsAmount,
                 'date_from'            => $from,
                 'date_to'              => $to,
             ],

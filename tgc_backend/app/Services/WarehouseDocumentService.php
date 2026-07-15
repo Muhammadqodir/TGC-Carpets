@@ -70,7 +70,7 @@ class WarehouseDocumentService
                 'notes'         => array_key_exists('notes', $data) ? $data['notes'] : $document->notes,
             ], fn ($v) => $v !== null));
 
-            if (! empty($data['items'])) {
+            if (isset($data['items'])) {
                 $effectiveType = $document->fresh()->type;
 
                 if ($effectiveType === WarehouseDocument::TYPE_OUT) {
@@ -174,34 +174,39 @@ class WarehouseDocumentService
         }
     }
 
+    /**
+     * Reverse the stock movements already recorded for this document's items.
+     *
+     * The direction of the reversal is derived from the ledger rows themselves
+     * (net of everything already recorded for the item), NOT from
+     * $document->type — that column may have been mutated by update() since
+     * the movements were written, which would reverse in the wrong direction.
+     * Summing to a net figure and writing one compensating movement is
+     * naturally idempotent: call this twice and the second call writes nothing.
+     */
     private function reverseMovements(WarehouseDocument $document, int $userId): void
     {
-        // Determine the original movement type that was created
-        $originalMovementType = match ($document->type) {
-            WarehouseDocument::TYPE_IN,
-            WarehouseDocument::TYPE_RETURN,
-            WarehouseDocument::TYPE_ADJUSTMENT => StockMovement::TYPE_IN,
-            WarehouseDocument::TYPE_OUT        => StockMovement::TYPE_OUT,
-        };
-
-        // Reverse: 'in' becomes 'out' and vice versa
-        $reverseType = $originalMovementType === StockMovement::TYPE_IN
-            ? StockMovement::TYPE_OUT
-            : StockMovement::TYPE_IN;
-
         foreach ($document->items as $item) {
+            $net = (int) $item->stockMovements()
+                ->selectRaw("COALESCE(SUM(CASE WHEN movement_type = 'in' THEN quantity ELSE -quantity END), 0) as net")
+                ->value('net');
+
+            if ($net === 0) {
+                continue;
+            }
+
             StockMovement::create([
                 'product_variant_id'         => $item->product_variant_id,
                 'warehouse_document_item_id' => $item->id,
                 'user_id'                    => $userId,
-                'movement_type'              => $reverseType,
-                'quantity'                   => $item->quantity,
-                'movement_date'              => now(),
+                'movement_type'              => $net > 0 ? StockMovement::TYPE_OUT : StockMovement::TYPE_IN,
+                'quantity'                   => abs($net),
+                'movement_date'              => $document->document_date,
                 'notes'                      => "Reversal of document #{$document->id}",
             ]);
 
-            if ($document->type === WarehouseDocument::TYPE_IN) {
-                $this->debitProductionBatchItems($item->product_variant_id, (int) $item->quantity);
+            if ($net > 0) {
+                $this->debitProductionBatchItems($item->product_variant_id, abs($net));
             }
         }
     }

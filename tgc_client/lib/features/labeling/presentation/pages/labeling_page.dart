@@ -18,6 +18,7 @@ import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
+import '../../domain/label_qr_format.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
 import '../bloc/labeling_state.dart';
@@ -477,7 +478,7 @@ class _LabelingViewState extends State<_LabelingView> {
                               color: 'Beige',
                               sizeLabel: '200x300 R',
                               barcodeValue: 'TGC-00000001',
-                              qrData: 'P1 I1',
+                              qrData: buildLabelQr(batchId: 1, itemId: 1),
                             ),
                           ),
                         ),
@@ -682,7 +683,7 @@ class _LabelingViewState extends State<_LabelingView> {
                 final barcodeValue = item.variantBarcode?.isNotEmpty == true
                     ? item.variantBarcode!
                     : 'TGC-${item.variantId.toString().padLeft(8, '0')}';
-                final qrData = 'P${item.batchId} I${item.id}';
+                final qrData = buildLabelQr(batchId: item.batchId, itemId: item.id);
 
                 return Positioned(
                   // Positioned far off-screen so the label never flashes

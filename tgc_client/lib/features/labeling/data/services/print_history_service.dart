@@ -49,6 +49,7 @@ class PrintHistoryService {
       batchId: item.batchId,
       batchTitle: item.batchTitle,
       printedAt: DateTime.now().millisecondsSinceEpoch,
+      itemId: item.id,
     );
 
     // Check if this variant is already in history

@@ -14,6 +14,12 @@ class PrintHistoryEntity extends Equatable {
   final String? batchTitle;
   final int printedAt; // Unix timestamp
 
+  /// The production_batch_item id — required to rebuild a QR code the
+  /// backend can actually resolve (`P{batchId} I{itemId}`). Nullable because
+  /// history entries persisted before this field existed won't have it; such
+  /// legacy entries can no longer be reprinted with a correct QR.
+  final int? itemId;
+
   const PrintHistoryEntity({
     required this.variantId,
     required this.productName,
@@ -27,6 +33,7 @@ class PrintHistoryEntity extends Equatable {
     required this.batchId,
     this.batchTitle,
     required this.printedAt,
+    this.itemId,
   });
 
   String get sizeLabel {
@@ -48,6 +55,7 @@ class PrintHistoryEntity extends Equatable {
       'batchId': batchId,
       'batchTitle': batchTitle,
       'printedAt': printedAt,
+      'itemId': itemId,
     };
   }
 
@@ -65,6 +73,7 @@ class PrintHistoryEntity extends Equatable {
       batchId: json['batchId'] as int,
       batchTitle: json['batchTitle'] as String?,
       printedAt: json['printedAt'] as int,
+      itemId: json['itemId'] as int?,
     );
   }
 
@@ -78,5 +87,6 @@ class PrintHistoryEntity extends Equatable {
         qualityName,
         productTypeName,
         printedAt,
+        itemId,
       ];
 }

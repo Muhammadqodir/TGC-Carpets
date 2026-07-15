@@ -43,7 +43,7 @@ class StockController extends Controller
             ->selectSub($stockIn, 'stock_in')
             ->selectSub($stockOut, 'stock_out')
             ->latest()
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         $query->through(function ($product) {
             $product->current_stock = (int) ($product->stock_in - $product->stock_out);
@@ -154,7 +154,7 @@ class StockController extends Controller
             ->having('quantity_warehouse', '>', 0)
             ->orderByDesc('quantity_warehouse')
             ->paginate(
-                $request->integer('per_page', 50),
+                $this->perPage($request),
                 ['*'],
                 'page',
                 $request->integer('page', 1)
@@ -204,7 +204,7 @@ class StockController extends Controller
             ->when($request->filled('date_from'),     fn ($q) => $q->whereDate('movement_date', '>=', $request->date_from))
             ->when($request->filled('date_to'),       fn ($q) => $q->whereDate('movement_date', '<=', $request->date_to))
             ->latest('movement_date')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return StockMovementResource::collection($movements);
     }

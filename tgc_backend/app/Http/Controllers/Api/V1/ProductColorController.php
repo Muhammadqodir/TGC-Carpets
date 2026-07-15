@@ -16,7 +16,7 @@ class ProductColorController extends Controller
             ->when($request->filled('product_id'), fn ($q) => $q->where('product_id', $request->product_id))
             ->when($request->filled('color_id'),   fn ($q) => $q->where('color_id', $request->color_id))
             ->latest()
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return response()->json([
             'data' => $query->map(fn ($pc) => [

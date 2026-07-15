@@ -32,7 +32,7 @@ class ShipmentController extends Controller
             ->when($request->filled('date_from'),  fn ($q) => $q->whereDate('shipment_datetime', '>=', $request->date_from))
             ->when($request->filled('date_to'),    fn ($q) => $q->whereDate('shipment_datetime', '<=', $request->date_to))
             ->latest('shipment_datetime')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return ShipmentResource::collection($shipments);
     }
@@ -92,7 +92,7 @@ class ShipmentController extends Controller
             })
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->latest('order_date')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return OrderResource::collection($orders);
     }

@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class DefectDocumentController extends Controller
@@ -26,7 +27,7 @@ class DefectDocumentController extends Controller
         $documents = DefectDocument::with(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'items.productionBatchItem.variant.productEdge', 'photos'])
             ->where('production_batch_id', $productionBatch->id)
             ->latest('datetime')
-            ->paginate($request->integer('per_page', 50));
+            ->paginate($this->perPage($request));
 
         return DefectDocumentResource::collection($documents);
     }
@@ -94,6 +95,23 @@ class DefectDocumentController extends Controller
     public function destroy(DefectDocument $defectDocument): JsonResponse
     {
         DB::transaction(function () use ($defectDocument): void {
+            // Must run before delete() — the cascade removes the items we need to read.
+            $defectDocument->loadMissing('items');
+
+            foreach ($defectDocument->items as $item) {
+                $decremented = ProductionBatchItem::where('id', $item->production_batch_item_id)
+                    ->where('defect_quantity', '>=', $item->quantity)
+                    ->decrement('defect_quantity', $item->quantity);
+
+                if (! $decremented) {
+                    Log::warning('defect_quantity decrement skipped — counter already below document quantity', [
+                        'production_batch_item_id' => $item->production_batch_item_id,
+                        'document_id'               => $defectDocument->id,
+                        'quantity'                  => $item->quantity,
+                    ]);
+                }
+            }
+
             // Delete stored photo files
             foreach ($defectDocument->photos as $photo) {
                 Storage::disk('public')->delete($photo->path);
