@@ -35,8 +35,12 @@ class ProductController extends Controller
         $validated = $request->validated();
 
         $product = Product::firstOrCreate(
-            ['name' => $validated['name']],
-            collect($validated)->except('name')->toArray()
+            [
+                'name'               => $validated['name'],
+                'product_type_id'    => $validated['product_type_id'] ?? null,
+                'product_quality_id' => $validated['product_quality_id'] ?? null,
+            ],
+            collect($validated)->except(['name', 'product_type_id', 'product_quality_id'])->toArray()
         );
 
         $product->refresh();
