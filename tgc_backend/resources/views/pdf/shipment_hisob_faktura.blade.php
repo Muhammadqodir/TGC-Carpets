@@ -221,16 +221,16 @@
                         $qty     = $item->quantity;
                         $price   = (float) $item->price;
 
-                        // TODO: replace with ShipmentItem::lineTotal() — see instructions/phase-1/01
+                        // Display only — never used for money. The money column
+                        // is ShipmentItem::lineTotal(), the single authoritative
+                        // formula shared with the API resource and the ledger.
                         $sqmPerUnit = ($size && $unit === 'm2')
                             ? ($size->length * $size->width) / 10000
                             : 0;
 
                         $sqmTotal = $sqmPerUnit * $qty;
 
-                        $lineTotal = ($unit === 'm2' && $sqmTotal > 0)
-                            ? round($price * $sqmTotal, 2)
-                            : round($price * $qty, 2);
+                        $lineTotal = (float) $item->lineTotal();
 
                         $grandTotalSqm   += $sqmTotal;
                         $grandTotalQty   += $qty;

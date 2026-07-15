@@ -24,6 +24,10 @@ class ClientDebitSummaryResource extends JsonResource
             'total_debit'  => (float) $this->total_debit,
             'total_credit' => (float) $this->total_credit,
             'balance'      => (float) $this->balance,
+            // withTrashed() (step 06) can surface a soft-deleted client whose
+            // balance is still outstanding — the UI must be able to tell them
+            // apart from a live client rather than showing them identically.
+            'deleted_at'   => $this->deleted_at?->toISOString(),
         ];
     }
 }

@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StockController extends Controller
 {
@@ -162,21 +163,40 @@ class StockController extends Controller
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        $data = collect($results->items())->map(fn ($row) => [
-            'id'                 => $row->id,
-            'product_name'       => $row->product_name,
-            'color_name'         => $row->color_name,
-            'image_url'          => $row->color_image
-                ? $baseUrl . '/storage/' . $row->color_image
-                : null,
-            'quality_name'       => $row->quality_name,
-            'type_name'          => $row->type_name,
-            'size'               => ($row->length && $row->width)
-                ? "{$row->width}x{$row->length}"
-                : null,
-            'quantity_reserved'  => max(0, (int) $row->qty_received - (int) $row->qty_shipped),
-            'quantity_warehouse' => (int) $row->quantity_warehouse,
-        ]);
+        $data = collect($results->items())->map(function ($row) {
+            $reserved = (int) $row->qty_received - (int) $row->qty_shipped;
+
+            // A negative reserved quantity is impossible in a consistent
+            // database, so it is an alarm: receipts went missing (step 07's
+            // allocation bug) or shipments over-shipped (step 03). Clamping
+            // it to zero, as this used to do, disabled the alarm and left
+            // the fault burning. See
+            // instructions/phase-1/07-symmetric-fifo-allocation.md.
+            if ($reserved < 0) {
+                Log::warning('stock.reserved_negative', [
+                    'variant_id'   => $row->id,
+                    'qty_received' => (int) $row->qty_received,
+                    'qty_shipped'  => (int) $row->qty_shipped,
+                    'reserved'     => $reserved,
+                ]);
+            }
+
+            return [
+                'id'                 => $row->id,
+                'product_name'       => $row->product_name,
+                'color_name'         => $row->color_name,
+                'image_url'          => $row->color_image
+                    ? $baseUrl . '/storage/' . $row->color_image
+                    : null,
+                'quality_name'       => $row->quality_name,
+                'type_name'          => $row->type_name,
+                'size'               => ($row->length && $row->width)
+                    ? "{$row->width}x{$row->length}"
+                    : null,
+                'quantity_reserved'  => $reserved,
+                'quantity_warehouse' => (int) $row->quantity_warehouse,
+            ];
+        });
 
         return response()->json([
             'data' => $data,

@@ -4,7 +4,7 @@ Working documents for fixing the ERP backend, from the audit of **14 July 2026**
 
 - **[00-audit-report.md](00-audit-report.md)** — the full audit. Read this first. Every instruction file below refers back to a finding ID (`CALC-1`, `PROD-2`, `STRUCT-3`, `LOGIC-1`, `SCAN-1`…) defined there.
 - **phase-0/** — stop the bleeding. 11 audited steps + 1 found live during testing (`12-guard-order-item-deletion.md`), ~3 days. Ship immediately. All 12 are implemented — see [phase-0/DEPLOY.md](phase-0/DEPLOY.md) for how to ship them without downtime or data loss, [phase-0/reconcile-before-deploy.sql](phase-0/reconcile-before-deploy.sql) for the read-only queries to run first, and [phase-0/COMPLETION-REPORT.md](phase-0/COMPLETION-REPORT.md) for full status and handoff context.
-- **phase-1/** — make the money and stock trustworthy. 9 steps, ~2 weeks.
+- **phase-1/** — make the money and stock trustworthy. 8 of the original 9 steps are implemented (step 09, role middleware, was removed from scope) — see [phase-1/DEPLOY.md](phase-1/DEPLOY.md) for the staged rollout (this phase is *not* one bundle like phase-0 — it mixes safe code, one safe migration, one table-locking migration, and tooling that must not run yet), [phase-1/reconcile-before-deploy.sql](phase-1/reconcile-before-deploy.sql) for the read-only pre-deploy queries, and [phase-1/COMPLETION-REPORT.md](phase-1/COMPLETION-REPORT.md) for full status and handoff context.
 - **phase-2/** — the data structure upgrade. 8 steps, ~3 weeks. The main event.
 - **phase-3/** — make it an advanced ERP. 8 steps, ongoing.
 
@@ -48,7 +48,6 @@ These are not preferences. Getting them backwards causes harm:
 | `phase-2/01` `production_events` table | `phase-2/04` repoint analytics | Analytics needs a real `occurred_at` to read from |
 | `phase-2/03` backfill | `phase-2/04` repoint analytics | Otherwise historical periods read as zero |
 | Reconciliation queries | Any data fix | Measure first, so you can prove the fix worked |
-| Audit who calls what | `phase-1/09` apply role middleware | The middleware has never run — assume nothing about which roles need which endpoints |
 
 ## The one rule worth internalising
 
@@ -62,4 +61,4 @@ If a number cannot be recomputed from source, it is not trustworthy — it is ju
 
 ## Status
 
-Nothing here is implemented yet. This is a plan, not a changelog. If you complete a step, note it in that step's file rather than deleting the file — the reasoning is worth keeping.
+Phase-0 (12 steps) and phase-1 (8 of 9 steps — 09 was dropped) are code-complete but **not yet deployed to production**; see each phase's own `COMPLETION-REPORT.md` for exactly what that means and what's still unverified. Phase-2 and phase-3 remain a plan, not a changelog. If you complete a step, note it in that step's file rather than deleting the file — the reasoning is worth keeping.

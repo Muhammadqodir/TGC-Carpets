@@ -103,7 +103,24 @@ class RawMaterialController extends Controller
      */
     public function destroy(RawMaterial $rawMaterial): JsonResponse
     {
-        $rawMaterial->delete();
+        // stock_movements.material_id is restrictOnDelete, so a material with
+        // history throws an unhandled QueryException (500) without this
+        // check. The FK is doing its job; only the presentation was wrong.
+        if ($rawMaterial->stockMovements()->exists()) {
+            return response()->json([
+                'message' => 'Bu xomashyoni o\'chirib bo\'lmaydi: unda ombor harakatlari mavjud.',
+            ], 409);
+        }
+
+        try {
+            $rawMaterial->delete();
+        } catch (\Illuminate\Database\QueryException) {
+            // Belt and braces: another FK, or a movement created between the
+            // check above and the delete.
+            return response()->json([
+                'message' => 'Bu xomashyoni o\'chirib bo\'lmaydi: u boshqa yozuvlarda ishlatilmoqda.',
+            ], 409);
+        }
 
         return response()->json(['message' => 'Raw material deleted.']);
     }

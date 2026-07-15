@@ -25,7 +25,10 @@ class RawMaterialStockMovement extends Model
     {
         return [
             'date_time' => 'datetime',
-            'quantity'  => 'float',
+            // decimal:3 keeps the value out of float arithmetic in PHP (as a
+            // string) — the Resource casts back to float on the way out to
+            // the API, since the client expects a JSON number, not a string.
+            'quantity'  => 'decimal:3',
         ];
     }
 

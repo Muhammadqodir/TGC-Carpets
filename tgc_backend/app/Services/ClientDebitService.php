@@ -22,6 +22,13 @@ class ClientDebitService
         // Subquery: compute shipped amount per client.
         // For m² products: price × (width × length × quantity / 10 000)
         // For piece products: price × quantity
+        //
+        // Rounded per line, inside the SUM, before aggregating — this must stay
+        // in lockstep with ShipmentItem::lineTotal(). Dividing by 10000 (not
+        // 10000.0) keeps DECIMAL arithmetic all the way through so MySQL's
+        // ROUND() rounds half-away-from-zero, matching lineTotal()'s round2().
+        // See ShipmentItem::lineTotal() — the two are a knowing duplication;
+        // phase-2's balance table removes it for good.
         $debitSub = DB::table('shipment_items as si')
             ->join('shipments as s',            's.id',  '=', 'si.shipment_id')
             ->join('product_variants as pv',    'pv.id', '=', 'si.product_variant_id')
@@ -32,23 +39,34 @@ class ClientDebitService
                 's.client_id',
                 DB::raw("
                     SUM(
-                        CASE
-                            WHEN p.unit = 'm2' AND ps.id IS NOT NULL
-                                THEN si.price * ps.length * ps.width * si.quantity / 10000.0
-                            ELSE
-                                si.quantity * si.price
-                        END
+                        ROUND(
+                            CASE
+                                WHEN p.unit = 'm2' AND ps.id IS NOT NULL
+                                    THEN si.price * ps.length * ps.width * si.quantity / 10000
+                                ELSE
+                                    si.quantity * si.price
+                            END,
+                            2
+                        )
                     ) AS total_debit
                 ")
             )
             ->groupBy('s.client_id');
 
-        // Subquery: sum payments per client
+        // Subquery: sum payments per client.
+        // whereNull('deleted_at') because this is DB::table(), not Payment::query() —
+        // the SoftDeletes global scope does not reach a raw query builder call.
         $creditSub = DB::table('payments')
+            ->whereNull('deleted_at')
             ->select('client_id', DB::raw('SUM(amount) AS total_credit'))
             ->groupBy('client_id');
 
-        return Client::query()
+        // Soft-deleted clients can still owe money: their shipments and the
+        // receivable are untouched by deleting the client record. A debit
+        // report that hides them is worse than useless. withTrashed() brings
+        // them back; the `when` below hides zero-balance deleted clients by
+        // default (noise) while a deleted client who still owes always shows.
+        return Client::withTrashed()
             ->leftJoinSub($debitSub, 'dbt', fn ($j) => $j->on('clients.id', '=', 'dbt.client_id'))
             ->leftJoinSub($creditSub, 'crd', fn ($j) => $j->on('clients.id', '=', 'crd.client_id'))
             ->select([
@@ -57,6 +75,11 @@ class ClientDebitService
                 DB::raw('COALESCE(crd.total_credit, 0) AS total_credit'),
                 DB::raw('COALESCE(dbt.total_debit, 0) - COALESCE(crd.total_credit, 0) AS balance'),
             ])
+            ->when(
+                empty($filters['include_deleted']),
+                fn ($q) => $q->where(fn ($q2) => $q2->whereNull('clients.deleted_at')
+                    ->orWhereRaw('COALESCE(dbt.total_debit, 0) - COALESCE(crd.total_credit, 0) > 0'))
+            )
             ->when(
                 ! empty($filters['search']),
                 fn ($q) => $q->where(function ($q2) use ($filters) {
@@ -96,19 +119,11 @@ class ClientDebitService
         $entries = [];
 
         foreach ($shipments as $shipment) {
-            $total = 0.0;
+            // Sum of already-rounded line totals — matches the invoice, because
+            // the client is billed the sum of the printed line totals.
+            $total = '0.00';
             foreach ($shipment->items as $item) {
-                $unit = $item->variant?->productColor?->product?->unit ?? 'piece';
-                if ($unit === 'm2') {
-                    $size = $item->variant?->productSize;
-                    if ($size) {
-                        $total += (float) $item->price * $size->length * $size->width * $item->quantity / 10000.0;
-                    } else {
-                        $total += (float) $item->quantity * (float) $item->price;
-                    }
-                } else {
-                    $total += (float) $item->quantity * (float) $item->price;
-                }
+                $total = bcadd($total, $item->lineTotal(), 2);
             }
 
             $entries[] = [
@@ -116,8 +131,8 @@ class ClientDebitService
                 'date'      => $shipment->shipment_datetime?->toISOString(),
                 'reference' => 'Hisob faktura #'.$shipment->id,
                 'notes'     => $shipment->notes,
-                'debit'     => round($total, 2),
-                'credit'    => 0.0,
+                'debit'     => $total,
+                'credit'    => '0.00',
                 'source_id' => $shipment->id,
                 'pdf_url'   => $shipment->invoice_path
                     ? Storage::disk('public')->url($shipment->invoice_path)
@@ -126,6 +141,8 @@ class ClientDebitService
         }
 
         // ── Collect payment entries ───────────────────────────────────────
+        // Payment::where(...) applies the SoftDeletes global scope, so a
+        // voided payment (step 06) is correctly excluded here.
         $payments = Payment::where('client_id', $client->id)
             ->orderBy('created_at')
             ->get();
@@ -136,8 +153,8 @@ class ClientDebitService
                 'date'      => $payment->created_at?->toISOString(),
                 'reference' => 'To\'lov #'.$payment->id,
                 'notes'     => $payment->notes,
-                'debit'     => 0.0,
-                'credit'    => round((float) $payment->amount, 2),
+                'debit'     => '0.00',
+                'credit'    => (string) $payment->getRawOriginal('amount'),
                 'source_id' => $payment->id,
                 'pdf_url'   => null,
             ];
@@ -147,22 +164,22 @@ class ClientDebitService
         usort($entries, fn ($a, $b) => strcmp($a['date'] ?? '', $b['date'] ?? ''));
 
         // ── Compute running balance ───────────────────────────────────────
-        $running = 0.0;
+        $running = '0.00';
         foreach ($entries as &$entry) {
-            $running += $entry['debit'] - $entry['credit'];
-            $entry['running_balance'] = round($running, 2);
+            $running = bcadd(bcsub($running, $entry['credit'], 2), $entry['debit'], 2);
+            $entry['running_balance'] = $running;
         }
         unset($entry);
 
         // ── Summary ───────────────────────────────────────────────────────
-        $totalDebit  = round(array_sum(array_column($entries, 'debit')),  2);
-        $totalCredit = round(array_sum(array_column($entries, 'credit')), 2);
+        $totalDebit  = array_reduce($entries, fn ($carry, $e) => bcadd($carry, $e['debit'], 2), '0.00');
+        $totalCredit = array_reduce($entries, fn ($carry, $e) => bcadd($carry, $e['credit'], 2), '0.00');
 
         return [
             'summary' => [
                 'total_debit'  => $totalDebit,
                 'total_credit' => $totalCredit,
-                'balance'      => round($totalDebit - $totalCredit, 2),
+                'balance'      => bcsub($totalDebit, $totalCredit, 2),
             ],
             'ledger' => $entries,
         ];

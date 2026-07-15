@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\ProductEdge;
 use App\Models\ProductionBatchItem;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
@@ -12,6 +13,7 @@ use App\Models\WarehouseDocumentItem;
 use App\Models\WarehouseDocumentPhoto;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class WarehouseDocumentService
@@ -136,6 +138,7 @@ class WarehouseDocumentService
             $variant = $this->variantService->findOrCreate(
                 $itemData['product_color_id'],
                 $itemData['product_size_id'] ?? null,
+                $itemData['product_edge_id'] ?? $this->defaultEdgeId(),
             );
 
             $item = $document->items()->create([
@@ -218,12 +221,21 @@ class WarehouseDocumentService
         foreach ($items as $index => $itemData) {
             $productColorId = $itemData['product_color_id'];
             $sizeId         = $itemData['product_size_id'] ?? null;
+            $edgeId         = $itemData['product_edge_id'] ?? $this->defaultEdgeId();
 
+            // Mirrors findOrCreate()'s resolution exactly (color, size, edge) so
+            // the check and the write in syncItems() can never resolve to
+            // different variants.
             $variant = ProductVariant::where('product_color_id', $productColorId)
                 ->when(
                     $sizeId !== null,
                     fn ($q) => $q->where('product_size_id', $sizeId),
                     fn ($q) => $q->whereNull('product_size_id'),
+                )
+                ->when(
+                    $edgeId !== null,
+                    fn ($q) => $q->where('product_edge_id', $edgeId),
+                    fn ($q) => $q->whereNull('product_edge_id'),
                 )
                 ->first();
 
@@ -246,6 +258,20 @@ class WarehouseDocumentService
         }
     }
 
+    /**
+     * The client does not send product_edge_id on warehouse documents
+     * (verified: tgc_client's WarehouseDocumentItemEntity has no edge field).
+     * Every existing variant was backfilled to the 'R' edge
+     * (2026_06_07_000002), so defaulting here — rather than to null/whereNull,
+     * which matches nothing post-backfill — is what stops findOrCreate() from
+     * minting a duplicate NULL-edge variant per document. See
+     * instructions/phase-1/04-pass-product-edge-id-warehouse.md.
+     */
+    private function defaultEdgeId(): ?int
+    {
+        return ProductEdge::where('code', 'R')->value('id');
+    }
+
     private function getStock(int $variantId): int
     {
         $base = StockMovement::where('product_variant_id', $variantId);
@@ -265,6 +291,11 @@ class WarehouseDocumentService
      * FIFO: distribute received quantity across production batch items for a variant.
      * Targets batches with produced items that haven't been received yet.
      * Includes cancelled batches because produced items still exist physically.
+     *
+     * Throws if the warehouse is receiving more than production recorded —
+     * accepting the stock movement and silently dropping the unallocated
+     * remainder is worse than rejecting the document. See
+     * instructions/phase-1/07-symmetric-fifo-allocation.md.
      */
     private function creditProductionBatchItems(int $variantId, int $quantity): void
     {
@@ -288,10 +319,22 @@ class WarehouseDocumentService
             $batchItem->increment('warehouse_received_quantity', $credit);
             $remaining -= $credit;
         }
+
+        if ($remaining > 0) {
+            $this->reportAllocationShortfall(sprintf(
+                'Cannot allocate %d of %d received units for variant %d: production batch items '
+                . 'only account for %d unreceived units. The warehouse is receiving more than '
+                . 'production recorded.',
+                $remaining, $quantity, $variantId, $quantity - $remaining
+            ), $variantId, 'credit');
+        }
     }
 
     /**
-     * LIFO: undo previously credited warehouse_received_quantity (used on reversal).
+     * FIFO: undo previously credited warehouse_received_quantity (used on reversal).
+     *
+     * Must walk the same order as creditProductionBatchItems, or a reversal
+     * debits a different batch item than the one the original credit filled.
      */
     private function debitProductionBatchItems(int $variantId, int $quantity): void
     {
@@ -301,7 +344,7 @@ class WarehouseDocumentService
 
         $batchItems = ProductionBatchItem::where('product_variant_id', $variantId)
             ->where('warehouse_received_quantity', '>', 0)
-            ->orderByDesc('id')
+            ->orderBy('id')
             ->lockForUpdate()
             ->get();
 
@@ -314,6 +357,38 @@ class WarehouseDocumentService
             $batchItem->decrement('warehouse_received_quantity', $debit);
             $remaining -= $debit;
         }
+
+        if ($remaining > 0) {
+            $this->reportAllocationShortfall(sprintf(
+                'Cannot debit %d of %d units for variant %d: production batch items only hold '
+                . '%d received units. The reversal exceeds what was credited.',
+                $remaining, $quantity, $variantId, $quantity - $remaining
+            ), $variantId, 'debit');
+        }
+    }
+
+    /**
+     * Gated behind config('warehouse.enforce_allocation_check') — log-only
+     * until the reconciliation query in reconcile-before-deploy.sql has been
+     * run against production and the mismatch rate is understood. If the
+     * warehouse routinely receives more than production recorded, this is
+     * normal operating procedure, not a rare fault, and throwing blind would
+     * stop the goods-in desk. See
+     * instructions/phase-1/07-symmetric-fifo-allocation.md "Rollback".
+     */
+    private function reportAllocationShortfall(string $message, int $variantId, string $direction): void
+    {
+        if (! config('warehouse.enforce_allocation_check', false)) {
+            Log::warning('warehouse.allocation.would_reject', [
+                'variant_id' => $variantId,
+                'direction'  => $direction,
+                'message'    => $message,
+            ]);
+
+            return;   // remainder stays silently dropped, exactly as before
+        }
+
+        throw ValidationException::withMessages(['items' => [$message]]);
     }
 
     /**

@@ -24,7 +24,12 @@ class RawMaterialStockMovementResource extends JsonResource
             ]),
             'date_time'   => $this->date_time?->toISOString(),
             'type'        => $this->type,
-            'quantity'    => $this->quantity,
+            // decimal:3 (step 08) makes the model attribute a string; cast back
+            // to float here so the API keeps returning a JSON number. The
+            // Flutter client parses this as `(json['quantity'] as num)`, which
+            // throws on a JSON string. See
+            // instructions/phase-1/08-raw-material-validation-decimal.md.
+            'quantity'    => (float) $this->quantity,
             'notes'       => $this->notes,
             'created_at'  => $this->created_at?->toISOString(),
         ];

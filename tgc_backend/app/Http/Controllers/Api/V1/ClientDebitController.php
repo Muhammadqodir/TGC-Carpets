@@ -25,9 +25,13 @@ class ClientDebitController extends Controller
     {
         $paginator = $this->service->getSummaries(
             filters: [
-                'search'      => $request->input('search'),
-                'region'      => $request->input('region'),
-                'has_balance' => $request->boolean('has_balance'),
+                'search'          => $request->input('search'),
+                'region'          => $request->input('region'),
+                'has_balance'     => $request->boolean('has_balance'),
+                // Soft-deleted clients with an outstanding balance always show
+                // (step 06); this additionally surfaces zero-balance deleted
+                // clients when explicitly asked for.
+                'include_deleted' => $request->boolean('include_deleted'),
             ],
             perPage: $this->perPage($request),
         );

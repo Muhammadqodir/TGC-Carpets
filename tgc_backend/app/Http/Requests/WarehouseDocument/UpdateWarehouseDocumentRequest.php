@@ -28,6 +28,7 @@ class UpdateWarehouseDocumentRequest extends FormRequest
             'items.*.product_id'        => ['required_with:items', 'integer', 'exists:products,id'],
             'items.*.product_color_id'  => ['required_with:items', 'integer', 'exists:product_colors,id'],
             'items.*.product_size_id'   => ['nullable', 'integer', 'exists:product_sizes,id'],
+            'items.*.product_edge_id'   => ['nullable', 'integer', 'exists:product_edges,id'],
             'items.*.quantity'          => ['required_with:items', 'integer', 'min:1'],
             'items.*.source_type'       => ['nullable', 'string', Rule::in(['shipment_item', 'production_batch_item'])],
             'items.*.source_id'         => ['nullable', 'integer', 'min:1'],

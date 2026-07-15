@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\ProductVariant;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
 use App\Models\StockMovement;
@@ -38,11 +39,13 @@ class ShipmentService
      */
     public function create(array $data, int $userId): Shipment
     {
-        $this->assertSufficientStock($data['items']);
-
         $warehouseDocId = null;
 
         $shipment = DB::transaction(function () use ($data, $userId, &$warehouseDocId): Shipment {
+            // Inside the transaction, and holding row locks, so the balance we
+            // read is the balance we write against. See instructions/phase-1/03.
+            $requestedPerVariant = $this->assertSufficientStock($data['items']);
+
             $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
             // ── 1. Shipment header ──────────────────────────────────────────
@@ -68,6 +71,15 @@ class ShipmentService
                 $variantId = (int) $itemData['product_variant_id'];
                 $qty       = (int) $itemData['quantity'];
                 $price     = (float) $itemData['price'];
+
+                if (! array_key_exists($variantId, $requestedPerVariant)) {
+                    // Cannot happen unless the check and the write disagree about
+                    // the payload. If it ever does, fail loudly inside the
+                    // transaction rather than write stock nobody validated.
+                    throw new \LogicException(
+                        "Variant {$variantId} was written but never stock-checked."
+                    );
+                }
 
                 $shipmentItem = ShipmentItem::create([
                     'shipment_id'         => $shipment->id,
@@ -401,18 +413,53 @@ class ShipmentService
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private function assertSufficientStock(array $items): void
+    /**
+     * @param  array<int, array{product_variant_id: int|string, quantity: int|string}>  $items
+     * @return array<int, int>  variantId => total requested, for reuse by the caller
+     *
+     * INTERIM (phase-1 step 03): product_variants is a proxy lock. The real
+     * balance is a SUM over stock_movements. Every writer must take this lock
+     * for it to mean anything — WarehouseDocumentService currently does not.
+     * Phase-2 replaces this with a lockable product_variant_stock balance row.
+     */
+    private function assertSufficientStock(array $items): array
     {
-        $errors = [];
+        // Sum every line per variant BEFORE checking. Two lines of the same
+        // variant must be checked against their combined total.
+        $requestedPerVariant = [];
+        $lineIndexes         = [];
 
         foreach ($items as $index => $itemData) {
-            $variantId    = (int) $itemData['product_variant_id'];
-            $requested    = (int) $itemData['quantity'];
+            $variantId = (int) $itemData['product_variant_id'];
+            $requestedPerVariant[$variantId] = ($requestedPerVariant[$variantId] ?? 0) + (int) $itemData['quantity'];
+            $lineIndexes[$variantId][]       = $index;
+        }
+
+        // Lock all involved variant rows in a stable order to avoid deadlocks
+        // between two shipments touching an overlapping set of variants.
+        $variantIds = array_keys($requestedPerVariant);
+        sort($variantIds);
+
+        ProductVariant::whereIn('id', $variantIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $errors = [];
+
+        foreach ($requestedPerVariant as $variantId => $requested) {
             $currentStock = $this->getStock($variantId);
 
             if ($currentStock < $requested) {
-                $errors["items.{$index}.quantity"] = [
-                    "Insufficient stock for variant ID {$variantId}. Available: {$currentStock}, Requested: {$requested}.",
+                // Attach the error to the first line for this variant so the UI
+                // has somewhere to put it.
+                $firstIndex = $lineIndexes[$variantId][0];
+                $lineCount  = count($lineIndexes[$variantId]);
+
+                $errors["items.{$firstIndex}.quantity"] = [
+                    $lineCount > 1
+                        ? "Insufficient stock for variant ID {$variantId}. Available: {$currentStock}, Requested: {$requested} across {$lineCount} lines."
+                        : "Insufficient stock for variant ID {$variantId}. Available: {$currentStock}, Requested: {$requested}.",
                 ];
             }
         }
@@ -420,6 +467,8 @@ class ShipmentService
         if (! empty($errors)) {
             throw ValidationException::withMessages($errors);
         }
+
+        return $requestedPerVariant;
     }
 
     private function getStock(int $variantId): int
