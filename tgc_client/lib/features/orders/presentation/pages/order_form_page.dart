@@ -611,32 +611,28 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                       ),
                     ),
                     // ── Totals summary ─────────────────────────────────────────
+                    // Reads live matrix quantities (ctrl.totalQtyForSize), not
+                    // the unused per-row quantityCtrl, so it stays in sync with
+                    // every keystroke in the matrix (ctrl notifies on each cell
+                    // edit and the whole body is wrapped in a ListenableBuilder).
                     Builder(builder: (context) {
-                      final filled = ctrl.filledItems;
-                      final totalQty = filled.fold(
-                        0,
-                        (sum, r) =>
-                            sum + (int.tryParse(r.quantityCtrl.text) ?? 1),
-                      );
-                      final totalSqm = filled.fold(0.0, (sum, r) {
-                        final qty = int.tryParse(r.quantityCtrl.text) ?? 1;
-                        if (r.selectedSize != null) {
-                          return sum +
-                              r.selectedSize!.length *
-                                  r.selectedSize!.width *
-                                  qty /
-                                  10000.0;
-                        }
-                        if (r.prefilledSizeLength != null &&
-                            r.prefilledSizeWidth != null) {
-                          return sum +
-                              r.prefilledSizeLength! *
-                                  r.prefilledSizeWidth! *
-                                  qty /
-                                  10000.0;
-                        }
-                        return sum;
-                      });
+                      var totalQty = 0;
+                      var totalSqm = 0.0;
+                      final lengthByWidth = <int, double>{};
+                      for (final size in ctrl.matrixSizeColumns) {
+                        final qty = ctrl.totalQtyForSize(size.id);
+                        if (qty == 0) continue;
+                        totalQty += qty;
+                        totalSqm += qty * size.length * size.width / 10000.0;
+                        final lengthM = qty * size.length / 100.0;
+                        lengthByWidth.update(
+                          size.width,
+                          (v) => v + lengthM,
+                          ifAbsent: () => lengthM,
+                        );
+                      }
+                      final sortedWidths = lengthByWidth.keys.toList()..sort();
+
                       return DesktopStatusBar(
                         child: Row(
                           children: [
@@ -649,6 +645,32 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                               label: 'Jami m²',
                               value: '${totalSqm.toStringAsFixed(2)} m²',
                             ),
+                            if (sortedWidths.isNotEmpty) ...[
+                              const SizedBox(width: 16),
+                              Container(
+                                width: 1,
+                                height: 16,
+                                color: AppColors.divider,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      for (final w in sortedWidths) ...[
+                                        _TotalChip(
+                                          label: 'K$w',
+                                          value:
+                                              '${lengthByWidth[w]!.toStringAsFixed(1)} m',
+                                        ),
+                                        const SizedBox(width: 16),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       );
