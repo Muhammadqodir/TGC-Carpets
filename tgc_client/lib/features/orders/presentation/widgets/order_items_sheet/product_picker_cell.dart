@@ -30,6 +30,8 @@ class ProductPickerCell extends StatelessWidget {
         ? '$rawName [$displayEdgeCode]'
         : rawName;
     final displayColor = row.selectedColor?.colorName ?? row.prefilledColorName;
+    final qualityName =
+        row.selectedProduct?.productQuality?.qualityName ?? row.prefilledQualityName;
     return InkWell(
       onTap: () async {
         final oldColorId = row.selectedColor?.id ?? row.prefilledColorId;
@@ -76,11 +78,14 @@ class ProductPickerCell extends StatelessWidget {
         ),
         child: Row(
           children: [
-            AppThumbnail(
-              imageUrl:
-                  row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl,
-              size: 26,
-              borderRadius: 4,
+            Tooltip(
+              message: qualityName != null ? 'Sifat: $qualityName' : 'Sifat: —',
+              child: AppThumbnail(
+                imageUrl:
+                    row.selectedColor?.imageUrl ?? row.prefilledColorImageUrl,
+                size: 26,
+                borderRadius: 4,
+              ),
             ),
             const SizedBox(width: 6),
             Expanded(
