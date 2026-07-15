@@ -94,7 +94,25 @@ WHERE pb.status = 'completed'
 -- conversation with production about whether the shortfall is real.
 
 
--- ── 6. STRUCT-1 (context, not fixed in phase 0) — split-stock variants ──────
+-- ── 6. phase-0/12 — production orphaned from its order by an order edit ─────
+-- production_batch_items.source_order_item_id is nullOnDelete; editing an
+-- order's item list deletes and recreates order_items, silently orphaning
+-- the link to any production already tracked against them. Real production
+-- (quantities > 0) with source_type = 'order_item' but no order link left
+-- is a batch item this bug already hit.
+SELECT id, production_batch_id, product_variant_id,
+       planned_quantity, produced_quantity, defect_quantity, warehouse_received_quantity
+FROM production_batch_items
+WHERE source_order_item_id IS NULL
+  AND source_type = 'order_item'
+  AND (produced_quantity > 0 OR defect_quantity > 0);
+-- Any row: this batch item's progress is invisible to whatever order it was
+-- originally produced for — the order's progress screen and its
+-- auto-complete check both read as if this production never happened.
+-- See phase-0/12-guard-order-item-deletion.md.
+
+
+-- ── 7. STRUCT-1 (context, not fixed in phase 0) — split-stock variants ──────
 -- Not part of phase 0 (fix lands in phase-1/04–05), but worth running once
 -- so the owner has the number: the same physical variant registered twice
 -- because the warehouse path omits product_edge_id.

@@ -56,7 +56,9 @@ data. The code changes below stop the bleeding; they don't rewrite history.
 
 ## Step 2 — deploy the backend as one release
 
-All eleven phase-0 backend fixes are already bundled as a single set of
+All twelve phase-0 backend fixes (the 11 audited ones plus
+`12-guard-order-item-deletion.md`, found live during dev testing) are
+already bundled as a single set of
 changes (this is intentional — see "Order of operations that actually
 matters" in `instructions/README.md`: `phase-0/02` must land no later than
 `phase-0/04` in the same deploy, or the endpoint briefly becomes a live
@@ -104,7 +106,12 @@ first five minutes, before you consider the deploy done:
    starting + 200 (phase-0/02). Use a variant nobody else is touching.
 5. Scan one real, physically-printed QR label with the Flutter app →
    expect the item to resolve, not a 400 (phase-0/11).
-6. Tail the log for the first hour: `tail -f storage/logs/laravel.log` —
+6. Edit an order that already has production linked to it (change any
+   field, submit the full `items` array as the client normally does) →
+   expect 422 with the Uzbek message, and confirm the linked batch item's
+   `source_order_item_id` is unchanged afterward, not silently nulled
+   (phase-0/12).
+7. Tail the log for the first hour: `tail -f storage/logs/laravel.log` —
    watch specifically for the `defect_quantity decrement skipped` warning
    (phase-0/05), which means a defect document was deleted against an
    already-drifted counter and tells you the reconciliation query in step 1
