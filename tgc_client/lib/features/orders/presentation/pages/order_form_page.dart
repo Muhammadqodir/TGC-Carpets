@@ -660,7 +660,7 @@ class _OrderFormBodyState extends State<_OrderFormBody> {
                                     children: [
                                       for (final w in sortedWidths) ...[
                                         _TotalChip(
-                                          label: 'K$w',
+                                          label: 'E$w',
                                           value:
                                               '${lengthByWidth[w]!.toStringAsFixed(1)} m',
                                         ),

@@ -95,6 +95,20 @@ class ProductColorController extends Controller
             'image'    => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
+        if (isset($validated['color_id']) && $validated['color_id'] !== $productColor->color_id) {
+            $duplicate = ProductColor::where('product_id', $productColor->product_id)
+                ->where('color_id', $validated['color_id'])
+                ->where('id', '!=', $productColor->id)
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'message' => 'This product already has that color assigned.',
+                    'errors' => ['color_id' => ['This product already has that color assigned.']],
+                ], 422);
+            }
+        }
+
         $data = collect($validated)->except('image')->toArray();
 
         if ($request->hasFile('image')) {

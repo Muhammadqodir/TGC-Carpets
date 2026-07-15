@@ -9,6 +9,7 @@ use App\Models\ProductColor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ColorController extends Controller
@@ -58,12 +59,32 @@ class ColorController extends Controller
         $usageCount = $color->productColors()->count();
 
         if ($usageCount > 0) {
-            $request->validate([
-                'replace_with_id' => ['required', 'integer', Rule::exists('colors', 'id')],
+            $validated = $request->validate([
+                'replace_with_id' => [
+                    'required',
+                    'integer',
+                    Rule::exists('colors', 'id'),
+                    Rule::notIn([$color->id]),
+                ],
             ]);
 
-            ProductColor::where('color_id', $color->id)
-                ->update(['color_id' => $request->replace_with_id]);
+            DB::transaction(function () use ($color, $validated) {
+                ProductColor::where('color_id', $color->id)
+                    ->get()
+                    ->each(function (ProductColor $productColor) use ($validated) {
+                        $duplicate = ProductColor::where('product_id', $productColor->product_id)
+                            ->where('color_id', $validated['replace_with_id'])
+                            ->exists();
+
+                        if ($duplicate) {
+                            // Product already has the replacement color; drop the
+                            // now-redundant row instead of colliding on the unique key.
+                            $productColor->delete();
+                        } else {
+                            $productColor->update(['color_id' => $validated['replace_with_id']]);
+                        }
+                    });
+            });
         }
 
         $color->delete();
