@@ -62,12 +62,34 @@ class ProductSizeController extends Controller
         $usageCount = $productSize->variants()->count();
 
         if ($usageCount > 0) {
-            $request->validate([
-                'replace_with_id' => ['required', 'integer', Rule::exists('product_sizes', 'id')],
+            $validated = $request->validate([
+                'replace_with_id' => [
+                    'required',
+                    'integer',
+                    Rule::exists('product_sizes', 'id'),
+                    Rule::notIn([$productSize->id]),
+                ],
             ]);
 
+            $conflict = ProductVariant::where('product_size_id', $productSize->id)
+                ->whereExists(function ($query) use ($validated) {
+                    $query->selectRaw('1')
+                        ->from('product_variants as pv2')
+                        ->whereRaw('pv2.product_color_id <=> product_variants.product_color_id')
+                        ->whereRaw('pv2.product_edge_id <=> product_variants.product_edge_id')
+                        ->where('pv2.product_size_id', $validated['replace_with_id']);
+                })
+                ->first();
+
+            if ($conflict) {
+                return response()->json([
+                    'message' => 'Cannot merge: some products already have a variant with the replacement size (e.g. variant #'.$conflict->id.'). Resolve the conflicting variant manually before deleting this size.',
+                    'errors' => ['replace_with_id' => ['A conflicting variant already exists for the replacement size.']],
+                ], 422);
+            }
+
             ProductVariant::where('product_size_id', $productSize->id)
-                ->update(['product_size_id' => $request->replace_with_id]);
+                ->update(['product_size_id' => $validated['replace_with_id']]);
         }
 
         $productSize->delete();
