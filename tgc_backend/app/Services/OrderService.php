@@ -62,6 +62,20 @@ class OrderService
                     );
                 }
 
+                // Guard: production_batch_items.source_order_item_id is
+                // nullOnDelete, so deleting order items here would not error —
+                // it would silently sever the link to whatever's already been
+                // produced against them (the production_batch_items rows and
+                // their quantities survive, just orphaned). The order then
+                // gets fresh item ids that no batch points at, which reads as
+                // "production progress reset". Same shape as phase-0/06;
+                // refuse instead of silently orphaning.
+                if ($order->items()->whereHas('productionBatchItems')->exists()) {
+                    throw new \DomainException(
+                        'Buyurtma qatorlari ishlab chiqarish partiyasiga bog\'langan. Mahsulot ro\'yxatini o\'zgartirib bo\'lmaydi.'
+                    );
+                }
+
                 $order->items()->delete();
                 $this->syncItems($order, $data['items']);
             }
