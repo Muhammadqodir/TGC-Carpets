@@ -29,11 +29,13 @@ class LabelingRepositoryImpl implements LabelingRepository {
   Future<Either<Failure, LabelingItemEntity>> printLabel({
     required int batchId,
     required int itemId,
+    required String idempotencyKey,
   }) async {
     try {
       final result = await remoteDataSource.printLabel(
         batchId: batchId,
         itemId: itemId,
+        idempotencyKey: idempotencyKey,
       );
       return Right(result);
     } on NetworkException catch (e) {

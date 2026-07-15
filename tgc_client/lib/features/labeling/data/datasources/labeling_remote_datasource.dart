@@ -10,6 +10,7 @@ abstract class LabelingRemoteDataSource {
   Future<LabelingItemModel> printLabel({
     required int batchId,
     required int itemId,
+    required String idempotencyKey,
   });
 }
 
@@ -35,10 +36,12 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
   Future<LabelingItemModel> printLabel({
     required int batchId,
     required int itemId,
+    required String idempotencyKey,
   }) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.productionBatchItemPrintLabel(batchId, itemId),
+        data: {'idempotency_key': idempotencyKey},
       );
       final body = response.data as Map<String, dynamic>;
       return LabelingItemModel.fromJson(body['data'] as Map<String, dynamic>);

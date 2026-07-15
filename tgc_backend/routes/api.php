@@ -70,6 +70,12 @@ Route::prefix('v1')->group(function (): void {
 
         // Production Analytics (produced items statistics)
         Route::get('analytics/production', [ProductionAnalyticsController::class, 'index'])->name('analytics.production');
+        // Phase 2 step 04 rollout tool — legacy vs event-sourced numbers, admin-only.
+        // Temporary: remove along with the legacy path once ANALYTICS_SOURCE=events
+        // has shipped and been confirmed. See instructions/phase-2/04.
+        Route::get('analytics/production/compare', [ProductionAnalyticsController::class, 'compare'])
+            ->middleware('role:admin')
+            ->name('analytics.production.compare');
 
         // Products  — admin + warehouse can write; seller read-only enforced via Policy later
         // Literal sub-routes must be declared before apiResource to avoid {product} capture.

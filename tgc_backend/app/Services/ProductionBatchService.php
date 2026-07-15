@@ -6,6 +6,8 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
+use App\Models\ProductionEvent;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -183,14 +185,50 @@ class ProductionBatchService
     }
 
     /**
-     * Atomically increment produced_quantity by 1 (label print action).
+     * Atomically increment produced_quantity by 1 (label print action), and
+     * append a 'produced' event to the log in the same transaction — see
+     * instructions/phase-2/01-production-events-table.md.
+     *
+     * When $idempotencyKey is given, a retried print with the same key is a
+     * no-op replay: the unique index (not a SELECT-then-insert, which races)
+     * detects the duplicate and the method returns the current state without
+     * incrementing a second time. See
+     * instructions/phase-2/02-idempotency-key.md.
+     *
      * After incrementing, checks whether all items in the batch have
      * produced_quantity >= (planned_quantity - defect_quantity).
      * If so, the batch is automatically transitioned to completed.
      */
-    public function incrementProducedQuantity(ProductionBatchItem $item): ProductionBatchItem
-    {
-        DB::transaction(function () use ($item): void {
+    public function incrementProducedQuantity(
+        ProductionBatchItem $item,
+        int $userId,
+        ?string $idempotencyKey = null,
+    ): ProductionBatchItem {
+        DB::transaction(function () use ($item, $userId, $idempotencyKey): void {
+            $eventData = [
+                'production_batch_item_id' => $item->id,
+                'event_type'               => ProductionEvent::TYPE_PRODUCED,
+                'quantity'                 => 1,
+                'occurred_at'              => now(),
+                'user_id'                  => $userId,
+                'idempotency_key'          => $idempotencyKey,
+                'created_at'               => now(),
+            ];
+
+            if ($idempotencyKey !== null) {
+                try {
+                    ProductionEvent::create($eventData);
+                } catch (QueryException $e) {
+                    if ($this->isDuplicateKey($e)) {
+                        return;   // replay: event already recorded, do NOT increment
+                    }
+                    throw $e;
+                }
+            } else {
+                // Legacy client: no key. Record the event, accept the double-count risk.
+                ProductionEvent::create($eventData);
+            }
+
             $item->increment('produced_quantity');
 
             $batch = ProductionBatch::lockForUpdate()->find($item->production_batch_id);
@@ -220,16 +258,68 @@ class ProductionBatchService
         ]);
     }
 
+    private function isDuplicateKey(QueryException $e): bool
+    {
+        return ($e->errorInfo[1] ?? null) === 1062;   // MySQL ER_DUP_ENTRY
+    }
+
     /**
      * Update quantities on a single batch item (during production).
+     *
+     * This sets counters directly from a manual form, with no event behind
+     * it by construction. Per instructions/phase-2/06-production-reconcile-command.md
+     * §5, every call here is guaranteed drift unless it appends a
+     * 'correction'/'defect' event for the delta itself — so it does, inside
+     * the same locked transaction, before writing the new value. This turns
+     * a silent manual override into an auditable adjustment.
      */
-    public function updateItem(ProductionBatchItem $item, array $data): ProductionBatchItem
+    public function updateItem(ProductionBatchItem $item, array $data, int $userId): ProductionBatchItem
     {
-        $item->update(array_filter([
-            'produced_quantity' => $data['produced_quantity'] ?? null,
-            'defect_quantity'   => $data['defect_quantity'] ?? null,
-            'notes'             => array_key_exists('notes', $data) ? $data['notes'] : null,
-        ], fn ($v) => $v !== null));
+        DB::transaction(function () use ($item, $data, $userId): void {
+            $locked = ProductionBatchItem::lockForUpdate()->find($item->id);
+
+            $updates = [];
+
+            if (array_key_exists('produced_quantity', $data) && $data['produced_quantity'] !== null) {
+                $delta = (int) $data['produced_quantity'] - $locked->produced_quantity;
+                if ($delta !== 0) {
+                    ProductionEvent::create([
+                        'production_batch_item_id' => $locked->id,
+                        'event_type'               => ProductionEvent::TYPE_CORRECTION,
+                        'quantity'                 => $delta,
+                        'occurred_at'              => now(),
+                        'user_id'                  => $userId,
+                        'reason'                   => 'manual adjustment via production-batches items.update',
+                        'created_at'               => now(),
+                    ]);
+                }
+                $updates['produced_quantity'] = $data['produced_quantity'];
+            }
+
+            if (array_key_exists('defect_quantity', $data) && $data['defect_quantity'] !== null) {
+                $delta = (int) $data['defect_quantity'] - $locked->defect_quantity;
+                if ($delta !== 0) {
+                    ProductionEvent::create([
+                        'production_batch_item_id' => $locked->id,
+                        'event_type'               => ProductionEvent::TYPE_DEFECT,
+                        'quantity'                 => $delta,
+                        'occurred_at'              => now(),
+                        'user_id'                  => $userId,
+                        'reason'                   => 'manual adjustment via production-batches items.update',
+                        'created_at'               => now(),
+                    ]);
+                }
+                $updates['defect_quantity'] = $data['defect_quantity'];
+            }
+
+            if (array_key_exists('notes', $data) && $data['notes'] !== null) {
+                $updates['notes'] = $data['notes'];
+            }
+
+            if ($updates !== []) {
+                $locked->update($updates);
+            }
+        });
 
         return $item->fresh()->load([
             'variant.productColor.product.productType',

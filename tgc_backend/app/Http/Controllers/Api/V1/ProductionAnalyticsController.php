@@ -39,4 +39,32 @@ class ProductionAnalyticsController extends Controller
             ...$report,
         ]))->response();
     }
+
+    /**
+     * GET /api/v1/analytics/production/compare
+     *
+     * Admin-only diagnostic for phase-2 step 04's rollout: legacy vs
+     * event-sourced numbers side by side, with the per-period delta. Not
+     * for general use — deliberately not exposed to normal roles, and
+     * intended to be deleted along with the legacy path once
+     * ANALYTICS_SOURCE=events has shipped and been confirmed. See
+     * instructions/phase-2/04-repoint-analytics-to-occurred-at.md "Rollout".
+     */
+    public function compare(ProductionAnalyticsRequest $request): JsonResponse
+    {
+        $result = $this->analyticsService->compare(
+            from:    $request->periodFrom(),
+            to:      $request->periodTo(),
+            trendBy: $request->trendBy(),
+        );
+
+        return response()->json([
+            'period' => [
+                'from'     => $request->periodFrom(),
+                'to'       => $request->periodTo(),
+                'trend_by' => $request->trendBy(),
+            ],
+            ...$result,
+        ]);
+    }
 }

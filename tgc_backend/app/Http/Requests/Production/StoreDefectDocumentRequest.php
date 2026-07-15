@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Production;
 
-use App\Models\DefectDocumentItem;
 use App\Models\ProductionBatchItem;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -44,20 +43,27 @@ class StoreDefectDocumentRequest extends FormRequest
                     continue;
                 }
 
-                $produced        = (int) ($batchItem->produced_quantity ?? 0);
-                $available       = max(0, $batchItem->planned_quantity - $produced);
+                $produced          = (int) ($batchItem->produced_quantity ?? 0);
+                $defected          = (int) ($batchItem->defect_quantity ?? 0);
+                $warehouseReceived = (int) ($batchItem->warehouse_received_quantity ?? 0);
 
-                // Sum of quantities already registered in other defect documents for this batch item
-                $alreadyDefected = (int) DefectDocumentItem::where('production_batch_item_id', $batchItemId)
-                    ->sum('quantity');
+                // Defects may come from EITHER the unproduced remainder OR from
+                // produced-but-not-yet-received units (a finished carpet condemned
+                // by QC). See instructions/phase-2/05-defect-and-scrap-as-events.md
+                // (PROD-4) — the old formula only allowed defects on carpets that
+                // were never made, which rejected every defect on a fully labelled
+                // batch.
+                $unproducedRemainder = max(0, $batchItem->planned_quantity - $produced - $defected);
+                $scrappableProduced  = max(0, $produced - $warehouseReceived);
 
-                $remaining = max(0, $available - $alreadyDefected);
+                $remaining = $unproducedRemainder + $scrappableProduced;
 
                 if ($quantity > $remaining) {
                     $validator->errors()->add(
                         "items.{$index}.quantity",
                         "Nuxson miqdori ({$quantity}) ruxsat etilgan chegaradan ({$remaining}) oshib ketdi. "
-                        . "Reja: {$batchItem->planned_quantity}, Tayor: {$produced}, Avvalgi nuxson: {$alreadyDefected}.",
+                        . "Reja: {$batchItem->planned_quantity}, Tayor: {$produced}, "
+                        . "Nuxson: {$defected}, Omborda: {$warehouseReceived}.",
                     );
                 }
             }

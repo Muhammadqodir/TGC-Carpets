@@ -9,5 +9,6 @@ abstract class LabelingRepository {
   Future<Either<Failure, LabelingItemEntity>> printLabel({
     required int batchId,
     required int itemId,
+    required String idempotencyKey,
   });
 }

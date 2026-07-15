@@ -25,6 +25,7 @@ class ShipmentService
 {
     public function __construct(
         private readonly WarehousePdfService $warehousePdfService,
+        private readonly ProductVariantStockService $stockService,
     ) {}
 
     /**
@@ -105,6 +106,7 @@ class ShipmentService
                     'quantity'                   => $qty,
                     'movement_date'              => $shipmentDate->toDateString(),
                 ]);
+                $this->stockService->applyDelta($variantId, StockMovement::TYPE_OUT, $qty);
             }
 
             // ── 4. Update order status if fully shipped ─────────────────────

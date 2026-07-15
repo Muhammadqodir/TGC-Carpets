@@ -192,7 +192,7 @@ class ProductionBatchController extends Controller
             return response()->json(['message' => 'Item does not belong to this batch.'], 404);
         }
 
-        $updated = $this->service->updateItem($item, $request->validated());
+        $updated = $this->service->updateItem($item, $request->validated(), $request->user()->id);
 
         return response()->json(['data' => new ProductionBatchItemResource($updated)]);
     }
@@ -294,8 +294,15 @@ class ProductionBatchController extends Controller
     /**
      * POST /production-batches/{productionBatch}/items/{item}/print-label
      * Atomically increments produced_quantity by 1.
+     *
+     * idempotency_key is optional (nullable) so old app builds that send no
+     * body keep working during rollout — see
+     * instructions/phase-2/02-idempotency-key.md. A retried print with the
+     * same key returns 200 with the unchanged current state instead of
+     * incrementing twice.
      */
     public function printLabel(
+        Request $request,
         ProductionBatch $productionBatch,
         ProductionBatchItem $item,
     ): JsonResponse {
@@ -303,7 +310,15 @@ class ProductionBatchController extends Controller
             return response()->json(['message' => 'Item does not belong to this batch.'], 404);
         }
 
-        $updated = $this->service->incrementProducedQuantity($item);
+        $validated = $request->validate([
+            'idempotency_key' => ['nullable', 'uuid'],
+        ]);
+
+        $updated = $this->service->incrementProducedQuantity(
+            $item,
+            $request->user()->id,
+            $validated['idempotency_key'] ?? null,
+        );
 
         return response()->json(['data' => new ProductionBatchItemResource($updated)]);
     }

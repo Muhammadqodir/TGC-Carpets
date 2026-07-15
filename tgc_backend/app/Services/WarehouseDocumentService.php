@@ -21,6 +21,7 @@ class WarehouseDocumentService
     public function __construct(
         private readonly ProductVariantService $variantService,
         private readonly WarehousePdfService $pdfService,
+        private readonly ProductVariantStockService $stockService,
     ) {}
 
     /**
@@ -170,6 +171,7 @@ class WarehouseDocumentService
                 'movement_date'              => $document->document_date,
                 'notes'                      => $document->notes,
             ]);
+            $this->stockService->applyDelta($variant->id, $movementType, (int) $itemData['quantity']);
 
             if ($document->type === WarehouseDocument::TYPE_IN) {
                 $this->creditProductionBatchItems($variant->id, (int) $itemData['quantity']);
@@ -198,15 +200,18 @@ class WarehouseDocumentService
                 continue;
             }
 
+            $reversalType = $net > 0 ? StockMovement::TYPE_OUT : StockMovement::TYPE_IN;
+
             StockMovement::create([
                 'product_variant_id'         => $item->product_variant_id,
                 'warehouse_document_item_id' => $item->id,
                 'user_id'                    => $userId,
-                'movement_type'              => $net > 0 ? StockMovement::TYPE_OUT : StockMovement::TYPE_IN,
+                'movement_type'              => $reversalType,
                 'quantity'                   => abs($net),
                 'movement_date'              => $document->document_date,
                 'notes'                      => "Reversal of document #{$document->id}",
             ]);
+            $this->stockService->applyDelta($item->product_variant_id, $reversalType, abs($net));
 
             if ($net > 0) {
                 $this->debitProductionBatchItems($item->product_variant_id, abs($net));

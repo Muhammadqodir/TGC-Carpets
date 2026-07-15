@@ -6,19 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Production\StoreDefectDocumentRequest;
 use App\Http\Resources\DefectDocumentResource;
 use App\Models\DefectDocument;
-use App\Models\DefectDocumentItem;
-use App\Models\DefectDocumentPhoto;
 use App\Models\ProductionBatch;
-use App\Models\ProductionBatchItem;
+use App\Services\DefectDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class DefectDocumentController extends Controller
 {
+    public function __construct(private readonly DefectDocumentService $service) {}
+
     /**
      * GET /production-batches/{productionBatch}/defect-documents
      */
@@ -39,40 +36,16 @@ class DefectDocumentController extends Controller
         StoreDefectDocumentRequest $request,
         ProductionBatch $productionBatch,
     ): JsonResponse {
-        $document = DB::transaction(function () use ($request, $productionBatch): DefectDocument {
-            $document = DefectDocument::create([
-                'production_batch_id' => $productionBatch->id,
-                'user_id'             => $request->user()->id,
-                'datetime'            => $request->input('datetime') ?? now(),
-                'description'         => $request->input('description'),
-            ]);
-
-            foreach ($request->input('items', []) as $itemData) {
-                DefectDocumentItem::create([
-                    'defect_document_id'       => $document->id,
-                    'production_batch_item_id' => $itemData['production_batch_item_id'],
-                    'quantity'                 => $itemData['quantity'],
-                ]);
-
-                ProductionBatchItem::where('id', $itemData['production_batch_item_id'])
-                    ->increment('defect_quantity', $itemData['quantity']);
-            }
-
-            if ($request->hasFile('photos')) {
-                foreach ($request->file('photos') as $photo) {
-                    $path = $photo->store('defect-documents', 'public');
-                    DefectDocumentPhoto::create([
-                        'defect_document_id' => $document->id,
-                        'path'               => $path,
-                    ]);
-                }
-            }
-
-            // Check if all items are processed (produced + defect = planned)
-            $this->checkAndCompleteProductionBatch($productionBatch);
-
-            return $document;
-        });
+        $document = $this->service->create(
+            $productionBatch,
+            [
+                'datetime'    => $request->input('datetime'),
+                'description' => $request->input('description'),
+                'items'       => $request->input('items', []),
+            ],
+            $request->hasFile('photos') ? $request->file('photos') : [],
+            $request->user()->id,
+        );
 
         $document->load(['user', 'items.productionBatchItem.variant.productColor.product', 'items.productionBatchItem.variant.productColor.color', 'items.productionBatchItem.variant.productSize', 'items.productionBatchItem.variant.productEdge', 'photos']);
 
@@ -92,63 +65,10 @@ class DefectDocumentController extends Controller
     /**
      * DELETE /defect-documents/{defectDocument}
      */
-    public function destroy(DefectDocument $defectDocument): JsonResponse
+    public function destroy(Request $request, DefectDocument $defectDocument): JsonResponse
     {
-        DB::transaction(function () use ($defectDocument): void {
-            // Must run before delete() — the cascade removes the items we need to read.
-            $defectDocument->loadMissing('items');
-
-            foreach ($defectDocument->items as $item) {
-                $decremented = ProductionBatchItem::where('id', $item->production_batch_item_id)
-                    ->where('defect_quantity', '>=', $item->quantity)
-                    ->decrement('defect_quantity', $item->quantity);
-
-                if (! $decremented) {
-                    Log::warning('defect_quantity decrement skipped — counter already below document quantity', [
-                        'production_batch_item_id' => $item->production_batch_item_id,
-                        'document_id'               => $defectDocument->id,
-                        'quantity'                  => $item->quantity,
-                    ]);
-                }
-            }
-
-            // Delete stored photo files
-            foreach ($defectDocument->photos as $photo) {
-                Storage::disk('public')->delete($photo->path);
-            }
-
-            $defectDocument->delete();
-        });
+        $this->service->delete($defectDocument, $request->user()->id);
 
         return response()->json(['message' => 'Nuxson hujjati o\'chirildi.']);
-    }
-
-    /**
-     * Check if all items in the batch are processed and update status to completed
-     */
-    private function checkAndCompleteProductionBatch(ProductionBatch $productionBatch): void
-    {
-        // Only check if batch is in_progress
-        if ($productionBatch->status !== ProductionBatch::STATUS_IN_PROGRESS) {
-            return;
-        }
-
-        // Get fresh data for all items in the batch
-        $items = ProductionBatchItem::where('production_batch_id', $productionBatch->id)->get();
-
-        // Check if all items are processed (produced + defect = planned)
-        $allProcessed = $items->every(function ($item) {
-            $produced = $item->produced_quantity ?? 0;
-            $defect = $item->defect_quantity ?? 0;
-            return ($produced + $defect) >= $item->planned_quantity;
-        });
-
-        // If all items are processed, mark the batch as completed
-        if ($allProcessed) {
-            $productionBatch->update([
-                'status' => ProductionBatch::STATUS_COMPLETED,
-                'completed_datetime' => now(),
-            ]);
-        }
     }
 }
