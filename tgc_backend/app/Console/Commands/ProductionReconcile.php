@@ -64,7 +64,7 @@ class ProductionReconcile extends Command
             ProductionEvent::PRODUCED_TYPES,
         ));
 
-        $query = DB::table('production_batch_items as i')
+        $inner = DB::table('production_batch_items as i')
             ->leftJoin('production_events as e', 'e.production_batch_item_id', '=', 'i.id')
             ->selectRaw(
                 "i.id,
@@ -81,11 +81,17 @@ class ProductionReconcile extends Command
                    - COALESCE(SUM(CASE WHEN e.event_type = 'defect' THEN e.quantity END), 0) AS defect_drift"
             )
             ->when($itemId !== null, fn ($q) => $q->where('i.id', (int) $itemId))
-            ->groupBy('i.id', 'i.production_batch_id', 'i.produced_quantity', 'i.defect_quantity')
-            ->havingRaw('produced_drift <> 0 OR defect_drift <> 0')
-            ->orderByRaw('ABS(produced_drift) + ABS(defect_drift) DESC');
+            ->groupBy('i.id', 'i.production_batch_id', 'i.produced_quantity', 'i.defect_quantity');
 
-        return $query->get();
+        // MariaDB (unlike MySQL) rejects HAVING on an alias that is itself
+        // derived from a group function in the same query — wrap the
+        // aggregation in a subquery so produced_drift/defect_drift are
+        // plain derived-table columns by the time they're filtered/ordered.
+        return DB::table(DB::raw("({$inner->toSql()}) as t"))
+            ->mergeBindings($inner)
+            ->whereRaw('produced_drift <> 0 OR defect_drift <> 0')
+            ->orderByRaw('ABS(produced_drift) + ABS(defect_drift) DESC')
+            ->get();
     }
 
     private function itemCount(): int

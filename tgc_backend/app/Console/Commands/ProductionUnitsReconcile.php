@@ -39,7 +39,7 @@ class ProductionUnitsReconcile extends Command
             ProductionUnit::PRODUCED_STATUSES,
         ));
 
-        $query = DB::table('production_batch_items as i')
+        $inner = DB::table('production_batch_items as i')
             ->leftJoin('production_units as u', 'u.production_batch_item_id', '=', 'i.id')
             ->selectRaw(
                 "i.id,
@@ -53,11 +53,17 @@ class ProductionUnitsReconcile extends Command
             )
             ->where('i.produced_quantity', '>', 0)
             ->when($this->option('item') !== null, fn ($q) => $q->where('i.id', (int) $this->option('item')))
-            ->groupBy('i.id', 'i.production_batch_id', 'i.produced_quantity')
-            ->havingRaw('drift <> 0')
-            ->orderByRaw('ABS(drift) DESC');
+            ->groupBy('i.id', 'i.production_batch_id', 'i.produced_quantity');
 
-        $drifted = $query->get();
+        // MariaDB (unlike MySQL) rejects HAVING on an alias that is itself
+        // derived from a group function in the same query — wrap the
+        // aggregation in a subquery so 'drift' is a plain derived-table
+        // column by the time it's filtered/ordered.
+        $drifted = DB::table(DB::raw("({$inner->toSql()}) as t"))
+            ->mergeBindings($inner)
+            ->whereRaw('drift <> 0')
+            ->orderByRaw('ABS(drift) DESC')
+            ->get();
         $totalItems = DB::table('production_batch_items')->where('produced_quantity', '>', 0)->count();
 
         if ($drifted->isEmpty()) {

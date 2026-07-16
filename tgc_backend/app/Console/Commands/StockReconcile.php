@@ -95,7 +95,7 @@ class StockReconcile extends Command
                  COALESCE(s.quantity, 0) - COALESCE(m.qty, 0) AS drift'
             )
             ->when($variantId !== null, fn ($q) => $q->where('v.id', (int) $variantId))
-            ->havingRaw('COALESCE(s.quantity, 0) <> COALESCE(m.qty, 0)')
+            ->whereRaw('COALESCE(s.quantity, 0) <> COALESCE(m.qty, 0)')
             ->orderByRaw('ABS(COALESCE(s.quantity, 0) - COALESCE(m.qty, 0)) DESC');
 
         return $query->get();
