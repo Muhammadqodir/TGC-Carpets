@@ -181,7 +181,7 @@ class ProductionBatchTable extends StatelessWidget {
                   onPressed: () => onView!(batch),
                   tooltip: 'Tafsilotlar',
                 ),
-              if (batch.status == 'planned' && onEdit != null) ...[
+              if (batch.status != 'completed' && onEdit != null) ...[
                 const SizedBox(width: 4),
                 IconButton(
                   icon: HugeIcon(
@@ -192,7 +192,7 @@ class ProductionBatchTable extends StatelessWidget {
                   tooltip: 'Tahrirlash',
                 ),
               ],
-              if (batch.status == 'planned' && onDelete != null) ...[
+              if (batch.status != 'completed' && onDelete != null) ...[
                 const SizedBox(width: 4),
                 IconButton(
                   icon: HugeIcon(
@@ -288,7 +288,7 @@ class ProductionBatchTable extends StatelessWidget {
                   ],
                 ),
               ),
-            if (batch.status == 'planned' && onEdit != null)
+            if (batch.status != 'completed' && onEdit != null)
               PopupMenuItem(
                 value: 'edit',
                 child: Row(
@@ -303,7 +303,7 @@ class ProductionBatchTable extends StatelessWidget {
                   ],
                 ),
               ),
-            if (batch.status == 'planned' && onDelete != null)
+            if (batch.status != 'completed' && onDelete != null)
               PopupMenuItem(
                 value: 'delete',
                 child: Row(
@@ -349,7 +349,6 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'planned' => ('Rejalashtirilgan', AppColors.textSecondary),
       'in_progress' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
       'completed' => ('Bajarildi', AppColors.success),
       'cancelled' => ('Bekor qilindi', AppColors.error),

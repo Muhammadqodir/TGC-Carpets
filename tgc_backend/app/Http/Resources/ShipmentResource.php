@@ -14,6 +14,13 @@ class ShipmentResource extends JsonResource
             'id'                => $this->id,
             'shipment_datetime' => $this->shipment_datetime?->toISOString(),
             'notes'             => $this->notes,
+            'currency'          => $this->currency,
+            'currency_symbol'   => $this->resource->currencySymbol(),
+            'exchange_rate'     => $this->exchange_rate,
+            'vat_rate'          => $this->vat_rate,
+            'vat_amount'        => $this->vat_amount,
+            'subtotal'          => $this->whenLoaded('items', fn () => $this->resource->subtotal()),
+            'total'             => $this->whenLoaded('items', fn () => $this->resource->total()),
             'pdf_url'           => $this->pdf_path
                 ? Storage::disk('public')->url($this->pdf_path)
                 : null,

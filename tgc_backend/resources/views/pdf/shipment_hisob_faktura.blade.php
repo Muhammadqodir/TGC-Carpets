@@ -201,15 +201,16 @@
                     <th class="right" style="width: 10%;">m²</th>
                     <th class="right" style="width: 8%;">Miqdor</th>
                     <th class="right" style="width: 10%;">Jami m²</th>
-                    <th class="right" style="width: 10%;">Narx ($)</th>
-                    <th class="right" style="width: 10%;">Jami ($)</th>
+                    <th class="right" style="width: 10%;">Narx ({{ $shipment->currencySymbol() }})</th>
+                    <th class="right" style="width: 10%;">Jami ({{ $shipment->currencySymbol() }})</th>
                 </tr>
             </thead>
             <tbody>
                 @php
-                    $grandTotalSqm   = 0;
-                    $grandTotalQty   = 0;
-                    $grandTotalPrice = 0;
+                    $grandTotalSqm    = 0;
+                    $grandTotalQty    = 0;
+                    $grandTotalPrice  = 0;
+                    $grandTotalDiscount = 0;
                 @endphp
                 @foreach ($shipment->items as $index => $item)
                     @php
@@ -232,9 +233,10 @@
 
                         $lineTotal = (float) $item->lineTotal();
 
-                        $grandTotalSqm   += $sqmTotal;
-                        $grandTotalQty   += $qty;
-                        $grandTotalPrice += $lineTotal;
+                        $grandTotalSqm      += $sqmTotal;
+                        $grandTotalQty      += $qty;
+                        $grandTotalPrice    += $lineTotal;
+                        $grandTotalDiscount += (float) $item->discountAmount();
                     @endphp
                     <tr>
                         <td>{{ $index + 1 }}</td>
@@ -263,8 +265,8 @@
                                 —
                             @endif
                         </td>
-                        <td class="right">{{ number_format($price, 2) }} $</td>
-                        <td class="right">{{ number_format($lineTotal, 2) }} $</td>
+                        <td class="right">{{ number_format($price, 2) }} {{ $shipment->currencySymbol() }}</td>
+                        <td class="right">{{ number_format($lineTotal, 2) }} {{ $shipment->currencySymbol() }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -283,10 +285,32 @@
                     <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalSqm, 2) }} m²</td>
                 </tr>
                 @endif
+                {{--
+                    Discount/VAT rows only render when non-zero, so an
+                    existing (undiscounted, no-VAT) invoice reprints
+                    byte-identically. See
+                    instructions/phase-3/04-currency-vat-discount.md.
+                --}}
+                @if ($grandTotalDiscount > 0)
+                <tr>
+                    <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Chegirma</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">-{{ number_format($grandTotalDiscount, 2) }} {{ $shipment->currencySymbol() }}</td>
+                </tr>
+                @endif
                 <tr>
                     <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Jami summa</td>
-                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalPrice, 2) }} $</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalPrice, 2) }} {{ $shipment->currencySymbol() }}</td>
                 </tr>
+                @if ((float) $shipment->vat_amount > 0)
+                <tr>
+                    <td class="total-label" style="margin-top: 0px; padding-top: 0px;">QQS ({{ number_format((float) $shipment->vat_rate * 100, 1) }}%)</td>
+                    <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format((float) $shipment->vat_amount, 2) }} {{ $shipment->currencySymbol() }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label total-border">Umumiy summa (QQS bilan)</td>
+                    <td class="total-value total-border">{{ number_format($grandTotalPrice + (float) $shipment->vat_amount, 2) }} {{ $shipment->currencySymbol() }}</td>
+                </tr>
+                @endif
             </table>
         </div>
 

@@ -11,6 +11,7 @@ use App\Http\Resources\ProductionBatchItemResource;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
+use App\Models\ProductionUnit;
 use App\Services\ProductionBatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -91,11 +92,21 @@ class ProductionBatchController extends Controller
         return response()->json(['data' => new ProductionBatchResource($updated)]);
     }
 
+    /**
+     * A batch may be deleted as long as it is not completed. The service's
+     * assertNoRecordedProduction() is the real gate — nothing can be
+     * deleted once a label has been printed, a defect logged, or a
+     * warehouse receipt applied to any of its items; cancel it instead.
+     * See instructions/phase-3/03-fix-batch-state-machine.md (Path B).
+     * Previously this checked `status !== STATUS_PLANNED`, a state no
+     * batch could ever be in (create() always forced in_progress), which
+     * made deletion unreachable for every batch that has ever existed.
+     */
     public function destroy(ProductionBatch $productionBatch): JsonResponse
     {
-        if ($productionBatch->status !== ProductionBatch::STATUS_PLANNED) {
+        if ($productionBatch->status === ProductionBatch::STATUS_COMPLETED) {
             return response()->json(
-                ['message' => 'Only planned batches can be deleted.'],
+                ['message' => 'Completed batches cannot be deleted.'],
                 422,
             );
         }
@@ -103,27 +114,6 @@ class ProductionBatchController extends Controller
         $this->service->delete($productionBatch);
 
         return response()->json(['message' => 'Production batch deleted.']);
-    }
-
-    /**
-     * POST /production-batches/{productionBatch}/start
-     */
-    public function start(Request $request, ProductionBatch $productionBatch): JsonResponse
-    {
-        if ($productionBatch->status !== ProductionBatch::STATUS_PLANNED) {
-            return response()->json(['message' => 'Batch can only be started from planned status.'], 422);
-        }
-
-        $validated = $request->validate([
-            'responsible_employee_id' => ['required', 'integer', 'exists:users,id'],
-        ]);
-
-        $updated = $this->service->start(
-            $productionBatch,
-            $validated['responsible_employee_id'],
-        );
-
-        return response()->json(['data' => new ProductionBatchResource($updated)]);
     }
 
     /**
@@ -293,13 +283,21 @@ class ProductionBatchController extends Controller
 
     /**
      * POST /production-batches/{productionBatch}/items/{item}/print-label
-     * Atomically increments produced_quantity by 1.
+     * Atomically increments produced_quantity by 1 and mints (or, if
+     * `serial` is given and already exists, reprints) a per-carpet unit
+     * serial — see instructions/phase-3/02-production-units-serials.md.
      *
      * idempotency_key is optional (nullable) so old app builds that send no
      * body keep working during rollout — see
      * instructions/phase-2/02-idempotency-key.md. A retried print with the
      * same key returns 200 with the unchanged current state instead of
      * incrementing twice.
+     *
+     * `serial` is also optional and unrelated to idempotency_key: it names
+     * an EXISTING unit being relabelled (a jammed printer, a damaged
+     * label), not a retry of this request. Old app builds send neither
+     * field and get exactly today's behaviour plus a freshly-minted,
+     * currently-unused unit row.
      */
     public function printLabel(
         Request $request,
@@ -312,32 +310,76 @@ class ProductionBatchController extends Controller
 
         $validated = $request->validate([
             'idempotency_key' => ['nullable', 'uuid'],
+            'serial'          => ['nullable', 'string', 'regex:/^TGC-U-\d{8}$/'],
         ]);
 
-        $updated = $this->service->incrementProducedQuantity(
+        $result = $this->service->incrementProducedQuantity(
             $item,
             $request->user()->id,
             $validated['idempotency_key'] ?? null,
+            $validated['serial'] ?? null,
         );
 
-        return response()->json(['data' => new ProductionBatchItemResource($updated)]);
+        return response()->json([
+            'data' => new ProductionBatchItemResource($result['item']),
+            'unit' => $result['unit'] ? [
+                'serial'        => $result['unit']->serial,
+                'reprint_count' => $result['unit']->reprint_count,
+            ] : null,
+        ]);
     }
 
     /**
      * GET /production-batches/scan?code={code}
-     * Scan QR/barcode in format: PB{batchId} PBI{itemId}
-     * Returns detailed info about the produced item.
+     *
+     * Two formats, resolved to the same response shape:
+     *   TGC-U-\d{8}                        — a single-carpet unit serial
+     *                                         (instructions/phase-3/02).
+     *   P{batchId} I{itemId} / PB.. PBI..  — a batch-line code (both
+     *                                         accepted since phase-0/11).
+     *
+     * Correction to the phase-3 brief: unlike when that instruction file
+     * was written, the batch-line format is NOT dead — phase-0 already
+     * fixed it and it is in active use — so the unit-serial format is
+     * added ALONGSIDE it, not as a replacement.
      */
     public function scanItem(Request $request): JsonResponse
     {
-        $code = $request->input('code');
+        $code = trim((string) $request->input('code'));
+
+        if (preg_match('/^TGC-U-\d{8}$/', $code)) {
+            $unit = ProductionUnit::with([
+                    'batchItem.productionBatch' => fn ($q) => $q->with(['machine', 'creator', 'responsibleEmployee']),
+                    'batchItem.variant.productColor.product.productType',
+                    'batchItem.variant.productColor.product.productQuality',
+                    'batchItem.variant.productColor.color',
+                    'batchItem.variant.productSize',
+                    'batchItem.variant.productEdge',
+                    'batchItem.sourceOrderItem.order.client',
+                ])
+                ->where('serial', $code)
+                ->first();
+
+            if (! $unit) {
+                return response()->json(['message' => 'Unit not found.'], 404);
+            }
+
+            return response()->json(
+                $this->buildScanResponse($unit->batchItem, [
+                    'serial'        => $unit->serial,
+                    'status'        => $unit->status,
+                    'printed_at'    => $unit->printed_at?->toISOString(),
+                    'reprint_count' => $unit->reprint_count,
+                ])
+            );
+        }
 
         // Accept both formats physically printed on labels:
         //   P{batchId} I{itemId}      — labeling_page.dart, all existing physical labels
         //   PB{batchId} PBI{itemId}   — the originally documented format
         // Anchored, so garbage before/after the code is rejected rather than parsed.
-        if (!preg_match('/^P(?:B)?\{?(\d+)\}?\s+(?:PB)?I\{?(\d+)\}?$/i', trim((string) $code), $matches)) {
-            return response()->json(['message' => 'QR kod formati noto\'g\'ri. Kutilgan format: P{batchId} I{itemId}'], 400);
+        if (!preg_match('/^P(?:B)?\{?(\d+)\}?\s+(?:PB)?I\{?(\d+)\}?$/i', $code, $matches)) {
+            return response()->json(['message' => 'QR kod formati noto\'g\'ri. Kutilgan format: TGC-U-00000000 yoki P{batchId} I{itemId}'], 400);
         }
 
         $batchId = (int) $matches[1];
@@ -360,7 +402,16 @@ class ProductionBatchController extends Controller
             return response()->json(['message' => 'Production item not found.'], 404);
         }
 
-        // Build response with all required data
+        return response()->json($this->buildScanResponse($item));
+    }
+
+    /**
+     * Shared by both scan formats. $unit is null for a batch-line scan
+     * (the eager-load list is the same either way, with `batchItem.`
+     * prepended for the unit path — see scanItem()).
+     */
+    private function buildScanResponse(ProductionBatchItem $item, ?array $unit = null): array
+    {
         $batch = $item->productionBatch;
         $variant = $item->variant;
         $productColor = $variant->productColor;
@@ -369,8 +420,9 @@ class ProductionBatchController extends Controller
         $size = $variant->productSize;
         $orderItem = $item->sourceOrderItem;
 
-        return response()->json([
+        return [
             'data' => [
+                'unit' => $unit,
                 'item' => [
                     'id'                          => $item->id,
                     'planned_quantity'            => $item->planned_quantity,
@@ -413,6 +465,6 @@ class ProductionBatchController extends Controller
                     'type' => 'warehouse',
                 ],
             ],
-        ]);
+        ];
     }
 }

@@ -23,13 +23,17 @@ class ProductionBatch extends Model
         self::TYPE_MIXED,
     ];
 
-    const STATUS_PLANNED     = 'planned';
+    /**
+     * 'planned' was removed from this enum in phase-3/03. create() always
+     * forced STATUS_IN_PROGRESS regardless of the column's default, so no
+     * batch has ever been 'planned' — see
+     * instructions/phase-3/03-fix-batch-state-machine.md (Path B).
+     */
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_COMPLETED   = 'completed';
     const STATUS_CANCELLED   = 'cancelled';
 
     const STATUSES = [
-        self::STATUS_PLANNED,
         self::STATUS_IN_PROGRESS,
         self::STATUS_COMPLETED,
         self::STATUS_CANCELLED,

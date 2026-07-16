@@ -20,6 +20,15 @@ class UpdateWarehouseDocumentRequest extends FormRequest
             // may only be submitted together with 'items' (a full item replacement) —
             // never on its own. See instructions/phase-0/03.
             'type'               => ['sometimes', 'required', 'string', Rule::in(WarehouseDocument::TYPES), 'required_with:items'],
+            // See StoreWarehouseDocumentRequest — not required for the same
+            // reason (old client compatibility); a missing/omitted value
+            // leaves the document's existing direction untouched, or
+            // defaults to 'in' for a new adjustment. See
+            // instructions/phase-3/05-signed-adjustment-documents.md.
+            'direction'          => [
+                'nullable',
+                Rule::in([WarehouseDocument::DIRECTION_IN, WarehouseDocument::DIRECTION_OUT]),
+            ],
             'document_date'      => ['sometimes', 'required', 'date'],
             'notes'              => ['nullable', 'string'],
 

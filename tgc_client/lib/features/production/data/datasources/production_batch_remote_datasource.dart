@@ -44,8 +44,6 @@ abstract class ProductionBatchRemoteDataSource {
 
   Future<ProductionBatchItemEntity> getProductionBatchItem(int batchId, int itemId);
 
-  Future<ProductionBatchModel> startBatch(int id, {required int responsibleEmployeeId});
-
   Future<ProductionBatchModel> cancelBatch(int id);
 
   Future<void> deleteProductionBatch(int id);
@@ -212,28 +210,6 @@ class ProductionBatchRemoteDataSourceImpl
       final response =
           await _dio.get(ApiEndpoints.productionBatchItemById(batchId, itemId));
       return ProductionBatchModel.parseItem(
-        (response.data as Map<String, dynamic>)['data']
-            as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      _handleDioError(e);
-    }
-  }
-
-  @override
-  Future<ProductionBatchModel> startBatch(
-    int id, {
-    required int responsibleEmployeeId,
-  }) async {
-    try {
-      final body = <String, dynamic>{
-        'responsible_employee_id': responsibleEmployeeId,
-      };
-      final response = await _dio.post(
-        ApiEndpoints.productionBatchStart(id),
-        data: body,
-      );
-      return ProductionBatchModel.fromJson(
         (response.data as Map<String, dynamic>)['data']
             as Map<String, dynamic>,
       );

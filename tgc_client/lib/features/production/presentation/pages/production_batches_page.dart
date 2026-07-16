@@ -301,7 +301,6 @@ class _StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final planned = state.batches.where((b) => b.status == 'planned').length;
     final inProgress =
         state.batches.where((b) => b.status == 'in_progress').length;
     final completed =
@@ -316,12 +315,6 @@ class _StatusBar extends StatelessWidget {
             label: 'Jami',
             value: '${state.total}',
             color: AppColors.textPrimary,
-          ),
-          const SizedBox(width: 20),
-          _StatItem(
-            label: 'Rejalashtirilgan',
-            value: '$planned',
-            color: AppColors.textSecondary,
           ),
           const SizedBox(width: 20),
           _StatItem(

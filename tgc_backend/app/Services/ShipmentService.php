@@ -26,6 +26,7 @@ class ShipmentService
     public function __construct(
         private readonly WarehousePdfService $warehousePdfService,
         private readonly ProductVariantStockService $stockService,
+        private readonly StockReservationService $reservationService,
     ) {}
 
     /**
@@ -49,6 +50,15 @@ class ShipmentService
 
             $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
+            // currency/exchange_rate/vat_rate default to the pre-phase-3
+            // behaviour exactly (USD, rate 1, no VAT) for every request
+            // that does not send them — which is every request today, since
+            // no client build sends these fields yet. See
+            // instructions/phase-3/04-currency-vat-discount.md.
+            $currency     = $data['currency']      ?? Shipment::BASE_CURRENCY;
+            $exchangeRate = $data['exchange_rate']  ?? 1;
+            $vatRate      = $data['vat_rate']       ?? 0;
+
             // ── 1. Shipment header ──────────────────────────────────────────
             $shipment = Shipment::create([
                 'client_id'          => $data['client_id'],
@@ -56,6 +66,12 @@ class ShipmentService
                 'order_id'           => $data['order_id'] ?? null,
                 'shipment_datetime'  => $shipmentDate,
                 'notes'              => $data['notes'] ?? null,
+                'currency'           => $currency,
+                'exchange_rate'      => $exchangeRate,
+                'vat_rate'           => $vatRate,
+                // vat_amount is filled in after items are written — it is
+                // round(subtotal x vat_rate, 2), and subtotal is not known
+                // until every line's gross/discount has been computed below.
             ]);
 
             // ── 2. Companion warehouse OUT document ─────────────────────────
@@ -68,6 +84,7 @@ class ShipmentService
             $warehouseDocId = $warehouseDoc->id;
 
             // ── 3. Items ────────────────────────────────────────────────────
+            $subtotal = '0.00';
             foreach ($data['items'] as $itemData) {
                 $variantId = (int) $itemData['product_variant_id'];
                 $qty       = (int) $itemData['quantity'];
@@ -88,7 +105,29 @@ class ShipmentService
                     'product_variant_id'  => $variantId,
                     'quantity'            => $qty,
                     'price'               => $price,
+                    'discount_type'       => $itemData['discount_type']  ?? 'none',
+                    'discount_value'      => $itemData['discount_value'] ?? 0,
                 ]);
+
+                // discount_amount is the FROZEN cash value — computed once
+                // here from gross (itself rounded once, at line 60-something
+                // of ShipmentItem::grossAmount()) and discount_type/value,
+                // then stored so a future rounding-rule change cannot alter
+                // what an already-issued invoice printed. Defaults to 0.00
+                // for every request that omits discount fields, which is
+                // every request today. See
+                // instructions/phase-3/04-currency-vat-discount.md.
+                $shipmentItem->update(['discount_amount' => $shipmentItem->discountAmount()]);
+                $subtotal = bcadd($subtotal, $shipmentItem->lineTotal(), 2);
+
+                // Shipping must reduce `physical` (below, via the normal
+                // stock_movement path) and `reserved` by the same amount, so
+                // `available` does not move — the goods left, but so did the
+                // claim on them. A missing/exhausted reservation is not an
+                // error; shipping must never be blocked by a reservation
+                // bookkeeping gap. See
+                // instructions/phase-3/07-stock-reservations.md.
+                $this->reservationService->consumeForOrderItem((int) $itemData['order_item_id'], $qty);
 
                 $docItem = WarehouseDocumentItem::create([
                     'warehouse_document_id' => $warehouseDoc->id,
@@ -108,6 +147,14 @@ class ShipmentService
                 ]);
                 $this->stockService->applyDelta($variantId, StockMovement::TYPE_OUT, $qty);
             }
+
+            // vat_amount = round(subtotal x vat_rate, 2) — applied to the
+            // DISCOUNTED subtotal (config('money.vat_applies_to')), computed
+            // once here and frozen. 0.00 whenever vat_rate is 0, which is
+            // every shipment today. See
+            // instructions/phase-3/04-currency-vat-discount.md.
+            $vatAmount = $this->round2(bcmul($subtotal, (string) $vatRate, 8));
+            $shipment->update(['vat_amount' => $vatAmount]);
 
             // ── 4. Update order status if fully shipped ─────────────────────
             if ($shipment->order_id !== null) {
@@ -231,12 +278,16 @@ class ShipmentService
             throw new \Exception('Hisob faktura template not found');
         }
 
-        // Load fresh instance with only minimal required data to avoid memory issues
-        $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes'])
+        // Load fresh instance with only minimal required data to avoid memory issues.
+        // currency/exchange_rate/vat_rate/vat_amount and each item's discount
+        // columns must be explicitly selected here or currencySymbol(),
+        // grossAmount() and discountAmount() silently read null attributes —
+        // see instructions/phase-3/04-currency-vat-discount.md.
+        $shipment = Shipment::select(['id', 'client_id', 'order_id', 'shipment_datetime', 'notes', 'currency', 'exchange_rate', 'vat_rate', 'vat_amount'])
             ->with([
                 'client:id,contact_name,shop_name,phone,address,region',
                 'items' => function ($q) {
-                    $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price']);
+                    $q->select(['id', 'shipment_id', 'product_variant_id', 'quantity', 'price', 'discount_type', 'discount_value', 'discount_amount']);
                 },
                 'items.variant:id,product_color_id,product_size_id,product_edge_id',
                 'items.variant.productColor:id,product_id,color_id',
@@ -399,12 +450,29 @@ class ShipmentService
     /**
      * Return the most recent price charged for a given variant and client.
      * Returns null when no prior shipment exists.
+     *
+     * $currency, when given, restricts the lookup to shipments in that
+     * currency — prefilling last time's price from a shipment in a
+     * DIFFERENT currency is a catastrophic default (offering last time's
+     * 1,200,000 UZS as this time's USD price). $currency defaults to null
+     * (no filter) rather than defaulting to base currency, because every
+     * shipment in the database is 'USD' today and filtering would be a
+     * no-op — this keeps the method's behaviour for the one caller that
+     * exists today (no client sends a currency yet) exactly unchanged,
+     * while giving a future currency-aware caller the real guarantee.
+     * See instructions/phase-3/04-currency-vat-discount.md #5.
+     *
+     * Deliberately reads `price` (pre-discount), not the net/discounted
+     * figure — prefilling a past discount is the mechanism that makes a
+     * one-off concession a permanent price cut (getLastPrice() itself
+     * would keep propagating it forever).
      */
-    public function getLastPrice(int $variantId, int $clientId): ?float
+    public function getLastPrice(int $variantId, int $clientId, ?string $currency = null): ?float
     {
         $price = ShipmentItem::whereHas(
             'shipment',
             fn ($q) => $q->where('client_id', $clientId)
+                ->when($currency !== null, fn ($q2) => $q2->where('currency', $currency))
         )
             ->where('product_variant_id', $variantId)
             ->orderByDesc('created_at')
@@ -471,6 +539,14 @@ class ShipmentService
         }
 
         return $requestedPerVariant;
+    }
+
+    /** bcmath truncates; this rounds half-up, matching ShipmentItem::round2(). */
+    private function round2(string $value): string
+    {
+        $add = str_starts_with($value, '-') ? '-0.005' : '0.005';
+
+        return bcadd($value, $add, 2);
     }
 
     private function getStock(int $variantId): int

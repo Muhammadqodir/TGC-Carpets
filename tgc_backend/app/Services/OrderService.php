@@ -9,6 +9,7 @@ class OrderService
 {
     public function __construct(
         private readonly ProductVariantService $variantService,
+        private readonly StockReservationService $reservationService,
     ) {}
 
     /**
@@ -34,7 +35,7 @@ class OrderService
                 'notes'         => $data['notes'] ?? null,
             ]);
 
-            $this->syncItems($order, $data['items']);
+            $this->syncItems($order, $data['items'], $userId);
 
             return $order->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge']);
         });
@@ -43,15 +44,25 @@ class OrderService
     /**
      * Update order header fields and optionally replace all items.
      */
-    public function update(Order $order, array $data): Order
+    public function update(Order $order, array $data, int $userId): Order
     {
-        return DB::transaction(function () use ($order, $data): Order {
+        return DB::transaction(function () use ($order, $data, $userId): Order {
+            $wasCanceled = $order->status === Order::STATUS_CANCELED;
+
             $order->update(array_filter([
                 'client_id'  => array_key_exists('client_id', $data) ? $data['client_id'] : null,
                 'status'     => $data['status']     ?? null,
                 'order_date' => $data['order_date'] ?? null,
                 'notes'      => array_key_exists('notes', $data) ? $data['notes'] : null,
             ], fn ($v) => $v !== null));
+
+            // Release every active reservation the moment an order is
+            // cancelled — a cancelled order must stop claiming stock other
+            // orders could use. See
+            // instructions/phase-3/07-stock-reservations.md.
+            if (! $wasCanceled && $order->status === Order::STATUS_CANCELED) {
+                $this->reservationService->releaseForOrder($order, 'order_cancelled');
+            }
 
             if (! empty($data['items'])) {
                 // Guard: shipment_items references order_items with restrictOnDelete.
@@ -77,7 +88,7 @@ class OrderService
                 }
 
                 $order->items()->delete();
-                $this->syncItems($order, $data['items']);
+                $this->syncItems($order, $data['items'], $userId);
             }
 
             return $order->fresh()->load(['user', 'client', 'items.variant.productColor.product.productType', 'items.variant.productColor.product.productQuality', 'items.variant.productColor.color', 'items.variant.productSize', 'items.variant.productEdge']);
@@ -97,7 +108,7 @@ class OrderService
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private function syncItems(Order $order, array $items): void
+    private function syncItems(Order $order, array $items, int $userId): void
     {
         foreach ($items as $itemData) {
             $variant = $this->variantService->findOrCreate(
@@ -106,10 +117,16 @@ class OrderService
                 $itemData['product_edge_id'] ?? null,
             );
 
-            $order->items()->create([
+            $orderItem = $order->items()->create([
                 'product_variant_id' => $variant->id,
                 'quantity'           => $itemData['quantity'],
             ]);
+
+            // Reserve unconditionally, even if it pushes `available` negative
+            // — an order for carpets that don't exist yet is the business,
+            // not an error. See
+            // instructions/phase-3/07-stock-reservations.md.
+            $this->reservationService->reserveForOrderItem($orderItem, $userId);
         }
     }
 }

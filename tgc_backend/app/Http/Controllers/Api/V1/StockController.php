@@ -7,6 +7,7 @@ use App\Http\Resources\StockMovementResource;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\WarehouseDocument;
+use App\Services\StockReservationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\Log;
 
 class StockController extends Controller
 {
+    public function __construct(
+        private readonly StockReservationService $reservationService,
+    ) {}
+
     /**
      * GET /api/v1/stock
      *
@@ -163,7 +168,15 @@ class StockController extends Controller
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        $data = collect($results->items())->map(function ($row) {
+        // Real reservations (instructions/phase-3/07-stock-reservations.md),
+        // additive next to the approximation above — NOT replacing it. This
+        // is `reserved` in the available = physical - reserved sense: a
+        // claim made at order time, not a backward-looking count of goods
+        // already produced for an order.
+        $variantIds = collect($results->items())->pluck('id')->all();
+        $activeReservations = $this->reservationService->reservedQuantitiesForVariants($variantIds);
+
+        $data = collect($results->items())->map(function ($row) use ($activeReservations) {
             $reserved = (int) $row->qty_received - (int) $row->qty_shipped;
 
             // A negative reserved quantity is impossible in a consistent
@@ -195,6 +208,13 @@ class StockController extends Controller
                     : null,
                 'quantity_reserved'  => $reserved,
                 'quantity_warehouse' => (int) $row->quantity_warehouse,
+                // The real thing: an active claim made at order time,
+                // regardless of whether anything has been produced yet.
+                // available may be negative — a genuine backorder, not an
+                // error; never clamp it to zero. See
+                // instructions/phase-3/07-stock-reservations.md.
+                'quantity_active_reservations' => $activeReservations[$row->id] ?? 0,
+                'quantity_available'           => (int) $row->quantity_warehouse - ($activeReservations[$row->id] ?? 0),
             ];
         });
 

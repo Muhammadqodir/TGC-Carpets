@@ -22,6 +22,10 @@ class ClientDebitService
         // Subquery: compute shipped amount per client.
         // For m² products: price × (width × length × quantity / 10 000)
         // For piece products: price × quantity
+        // minus si.discount_amount — the frozen, per-line discount from
+        // instructions/phase-3/04-currency-vat-discount.md. Defaults to
+        // 0.00 for every row that predates that column, so this SUM is
+        // byte-identical to before for all existing data.
         //
         // Rounded per line, inside the SUM, before aggregating — this must stay
         // in lockstep with ShipmentItem::lineTotal(). Dividing by 10000 (not
@@ -29,6 +33,16 @@ class ClientDebitService
         // ROUND() rounds half-away-from-zero, matching lineTotal()'s round2().
         // See ShipmentItem::lineTotal() — the two are a knowing duplication;
         // phase-2's balance table removes it for good.
+        //
+        // NOT yet VAT-aware: shipments.vat_amount is a per-shipment (not
+        // per-line) figure, and this subquery aggregates at the line level —
+        // summing vat_amount here would multiply-count it once per line on
+        // any multi-line shipment. Since vat_rate is 0 for every shipment
+        // today (no client sends a non-zero rate yet — see the instruction
+        // file), this is a documented, safe-for-now gap, not a live bug.
+        // Fixing it properly needs a shipment-level pre-aggregation before
+        // this join, which is a bigger change than this pass — do it before
+        // any shipment is created with a non-zero vat_rate.
         $debitSub = DB::table('shipment_items as si')
             ->join('shipments as s',            's.id',  '=', 'si.shipment_id')
             ->join('product_variants as pv',    'pv.id', '=', 'si.product_variant_id')
@@ -47,7 +61,7 @@ class ClientDebitService
                                     si.quantity * si.price
                             END,
                             2
-                        )
+                        ) - si.discount_amount
                     ) AS total_debit
                 ")
             )

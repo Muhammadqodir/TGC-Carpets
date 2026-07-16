@@ -23,9 +23,22 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!--
+            Production runs MySQL and several migrations contain raw MySQL-only
+            DDL (ENUM MODIFY COLUMN etc.) that sqlite cannot parse. Running the
+            suite against a sqlite-shaped schema would test a database this
+            app does not operate, so tests run on a real MySQL schema instead.
+            Every developer needs a local `tgc_testing` database:
+              mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS tgc_testing"
+            CI provisions the same via a service container — see
+            /.github/workflows/ci.yml. See instructions/phase-3/01-tests-and-ci.md.
+        -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="tgc_testing"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_USERNAME" value="root"/>
+        <env name="DB_PASSWORD" value="root"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

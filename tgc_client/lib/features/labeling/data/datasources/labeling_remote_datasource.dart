@@ -44,7 +44,11 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
         data: {'idempotency_key': idempotencyKey},
       );
       final body = response.data as Map<String, dynamic>;
-      return LabelingItemModel.fromJson(body['data'] as Map<String, dynamic>);
+      final unitMap = body['unit'] as Map<String, dynamic>?;
+      return LabelingItemModel.fromJson(
+        body['data'] as Map<String, dynamic>,
+        unitSerial: unitMap?['serial'] as String?,
+      );
     } on DioException catch (e) {
       _handleDioError(e);
     }

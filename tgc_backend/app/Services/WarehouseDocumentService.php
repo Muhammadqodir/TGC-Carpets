@@ -38,13 +38,19 @@ class WarehouseDocumentService
         }
 
         return DB::transaction(function () use ($data, $userId): WarehouseDocument {
-            if ($data['type'] === WarehouseDocument::TYPE_OUT) {
+            // reducesStock() covers both TYPE_OUT and an adjustment with
+            // direction 'out' — an adjustment that mints stock from
+            // nothing is exactly the hole this check used to leave open.
+            // See instructions/phase-3/05-signed-adjustment-documents.md.
+            $movementType = WarehouseDocument::resolveMovementType($data['type'], $data['direction'] ?? null);
+            if ($movementType === StockMovement::TYPE_OUT) {
                 $this->assertSufficientStock($data['items']);
             }
 
             $document = WarehouseDocument::create([
                 'external_uuid' => $data['external_uuid'] ?? null,
                 'type'          => $data['type'],
+                'direction'     => $data['direction'] ?? null,
                 'user_id'       => $userId,
                 'document_date' => $data['document_date'],
                 'notes'         => $data['notes'] ?? null,
@@ -69,14 +75,15 @@ class WarehouseDocumentService
         return DB::transaction(function () use ($document, $data, $userId): WarehouseDocument {
             $document->update(array_filter([
                 'type'          => $data['type']          ?? $document->type,
+                'direction'     => array_key_exists('direction', $data) ? $data['direction'] : $document->direction,
                 'document_date' => $data['document_date'] ?? $document->document_date,
                 'notes'         => array_key_exists('notes', $data) ? $data['notes'] : $document->notes,
             ], fn ($v) => $v !== null));
 
             if (isset($data['items'])) {
-                $effectiveType = $document->fresh()->type;
+                $fresh = $document->fresh();
 
-                if ($effectiveType === WarehouseDocument::TYPE_OUT) {
+                if ($fresh->reducesStock()) {
                     $this->assertSufficientStock($data['items']);
                 }
 
@@ -150,17 +157,11 @@ class WarehouseDocumentService
                 'notes'              => $itemData['notes'] ?? null,
             ]);
 
-            // Map warehouse document types to stock movement types
-            // 'in' → 'in' (stock coming into warehouse)
-            // 'out' → 'out' (stock leaving warehouse)
-            // 'return' → 'in' (returned items add back to stock)
-            // 'adjustment' → 'in' (inventory corrections typically add stock)
-            $movementType = match ($document->type) {
-                WarehouseDocument::TYPE_IN,
-                WarehouseDocument::TYPE_RETURN,
-                WarehouseDocument::TYPE_ADJUSTMENT => StockMovement::TYPE_IN,
-                WarehouseDocument::TYPE_OUT        => StockMovement::TYPE_OUT,
-            };
+            // See WarehouseDocument::movementType() — the single definition
+            // of which way each document type (and, for adjustments, each
+            // direction) moves stock. See
+            // instructions/phase-3/05-signed-adjustment-documents.md.
+            $movementType = $document->movementType();
 
             StockMovement::create([
                 'product_variant_id'         => $variant->id,
@@ -175,7 +176,66 @@ class WarehouseDocumentService
 
             if ($document->type === WarehouseDocument::TYPE_IN) {
                 $this->creditProductionBatchItems($variant->id, (int) $itemData['quantity']);
+
+                // Real serials, when the client sends them — see
+                // instructions/phase-3/02-production-units-serials.md §5.
+                // Optional and additive: a receipt line with no `serials`
+                // behaves exactly as before (quantity trusted as typed,
+                // spread across batch items by creditProductionBatchItems()'s
+                // FIFO guess above). No client sends this yet.
+                if (! empty($itemData['serials'])) {
+                    $this->receiveSerialsForItem($item, $variant->id, $itemData['serials']);
+                }
             }
+        }
+    }
+
+    /**
+     * Mark each scanned unit serial 'received' against this warehouse
+     * document item. Guard rails, all newly expressible because a unit
+     * carries its own variant and status for the first time:
+     *   - reject a serial already 'received' (double receipt)
+     *   - reject a serial whose status is 'defect' or 'scrapped'
+     *   - reject a serial whose variant does not match this line's variant
+     *   - assert count(serials) === quantity
+     */
+    private function receiveSerialsForItem(WarehouseDocumentItem $item, int $variantId, array $serials): void
+    {
+        if (count($serials) !== (int) $item->quantity) {
+            throw ValidationException::withMessages([
+                'items' => ["Expected {$item->quantity} serials, got " . count($serials) . " for item #{$item->id}."],
+            ]);
+        }
+
+        $units = \App\Models\ProductionUnit::whereIn('serial', $serials)
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('serial');
+
+        foreach ($serials as $serial) {
+            $unit = $units->get($serial);
+
+            if (! $unit) {
+                throw ValidationException::withMessages(['items' => ["Unit serial {$serial} not found."]]);
+            }
+
+            if ($unit->status === \App\Models\ProductionUnit::STATUS_RECEIVED
+                || $unit->status === \App\Models\ProductionUnit::STATUS_SHIPPED) {
+                throw ValidationException::withMessages(['items' => ["Unit serial {$serial} was already received."]]);
+            }
+
+            if (in_array($unit->status, [\App\Models\ProductionUnit::STATUS_DEFECT, \App\Models\ProductionUnit::STATUS_SCRAPPED], true)) {
+                throw ValidationException::withMessages(['items' => ["Unit serial {$serial} is {$unit->status} and cannot be received."]]);
+            }
+
+            if ((int) $unit->batchItem->product_variant_id !== $variantId) {
+                throw ValidationException::withMessages(['items' => ["Unit serial {$serial} does not match this line's product/color/size."]]);
+            }
+
+            $unit->update([
+                'status'                     => \App\Models\ProductionUnit::STATUS_RECEIVED,
+                'warehouse_document_item_id' => $item->id,
+            ]);
         }
     }
 

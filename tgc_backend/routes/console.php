@@ -31,3 +31,13 @@ Schedule::command('stock:reconcile')
     ->onFailure(function (): void {
         Log::critical('stock:reconcile — drift detected. See scheduler output / storage/logs/laravel.log.');
     });
+
+// Phase 3 step 02 — nightly drift report between produced_quantity and
+// real ProductionUnit counts. Read-only (no --fix exists for this
+// command at all during the dual-run — see the command's own docblock).
+// Scheduled 10 minutes after the other two so all three do not contend.
+Schedule::command('production:reconcile-units')
+    ->dailyAt('02:55')
+    ->onFailure(function (): void {
+        Log::critical('production:reconcile-units — drift detected. See scheduler output / storage/logs/laravel.log.');
+    });

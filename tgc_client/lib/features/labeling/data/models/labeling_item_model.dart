@@ -23,9 +23,15 @@ class LabelingItemModel extends LabelingItemEntity {
     super.productTypeName,
     super.isTypePrintable = true,
     super.edgeCode,
+    super.unitSerial,
   });
 
-  factory LabelingItemModel.fromJson(Map<String, dynamic> json) {
+  /// `unitSerial` comes from a SIBLING top-level `unit` key in the
+  /// print-label response, not from inside `json` (which is `body['data']`)
+  /// — see LabelingRemoteDataSourceImpl.printLabel(). Absent (and this
+  /// param omitted) for the plain labeling-items list response, which has
+  /// no `unit` key at all.
+  factory LabelingItemModel.fromJson(Map<String, dynamic> json, {String? unitSerial}) {
     final variantMap     = json['variant']              as Map<String, dynamic>?;
     final colorMap       = variantMap?['product_color'] as Map<String, dynamic>?;
     final productMap     = colorMap?['product']         as Map<String, dynamic>?;
@@ -56,6 +62,7 @@ class LabelingItemModel extends LabelingItemEntity {
       productTypeName: productTypeMap?['type'] as String?,
       isTypePrintable: productTypeMap?['is_printable'] as bool? ?? true,
       edgeCode:        edgeMap?['code'] as String?,
+      unitSerial:      unitSerial,
     );
   }
 }

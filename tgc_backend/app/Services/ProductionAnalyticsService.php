@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ProductionBatch;
+use App\Models\ProductionEvent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -93,13 +94,26 @@ class ProductionAnalyticsService
 
         $build = function () use ($source, $from, $to, $trendBy): array {
             return [
-                'summary'    => $this->querySummary($source, $from, $to),
-                'trend'      => $this->queryTrend($source, $from, $to, $trendBy),
-                'by_type'    => $this->queryByType($source, $from, $to),
-                'by_color'   => $this->queryByColor($source, $from, $to),
-                'by_size'    => $this->queryBySize($source, $from, $to),
-                'by_quality' => $this->queryByQuality($source, $from, $to),
-                'by_edge'    => $this->queryByEdge($source, $from, $to),
+                'summary'      => $this->querySummary($source, $from, $to),
+                'trend'        => $this->queryTrend($source, $from, $to, $trendBy),
+                // Dated by defect_documents.datetime (legacy) / production_events.occurred_at
+                // (events) — NEVER production_batch_items.updated_at, which moves on
+                // every write and would bucket a defect on whichever date it was last
+                // touched rather than found. Bucketed on a different clock than
+                // `trend` above under the legacy source; see querySummary()'s docblock.
+                'defect_trend' => $this->queryDefectTrend($source, $from, $to, $trendBy),
+                'by_type'      => $this->queryByType($source, $from, $to),
+                'by_color'     => $this->queryByColor($source, $from, $to),
+                'by_size'      => $this->queryBySize($source, $from, $to),
+                'by_quality'   => $this->queryByQuality($source, $from, $to),
+                'by_edge'      => $this->queryByEdge($source, $from, $to),
+                // by-machine, not by-operator: production_batches.responsible_employee_id
+                // is set to the batch's *creator*, not necessarily who ran the loom
+                // (03-fix-batch-state-machine.md Path B did not change that — no
+                // start() exists to set it at run time). A by-operator defect rate
+                // would name the wrong person, so it is deliberately not shipped
+                // here. See instructions/phase-3/08-defect-rate-and-yield-metrics.md.
+                'by_machine'   => $this->queryByMachine($source, $from, $to),
             ];
         };
 
@@ -180,9 +194,110 @@ class ProductionAnalyticsService
             ->join('products', 'products.id', '=', 'product_colors.product_id')
             ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
             ->where('production_batches.status', '!=', ProductionBatch::STATUS_CANCELLED)
-            ->whereIn('production_events.event_type', ['produced', 'scrap', 'correction'])
+            ->whereIn('production_events.event_type', ProductionEvent::PRODUCED_TYPES)
             ->whereBetween(DB::raw('DATE(production_events.occurred_at)'), [$from, $to])
             ->whereNull('products.deleted_at');
+    }
+
+    /**
+     * Defects, on their own honest clock — see
+     * instructions/phase-3/08-defect-rate-and-yield-metrics.md.
+     *
+     * legacy:  defect_document_items joined to defect_documents.datetime,
+     *          which is set once (useCurrent()) and never touched again —
+     *          unlike production_batch_items.updated_at, which a defect
+     *          write itself moves. Deliberately does NOT carry
+     *          baseQueryLegacy()'s `produced_quantity > 0` filter: a batch
+     *          line that produced nothing but recorded defects is exactly
+     *          the case a defect report must not hide.
+     * events:  production_events where event_type = 'defect', dated by
+     *          occurred_at — already honest, because Phase 2 gave every
+     *          event a real business timestamp that is never rewritten.
+     */
+    private function baseDefectQuery(string $source, string $from, string $to)
+    {
+        return $source === 'events'
+            ? $this->baseDefectQueryEvents($from, $to)
+            : $this->baseDefectQueryLegacy($from, $to);
+    }
+
+    private function baseDefectQueryLegacy(string $from, string $to)
+    {
+        return DB::table('defect_document_items')
+            ->join('defect_documents', 'defect_documents.id', '=', 'defect_document_items.defect_document_id')
+            ->join('production_batch_items', 'production_batch_items.id', '=', 'defect_document_items.production_batch_item_id')
+            ->join('production_batches', 'production_batches.id', '=', 'production_batch_items.production_batch_id')
+            ->join('product_variants', 'product_variants.id', '=', 'production_batch_items.product_variant_id')
+            ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
+            ->join('products', 'products.id', '=', 'product_colors.product_id')
+            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
+            ->where('production_batches.status', '!=', ProductionBatch::STATUS_CANCELLED)
+            ->whereBetween(DB::raw('DATE(defect_documents.datetime)'), [$from, $to])
+            ->whereNull('products.deleted_at');
+    }
+
+    private function baseDefectQueryEvents(string $from, string $to)
+    {
+        return DB::table('production_events')
+            ->join('production_batch_items', 'production_batch_items.id', '=', 'production_events.production_batch_item_id')
+            ->join('production_batches', 'production_batches.id', '=', 'production_batch_items.production_batch_id')
+            ->join('product_variants', 'product_variants.id', '=', 'production_batch_items.product_variant_id')
+            ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
+            ->join('products', 'products.id', '=', 'product_colors.product_id')
+            ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
+            ->where('production_batches.status', '!=', ProductionBatch::STATUS_CANCELLED)
+            ->where('production_events.event_type', ProductionEvent::TYPE_DEFECT)
+            ->whereBetween(DB::raw('DATE(production_events.occurred_at)'), [$from, $to])
+            ->whereNull('products.deleted_at');
+    }
+
+    private function defectQtyExpr(string $source): string
+    {
+        return $source === 'events' ? 'production_events.quantity' : 'defect_document_items.quantity';
+    }
+
+    private function defectQtySumExpr(string $source): string
+    {
+        return 'COALESCE(SUM(' . $this->defectQtyExpr($source) . '), 0)';
+    }
+
+    private function defectDateExpr(string $source): string
+    {
+        return $source === 'events' ? 'production_events.occurred_at' : 'defect_documents.datetime';
+    }
+
+    private function totalDefects(string $source, string $from, string $to): int
+    {
+        return (int) $this->baseDefectQuery($source, $from, $to)
+            ->selectRaw($this->defectQtySumExpr($source) . ' as total')
+            ->value('total');
+    }
+
+    /** [dimension_id => total_defects] for merging into a produced-side breakdown by the same id. */
+    private function defectCountsGroupedBy(string $source, string $from, string $to, callable $withJoin, string $groupExpr): array
+    {
+        $query = $withJoin($this->baseDefectQuery($source, $from, $to));
+
+        return $query
+            ->selectRaw("{$groupExpr} as key_id, " . $this->defectQtySumExpr($source) . ' as total')
+            ->groupByRaw($groupExpr)
+            ->get()
+            ->mapWithKeys(fn ($row) => [$row->key_id => (int) $row->total])
+            ->all();
+    }
+
+    /**
+     * defects / (produced + defects) — defects as a share of everything
+     * made, bounded 0-100%. NOT defects / produced, which exceeds 100% at
+     * high defect rates. null (not 0) when nothing was made — a machine
+     * that produced nothing has no defect rate, and 0% would rank it as
+     * the best loom in the factory.
+     */
+    private function defectRate(int $produced, int $defects): ?float
+    {
+        $base = $produced + $defects;
+
+        return $base > 0 ? round($defects / $base * 100, 2) : null;
     }
 
     // ─── Queries ─────────────────────────────────────────────────────────────
@@ -197,11 +312,47 @@ class ProductionAnalyticsService
             )
             ->first();
 
+        $produced = (int) ($row->total_produced ?? 0);
+        $defects  = $this->totalDefects($source, $from, $to);
+
         return [
             'total_batches'  => (int) ($row->total_batches ?? 0),
-            'total_produced' => (int) ($row->total_produced ?? 0),
+            'total_produced' => $produced,
             'total_sqm'      => round((float) ($row->total_sqm ?? 0), 2),
+            'total_defects'  => $defects,
+            'defect_rate'    => $this->defectRate($produced, $defects),
         ];
+    }
+
+    /**
+     * Defect trend on its own honest clock (see baseDefectQuery()) — bucketed
+     * on a DIFFERENT clock than `trend` under the legacy source, so the two
+     * are not directly comparable period-by-period. Callers must say so
+     * rather than plot them on one axis as if they agreed.
+     */
+    private function queryDefectTrend(string $source, string $from, string $to, string $trendBy): array
+    {
+        $dateFormat = match ($trendBy) {
+            'week'  => '%x-%v',
+            'month' => '%Y-%m',
+            default => '%Y-%m-%d',
+        };
+
+        $dateCol = $this->defectDateExpr($source);
+
+        $rows = $this->baseDefectQuery($source, $from, $to)
+            ->selectRaw(
+                "DATE_FORMAT({$dateCol}, '{$dateFormat}') as period_label, "
+                . $this->defectQtySumExpr($source) . ' as total_defects'
+            )
+            ->groupByRaw("DATE_FORMAT({$dateCol}, '{$dateFormat}')")
+            ->orderByRaw("DATE_FORMAT({$dateCol}, '{$dateFormat}')")
+            ->get();
+
+        return $rows->map(fn ($r) => [
+            'label'         => $r->period_label,
+            'total_defects' => (int) $r->total_defects,
+        ])->all();
     }
 
     private function queryTrend(string $source, string $from, string $to, string $trendBy): array
@@ -240,6 +391,11 @@ class ProductionAnalyticsService
     private function queryByType(string $source, string $from, string $to): array
     {
         $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id'),
+            'product_types.id'
+        );
 
         $rows = $this->baseQuery($source, $from, $to)
             ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
@@ -254,12 +410,17 @@ class ProductionAnalyticsService
             ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $totalQty);
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
     }
 
     private function queryByColor(string $source, string $from, string $to): array
     {
         $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id'),
+            'colors.id'
+        );
 
         $rows = $this->baseQuery($source, $from, $to)
             ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
@@ -274,12 +435,17 @@ class ProductionAnalyticsService
             ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $totalQty);
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
     }
 
     private function queryBySize(string $source, string $from, string $to): array
     {
         $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q,
+            'product_sizes.id'
+        );
 
         $rows = $this->baseQuery($source, $from, $to)
             ->selectRaw(
@@ -300,12 +466,17 @@ class ProductionAnalyticsService
             ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $totalQty);
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
     }
 
     private function queryByQuality(string $source, string $from, string $to): array
     {
         $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id'),
+            'product_qualities.id'
+        );
 
         $rows = $this->baseQuery($source, $from, $to)
             ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
@@ -320,12 +491,17 @@ class ProductionAnalyticsService
             ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $totalQty);
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
     }
 
     private function queryByEdge(string $source, string $from, string $to): array
     {
         $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.product_edge_id'),
+            'product_edges.id'
+        );
 
         $rows = $this->baseQuery($source, $from, $to)
             ->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.product_edge_id')
@@ -340,7 +516,38 @@ class ProductionAnalyticsService
             ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $totalQty);
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
+    }
+
+    /**
+     * By-machine, not by-operator — see buildReport()'s docblock for why
+     * the operator breakdown is deliberately not shipped in this pass.
+     * This is the comparison the whole file exists for: which loom runs
+     * hot on defects.
+     */
+    private function queryByMachine(string $source, string $from, string $to): array
+    {
+        $totalQty = $this->totalProduced($source, $from, $to);
+        $defectsById = $this->defectCountsGroupedBy(
+            $source, $from, $to,
+            fn ($q) => $q->leftJoin('machines', 'machines.id', '=', 'production_batches.machine_id'),
+            'machines.id'
+        );
+
+        $rows = $this->baseQuery($source, $from, $to)
+            ->leftJoin('machines', 'machines.id', '=', 'production_batches.machine_id')
+            ->selectRaw(
+                'machines.id, COALESCE(machines.name, ?) as name, '
+                . 'COUNT(DISTINCT production_batches.id) as batches_count, '
+                . $this->qtySumExpr($source) . ' as total_quantity, '
+                . $this->sqmExpr($source) . ' as total_sqm',
+                ['Noma\'lum']
+            )
+            ->groupBy('machines.id', 'machines.name')
+            ->orderByRaw('SUM(' . $this->quantityExpr($source) . ') DESC')
+            ->get();
+
+        return $this->appendPercentage($rows, $totalQty, $defectsById);
     }
 
     // ─── Utilities ────────────────────────────────────────────────────────────
@@ -352,10 +559,12 @@ class ProductionAnalyticsService
             ->value('total');
     }
 
-    private function appendPercentage($rows, int $totalQty): array
+    private function appendPercentage($rows, int $totalQty, array $defectsById = []): array
     {
-        return $rows->map(function ($row) use ($totalQty): array {
-            $qty = (int) $row->total_quantity;
+        return $rows->map(function ($row) use ($totalQty, $defectsById): array {
+            $qty     = (int) $row->total_quantity;
+            $defects = (int) ($defectsById[$row->id] ?? 0);
+
             return [
                 'id'             => $row->id,
                 'name'           => $row->name,
@@ -363,6 +572,8 @@ class ProductionAnalyticsService
                 'total_quantity' => $qty,
                 'total_sqm'      => round((float) $row->total_sqm, 2),
                 'percentage'     => $totalQty > 0 ? round(($qty / $totalQty) * 100, 1) : 0.0,
+                'total_defects'  => $defects,
+                'defect_rate'    => $this->defectRate($qty, $defects),
             ];
         })->all();
     }

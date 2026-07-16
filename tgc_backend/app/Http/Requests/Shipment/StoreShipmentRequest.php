@@ -24,11 +24,24 @@ class StoreShipmentRequest extends FormRequest
             'shipment_datetime'       => ['required', 'date'],
             'notes'                   => ['nullable', 'string', 'max:2000'],
 
+            // Not required and not yet surfaced by any client build — see
+            // instructions/phase-3/04-currency-vat-discount.md. Omitting
+            // them defaults to USD / rate 1 / no VAT, i.e. exactly today's
+            // behaviour. The currency selector stays hidden in the client
+            // until the "How to verify" checklist in that file has been
+            // run end to end; sending these fields ahead of that is a
+            // developer/API action, not something the app does yet.
+            'currency'                => ['nullable', 'string', 'size:3'],
+            'exchange_rate'           => ['nullable', 'numeric', 'gt:0'],
+            'vat_rate'                => ['nullable', 'numeric', 'min:0', 'max:1'],
+
             'items'                          => ['required', 'array', 'min:1'],
             'items.*.order_item_id'          => ['required', 'integer', 'exists:order_items,id'],
             'items.*.product_variant_id'     => ['required', 'integer', 'exists:product_variants,id'],
             'items.*.quantity'               => ['required', 'integer', 'min:1'],
             'items.*.price'                  => ['required', 'numeric', 'min:0'],
+            'items.*.discount_type'          => ['nullable', 'string', 'in:none,percent,amount'],
+            'items.*.discount_value'         => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

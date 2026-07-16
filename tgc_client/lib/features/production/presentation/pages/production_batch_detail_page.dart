@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -10,8 +9,6 @@ import '../../../../core/ui/widgets/app_badge.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../core/ui/widgets/info_section.dart';
 import '../../../../core/ui/widgets/typograpthy.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/datasources/defect_document_remote_datasource.dart';
 import '../../data/datasources/production_batch_remote_datasource.dart';
 import '../../domain/entities/defect_document_entity.dart';
@@ -48,75 +45,6 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
     final resp = await sl<DefectDocumentRemoteDataSource>()
         .getDefectDocuments(widget.batch.id);
     return resp.data;
-  }
-
-  Future<void> _onStart(ProductionBatchEntity batch) async {
-    // Get authenticated user from AuthBloc
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! AuthAuthenticated) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foydalanuvchi autentifikatsiyadan o\'tmagan.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    final currentUser = authState.user;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ishlab chiqarishni boshlash'),
-        content: Text(
-          'Mas\'ul hodim: ${currentUser.name}\n\nBatchni ishlab chiqarishga o\'tkazasizmi?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Bekor qilish'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Boshlash'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    setState(() => _isActing = true);
-    try {
-      await sl<ProductionBatchRemoteDataSource>().startBatch(
-        batch.id,
-        responsibleEmployeeId: currentUser.id,
-      );
-      if (context.mounted) {
-        setState(() {
-          _batchFuture = sl<ProductionBatchRemoteDataSource>()
-              .getProductionBatch(widget.batch.id);
-          _isActing = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ishlab chiqarish muvaffaqiyatli boshlandi.'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        setState(() => _isActing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _onCancel(ProductionBatchEntity batch) async {
@@ -182,26 +110,8 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
           onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
-        actions: [
-          if (widget.batch.status == 'planned')
-            IconButton(
-              tooltip: 'Tahrirlash',
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedEdit01,
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-              onPressed: () async {
-                final updated = await context.pushNamed(
-                  AppRoutes.editProductionBatchName,
-                  extra: widget.batch,
-                );
-                if (updated == true && context.mounted) {
-                  context.pop(true);
-                }
-              },
-            ),
-          const SizedBox(width: 12),
+        actions: const [
+          SizedBox(width: 12),
         ],
       ),
       body: FutureBuilder<ProductionBatchEntity>(
@@ -241,9 +151,8 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _InfoSection(batch: batch),
-                if (batch.status == 'planned' ||
-                    (batch.status != 'completed' &&
-                        batch.status != 'cancelled')) ...[
+                if (batch.status != 'completed' &&
+                    batch.status != 'cancelled') ...[
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -300,25 +209,6 @@ class _ProductionBatchDetailPageState extends State<ProductionBatchDetailPage> {
                           },
                         ),
                       ],
-                      if (batch.status == 'planned') ...[
-                        const SizedBox(width: 12),
-                        FilledButton.icon(
-                          icon: _isActing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const HugeIcon(
-                                  icon: HugeIcons.strokeRoundedPlay,
-                                  size: 18,
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                          label: const Text('Ishlab chiqarishni boshlash'),
-                          onPressed: _isActing ? null : () => _onStart(batch),
-                        ),
-                      ],
                     ],
                   ),
                 ],
@@ -344,7 +234,6 @@ class _InfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusLabel, statusColor) = switch (batch.status) {
-      'planned' => ('Rejalashtirilgan', AppColors.warning),
       'in_progress' => ('Ishlab chiqarilmoqda', AppColors.primaryLight),
       'completed' => ('Bajarildi', AppColors.success),
       'cancelled' => ('Bekor qilindi', AppColors.error),

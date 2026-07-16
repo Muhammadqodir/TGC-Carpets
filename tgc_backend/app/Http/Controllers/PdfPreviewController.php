@@ -44,7 +44,7 @@ class PdfPreviewController extends Controller
 
         return view('pdf.warehouse_document', [
             'document'     => $document,
-            'docTypeLabel' => $this->pdfService->resolveDocumentTypeName($document->type),
+            'docTypeLabel' => $this->pdfService->resolveDocumentTypeName($document->type, $document->direction),
             'shipmentInfo' => $shipmentInfo,
         ]);
     }

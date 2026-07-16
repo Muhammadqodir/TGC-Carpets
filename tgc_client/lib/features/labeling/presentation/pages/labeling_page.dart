@@ -683,6 +683,19 @@ class _LabelingViewState extends State<_LabelingView> {
                 final barcodeValue = item.variantBarcode?.isNotEmpty == true
                     ? item.variantBarcode!
                     : 'TGC-${item.variantId.toString().padLeft(8, '0')}';
+                // NOT switched to item.unitSerial here on purpose: _onPrint()
+                // below renders and sends to the printer optimistically,
+                // BEFORE the print-label API response (which carries the new
+                // serial) resolves — the network call and the physical print
+                // are decoupled today. Wiring the serial into the printed QR
+                // needs that sequencing reworked first (await the response,
+                // then render), which is exactly why
+                // instructions/phase-3/02-production-units-serials.md stages
+                // "print the serial" as a later, separate client release
+                // (§7 step 4) rather than bundling it with the backend
+                // change. Backend still mints/tracks a real unit serial per
+                // print in the background regardless — see
+                // ProductionBatchService::incrementProducedQuantity().
                 final qrData = buildLabelQr(batchId: item.batchId, itemId: item.id);
 
                 return Positioned(

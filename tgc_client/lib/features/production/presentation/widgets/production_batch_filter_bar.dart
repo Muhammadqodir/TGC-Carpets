@@ -47,7 +47,6 @@ class ProductionBatchFilterBar extends StatelessWidget {
           hint: 'Holat',
           value: selectedStatus,
           items: const [
-            DropdownMenuItem(value: 'planned', child: Text('Rejalashtirilgan')),
             DropdownMenuItem(
                 value: 'in_progress', child: Text('Ishlab chiqarilmoqda')),
             DropdownMenuItem(value: 'completed', child: Text('Bajarildi')),

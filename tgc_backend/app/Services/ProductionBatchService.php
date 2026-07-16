@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
 use App\Models\ProductionEvent;
+use App\Models\ProductionUnit;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -123,38 +124,6 @@ class ProductionBatchService
     }
 
     /**
-     * Start production — transition from planned → in_progress.
-     */
-    public function start(ProductionBatch $batch, int $responsibleEmployeeId): ProductionBatch
-    {
-        DB::transaction(function () use ($batch, $responsibleEmployeeId): void {
-            $batch->update([
-                'status'                  => ProductionBatch::STATUS_IN_PROGRESS,
-                'started_datetime'        => now(),
-                'responsible_employee_id' => $responsibleEmployeeId,
-            ]);
-
-            // Move any linked orders (pending or planned) to on_production
-            // as soon as at least one of their items enters production.
-            $orderIds = $batch->items()
-                ->whereNotNull('source_order_item_id')
-                ->with('sourceOrderItem')
-                ->get()
-                ->pluck('sourceOrderItem.order_id')
-                ->filter()
-                ->unique();
-
-            if ($orderIds->isNotEmpty()) {
-                Order::whereIn('id', $orderIds)
-                    ->whereIn('status', [Order::STATUS_PENDING, Order::STATUS_PLANNED])
-                    ->update(['status' => Order::STATUS_ON_PRODUCTION]);
-            }
-        });
-
-        return $batch->fresh()->load(self::EAGER_LOAD);
-    }
-
-    /**
      * Complete production — transition from in_progress → completed.
      */
     public function complete(ProductionBatch $batch): ProductionBatch
@@ -185,26 +154,54 @@ class ProductionBatchService
     }
 
     /**
-     * Atomically increment produced_quantity by 1 (label print action), and
-     * append a 'produced' event to the log in the same transaction — see
-     * instructions/phase-2/01-production-events-table.md.
+     * Atomically increment produced_quantity by 1 (label print action),
+     * append a 'produced' event to the log (instructions/phase-2/01), and
+     * mint or reuse a ProductionUnit serial (instructions/phase-3/02) — all
+     * in the same transaction.
      *
      * When $idempotencyKey is given, a retried print with the same key is a
      * no-op replay: the unique index (not a SELECT-then-insert, which races)
      * detects the duplicate and the method returns the current state without
      * incrementing a second time. See
-     * instructions/phase-2/02-idempotency-key.md.
+     * instructions/phase-2/02-idempotency-key.md. KNOWN GAP: on a replay,
+     * $unit in the return value is null — the caller cannot recover the
+     * serial minted on the original (successful) attempt from here. This
+     * only matters if a client retries after genuinely never seeing the
+     * first response; accepted rather than adding a second lookup column,
+     * see instructions/phase-3/02's own "Do not compress it" rollout order.
+     *
+     * When $serial is given and an existing unit with that serial is
+     * found, this is a REPRINT: reprint_count++, no counter change, no
+     * event — printing the same physical carpet's label again must never
+     * double-count it. This is the bug 02-production-units-serials.md
+     * exists to fix: today's blind increment() cannot tell a reprint from
+     * a new carpet.
      *
      * After incrementing, checks whether all items in the batch have
      * produced_quantity >= (planned_quantity - defect_quantity).
      * If so, the batch is automatically transitioned to completed.
+     *
+     * @return array{item: ProductionBatchItem, unit: ?ProductionUnit}
      */
     public function incrementProducedQuantity(
         ProductionBatchItem $item,
         int $userId,
         ?string $idempotencyKey = null,
-    ): ProductionBatchItem {
-        DB::transaction(function () use ($item, $userId, $idempotencyKey): void {
+        ?string $serial = null,
+    ): array {
+        $unit = null;
+
+        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, &$unit): void {
+            if ($serial !== null) {
+                $existing = ProductionUnit::where('serial', $serial)->lockForUpdate()->first();
+                if ($existing) {
+                    $existing->increment('reprint_count');
+                    $unit = $existing->fresh();
+
+                    return;
+                }
+            }
+
             $eventData = [
                 'production_batch_item_id' => $item->id,
                 'event_type'               => ProductionEvent::TYPE_PRODUCED,
@@ -220,7 +217,7 @@ class ProductionBatchService
                     ProductionEvent::create($eventData);
                 } catch (QueryException $e) {
                     if ($this->isDuplicateKey($e)) {
-                        return;   // replay: event already recorded, do NOT increment
+                        return;   // replay: event already recorded, do NOT increment or mint
                     }
                     throw $e;
                 }
@@ -230,6 +227,23 @@ class ProductionBatchService
             }
 
             $item->increment('produced_quantity');
+
+            $newUnit = ProductionUnit::create([
+                'production_batch_item_id' => $item->id,
+                'serial'                   => 'PENDING',
+                'printed_by'               => $userId,
+                'printed_at'               => now(),
+                'status'                   => ProductionUnit::STATUS_GOOD,
+            ]);
+            // Two-step: the serial derives from the auto-increment id, and
+            // `serial` is NOT NULL UNIQUE, so 'PENDING' can only ever exist
+            // for one row at a time inside a transaction — exactly the
+            // serialisation that prevents two concurrent prints from
+            // colliding. See instructions/phase-3/02 "Print becomes
+            // idempotent" for the contention note if this ever needs to
+            // become a sequence table instead.
+            $newUnit->update(['serial' => sprintf('TGC-U-%08d', $newUnit->id)]);
+            $unit = $newUnit;
 
             $batch = ProductionBatch::lockForUpdate()->find($item->production_batch_id);
 
@@ -247,7 +261,7 @@ class ProductionBatchService
             }
         });
 
-        return $item->fresh()->load([
+        $freshItem = $item->fresh()->load([
             'productionBatch',
             'variant.productColor.product.productType',
             'variant.productColor.product.productQuality',
@@ -256,6 +270,8 @@ class ProductionBatchService
             'variant.productEdge',
             'sourceOrderItem.order.client',
         ]);
+
+        return ['item' => $freshItem, 'unit' => $unit];
     }
 
     private function isDuplicateKey(QueryException $e): bool

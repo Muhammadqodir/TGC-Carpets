@@ -82,8 +82,6 @@ class ApiEndpoints {
   // Production Batches
   static const String productionBatches = '/production-batches';
   static String productionBatchById(int id) => '/production-batches/$id';
-  static String productionBatchStart(int id) =>
-      '/production-batches/$id/start';
   static String productionBatchComplete(int id) =>
       '/production-batches/$id/complete';
   static String productionBatchCancel(int id) =>

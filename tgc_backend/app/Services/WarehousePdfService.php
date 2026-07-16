@@ -28,7 +28,7 @@ class WarehousePdfService
 
         $pdf = Pdf::loadView('pdf.warehouse_document', [
             'document'     => $document,
-            'docTypeLabel' => $this->resolveDocumentTypeName($document->type),
+            'docTypeLabel' => $this->resolveDocumentTypeName($document->type, $document->direction),
             'shipmentInfo' => $shipmentInfo,
         ])->setPaper('a4', 'portrait')->setOptions(['dpi' => 130, 'defaultFont' => 'sans-serif']);
 
@@ -82,16 +82,26 @@ class WarehousePdfService
     }
 
     /**
-     * Get Uzbek label for a document type.
+     * Get Uzbek label for a document type. For an adjustment, appends the
+     * direction so the printed document states in words which way stock
+     * moved — the total row's sign (see warehouse_document.blade.php)
+     * says the same thing numerically. See
+     * instructions/phase-3/05-signed-adjustment-documents.md.
      */
-    public function resolveDocumentTypeName(string $type): string
+    public function resolveDocumentTypeName(string $type, ?string $direction = null): string
     {
-        return match ($type) {
+        $label = match ($type) {
             'in'         => 'KIRIM',
             'out'        => 'CHIQIM',
             'return'     => 'QAYTISH',
             'adjustment' => 'TUZATISH',
             default      => strtoupper($type),
         };
+
+        if ($type === 'adjustment') {
+            $label .= $direction === 'out' ? ' (KAMAYTIRISH)' : ' (KO\'PAYTIRISH)';
+        }
+
+        return $label;
     }
 }

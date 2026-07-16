@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AppUpdateController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\ClientDebitController;
@@ -63,6 +64,11 @@ Route::prefix('v1')->group(function (): void {
 
         // Dashboard statistics
         Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+
+        // Audit log — admin-only. See instructions/phase-3/06-audit-log.md.
+        Route::get('audit-log', [AuditLogController::class, 'index'])
+            ->middleware('role:admin')
+            ->name('audit-log.index');
 
         // Product Analytics
         Route::get('analytics/products',     [ProductAnalyticsController::class, 'index'])->name('analytics.products');
@@ -174,8 +180,6 @@ Route::prefix('v1')->group(function (): void {
             ->name('production-batches.items.show');
         Route::post('production-batches/{productionBatch}/items/{item}/print-label', [ProductionBatchController::class, 'printLabel'])
             ->name('production-batches.items.print-label');
-        Route::post('production-batches/{productionBatch}/start', [ProductionBatchController::class, 'start'])
-            ->name('production-batches.start');
         Route::post('production-batches/{productionBatch}/complete', [ProductionBatchController::class, 'complete'])
             ->name('production-batches.complete');
         Route::post('production-batches/{productionBatch}/cancel', [ProductionBatchController::class, 'cancel'])

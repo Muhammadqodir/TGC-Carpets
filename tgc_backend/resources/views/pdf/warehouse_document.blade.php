@@ -365,14 +365,22 @@
         {{-- ── Totals ───────────────────────────────────────── --}}
         <div class="total-row">
             <table>
+                {{--
+                    A stock-reducing adjustment (direction='out') must print with a
+                    visible minus sign — the total is what changed on the shelf, and
+                    a bare "20" on a document that removed 20 carpets says the
+                    opposite of what happened. See
+                    instructions/phase-3/05-signed-adjustment-documents.md.
+                --}}
+                @php $sign = $document->reducesStock() ? '−' : ''; @endphp
                 <tr>
                     <td class="total-label total-border">Jami dona</td>
-                    <td class="total-value total-border">{{ $grandTotalQty }}</td>
+                    <td class="total-value total-border">{{ $sign }}{{ $grandTotalQty }}</td>
                 </tr>
                 @if ($hasSqm)
                     <tr>
                         <td class="total-label" style="margin-top: 0px; padding-top: 0px;">Jami m²</td>
-                        <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ number_format($grandTotalSqm, 2) }} m²</td>
+                        <td class="total-value" style="margin-top: 0px; padding-top: 0px;">{{ $sign }}{{ number_format($grandTotalSqm, 2) }} m²</td>
                     </tr>
                 @endif
             </table>

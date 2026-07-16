@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\StockMovement;
+use App\Models\StockReservation;
 use App\Models\WarehouseDocument;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -49,6 +50,18 @@ class OrderItemResource extends JsonResource
             return $this->getStockForVariant($this->variant->id);
         }, 0);
 
+        // The real reservation claim on this variant — see
+        // instructions/phase-3/07-stock-reservations.md. `stock_available`
+        // above is physical stock only (its name predates this file and is
+        // kept as-is rather than silently redefined — the most dangerous
+        // kind of API change); this is the new, additive field: what a
+        // client can actually be promised right now.
+        $activeReservations = $this->whenLoaded('variant', function () {
+            return (int) StockReservation::where('product_variant_id', $this->variant->id)
+                ->where('status', StockReservation::STATUS_ACTIVE)
+                ->sum('quantity');
+        }, 0);
+
         return [
             'id'                          => $this->id,
             'quantity'                    => $this->quantity,
@@ -58,6 +71,8 @@ class OrderItemResource extends JsonResource
             'warehouse_received_quantity' => $warehouseReceivedQty,
             'remaining_quantity'          => max(0, $this->quantity - $plannedQty + $defectQty),
             'stock_available'             => $stockAvailable,
+            'quantity_active_reservations' => $activeReservations,
+            'quantity_available'            => $stockAvailable - $activeReservations,
             'variant'  => $this->whenLoaded('variant', fn () => [
                 'id'            => $this->variant->id,
                 'barcode_value' => $this->variant->barcode_value,

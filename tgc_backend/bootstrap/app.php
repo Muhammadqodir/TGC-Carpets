@@ -19,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'web_admin' => \App\Http\Middleware\EnsureWebAdmin::class,
         ]);
 
+        // Tags every API request with a UUID for the audit log — see
+        // instructions/phase-3/06-audit-log.md.
+        $middleware->api(append: [
+            \App\Http\Middleware\AssignRequestId::class,
+        ]);
+
         // Redirect unauthenticated web users to the admin panel login page
         $middleware->redirectGuestsTo(fn () => route('admin.app-releases.login'));
     })

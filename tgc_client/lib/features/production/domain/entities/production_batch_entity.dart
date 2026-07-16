@@ -31,7 +31,7 @@ class ProductionBatchEntity extends Equatable {
   final int id;
   final String batchTitle;
   final String type; // 'by_order' | 'for_stock' | 'mixed'
-  final String status; // 'planned' | 'in_progress' | 'completed' | 'cancelled'
+  final String status; // 'in_progress' | 'completed' | 'cancelled'
   final DateTime? plannedDatetime;
   final DateTime? startedDatetime;
   final DateTime? completedDatetime;
@@ -67,7 +67,6 @@ class ProductionBatchEntity extends Equatable {
   });
 
   String get statusLabel => switch (status) {
-        'planned'     => 'Rejalashtirilgan',
         'in_progress' => 'Ishlab chiqarilmoqda',
         'completed'   => 'Bajarildi',
         'cancelled'   => 'Bekor qilindi',

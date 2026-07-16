@@ -17,13 +17,18 @@ class ShipmentItem extends Model
         'product_variant_id',
         'quantity',
         'price',
+        'discount_type',
+        'discount_value',
+        'discount_amount',
     ];
 
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
-            'price'    => 'decimal:2',
+            'quantity'        => 'integer',
+            'price'           => 'decimal:2',
+            'discount_value'  => 'decimal:4',
+            'discount_amount' => 'decimal:2',
         ];
     }
 
@@ -51,7 +56,11 @@ class ShipmentItem extends Model
     }
 
     /**
-     * The authoritative money value for this line, rounded to 2dp.
+     * The pre-discount line value, rounded to 2dp exactly ONCE, here — not
+     * at the end. Discount is computed against this already-rounded
+     * figure, so printed line totals sum to the printed grand total. See
+     * instructions/phase-3/04-currency-vat-discount.md "Where rounding
+     * happens".
      *
      * m2 products:  price × length × width × quantity / 10000
      * otherwise:    price × quantity
@@ -59,7 +68,7 @@ class ShipmentItem extends Model
      * Requires: variant.productColor.product and variant.productSize to be loaded
      * (or they will lazy-load — acceptable, but eager-load in loops).
      */
-    public function lineTotal(): string
+    public function grossAmount(): string
     {
         $price = (string) $this->getRawOriginal('price');
         $qty   = (string) $this->quantity;
@@ -77,6 +86,48 @@ class ShipmentItem extends Model
         }
 
         return $this->round2($raw);
+    }
+
+    /**
+     * discount_type = 'percent': round(gross × discount_value / 100, 2).
+     * discount_type = 'amount':  min(discount_value, gross) — never lets a
+     * flat discount push the line negative.
+     * discount_type = 'none' (the default for every row that predates this
+     * column, and for every row created without a discount): always 0,
+     * which is what makes lineTotal() below byte-identical to the old
+     * formula for all existing and undiscounted data.
+     */
+    public function discountAmount(): string
+    {
+        $type  = $this->discount_type ?? 'none';
+        $value = (string) ($this->discount_value ?? '0');
+
+        if ($type === 'none' || bccomp($value, '0', 4) <= 0) {
+            return '0.00';
+        }
+
+        $gross = $this->grossAmount();
+
+        if ($type === 'percent') {
+            return $this->round2(bcdiv(bcmul($gross, $value, 8), '100', 8));
+        }
+
+        // 'amount'
+        $flat = $this->round2($value);
+
+        return bccomp($flat, $gross, 2) > 0 ? $gross : $flat;
+    }
+
+    /**
+     * The authoritative money value for this line: gross minus discount,
+     * both already 2dp, so the subtraction is exact. This is what every
+     * existing caller (ClientDebitService, the invoice PDFs) means by
+     * "the line total" — unchanged in output for any row with no
+     * discount, which is every row that existed before this column did.
+     */
+    public function lineTotal(): string
+    {
+        return bcsub($this->grossAmount(), $this->discountAmount(), 2);
     }
 
     /** bcmath truncates; this rounds half-up, which is what round() did. */

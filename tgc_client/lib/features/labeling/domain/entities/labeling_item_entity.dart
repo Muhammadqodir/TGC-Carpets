@@ -26,6 +26,15 @@ class LabelingItemEntity extends Equatable {
   final bool isTypePrintable;
   final String? edgeCode;
 
+  /// The per-carpet unit serial minted by the last print-label call
+  /// (`TGC-U-00001234`) — see instructions/phase-3/02-production-units-serials.md.
+  /// Null on an item that has never been printed via this session (e.g.
+  /// freshly loaded from the labeling-items list, before any print), and
+  /// on an idempotency-key replay (see ProductionBatchService's docblock
+  /// for that known gap) — callers must fall back to buildLabelQr() in
+  /// that case, not assume this is always present.
+  final String? unitSerial;
+
   const LabelingItemEntity({
     required this.id,
     required this.batchId,
@@ -48,6 +57,7 @@ class LabelingItemEntity extends Equatable {
     this.productTypeName,
     this.isTypePrintable = true,
     this.edgeCode,
+    this.unitSerial,
   });
 
   String get sizeLabel {
@@ -61,7 +71,11 @@ class LabelingItemEntity extends Equatable {
 
   bool get isFullyLabeled => producedQuantity >= netTarget;
 
-  LabelingItemEntity copyWith({int? producedQuantity, int? defectQuantity}) {
+  LabelingItemEntity copyWith({
+    int? producedQuantity,
+    int? defectQuantity,
+    String? unitSerial,
+  }) {
     return LabelingItemEntity(
       id: id,
       batchId: batchId,
@@ -84,6 +98,7 @@ class LabelingItemEntity extends Equatable {
       productTypeName: productTypeName,
       isTypePrintable: isTypePrintable,
       edgeCode: edgeCode,
+      unitSerial: unitSerial ?? this.unitSerial,
     );
   }
 
