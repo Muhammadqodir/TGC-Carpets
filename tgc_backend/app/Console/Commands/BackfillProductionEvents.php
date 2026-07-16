@@ -67,6 +67,10 @@ class BackfillProductionEvents extends Command
                     ->where('production_events.reason', 'backfill');
             })
             ->orderBy('production_batch_items.id')
+            // alias 'id' matches the unqualified column present in the
+            // result row (from select('production_batch_items.*') above) —
+            // without it chunkById looks for a literal 'production_batch_items.id'
+            // key, which doesn't exist, and aborts.
             ->chunkById($chunk, function ($items) use (&$written, &$skipped, $dryRun, $now): void {
                 $rows = [];
 
@@ -114,7 +118,7 @@ class BackfillProductionEvents extends Command
 
                 $written += count($rows);
                 $this->info("… {$written} events prepared");
-            }, 'production_batch_items.id');
+            }, 'production_batch_items.id', 'id');
 
         $this->info(($dryRun ? '[dry-run] would write ' : 'wrote ') . "{$written} events, skipped {$skipped}");
 
