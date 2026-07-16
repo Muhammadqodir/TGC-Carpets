@@ -70,7 +70,11 @@ class ShipmentItem extends Model
      */
     public function grossAmount(): string
     {
-        $price = (string) $this->getRawOriginal('price');
+        // Cast attribute, not getRawOriginal(): the latter reads $original,
+        // which Eloquent syncs from an EMPTY array before fill() runs in the
+        // constructor — so it's always null on a `new ShipmentItem([...])`
+        // that hasn't been saved/loaded yet, silently zeroing this formula.
+        $price = (string) $this->price;
         $qty   = (string) $this->quantity;
         $unit  = $this->variant?->productColor?->product?->unit ?? 'piece';
         $size  = $this->variant?->productSize;
