@@ -61,6 +61,10 @@ class BackfillProductionUnits extends Command
                     ->whereNotNull('production_units.backfilled_at');
             })
             ->orderBy('production_batch_items.id')
+            // alias 'id' matches the unqualified column present in the
+            // result row (from select('production_batch_items.*') above) —
+            // without it chunkById looks for a literal 'production_batch_items.id'
+            // key, which doesn't exist, and aborts.
             ->chunkById($chunk, function ($items) use (&$itemsDone, &$unitsWritten, $dryRun): void {
                 foreach ($items as $item) {
                     $printedAt = $item->batch_completed ?? $item->batch_started ?? $item->created_at;
@@ -96,7 +100,7 @@ class BackfillProductionUnits extends Command
 
                 $itemsDone += count($items);
                 $this->info("… {$itemsDone} items processed, {$unitsWritten} units written");
-            }, 'production_batch_items.id');
+            }, 'production_batch_items.id', 'id');
 
         $this->info(($dryRun ? '[dry-run] would write ' : 'wrote ') . "{$unitsWritten} units across {$itemsDone} items.");
 
