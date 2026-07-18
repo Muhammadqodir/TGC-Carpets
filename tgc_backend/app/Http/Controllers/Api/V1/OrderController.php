@@ -99,8 +99,12 @@ class OrderController extends Controller
 
     public function destroy(Order $order): JsonResponse
     {
-        $this->service->delete($order);
+        try {
+            $this->service->delete($order);
 
-        return response()->json(['message' => 'Order deleted.']);
+            return response()->json(['message' => 'Order deleted.']);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 }

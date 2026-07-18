@@ -37,6 +37,14 @@ class ProductVariantStockService
         // movement for a variant; the update below applies the delta
         // atomically under the database's own row lock (quantity = quantity
         // + delta in SQL, never a PHP read-modify-write).
+        //
+        // The third argument must be a NON-empty column list: Laravel's
+        // upsert() treats an empty array as "just INSERT, no conflict
+        // clause at all" (Builder::upsert()), not "do nothing on conflict".
+        // With `[]` this degraded into a plain INSERT that only ever
+        // succeeded for a variant's first-ever movement, then threw a
+        // duplicate-key error on the primary key for every one after.
+        // Setting the PK to itself is a genuine no-op on conflict.
         DB::table('product_variant_stock')->upsert(
             [[
                 'product_variant_id' => $variantId,
@@ -45,7 +53,7 @@ class ProductVariantStockService
                 'updated_at'         => now(),
             ]],
             ['product_variant_id'],
-            [],   // on conflict: change nothing, we only want the row to exist
+            ['product_variant_id'],
         );
 
         DB::table('product_variant_stock')

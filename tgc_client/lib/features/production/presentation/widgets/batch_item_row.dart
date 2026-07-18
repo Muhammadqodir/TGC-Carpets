@@ -37,6 +37,13 @@ class BatchItemRow {
   final int?    sourceOrderItemId;
   final String? sourceClientName;
 
+  /// The `source_type` this row was loaded with from an existing batch item
+  /// (edit mode only). Preserved even if [sourceOrderItemId] later resolves
+  /// to null because the underlying order item was deleted — otherwise a
+  /// batch that was legitimately "for client" would silently recompute as
+  /// "for warehouse" the next time it's opened for editing.
+  final String? initialSourceType;
+
   // ── Extra display fields ──────────────────────────────────────────────────
   final String? prefilledQualityName;
   final String? prefilledTypeName;
@@ -54,6 +61,7 @@ class BatchItemRow {
     this.sourceOrderId,
     this.sourceOrderItemId,
     this.sourceClientName,
+    this.initialSourceType,
     this.prefilledQualityName,
     this.prefilledTypeName,
     this.prefilledEdgeCode,
@@ -99,6 +107,7 @@ class BatchItemRow {
         sourceOrderId: item.sourceOrderId,
         sourceOrderItemId: item.sourceOrderItemId,
         sourceClientName: item.sourceClientShopName,
+        initialSourceType: item.sourceType,
         prefilledQualityName: item.qualityName,
         prefilledTypeName: item.productTypeName,
         prefilledEdgeCode: item.edgeCode,
@@ -107,6 +116,15 @@ class BatchItemRow {
 
   /// Resolved edge code — from freshly picked entity or prefill.
   String? get effectiveEdgeCode => selectedEdge?.code ?? prefilledEdgeCode;
+
+  /// Resolved `source_type` for this row: a live order link always wins;
+  /// otherwise falls back to the batch item's persisted source_type (see
+  /// [initialSourceType]) so a severed order-item link doesn't get
+  /// reclassified as `manual`; defaults to `manual` for brand-new rows.
+  String get effectiveSourceType {
+    if (sourceOrderItemId != null) return 'order_item';
+    return initialSourceType ?? 'manual';
+  }
 
   /// Quality name — from selected product or prefill.
   String? get qualityName =>

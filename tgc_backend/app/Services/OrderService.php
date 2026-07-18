@@ -101,6 +101,17 @@ class OrderService
     public function delete(Order $order): void
     {
         DB::transaction(function () use ($order): void {
+            // Same guard as update(): production_batch_items.source_order_item_id
+            // is nullOnDelete, so deleting the order items here would silently
+            // sever the link to any batch already produced against them (the
+            // batch item survives, orphaned, and its source_type goes stale —
+            // reads later as if it were never linked to a client order).
+            if ($order->items()->whereHas('productionBatchItems')->exists()) {
+                throw new \DomainException(
+                    'Buyurtma qatorlari ishlab chiqarish partiyasiga bog\'langan. Buyurtmani o\'chirib bo\'lmaydi.'
+                );
+            }
+
             $order->items()->delete();
             $order->delete();
         });

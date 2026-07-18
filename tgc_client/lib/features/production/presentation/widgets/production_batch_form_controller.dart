@@ -90,7 +90,8 @@ class ProductionBatchFormController extends ChangeNotifier {
   String get computedType {
     final filled = _items.where((r) => r.isFilled).toList();
     if (filled.isEmpty) return 'for_stock';
-    final fromOrder = filled.where((r) => r.sourceOrderItemId != null).length;
+    final fromOrder =
+        filled.where((r) => r.effectiveSourceType == 'order_item').length;
     if (fromOrder == filled.length) return 'by_order';
     if (fromOrder == 0) return 'for_stock';
     return 'mixed';
@@ -113,7 +114,7 @@ class ProductionBatchFormController extends ChangeNotifier {
             'product_color_id': colorId,
             'product_size_id': sizeId,
             'planned_quantity': qty,
-            'source_type': r.sourceOrderItemId != null ? 'order_item' : 'manual',
+            'source_type': r.effectiveSourceType,
             if (r.sourceOrderItemId != null)
               'source_order_item_id': r.sourceOrderItemId,
           };
