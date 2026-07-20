@@ -6,6 +6,7 @@ class ScannedItemModel extends ScannedItemEntity {
     required super.product,
     required super.productionBatch,
     super.destination,
+    super.unit,
   });
 
   factory ScannedItemModel.fromJson(Map<String, dynamic> json) {
@@ -17,6 +18,29 @@ class ScannedItemModel extends ScannedItemEntity {
       destination: json['destination'] != null
           ? ScannedDestinationInfoModel.fromJson(json['destination'])
           : null,
+      unit: json['unit'] != null
+          ? ScannedUnitInfoModel.fromJson(json['unit'])
+          : null,
+    );
+  }
+}
+
+class ScannedUnitInfoModel extends ScannedUnitInfo {
+  const ScannedUnitInfoModel({
+    required super.serial,
+    required super.status,
+    super.printedAt,
+    super.printedByName,
+    required super.reprintCount,
+  });
+
+  factory ScannedUnitInfoModel.fromJson(Map<String, dynamic> json) {
+    return ScannedUnitInfoModel(
+      serial: json['serial'],
+      status: json['status'],
+      printedAt: json['printed_at'],
+      printedByName: json['printed_by_name'],
+      reprintCount: json['reprint_count'] ?? 0,
     );
   }
 }

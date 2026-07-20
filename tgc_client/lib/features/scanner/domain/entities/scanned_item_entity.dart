@@ -5,16 +5,43 @@ class ScannedItemEntity extends Equatable {
   final ScannedProductInfo product;
   final ScannedProductionBatchInfo productionBatch;
   final ScannedDestinationInfo? destination;
+  final ScannedUnitInfo? unit;
 
   const ScannedItemEntity({
     required this.item,
     required this.product,
     required this.productionBatch,
     this.destination,
+    this.unit,
   });
 
   @override
-  List<Object?> get props => [item, product, productionBatch, destination];
+  List<Object?> get props =>
+      [item, product, productionBatch, destination, unit];
+}
+
+/// Per-carpet label info. Only present when the scanned code identifies a
+/// specific printed unit (`TGC-U-########`) — the legacy batch-line format
+/// (`P{batchId} I{itemId}`) isn't tied to one physical label, so it has no
+/// print history to show.
+class ScannedUnitInfo extends Equatable {
+  final String serial;
+  final String status;
+  final String? printedAt;
+  final String? printedByName;
+  final int reprintCount;
+
+  const ScannedUnitInfo({
+    required this.serial,
+    required this.status,
+    this.printedAt,
+    this.printedByName,
+    required this.reprintCount,
+  });
+
+  @override
+  List<Object?> get props =>
+      [serial, status, printedAt, printedByName, reprintCount];
 }
 
 class ScannedItemInfo extends Equatable {

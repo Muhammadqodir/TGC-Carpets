@@ -312,6 +312,41 @@ class _ResultView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
+              // ── Label / Print Info ─────────────────────────────────────
+              if (item.unit != null)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Yorliq ma\'lumotlari',
+                          style: textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        _InfoRow(label: 'Seriya', value: item.unit!.serial),
+                        _InfoRow(
+                            label: 'Holati',
+                            value: _unitStatusLabel(item.unit!.status)),
+                        _InfoRow(
+                            label: 'Kim chop etdi',
+                            value: item.unit!.printedByName ?? 'Noma\'lum'),
+                        if (item.unit!.printedAt != null)
+                          _InfoRow(
+                              label: 'Qachon chop etildi',
+                              value: _formatDate(item.unit!.printedAt!)),
+                        if (item.unit!.reprintCount > 0)
+                          _InfoRow(
+                              label: 'Qayta chop etilgan',
+                              value: '${item.unit!.reprintCount} marta'),
+                      ],
+                    ),
+                  ),
+                ),
+              if (item.unit != null) const SizedBox(height: 12),
+
               // ── Destination Info ───────────────────────────────────────
               if (item.destination != null)
                 Card(
@@ -375,6 +410,23 @@ class _ResultView extends StatelessWidget {
         return 'Tugallangan';
       case 'cancelled':
         return 'Bekor qilingan';
+      default:
+        return status;
+    }
+  }
+
+  String _unitStatusLabel(String status) {
+    switch (status) {
+      case 'good':
+        return 'Tayyor';
+      case 'defect':
+        return 'Defekt';
+      case 'scrapped':
+        return 'Yaroqsiz (utilizatsiya qilingan)';
+      case 'received':
+        return 'Omborga qabul qilingan';
+      case 'shipped':
+        return 'Jo\'natilgan';
       default:
         return status;
     }

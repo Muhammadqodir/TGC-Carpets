@@ -349,6 +349,7 @@ class ProductionBatchController extends Controller
 
         if (preg_match('/^TGC-U-\d{8}$/', $code)) {
             $unit = ProductionUnit::with([
+                    'printedByUser',
                     'batchItem.productionBatch' => fn ($q) => $q->with(['machine', 'creator', 'responsibleEmployee']),
                     'batchItem.variant.productColor.product.productType',
                     'batchItem.variant.productColor.product.productQuality',
@@ -366,10 +367,11 @@ class ProductionBatchController extends Controller
 
             return response()->json(
                 $this->buildScanResponse($unit->batchItem, [
-                    'serial'        => $unit->serial,
-                    'status'        => $unit->status,
-                    'printed_at'    => $unit->printed_at?->toISOString(),
-                    'reprint_count' => $unit->reprint_count,
+                    'serial'          => $unit->serial,
+                    'status'          => $unit->status,
+                    'printed_at'      => $unit->printed_at?->toISOString(),
+                    'printed_by_name' => $unit->printedByUser?->name,
+                    'reprint_count'   => $unit->reprint_count,
                 ])
             );
         }
