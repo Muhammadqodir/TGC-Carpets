@@ -4,6 +4,10 @@ import '../../../orders/domain/entities/order_entity.dart';
 import '../../domain/entities/shipment_import_entities.dart';
 import 'shipment_item_row.dart';
 
+/// Outcome of [ShipmentFormController.addOrIncrementItem], used by the QR
+/// scanner UI to decide what feedback to show.
+enum ScanAddResult { added, incremented, limitReached }
+
 /// Holds all mutable state for the "add shipment" form.
 ///
 /// Owned by [AddShipmentPage] and passed down to the desktop layout.
@@ -73,6 +77,40 @@ class ShipmentFormController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Called when a QR code scanned on the "add shipment" page resolves to a
+  /// shippable item. If a row for the same order item already exists its
+  /// quantity is incremented by 1 (re-scan = +1, one physical carpet per
+  /// scan), capped at the server-computed [ShipmentImportItemEntity.availableQuantity].
+  /// Otherwise a new row is added with quantity 1, without touching existing
+  /// rows (unlike [importFromOrder]/[importFromStock], which replace them).
+  ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item,
+      {double? lastPrice}) {
+    final existing = _items.where((r) => r.orderItemId == item.orderItemId);
+    if (existing.isNotEmpty) {
+      final row = existing.first;
+      final current = row.parsedQuantity;
+      // Use the just-fetched availableQuantity (not row.availableQuantity,
+      // a snapshot from when the row was first added) since it reflects
+      // stock/order state as of this scan.
+      if (current >= item.availableQuantity) {
+        return ScanAddResult.limitReached;
+      }
+      row.quantityCtrl.text = '${current + 1}';
+      notifyListeners();
+      return ScanAddResult.incremented;
+    }
+
+    final row = ShipmentItemRow.fromImportItem(
+      item,
+      lastPrice: lastPrice,
+      initialQuantity: 1,
+    );
+    _hookRow(row);
+    _items.add(row);
+    notifyListeners();
+    return ScanAddResult.added;
   }
 
   void removeRow(int index) {

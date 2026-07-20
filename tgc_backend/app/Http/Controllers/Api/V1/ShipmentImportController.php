@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProductionBatchItem;
+use App\Models\ProductionUnit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -179,5 +181,133 @@ class ShipmentImportController extends Controller
                 'available_quantity' => (int) $r->available_quantity,
             ]),
         ]);
+    }
+
+    // ── QR scan: resolve a label to a shippable item for a given client ────────
+
+    /**
+     * GET /shipment-import/scan?code={code}&client_id={id}
+     *
+     * Resolves the QR code printed on a production label (same two formats
+     * accepted by ProductionBatchController::scanItem — TGC-U-\d{8} or
+     * P{batchId} I{itemId}) to a shippable order item for the given client,
+     * in the same shape as items() above, so it can be dropped straight into
+     * the shipment form.
+     *
+     * The scanned label identifies a product_variant, not an order item by
+     * itself, so resolution picks — among this client's open order items for
+     * that variant with remaining stock — the one the carpet was actually
+     * produced for (source_order_item_id) when that is still shippable,
+     * otherwise the oldest open order item (FIFO). This is a convenience
+     * lookup only: the authoritative checks (over-shipping, variant/order
+     * mismatch, client ownership) still run in StoreShipmentRequest when the
+     * shipment is actually submitted.
+     */
+    public function scan(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code'      => ['required', 'string'],
+            'client_id' => ['required', 'integer', 'exists:clients,id'],
+        ]);
+
+        $code = trim((string) $request->input('code'));
+        $clientId = $request->integer('client_id');
+
+        $batchItem = $this->resolveBatchItemFromCode($code);
+        if (! $batchItem) {
+            return response()->json(['message' => 'Mahsulot topilmadi.'], 404);
+        }
+
+        $variantId = $batchItem->product_variant_id;
+        $preferredOrderItemId = $batchItem->source_order_item_id;
+
+        $row = DB::table('order_items AS oi')
+            ->join('orders AS o', 'o.id', '=', 'oi.order_id')
+            ->join('product_variants AS pv', 'pv.id', '=', 'oi.product_variant_id')
+            ->join('product_colors AS pc', 'pc.id', '=', 'pv.product_color_id')
+            ->join('products AS p', 'p.id', '=', 'pc.product_id')
+            ->join('product_qualities AS pq', 'pq.id', '=', 'p.product_quality_id')
+            ->leftJoin('colors AS co', 'co.id', '=', 'pc.color_id')
+            ->leftJoin('product_sizes AS ps', 'ps.id', '=', 'pv.product_size_id')
+            ->leftJoin('product_types AS pt', 'pt.id', '=', 'p.product_type_id')
+            ->leftJoin('product_edges AS pe', 'pe.id', '=', 'pv.product_edge_id')
+            ->leftJoin(DB::raw(self::SHIPPED_SUB . ' AS si'), 'si.order_item_id', '=', 'oi.id')
+            ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
+            ->where('o.client_id', $clientId)
+            ->where('oi.product_variant_id', $variantId)
+            ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
+            ->whereRaw('sm.stock > 0')
+            ->select([
+                'oi.id AS order_item_id',
+                'pv.id AS variant_id',
+                'p.name AS product_name',
+                'co.name AS color_name',
+                'pc.image AS color_image',
+                'p.unit AS product_unit',
+                'pq.quality_name',
+                'pt.type AS type_name',
+                'ps.length AS size_length',
+                'ps.width AS size_width',
+                'pe.code AS edge_code',
+                'pe.title AS edge_title',
+                DB::raw('LEAST(oi.quantity - COALESCE(si.shipped_qty, 0), sm.stock) AS available_quantity'),
+            ])
+            ->orderByRaw('(oi.id = ?) DESC', [$preferredOrderItemId ?? 0])
+            ->orderBy('oi.id')
+            ->first();
+
+        if (! $row) {
+            return response()->json([
+                'message' => "\"{$batchItem->variant->productColor->product->name}\" uchun ushbu mijozda ochiq buyurtma yoki yetarli ombor zaxirasi topilmadi.",
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => [
+                'order_item_id'      => $row->order_item_id,
+                'variant_id'         => $row->variant_id,
+                'product_name'       => $row->product_name,
+                'color_name'         => $row->color_name,
+                'color_image_url'    => $row->color_image
+                    ? rtrim(config('app.url'), '/') . '/storage/' . $row->color_image
+                    : null,
+                'quality_name'       => $row->quality_name,
+                'type_name'          => $row->type_name,
+                'size_length'        => $row->size_length !== null ? (int) $row->size_length : null,
+                'size_width'         => $row->size_width !== null ? (int) $row->size_width : null,
+                'product_unit'       => $row->product_unit,
+                'edge_code'          => $row->edge_code,
+                'edge_title'         => $row->edge_title,
+                'available_quantity' => (int) $row->available_quantity,
+            ],
+        ]);
+    }
+
+    /**
+     * Mirrors the two label formats ProductionBatchController::scanItem()
+     * accepts (see instructions/phase-0/11 and phase-3/02). Kept independent
+     * of that endpoint since it returns a different shape and this one must
+     * not affect the production-scan flow.
+     */
+    private function resolveBatchItemFromCode(string $code): ?ProductionBatchItem
+    {
+        if (preg_match('/^TGC-U-\d{8}$/', $code)) {
+            $unit = ProductionUnit::where('serial', $code)->first();
+            if (! $unit) {
+                return null;
+            }
+
+            return ProductionBatchItem::with('variant.productColor.product')
+                ->find($unit->production_batch_item_id);
+        }
+
+        if (preg_match('/^P(?:B)?\{?(\d+)\}?\s+(?:PB)?I\{?(\d+)\}?$/i', $code, $matches)) {
+            return ProductionBatchItem::with('variant.productColor.product')
+                ->where('id', (int) $matches[2])
+                ->where('production_batch_id', (int) $matches[1])
+                ->first();
+        }
+
+        return null;
     }
 }

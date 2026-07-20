@@ -173,4 +173,24 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, ShipmentImportItemEntity>> getShipmentScanItem({
+    required String code,
+    required int clientId,
+  }) async {
+    try {
+      final result = await remoteDataSource.getShipmentScanItem(
+        code: code,
+        clientId: clientId,
+      );
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

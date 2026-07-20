@@ -21,6 +21,7 @@ import '../widgets/stock_picker_for_shipment_sheet.dart'
     show StockPickerForShipmentSheet;
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
+import '../widgets/shipment_qr_scanner_page.dart';
 import '../../domain/repositories/shipment_repository.dart';
 
 /// Entry point for the "add shipment" form.
@@ -118,6 +119,26 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
         _ctrl.notifyChanged();
       });
     }
+  }
+
+  Future<void> _scanQr() async {
+    if (_selectedClient == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Avval mijozni tanlang.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ShipmentQrScannerPage(
+        clientId: _selectedClient!.id,
+        clientName: _selectedClient!.shopName,
+        controller: _ctrl,
+      ),
+    ));
   }
 
   Future<void> _refreshLastPrices() async {
@@ -380,6 +401,15 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
+                          child: TextButton.icon(
+                            onPressed: _scanQr,
+                            icon: const Icon(Icons.qr_code_scanner_rounded,
+                                size: 16),
+                            label: const Text('QR skanerlash'),
                           ),
                         ),
                         Padding(

@@ -45,6 +45,12 @@ abstract class ShipmentRemoteDataSource {
     required int clientId,
     required String qualityName,
   });
+
+  /// Resolves a scanned label QR code to a shippable item for [clientId].
+  Future<ShipmentImportItemModel> getShipmentScanItem({
+    required String code,
+    required int clientId,
+  });
 }
 
 class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
@@ -225,6 +231,28 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
       return (body['data'] as List)
           .map((e) => ShipmentImportItemModel.fromJson(e as Map<String, dynamic>))
           .toList();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ShipmentImportItemModel> getShipmentScanItem({
+    required String code,
+    required int clientId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.shipmentImportScan,
+        queryParameters: {
+          'code': code,
+          'client_id': clientId,
+        },
+      );
+      final body = response.data as Map<String, dynamic>;
+      return ShipmentImportItemModel.fromJson(
+        body['data'] as Map<String, dynamic>,
+      );
     } on DioException catch (e) {
       _handleDioError(e);
     }

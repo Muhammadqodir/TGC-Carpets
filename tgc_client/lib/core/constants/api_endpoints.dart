@@ -50,6 +50,7 @@ class ApiEndpoints {
   static const String shipmentImportClients = '/shipment-import/clients';
   static const String shipmentImportQualities = '/shipment-import/qualities';
   static const String shipmentImportItems = '/shipment-import/items';
+  static const String shipmentImportScan = '/shipment-import/scan';
 
   // Stock
   static const String stock = '/stock';

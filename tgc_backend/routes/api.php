@@ -132,6 +132,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('shipment-import/clients',    [ShipmentImportController::class, 'clients'])->name('shipment-import.clients');
         Route::get('shipment-import/qualities',  [ShipmentImportController::class, 'qualities'])->name('shipment-import.qualities');
         Route::get('shipment-import/items',      [ShipmentImportController::class, 'items'])->name('shipment-import.items');
+        Route::get('shipment-import/scan',       [ShipmentImportController::class, 'scan'])->name('shipment-import.scan');
 
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);

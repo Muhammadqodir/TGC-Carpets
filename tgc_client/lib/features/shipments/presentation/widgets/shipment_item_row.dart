@@ -57,6 +57,7 @@ class ShipmentItemRow {
   factory ShipmentItemRow.fromImportItem(
     ShipmentImportItemEntity item, {
     double? lastPrice,
+    int? initialQuantity,
   }) {
     return ShipmentItemRow(
       orderItemId: item.orderItemId,
@@ -72,7 +73,8 @@ class ShipmentItemRow {
       edgeCode: item.edgeCode,
       edgeTitle: item.edgeTitle,
       availableQuantity: item.availableQuantity,
-      initialQuantity: item.availableQuantity > 0 ? item.availableQuantity : 1,
+      initialQuantity: initialQuantity ??
+          (item.availableQuantity > 0 ? item.availableQuantity : 1),
       initialPrice: lastPrice,
     );
   }

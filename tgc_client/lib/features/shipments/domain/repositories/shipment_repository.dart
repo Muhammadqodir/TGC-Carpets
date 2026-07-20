@@ -44,4 +44,10 @@ abstract class ShipmentRepository {
     required int clientId,
     required String qualityName,
   });
+
+  /// Resolves a scanned label QR code to a shippable item for [clientId].
+  Future<Either<Failure, ShipmentImportItemEntity>> getShipmentScanItem({
+    required String code,
+    required int clientId,
+  });
 }
