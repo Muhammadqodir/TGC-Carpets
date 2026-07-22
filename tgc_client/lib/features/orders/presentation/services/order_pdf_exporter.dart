@@ -41,7 +41,7 @@ class OrderPdfExporter {
   static const _kMargin  = 14.0;
   static const _kColNum  = 20.0;  // # column
   static const _kColMeta = 130.0; // product / colour / quality
-  static const _kColSize = 20.0;  // each size column
+  static const _kColSize = 26.0;  // each size column (fits 4-digit cm values)
   static const _kColTot  = 52.0;  // Jami m²
   static const _kRowH    = 14.0;  // data row height (fits 2 lines at 7pt)
   static const _kHdrH    = 22.0;  // column-header row
@@ -49,8 +49,9 @@ class OrderPdfExporter {
 
   static const _fsTitle = 9.0;
   static const _fsMeta  = 7.0;
-  static const _fsTh    = 7.5;
-  static const _fsTd    = 7.5;
+  static const _fsTh     = 7.5;
+  static const _fsTd     = 7.5;
+  static const _fsSizeHd = 7.0; // size column header numbers (width/length)
   static const _fsType  = 6.5;
 
   // ─── Entry point ─────────────────────────────────────────────────────────
@@ -466,7 +467,7 @@ class OrderPdfExporter {
     for (var j = 0; j < chunk.length; j++) {
       final m      = sizeMeta[chunk[j]];
       final label  = (m?.sizeWidth != null && m?.sizeLength != null)
-          ? '${_fmtM(m!.sizeWidth)}\n${_fmtM(m.sizeLength)}'
+          ? '${m!.sizeWidth}\n${m.sizeLength}'
           : "O'lcham ${j + 1}";
       final typeId = typeByJ[j] ?? 0;
       final bg     = _typePalette[typeColorMap[typeId] ?? 0];
@@ -476,7 +477,7 @@ class OrderPdfExporter {
         bg:        bg,
         fg:        _primary,
         bold:      true,
-        fontSize:  _fsTh,
+        fontSize:  _fsSizeHd,
         thickLeft: firstByT[typeId] == j,
       ));
     }
@@ -674,12 +675,6 @@ class OrderPdfExporter {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
-  String _fmtM(num? cm) {
-    if (cm == null) return '?';
-    final m = cm / 100;
-    return m % 1 == 0 ? m.toInt().toString() : m.toStringAsFixed(1);
-  }
-
   String _statusLabel(String s) => switch (s) {
         'pending'       => 'Kutilmoqda',
         'planned'       => 'Rejalashtirilgan',
