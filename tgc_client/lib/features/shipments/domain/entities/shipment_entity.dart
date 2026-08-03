@@ -15,6 +15,16 @@ class ShipmentEntity extends Equatable {
   final int? userId;
   final String? userName;
   final List<ShipmentItemEntity> items;
+
+  /// Set once the shipment was cancelled: the carpets went back into the
+  /// warehouse and the client no longer owes for them. The record stays so
+  /// the cancellation itself is visible.
+  final DateTime? canceledAt;
+  final String? cancelReason;
+
+  /// Only loaded on the detail response, not in the list.
+  final String? canceledByName;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -31,9 +41,14 @@ class ShipmentEntity extends Equatable {
     this.userId,
     this.userName,
     required this.items,
+    this.canceledAt,
+    this.cancelReason,
+    this.canceledByName,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get isCanceled => canceledAt != null;
 
   /// Total pieces (unit == 'piece').
   int get totalPieces => items
@@ -77,6 +92,9 @@ class ShipmentEntity extends Equatable {
         userId,
         userName,
         items,
+        canceledAt,
+        cancelReason,
+        canceledByName,
         createdAt,
         updatedAt,
       ];

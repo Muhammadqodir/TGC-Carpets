@@ -25,9 +25,17 @@ class ShipmentImportController extends Controller
 {
     // ── Shared subquery fragments ──────────────────────────────────────────────
 
-    /** Inline subquery: shipped quantity per order_item. */
-    private const SHIPPED_SUB = '(SELECT order_item_id, COALESCE(SUM(quantity), 0) AS shipped_qty
-        FROM shipment_items GROUP BY order_item_id)';
+    /**
+     * Inline subquery: shipped quantity per order_item.
+     *
+     * Cancelled shipments are excluded: their goods came back, so the order
+     * line is owed again and must show up as shippable here.
+     */
+    private const SHIPPED_SUB = '(SELECT si.order_item_id, COALESCE(SUM(si.quantity), 0) AS shipped_qty
+        FROM shipment_items si
+        JOIN shipments s ON s.id = si.shipment_id
+        WHERE s.canceled_at IS NULL
+        GROUP BY si.order_item_id)';
 
     /** Inline subquery: current stock per product_variant. */
     private const STOCK_SUB = '(SELECT product_variant_id,

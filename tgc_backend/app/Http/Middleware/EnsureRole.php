@@ -16,7 +16,14 @@ class EnsureRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (! in_array($request->user()?->role, $roles, true)) {
+        // users.role is an array cast — a user can hold several roles, and
+        // the seeder writes ['admin']. The previous check compared that array
+        // against the string list with in_array(..., true), which is never
+        // true, so this middleware denied EVERYONE including admins. Use the
+        // model's own helper, which already normalises the value.
+        $userRoles = $request->user()?->getRoles() ?? [];
+
+        if (array_intersect($userRoles, $roles) === []) {
             return response()->json(
                 ['message' => 'Forbidden. Insufficient role.'],
                 Response::HTTP_FORBIDDEN,

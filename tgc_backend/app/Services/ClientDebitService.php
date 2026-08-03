@@ -45,6 +45,8 @@ class ClientDebitService
         // any shipment is created with a non-zero vat_rate.
         $debitSub = DB::table('shipment_items as si')
             ->join('shipments as s',            's.id',  '=', 'si.shipment_id')
+            // A cancelled shipment is not owed: the carpets came back.
+            ->whereNull('s.canceled_at')
             ->join('product_variants as pv',    'pv.id', '=', 'si.product_variant_id')
             ->join('product_colors as pc',      'pc.id', '=', 'pv.product_color_id')
             ->join('products as p',             'p.id',  '=', 'pc.product_id')
@@ -127,6 +129,9 @@ class ClientDebitService
                 'items.variant.productEdge',
             ])
             ->where('client_id', $client->id)
+            // Cancelled shipments raise no debit, so they carry no ledger
+            // entry either — the balance below must agree with getDebits().
+            ->notCanceled()
             ->orderBy('shipment_datetime')
             ->get();
 

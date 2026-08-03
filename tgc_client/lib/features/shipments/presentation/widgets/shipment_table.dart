@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/di/injection.dart';
@@ -12,7 +13,12 @@ import 'package:tgc_client/core/ui/widgets/app_data_table.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 import 'package:tgc_client/core/utils/excel_downloader.dart';
 
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/shipment_entity.dart';
+import '../../domain/repositories/shipment_repository.dart';
+import '../bloc/shipments_bloc.dart';
+import '../bloc/shipments_event.dart';
 
 /// Shipments data table that wraps the generic [AppDataTable].
 class ShipmentTable extends StatelessWidget {
@@ -87,6 +93,11 @@ class ShipmentTable extends StatelessWidget {
             BodyText(
               text: _formatDateTime(shipment.shipmentDatetime),
             ),
+            if (shipment.isCanceled)
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: _CanceledBadge(),
+              ),
           ],
         );
 
@@ -123,12 +134,20 @@ class ShipmentTable extends StatelessWidget {
       BuildContext context, ShipmentEntity shipment, int colIndex) {
     switch (colIndex) {
       case 0: // ID
-        return Text(
-          '${shipment.id}',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textSecondary),
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              '${shipment.id}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    decoration:
+                        shipment.isCanceled ? TextDecoration.lineThrough : null,
+                  ),
+            ),
+            if (shipment.isCanceled) const _CanceledBadge(),
+          ],
         );
 
       case 1: // Date
@@ -269,6 +288,9 @@ class ShipmentTable extends StatelessWidget {
                 _downloadXlsx(context, shipment);
               }
               break;
+            case 'cancel':
+              _confirmCancel(context, shipment);
+              break;
           }
         },
         itemBuilder: (context) => [
@@ -317,6 +339,19 @@ class ShipmentTable extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   const Text('Excel yuklab olish'),
+                ],
+              ),
+            ),
+          if (_canCancel(context, shipment))
+            const PopupMenuItem(
+              value: 'cancel',
+              child: Row(
+                children: [
+                  Icon(Icons.cancel_outlined,
+                      color: AppColors.error, size: 18),
+                  SizedBox(width: 8),
+                  Text('Bekor qilish',
+                      style: TextStyle(color: AppColors.error)),
                 ],
               ),
             ),
@@ -386,9 +421,113 @@ class ShipmentTable extends StatelessWidget {
               ? () => _downloadXlsx(context, shipment)
               : null,
         ),
+        if (_canCancel(context, shipment))
+          _ActionButton(
+            icon: const Icon(Icons.cancel_outlined,
+                color: AppColors.error, size: 22),
+            tooltip: 'Bekor qilish',
+            color: AppColors.error,
+            onTap: () => _confirmCancel(context, shipment),
+          ),
       ],
     );
   }
+
+  /// Cancelling puts stock back and wipes the client's debt for the
+  /// shipment, so it is admin-only — the backend enforces the same rule and
+  /// answers 403 regardless of what the UI shows. An already-cancelled
+  /// shipment cannot be cancelled twice.
+  bool _canCancel(BuildContext context, ShipmentEntity shipment) {
+    if (shipment.isCanceled) return false;
+
+    final authState = context.read<AuthBloc>().state;
+    return authState is AuthAuthenticated && authState.user.isAdmin;
+  }
+}
+
+/// Confirms, then cancels. The dialog states what cancelling actually does —
+/// stock returns, the client's debt for this shipment disappears, the order
+/// lines become unshipped — because none of that is visible from the row.
+Future<void> _confirmCancel(
+    BuildContext context, ShipmentEntity shipment) async {
+  final reasonCtrl = TextEditingController();
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('Yuk xati #${shipment.id} bekor qilinsinmi?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${shipment.clientShopName ?? '—'} · '
+            '${shipment.totalQuantity} dona · '
+            '\$${shipment.grandTotal.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Mahsulotlar omborga qaytariladi, buyurtma qatorlari yana '
+            'yuborilmagan holatga o\'tadi va mijozning bu yuk xati '
+            'bo\'yicha qarzi bekor qilinadi.',
+            style: TextStyle(fontSize: 13, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: reasonCtrl,
+            maxLines: 2,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Sabab (ixtiyoriy)',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Yopish'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+          child: const Text('Bekor qilish'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true || !context.mounted) {
+    reasonCtrl.dispose();
+    return;
+  }
+
+  final messenger = ScaffoldMessenger.of(context);
+  final bloc = context.read<ShipmentsBloc>();
+  final result = await sl<ShipmentRepository>().cancelShipment(
+    id: shipment.id,
+    reason: reasonCtrl.text,
+  );
+  reasonCtrl.dispose();
+
+  result.fold(
+    (failure) => messenger.showSnackBar(SnackBar(
+      content: Text(failure.message),
+      backgroundColor: AppColors.error,
+    )),
+    (_) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Yuk xati #${shipment.id} bekor qilindi.'),
+        backgroundColor: AppColors.success,
+      ));
+      // The row, the client's balance and every shipped quantity behind it
+      // just changed server-side; reload rather than patch one row.
+      bloc.add(const ShipmentsRefreshRequested());
+    },
+  );
 }
 
 Future<void> _downloadXlsx(
@@ -477,6 +616,33 @@ class _VolumeCell extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+
+/// Marks a cancelled shipment in the list. The row stays — the document
+/// existed and the cancellation is part of its history — but nothing about
+/// it should read as a live delivery.
+class _CanceledBadge extends StatelessWidget {
+  const _CanceledBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'BEKOR QILINGAN',
+        style: TextStyle(
+          color: AppColors.error,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({

@@ -52,6 +52,13 @@ abstract class ShipmentRemoteDataSource {
     required String code,
     required int clientId,
   });
+
+  /// Cancels [id], returning the carpets to the warehouse. Admin only —
+  /// the backend enforces it, a non-admin gets a 403.
+  Future<ShipmentModel> cancelShipment({
+    required int id,
+    String? reason,
+  });
 }
 
 class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
@@ -291,6 +298,25 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
         );
       }
 
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ShipmentModel> cancelShipment({
+    required int id,
+    String? reason,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.shipmentCancel(id),
+        data: {
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        },
+      );
+      final body = response.data as Map<String, dynamic>;
+      return ShipmentModel.fromJson(body['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
       _handleDioError(e);
     }
   }

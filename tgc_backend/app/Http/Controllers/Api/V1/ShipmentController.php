@@ -44,6 +44,36 @@ class ShipmentController extends Controller
         return response()->json(['data' => new ShipmentResource($shipment)], 201);
     }
 
+    /**
+     * POST /shipments/{shipment}/cancel
+     *
+     * Admin only (role middleware on the route): this puts stock back and
+     * wipes the client's debt for the shipment. See ShipmentService::cancel()
+     * for everything it reverses.
+     */
+    public function cancel(Request $request, Shipment $shipment): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $canceled = $this->service->cancel(
+            $shipment,
+            $request->user()->id,
+            $validated['reason'] ?? null,
+        );
+
+        $canceled->load([
+            'items.variant.productColor.product',
+            'items.variant.productColor.color',
+            'items.variant.productSize',
+            'items.variant.productEdge',
+            'items.orderItem.order',
+        ]);
+
+        return response()->json(['data' => new ShipmentResource($canceled)]);
+    }
+
     public function show(Shipment $shipment): JsonResponse
     {
         $shipment->load([

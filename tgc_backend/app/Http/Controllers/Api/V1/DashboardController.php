@@ -48,6 +48,7 @@ class DashboardController extends Controller
         // Shipments quantity: total items shipped in range
         $shipmentsQuantity = DB::table('shipment_items')
             ->join('shipments', 'shipments.id', '=', 'shipment_items.shipment_id')
+            ->whereNull('shipments.canceled_at')
             ->whereBetween(
                 DB::raw('DATE(shipments.shipment_datetime)'),
                 [$from, $to]

@@ -172,6 +172,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
 
+        // Admin only: cancelling returns the carpets to the warehouse and
+        // drops the client's debt for them — see ShipmentService::cancel().
+        Route::post('shipments/{shipment}/cancel', [ShipmentController::class, 'cancel'])
+            ->middleware('role:admin')
+            ->name('shipments.cancel');
+
         // Machines
         Route::apiResource('machines', MachineController::class);
 

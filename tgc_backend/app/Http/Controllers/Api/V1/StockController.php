@@ -116,8 +116,11 @@ class StockController extends Controller
         $qtyShippedForActiveOrders = DB::table('shipment_items as si')
             ->join('order_items as oi', 'oi.id', '=', 'si.order_item_id')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
+            ->join('shipments as s', 's.id', '=', 'si.shipment_id')
             ->selectRaw('COALESCE(SUM(si.quantity), 0)')
             ->whereColumn('si.product_variant_id', 'product_variants.id')
+            // A cancelled shipment shipped nothing — the order still needs it.
+            ->whereNull('s.canceled_at')
             ->whereNotIn('o.status', ['canceled', 'shipped']);
 
         $results = DB::table('product_variants')

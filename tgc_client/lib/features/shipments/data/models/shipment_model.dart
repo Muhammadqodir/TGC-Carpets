@@ -15,6 +15,9 @@ class ShipmentModel extends ShipmentEntity {
     super.userId,
     super.userName,
     required super.items,
+    super.canceledAt,
+    super.cancelReason,
+    super.canceledByName,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -39,6 +42,11 @@ class ShipmentModel extends ShipmentEntity {
       userId:            userMap?['id'] as int?,
       userName:          userMap?['name'] as String?,
       items:             itemsList,
+      canceledAt:        json['canceled_at'] != null
+          ? DateTime.parse(json['canceled_at'] as String)
+          : null,
+      cancelReason:      json['cancel_reason'] as String?,
+      canceledByName:    json['canceled_by_name'] as String?,
       createdAt:         DateTime.parse(json['created_at'] as String),
       updatedAt:         DateTime.parse(json['updated_at'] as String),
     );

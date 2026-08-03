@@ -104,6 +104,47 @@ class StockReservationService
         });
     }
 
+    /**
+     * The inverse of consumeForOrderItem(), for a cancelled shipment.
+     *
+     * The goods are back on the shelf and the order line is unshipped again,
+     * so the claim on that stock has to come back too — otherwise `available`
+     * (physical - reserved) overstates by exactly the cancelled quantity and
+     * the same carpets look free to promise twice.
+     *
+     * A reservation consumed to zero was marked fulfilled, so this reactivates
+     * it. One that was deleted with its order item (cascade) is not recreated:
+     * there is no order line left to claim for, and inventing a reservation
+     * with no owner would be worse than the gap. As with consuming, a missing
+     * reservation is never an error.
+     */
+    public function restoreForOrderItem(int $orderItemId, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($orderItemId, $quantity): void {
+            $reservation = StockReservation::where('order_item_id', $orderItemId)
+                ->whereIn('status', [
+                    StockReservation::STATUS_ACTIVE,
+                    StockReservation::STATUS_FULFILLED,
+                ])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $reservation) {
+                return;
+            }
+
+            $reservation->update([
+                'quantity'    => $reservation->quantity + $quantity,
+                'status'      => StockReservation::STATUS_ACTIVE,
+                'released_at' => null,
+            ]);
+        });
+    }
+
     /** SUM(active reservations) for one variant — the `reserved` term of `available`. */
     public function reservedQuantityForVariant(int $variantId): int
     {

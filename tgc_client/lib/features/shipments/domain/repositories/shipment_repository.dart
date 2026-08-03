@@ -50,4 +50,11 @@ abstract class ShipmentRepository {
     required String code,
     required int clientId,
   });
+
+  /// Cancels a shipment: the carpets go back into the warehouse, the order
+  /// lines become unshipped and the client stops owing for them. Admin only.
+  Future<Either<Failure, ShipmentEntity>> cancelShipment({
+    required int id,
+    String? reason,
+  });
 }

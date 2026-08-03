@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
@@ -91,6 +92,14 @@ class ShipmentService
                 // round(subtotal x vat_rate, 2), and subtotal is not known
                 // until every line's gross/discount has been computed below.
             ]);
+
+            // Now that the shipment has an id, point the invented order back
+            // at it, so cancelling the shipment can cancel that order without
+            // having to guess which one it created.
+            if ($autoOrderId !== null) {
+                Order::whereKey($autoOrderId)
+                    ->update(['created_from_shipment_id' => $shipment->id]);
+            }
 
             // ── 2. Companion warehouse OUT document ─────────────────────────
             $warehouseDoc = WarehouseDocument::create([
@@ -494,9 +503,11 @@ class ShipmentService
      */
     public function getLastPrice(int $variantId, int $clientId, ?string $currency = null): ?float
     {
+        // A cancelled shipment sets no precedent for what this client pays.
         $price = ShipmentItem::whereHas(
             'shipment',
             fn ($q) => $q->where('client_id', $clientId)
+                ->whereNull('canceled_at')
                 ->when($currency !== null, fn ($q2) => $q2->where('currency', $currency))
         )
             ->where('product_variant_id', $variantId)
@@ -517,6 +528,140 @@ class ShipmentService
      * for it to mean anything — WarehouseDocumentService currently does not.
      * Phase-2 replaces this with a lockable product_variant_stock balance row.
      */
+    /**
+     * Cancel a shipment and put everything it moved back.
+     *
+     * The shipment row stays, marked — a client was shown this document, and
+     * "cancelled by X on Y because Z" is worth more than a hole in the
+     * numbering. What must not stay is its effect: the carpets return to the
+     * warehouse, the order lines become unshipped, the client stops owing for
+     * them (every money query filters on canceled_at), and an order this
+     * shipment invented for a scanned off-order carpet is cancelled with it.
+     *
+     * Stock returns as a compensating IN document rather than by deleting the
+     * original OUT movements: stock_movements is the ledger the nightly
+     * stock:reconcile checks product_variant_stock against, and a ledger that
+     * quietly loses rows cannot be audited. The history reads "went out on
+     * the 3rd, came back on the 5th", which is what actually happened.
+     */
+    public function cancel(Shipment $shipment, int $userId, ?string $reason = null): Shipment
+    {
+        if ($shipment->isCanceled()) {
+            throw ValidationException::withMessages([
+                'shipment' => 'Bu yuk xati allaqachon bekor qilingan.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($shipment, $userId, $reason): Shipment {
+            // Re-read under a lock and re-check: two admins hitting cancel at
+            // the same moment would otherwise both pass the guard above and
+            // each write a compensating IN, returning the goods twice.
+            $shipment = Shipment::whereKey($shipment->id)->lockForUpdate()->first();
+
+            if ($shipment === null || $shipment->isCanceled()) {
+                throw ValidationException::withMessages([
+                    'shipment' => 'Bu yuk xati allaqachon bekor qilingan.',
+                ]);
+            }
+
+            $shipment->load('items');
+
+            // ── 1. Carpets back into the warehouse ──────────────────────────
+            $returnDoc = WarehouseDocument::create([
+                'type'          => WarehouseDocument::TYPE_IN,
+                'client_id'     => $shipment->client_id,
+                'user_id'       => $userId,
+                'document_date' => now()->toDateString(),
+                'notes'         => "#{$shipment->id} yuk xati bekor qilinishi bo'yicha qaytarilgan mahsulotlar.",
+            ]);
+
+            foreach ($shipment->items as $item) {
+                $docItem = WarehouseDocumentItem::create([
+                    'warehouse_document_id' => $returnDoc->id,
+                    'product_variant_id'    => $item->product_variant_id,
+                    'quantity'              => $item->quantity,
+                    'source_type'           => 'shipment_item',
+                    'source_id'             => $item->id,
+                ]);
+
+                StockMovement::create([
+                    'product_variant_id'         => $item->product_variant_id,
+                    'warehouse_document_item_id' => $docItem->id,
+                    'user_id'                    => $userId,
+                    'movement_type'              => WarehouseDocument::TYPE_IN,
+                    'quantity'                   => $item->quantity,
+                    'movement_date'              => now()->toDateString(),
+                ]);
+                $this->stockService->applyDelta(
+                    (int) $item->product_variant_id, StockMovement::TYPE_IN, (int) $item->quantity
+                );
+
+                // The order line is owed again, so its claim on the stock is
+                // owed again too.
+                $this->reservationService->restoreForOrderItem(
+                    (int) $item->order_item_id, (int) $item->quantity
+                );
+            }
+
+            // ── 2. Mark it, before anything recomputes shipped quantities ───
+            $shipment->update([
+                'canceled_at'   => now(),
+                'canceled_by'   => $userId,
+                'cancel_reason' => $reason,
+            ]);
+
+            // ── 3. Orders that this shipment had closed ─────────────────────
+            $orderIds = OrderItem::whereIn('id', $shipment->items->pluck('order_item_id'))
+                ->pluck('order_id')
+                ->push($shipment->order_id)
+                ->filter()
+                ->unique();
+
+            foreach ($orderIds as $orderId) {
+                $this->revertOrderShippedStatus((int) $orderId);
+            }
+
+            // ── 4. An order this shipment invented goes with it ─────────────
+            Order::where('created_from_shipment_id', $shipment->id)
+                ->update(['status' => Order::STATUS_CANCELED]);
+
+            Log::info('shipment.canceled', [
+                'shipment_id'           => $shipment->id,
+                'user_id'               => $userId,
+                'client_id'             => $shipment->client_id,
+                'items'                 => $shipment->items->count(),
+                'return_document_id'    => $returnDoc->id,
+            ]);
+
+            return $shipment->fresh(['client', 'user', 'canceledBy', 'items']);
+        });
+    }
+
+    /**
+     * The counterpart of syncOrderShippedStatus(): an order marked shipped
+     * that no longer is — because the shipment that closed it was cancelled —
+     * goes back to 'done'. Only 'shipped' is touched; an order someone
+     * cancelled by hand stays cancelled.
+     */
+    private function revertOrderShippedStatus(int $orderId): void
+    {
+        $order = Order::with('items.shipmentItems')->find($orderId);
+
+        if (! $order || $order->status !== Order::STATUS_SHIPPED) {
+            return;
+        }
+
+        // shipmentItems already excludes cancelled shipments, so this is the
+        // post-cancellation truth.
+        $allShipped = $order->items->isNotEmpty() && $order->items->every(
+            fn ($item) => $item->shipmentItems->sum('quantity') >= $item->quantity
+        );
+
+        if (! $allShipped) {
+            $order->update(['status' => Order::STATUS_DONE]);
+        }
+    }
+
     /**
      * Gives every scanned line without an `order_item_id` one to hang off.
      *

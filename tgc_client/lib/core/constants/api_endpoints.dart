@@ -60,6 +60,7 @@ class ApiEndpoints {
   // Shipments
   static const String shipments = '/shipments';
   static String shipmentById(int id) => '/shipments/$id';
+  static String shipmentCancel(int id) => '/shipments/$id/cancel';
   static const String shipmentsOrdersForShipment = '/shipments/orders-for-shipment';
   static const String shipmentsLastPrice = '/shipments/last-price';
 

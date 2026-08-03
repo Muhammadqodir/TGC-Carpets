@@ -40,6 +40,11 @@ class ShipmentResource extends JsonResource
                 'name' => $this->user->name,
             ]),
             'items'             => ShipmentItemResource::collection($this->whenLoaded('items')),
+            'canceled_at'       => $this->canceled_at?->toISOString(),
+            'cancel_reason'     => $this->cancel_reason,
+            // Loaded on show/cancel; absent from the list, where the flag
+            // above is all the UI needs to mark the row.
+            'canceled_by_name'  => $this->whenLoaded('canceledBy', fn () => $this->canceledBy?->name),
             'created_at'        => $this->created_at?->toISOString(),
             'updated_at'        => $this->updated_at?->toISOString(),
         ];

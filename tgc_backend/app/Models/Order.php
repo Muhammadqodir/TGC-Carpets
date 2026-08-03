@@ -36,6 +36,7 @@ class Order extends Model
         'status',
         'order_date',
         'notes',
+        'created_from_shipment_id',
     ];
 
     protected function casts(): array

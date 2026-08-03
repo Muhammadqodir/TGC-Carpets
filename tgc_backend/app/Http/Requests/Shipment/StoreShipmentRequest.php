@@ -130,10 +130,14 @@ class StoreShipmentRequest extends FormRequest
                 ->get()
                 ->keyBy('id');
 
-            $shippedPerOrderItem = DB::table('shipment_items')
-                ->whereIn('order_item_id', array_keys($requestedPerOrderItem))
-                ->groupBy('order_item_id')
-                ->pluck(DB::raw('COALESCE(SUM(quantity), 0)'), 'order_item_id');
+            // Cancelled shipments do not count against the order line: their
+            // goods came back, so that quantity is shippable again.
+            $shippedPerOrderItem = DB::table('shipment_items as si')
+                ->join('shipments as s', 's.id', '=', 'si.shipment_id')
+                ->whereNull('s.canceled_at')
+                ->whereIn('si.order_item_id', array_keys($requestedPerOrderItem))
+                ->groupBy('si.order_item_id')
+                ->pluck(DB::raw('COALESCE(SUM(si.quantity), 0)'), 'si.order_item_id');
 
             foreach ($data['items'] ?? [] as $index => $item) {
                 if (($item['order_item_id'] ?? null) === null) {

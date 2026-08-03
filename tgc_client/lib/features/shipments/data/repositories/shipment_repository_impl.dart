@@ -193,4 +193,21 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     }
   }
+
+  @override
+  Future<Either<Failure, ShipmentEntity>> cancelShipment({
+    required int id,
+    String? reason,
+  }) async {
+    try {
+      final result = await remoteDataSource.cancelShipment(id: id, reason: reason);
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
 }

@@ -89,9 +89,11 @@ class ProductVariant extends Model
         return $this->hasMany(WarehouseDocumentItem::class);
     }
 
+    /** Cancelled shipments excluded — see OrderItem::shipmentItems(). */
     public function shipmentItems(): HasMany
     {
-        return $this->hasMany(ShipmentItem::class);
+        return $this->hasMany(ShipmentItem::class)
+            ->whereHas('shipment', fn ($q) => $q->whereNull('canceled_at'));
     }
 
     public function stockMovements(): HasMany

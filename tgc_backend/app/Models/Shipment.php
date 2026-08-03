@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,16 +27,40 @@ class Shipment extends Model
         'exchange_rate',
         'vat_rate',
         'vat_amount',
+        'canceled_at',
+        'canceled_by',
+        'cancel_reason',
     ];
 
     protected function casts(): array
     {
         return [
             'shipment_datetime' => 'datetime',
+            'canceled_at'       => 'datetime',
             'exchange_rate'     => 'decimal:8',
             'vat_rate'          => 'decimal:4',
             'vat_amount'        => 'decimal:2',
         ];
+    }
+
+    public function isCanceled(): bool
+    {
+        return $this->canceled_at !== null;
+    }
+
+    /**
+     * Every query that derives money or shipped quantities must exclude
+     * cancelled shipments — the goods came back and the client does not owe
+     * for them. See the note on the add_shipment_cancellation migration.
+     */
+    public function scopeNotCanceled(Builder $query): Builder
+    {
+        return $query->whereNull('canceled_at');
+    }
+
+    public function canceledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'canceled_by');
     }
 
     /**
