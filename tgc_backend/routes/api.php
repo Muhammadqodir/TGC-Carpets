@@ -132,7 +132,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('shipment-import/clients',    [ShipmentImportController::class, 'clients'])->name('shipment-import.clients');
         Route::get('shipment-import/qualities',  [ShipmentImportController::class, 'qualities'])->name('shipment-import.qualities');
         Route::get('shipment-import/items',      [ShipmentImportController::class, 'items'])->name('shipment-import.items');
+        // Same controller for both verbs: $request->validate() reads the JSON
+        // body and the query string alike. The POST form is what the app uses
+        // — a scanned label is arbitrary text and had no business in a URL,
+        // where anything between the phone and nginx can mangle it. The GET
+        // stays for the released 1.3.0 build, which only knows that one.
         Route::get('shipment-import/scan',       [ShipmentImportController::class, 'scan'])->name('shipment-import.scan');
+        Route::post('shipment-import/scan',      [ShipmentImportController::class, 'scan'])->name('shipment-import.scan.post');
 
         // Warehouse documents + photo sub-routes
         Route::apiResource('warehouse-documents', WarehouseDocumentController::class);

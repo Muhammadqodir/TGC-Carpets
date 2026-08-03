@@ -589,8 +589,14 @@ class _FeedbackCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 13,
+                        height: 1.3,
                       ),
-                      maxLines: 2,
+                      // A server error can now be several validation lines at
+                      // once, so the card grows to fit them rather than
+                      // hiding the one that mattered behind an ellipsis. The
+                      // product-name subtitle of a normal scan is one short
+                      // line, so nothing else changes shape.
+                      maxLines: 8,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

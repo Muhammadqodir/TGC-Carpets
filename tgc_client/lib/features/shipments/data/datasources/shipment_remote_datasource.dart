@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/error/api_error_message.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/models/paginated_response.dart';
 import '../../../orders/data/models/order_model.dart';
@@ -242,9 +243,15 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
     required int clientId,
   }) async {
     try {
-      final response = await _dio.get(
+      // POST, not GET: the scanned code is arbitrary text off a physical
+      // label, and in the query string it depended on every hop between the
+      // phone and nginx preserving it. In August 2026 some labels came back
+      // as "code and client_id are required" — the server receiving neither —
+      // which no amount of client-side encoding could explain. In a JSON body
+      // there is nothing left to mangle.
+      final response = await _dio.post(
         ApiEndpoints.shipmentImportScan,
-        queryParameters: {
+        data: {
           'code': code,
           'client_id': clientId,
         },
@@ -268,6 +275,22 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
         );
       }
 
+      // A 422 here means the server saw no `code`/`client_id`, which cannot
+      // originate in this method: both are non-nullable, and they now travel
+      // in a JSON body rather than a URL. If it still happens, the request
+      // body itself is being lost in transit — so the card shows what the
+      // phone had, and the difference from what the server reports names the
+      // culprit. Remove once the field reports stop.
+      if (e.response?.statusCode == 422) {
+        throw ServerException(
+          message: [
+            apiErrorMessage(data) ?? 'Server error',
+            'Yuborilgan kod: "$code" (mijoz #$clientId)',
+          ].join('\n'),
+          statusCode: 422,
+        );
+      }
+
       _handleDioError(e);
     }
   }
@@ -275,9 +298,8 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   Never _handleDioError(DioException e) {
     final statusCode = e.response?.statusCode;
     final data = e.response?.data;
-    final message = data is Map<String, dynamic>
-        ? data['message'] as String?
-        : null;
+    // Every validation error, not Laravel's "(and 1 more error)" summary.
+    final message = apiErrorMessage(data);
     throw ServerException(
       message: message ?? e.message ?? 'Server error',
       statusCode: statusCode,
