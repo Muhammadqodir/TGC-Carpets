@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -44,7 +45,8 @@ class _ScanFeedback {
   const _ScanFeedback(this.kind, this.title, [this.subtitle]);
 }
 
-class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
+class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
+    with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerCtrl = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     formats: [BarcodeFormat.qrCode],
@@ -59,10 +61,54 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   _ScanFeedback? _feedback;
   int _scannedCount = 0;
 
+  /// Drives the full-screen colour wash after each scan. A worker holds the
+  /// phone at arm's length over a carpet and cannot read a card at that
+  /// distance — the colour is what they actually register, so it covers the
+  /// whole frame and fades over ~1.2s rather than blinking.
+  late final AnimationController _flashCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+  Color _flashColor = AppColors.success;
+
   @override
   void dispose() {
+    _flashCtrl.dispose();
     _scannerCtrl.dispose();
     super.dispose();
+  }
+
+  /// Colour wash + haptic + click, fired together so the scan lands whichever
+  /// sense is free: eyes on the carpet, phone in a gloved hand, or a noisy
+  /// floor. Distinct patterns per outcome — one short tap for a good scan,
+  /// a heavier double for a rejection — so it is legible without looking.
+  void _signal(_FeedbackKind kind) {
+    final color = switch (kind) {
+      _FeedbackKind.added || _FeedbackKind.incremented => AppColors.success,
+      _FeedbackKind.limitReached => AppColors.warning,
+      _FeedbackKind.error => AppColors.error,
+    };
+
+    setState(() => _flashColor = color);
+    _flashCtrl.forward(from: 0);
+
+    switch (kind) {
+      case _FeedbackKind.added:
+      case _FeedbackKind.incremented:
+        HapticFeedback.mediumImpact();
+        SystemSound.play(SystemSoundType.click);
+      case _FeedbackKind.limitReached:
+        HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
+      case _FeedbackKind.error:
+        // Two beats: unmistakably not the "accepted" pattern, even in a
+        // pocket or through a glove.
+        HapticFeedback.heavyImpact();
+        Future.delayed(const Duration(milliseconds: 160), () {
+          if (mounted) HapticFeedback.heavyImpact();
+        });
+        SystemSound.play(SystemSoundType.alert);
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -85,13 +131,16 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
       if (!mounted) return;
 
       result.fold(
-        (failure) => setState(() {
-          _feedback = _ScanFeedback(
-            _FeedbackKind.error,
-            _errorTitle(failure),
-            failure.message,
-          );
-        }),
+        (failure) {
+          _signal(_FeedbackKind.error);
+          setState(() {
+            _feedback = _ScanFeedback(
+              _FeedbackKind.error,
+              _errorTitle(failure),
+              failure.message,
+            );
+          });
+        },
         (item) {
           // A carpet this client has no order line for is a decision, not a
           // result: the worker confirms it in a sheet before anything is
@@ -143,6 +192,9 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   /// when the carpet was produced against someone else's order that other
   /// order stays open and still owed. Both are spelled out in the sheet.
   Future<void> _confirmAddAnyway(ShipmentImportItemEntity item) async {
+    // Neither accepted nor rejected — a lighter tap that says "look at me",
+    // since the sheet needs a decision before anything is added.
+    HapticFeedback.selectionClick();
     setState(() => _sheetOpen = true);
 
     final confirmed = await showModalBottomSheet<bool>(
@@ -175,6 +227,13 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
       if (item.colorName != null) item.colorName!.toUpperCase(),
       if (item.sizeLabel != null) item.sizeLabel!,
     ].join(' · ');
+
+    final kind = switch (result) {
+      ScanAddResult.added => _FeedbackKind.added,
+      ScanAddResult.incremented => _FeedbackKind.incremented,
+      ScanAddResult.limitReached => _FeedbackKind.limitReached,
+    };
+    _signal(kind);
 
     setState(() {
       switch (result) {
@@ -262,6 +321,37 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
       body: Stack(
         children: [
           MobileScanner(controller: _scannerCtrl, onDetect: _onDetect),
+
+          // Result wash. Strongest at the edges and clear in the middle, so
+          // it reads instantly at arm's length without hiding the carpet the
+          // worker is aiming at. IgnorePointer because it covers the frame.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _flashCtrl,
+                builder: (context, _) {
+                  if (_flashCtrl.value == 0) return const SizedBox.shrink();
+
+                  // Fades out over the tail of the animation rather than
+                  // linearly, so the colour is unmistakable on arrival and
+                  // still gone within ~1.2s.
+                  final opacity = (1 - _flashCtrl.value) * 0.55;
+
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        radius: 0.9,
+                        colors: [
+                          _flashColor.withValues(alpha: opacity * 0.25),
+                          _flashColor.withValues(alpha: opacity),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
 
           // Scan guide + counter
           Positioned.fill(

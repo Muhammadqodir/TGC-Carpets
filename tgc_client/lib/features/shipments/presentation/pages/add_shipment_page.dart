@@ -391,42 +391,77 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                       ),
                     ),
 
-                    // ── Items header + import button ───────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                            child: Text(
-                              'Mahsulotlar',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                    // ── Items header + import buttons ──────────────────────────
+                    // Two labelled buttons ate a phone's whole row and left
+                    // the heading clipped mid-word, so below the desktop
+                    // breakpoint they collapse to icons and keep their labels
+                    // as tooltips.
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDesktop = constraints.maxWidth >=
+                            AppConstants.desktopBreakpoint;
+
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 12, 8, 8),
+                                child: Text(
+                                  'Mahsulotlar',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
-                          child: TextButton.icon(
-                            onPressed: _scanQr,
-                            icon: const Icon(Icons.qr_code_scanner_rounded,
-                                size: 16),
-                            label: const Text('QR skanerlash'),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
-                          child: TextButton.icon(
-                            onPressed: _importFromOrder,
-                            icon: const Icon(Icons.download_rounded, size: 16),
-                            label: const Text('Buyurtmadan import'),
-                          ),
-                        ),
-                      ],
+                            if (isDesktop) ...[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
+                                child: TextButton.icon(
+                                  onPressed: _scanQr,
+                                  icon: const Icon(
+                                      Icons.qr_code_scanner_rounded, size: 16),
+                                  label: const Text('QR skanerlash'),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
+                                child: TextButton.icon(
+                                  onPressed: _importFromOrder,
+                                  icon: const Icon(Icons.download_rounded,
+                                      size: 16),
+                                  label: const Text('Buyurtmadan import'),
+                                ),
+                              ),
+                            ] else ...[
+                              IconButton(
+                                onPressed: _scanQr,
+                                icon: const Icon(
+                                    Icons.qr_code_scanner_rounded, size: 22),
+                                color: AppColors.primary,
+                                tooltip: 'QR skanerlash',
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              IconButton(
+                                onPressed: _importFromOrder,
+                                icon: const Icon(Icons.download_rounded,
+                                    size: 22),
+                                color: AppColors.primary,
+                                tooltip: 'Buyurtmadan import',
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                          ],
+                        );
+                      },
                     ),
 
                     // ── Table header ───────────────────────────────────────────
