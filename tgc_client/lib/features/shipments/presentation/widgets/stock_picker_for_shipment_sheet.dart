@@ -607,9 +607,15 @@ class _ItemsList extends StatelessWidget {
                 const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final item = items[i];
-              final isSelected = state.selectedIds.contains(item.orderItemId);
+              // Nullable only for scanned off-order carpets, which never come
+              // through this wizard; guard rather than assert so a bad payload
+              // cannot crash the picker.
+              final orderItemId = item.orderItemId;
+              if (orderItemId == null) return const SizedBox.shrink();
+
+              final isSelected = state.selectedIds.contains(orderItemId);
               return InkWell(
-                onTap: () => onToggle(item.orderItemId),
+                onTap: () => onToggle(orderItemId),
                 child: _ImportItemTile(item: item, isSelected: isSelected),
               );
             },

@@ -33,22 +33,40 @@ class ShipmentService
      * Create a shipment, reduce warehouse stock, and update related order status.
      *
      * Flow per item:
-     *   1. Validate sufficient stock for every variant.
-     *   2. Create the Shipment header.
-     *   3. Create a WarehouseDocument of type 'out' to represent the outgoing stock.
-     *   4. For each item: create ShipmentItem → WarehouseDocumentItem → StockMovement.
-     *   5. If the linked order's items are fully shipped, mark the order as 'shipped'.
+     *   1. Give scanned lines that have no order item one to hang off (a single
+     *      auto-created order for the whole shipment), and book in any scanned
+     *      carpet the warehouse never received.
+     *   2. Validate sufficient stock for every variant.
+     *   3. Create the Shipment header.
+     *   4. Create a WarehouseDocument of type 'out' to represent the outgoing stock.
+     *   5. For each item: create ShipmentItem → WarehouseDocumentItem → StockMovement.
+     *   6. If the linked order's items are fully shipped, mark the order as 'shipped'.
+     *
+     * Step 1 exists because a worker scanning labels is looking at carpets that
+     * physically exist, which the order and stock tables do not always agree
+     * with — the carpet may have been produced against another client's order,
+     * or never booked into the warehouse at all. Both are repaired here rather
+     * than refused, but ONLY for lines the client marked `scanned`; everything
+     * posted by the order/stock import wizards keeps the old strict behaviour.
      */
     public function create(array $data, int $userId): Shipment
     {
         $warehouseDocId = null;
 
         $shipment = DB::transaction(function () use ($data, $userId, &$warehouseDocId): Shipment {
+            $shipmentDate = Carbon::parse($data['shipment_datetime']);
+
+            // ── 0. Repairs for scanned lines, before anything is validated ──
+            [$data['items'], $autoOrderId] = $this->createOrderLinesForScannedItems(
+                $data['items'], (int) $data['client_id'], $userId, $shipmentDate
+            );
+            $this->receiveScannedCarpetsNotInStock($data['items'], $userId, $shipmentDate);
+
             // Inside the transaction, and holding row locks, so the balance we
             // read is the balance we write against. See instructions/phase-1/03.
+            // Runs AFTER the auto-receipt above so it sees that stock, and
+            // still has the last word before any OUT movement is written.
             $requestedPerVariant = $this->assertSufficientStock($data['items']);
-
-            $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
             // currency/exchange_rate/vat_rate default to the pre-phase-3
             // behaviour exactly (USD, rate 1, no VAT) for every request
@@ -159,6 +177,13 @@ class ShipmentService
             // ── 4. Update order status if fully shipped ─────────────────────
             if ($shipment->order_id !== null) {
                 $this->syncOrderShippedStatus($shipment->order_id);
+            }
+
+            // The auto-created order is fully shipped the moment this shipment
+            // is written — that is the only reason it exists — so it flips to
+            // 'shipped' through the same path as any other order.
+            if ($autoOrderId !== null) {
+                $this->syncOrderShippedStatus($autoOrderId);
             }
 
             return $shipment->load([
@@ -492,6 +517,164 @@ class ShipmentService
      * for it to mean anything — WarehouseDocumentService currently does not.
      * Phase-2 replaces this with a lockable product_variant_stock balance row.
      */
+    /**
+     * Gives every scanned line without an `order_item_id` one to hang off.
+     *
+     * `shipment_items.order_item_id` is NOT NULL, so "ship a carpet this client
+     * never ordered" has to become "this client ordered it, and here it is" —
+     * one order per shipment holding exactly the added-anyway lines, so the
+     * invented demand is visibly separate from what the client actually asked
+     * for. It is created here, at submit time, so a worker who scans a carpet
+     * and then abandons the form leaves nothing behind.
+     *
+     * The carpet may well have been produced against a DIFFERENT client's
+     * order. That other order line is deliberately left alone: it is still
+     * unshipped, still owed, and production still has to cover it. The app
+     * names that client in the confirmation sheet before any of this runs.
+     *
+     * @return array{0: array<int, array<string, mixed>>, 1: int|null} items with
+     *         order_item_id filled in, and the auto-created order id (or null)
+     */
+    private function createOrderLinesForScannedItems(
+        array $items,
+        int $clientId,
+        int $userId,
+        Carbon $shipmentDate,
+    ): array {
+        $needsLine = [];
+        foreach ($items as $index => $item) {
+            if (($item['order_item_id'] ?? null) === null) {
+                $needsLine[$index] = (int) $item['product_variant_id'];
+            }
+        }
+
+        if ($needsLine === []) {
+            return [$items, null];
+        }
+
+        $order = Order::create([
+            'user_id'    => $userId,
+            'client_id'  => $clientId,
+            'status'     => Order::STATUS_DONE,
+            'order_date' => $shipmentDate->toDateString(),
+            'notes'      => 'Yuk xati bilan avtomatik yaratildi: skanerlangan, '
+                . 'lekin mijozning ochiq buyurtmasida bo\'lmagan mahsulotlar.',
+        ]);
+
+        // One order line per shipment line, quantity matched, so the order is
+        // exactly satisfied by this shipment and syncOrderShippedStatus() can
+        // close it. Two scans of the same variant arrive as one line with
+        // quantity 2, so this does not fragment.
+        foreach ($needsLine as $index => $variantId) {
+            $orderItem = $order->items()->create([
+                'product_variant_id' => $variantId,
+                'quantity'           => (int) $items[$index]['quantity'],
+            ]);
+
+            $items[$index]['order_item_id'] = $orderItem->id;
+        }
+
+        Log::info('shipment.scan.order_auto_created', [
+            'order_id'  => $order->id,
+            'client_id' => $clientId,
+            'user_id'   => $userId,
+            'lines'     => count($needsLine),
+        ]);
+
+        return [$items, $order->id];
+    }
+
+    /**
+     * Books in scanned carpets the warehouse never received.
+     *
+     * A label in a worker's hand is evidence the carpet exists; a missing
+     * stock_movement only means nobody recorded it arriving. Rather than
+     * refuse the shipment (assertSufficientStock would) or let the ledger go
+     * negative, the shortfall is received here as a normal warehouse IN
+     * document, so the carpet's life is still in → out and every stock report
+     * stays add-up-able.
+     *
+     * Only shortfalls on variants with at least one scanned line are covered:
+     * a wizard line short on stock is still a real error and still throws.
+     */
+    private function receiveScannedCarpetsNotInStock(
+        array $items,
+        int $userId,
+        Carbon $shipmentDate,
+    ): void {
+        $requestedPerVariant = [];
+        $scannedVariants     = [];
+
+        foreach ($items as $item) {
+            $variantId = (int) $item['product_variant_id'];
+            $requestedPerVariant[$variantId] = ($requestedPerVariant[$variantId] ?? 0) + (int) $item['quantity'];
+
+            if (filter_var($item['scanned'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $scannedVariants[$variantId] = true;
+            }
+        }
+
+        if ($scannedVariants === []) {
+            return;
+        }
+
+        // Same lock, same order, as assertSufficientStock() — so two shipments
+        // scanning the same carpet cannot both read "no stock" and each book
+        // one in.
+        $lockIds = array_keys($scannedVariants);
+        sort($lockIds);
+        ProductVariant::whereIn('id', $lockIds)->orderBy('id')->lockForUpdate()->get();
+
+        $shortfalls = [];
+        foreach ($requestedPerVariant as $variantId => $requested) {
+            if (! isset($scannedVariants[$variantId])) {
+                continue;
+            }
+
+            $shortfall = $requested - $this->getStock($variantId);
+            if ($shortfall > 0) {
+                $shortfalls[$variantId] = $shortfall;
+            }
+        }
+
+        if ($shortfalls === []) {
+            return;
+        }
+
+        $document = WarehouseDocument::create([
+            'type'          => WarehouseDocument::TYPE_IN,
+            'user_id'       => $userId,
+            'document_date' => $shipmentDate->toDateString(),
+            'notes'         => 'Yuk xati uchun avtomatik qabul: skanerlangan, '
+                . 'lekin omborga kirim qilinmagan mahsulotlar.',
+        ]);
+
+        foreach ($shortfalls as $variantId => $quantity) {
+            $docItem = WarehouseDocumentItem::create([
+                'warehouse_document_id' => $document->id,
+                'product_variant_id'    => $variantId,
+                'quantity'              => $quantity,
+                'notes'                 => 'Skanerlangan yorliq asosida.',
+            ]);
+
+            StockMovement::create([
+                'product_variant_id'         => $variantId,
+                'warehouse_document_item_id' => $docItem->id,
+                'user_id'                    => $userId,
+                'movement_type'              => WarehouseDocument::TYPE_IN,
+                'quantity'                   => $quantity,
+                'movement_date'              => $shipmentDate->toDateString(),
+            ]);
+            $this->stockService->applyDelta($variantId, StockMovement::TYPE_IN, $quantity);
+        }
+
+        Log::info('shipment.scan.stock_auto_received', [
+            'warehouse_document_id' => $document->id,
+            'user_id'               => $userId,
+            'variants'              => $shortfalls,
+        ]);
+    }
+
     private function assertSufficientStock(array $items): array
     {
         // Sum every line per variant BEFORE checking. Two lines of the same

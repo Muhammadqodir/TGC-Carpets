@@ -115,8 +115,10 @@ class ShipmentImportBloc
     final s = state;
     if (s is! ShipmentImportItemsLoaded) return;
 
+    // orderItemId is nullable only for scanned off-order carpets, which never
+    // reach this wizard — every item from /shipment-import/items has one.
     final updated = event.select
-        ? s.items.map((i) => i.orderItemId).toSet()
+        ? s.items.map((i) => i.orderItemId).whereType<int>().toSet()
         : <int>{};
     emit(s.copyWith(selectedIds: updated));
   }

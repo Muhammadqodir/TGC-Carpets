@@ -36,12 +36,23 @@ class StoreShipmentRequest extends FormRequest
             'vat_rate'                => ['nullable', 'numeric', 'min:0', 'max:1'],
 
             'items'                          => ['required', 'array', 'min:1'],
-            'items.*.order_item_id'          => ['required', 'integer', 'exists:order_items,id'],
+            // Nullable only for scanned lines — see the `scanned` rule below
+            // and the required-unless-scanned check in withValidator().
+            'items.*.order_item_id'          => ['nullable', 'integer', 'exists:order_items,id'],
             'items.*.product_variant_id'     => ['required', 'integer', 'exists:product_variants,id'],
             'items.*.quantity'               => ['required', 'integer', 'min:1'],
             'items.*.price'                  => ['required', 'numeric', 'min:0'],
             'items.*.discount_type'          => ['nullable', 'string', 'in:none,percent,amount'],
             'items.*.discount_value'         => ['nullable', 'numeric', 'min:0'],
+
+            // "This line came from scanning the label on a physical carpet the
+            // worker is holding." That claim is what licenses the two things
+            // ShipmentService does for these lines and no others: creating the
+            // missing order line (add anyway), and booking the carpet into the
+            // warehouse before shipping it out when it was never received.
+            // Lines from the order/stock import wizards never set it, so their
+            // behaviour is unchanged.
+            'items.*.scanned'                => ['sometimes', 'boolean'],
         ];
     }
 
@@ -64,6 +75,27 @@ class StoreShipmentRequest extends FormRequest
             $violations = [];
             $data       = $v->getData();
 
+            // ── order_item_id is required unless the line was scanned ──────────
+            // Enforced here rather than as a rule because required_without does
+            // not address a sibling key under the same wildcard index. This one
+            // is NOT gated behind enforce_item_validation: a non-scanned line
+            // with no order item cannot be written at all (shipment_items.
+            // order_item_id is NOT NULL), so accepting it would only turn a
+            // clear 422 into a 500.
+            foreach ($data['items'] ?? [] as $index => $item) {
+                if (($item['order_item_id'] ?? null) === null
+                    && ! filter_var($item['scanned'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    $v->errors()->add(
+                        "items.{$index}.order_item_id",
+                        'The order item id field is required for lines that were not scanned.',
+                    );
+                }
+            }
+
+            if ($v->errors()->isNotEmpty()) {
+                return;
+            }
+
             // ── Order belongs to client ────────────────────────────────────────
             if (! empty($data['order_id'])) {
                 $order = Order::find($data['order_id']);
@@ -79,8 +111,16 @@ class StoreShipmentRequest extends FormRequest
             // Sum requested quantity per order_item first: two lines against the
             // same order item must be checked against their combined total, not
             // each on its own.
+            // Scanned lines with no order item yet are skipped throughout: the
+            // order line they will hang off does not exist until
+            // ShipmentService creates it, so there is nothing here to check
+            // them against. What they do get checked against is stock, in
+            // ShipmentService::assertSufficientStock().
             $requestedPerOrderItem = [];
             foreach ($data['items'] ?? [] as $item) {
+                if (($item['order_item_id'] ?? null) === null) {
+                    continue;
+                }
                 $id = (int) $item['order_item_id'];
                 $requestedPerOrderItem[$id] = ($requestedPerOrderItem[$id] ?? 0) + (int) $item['quantity'];
             }
@@ -96,6 +136,10 @@ class StoreShipmentRequest extends FormRequest
                 ->pluck(DB::raw('COALESCE(SUM(quantity), 0)'), 'order_item_id');
 
             foreach ($data['items'] ?? [] as $index => $item) {
+                if (($item['order_item_id'] ?? null) === null) {
+                    continue;   // scanned line; its order item does not exist yet
+                }
+
                 $orderItem = $orderItems->get((int) $item['order_item_id']);
                 if (! $orderItem) {
                     continue;   // exists: rule already flagged it

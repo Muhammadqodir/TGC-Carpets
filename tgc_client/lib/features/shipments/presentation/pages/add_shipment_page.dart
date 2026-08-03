@@ -111,7 +111,9 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       r.fold((_) {}, (price) {
         if (price == null) return;
         for (final row in _ctrl.items) {
-          if (row.orderItemId == item.orderItemId &&
+          // Both ids are nullable now; two nulls must not count as a match.
+          if (item.orderItemId != null &&
+              row.orderItemId == item.orderItemId &&
               row.priceCtrl.text.isEmpty) {
             row.priceCtrl.text = price.toStringAsFixed(2);
           }
@@ -196,10 +198,14 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
     final items = filled
         .map((r) => {
+              // Null for a scanned carpet with no order line; the backend
+              // creates one, but only because `scanned` vouches that a real
+              // labelled carpet is being shipped.
               'order_item_id': r.orderItemId,
               'product_variant_id': r.variantId,
               'quantity': r.parsedQuantity,
               'price': r.parsedPrice,
+              if (r.scanned) 'scanned': true,
             })
         .toList();
 

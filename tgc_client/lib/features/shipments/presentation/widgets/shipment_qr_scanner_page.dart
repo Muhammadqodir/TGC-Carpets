@@ -3,6 +3,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/shipment_import_entities.dart';
 import '../../domain/repositories/shipment_repository.dart';
@@ -51,6 +52,9 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   final ShipmentRepository _repo = sl<ShipmentRepository>();
 
   bool _busy = false;
+  /// True while the "add anyway" sheet is up, so the camera behind it cannot
+  /// stack a second sheet on top after the debounce expires.
+  bool _sheetOpen = false;
   String? _lastCode;
   _ScanFeedback? _feedback;
   int _scannedCount = 0;
@@ -62,7 +66,7 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_busy) return;
+    if (_busy || _sheetOpen) return;
     final code = capture.barcodes.firstOrNull?.rawValue;
     if (code == null || code.isEmpty || code == _lastCode) return;
 
@@ -82,9 +86,22 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
 
       result.fold(
         (failure) => setState(() {
-          _feedback = _ScanFeedback(_FeedbackKind.error, failure.message);
+          _feedback = _ScanFeedback(
+            _FeedbackKind.error,
+            _errorTitle(failure),
+            failure.message,
+          );
         }),
-        _applyItem,
+        (item) {
+          // A carpet this client has no order line for is a decision, not a
+          // result: the worker confirms it in a sheet before anything is
+          // added, because adding it will invent an order line for them.
+          if (item.isOnClientOrder) {
+            _applyItem(item);
+          } else {
+            _confirmAddAnyway(item);
+          }
+        },
       );
     } finally {
       // Debounces the dozens of detections mobile_scanner fires per second
@@ -98,6 +115,54 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
           _lastCode = null;
         });
       });
+    }
+  }
+
+  /// A short headline for the feedback card, with the server's own sentence
+  /// kept underneath it. Before this, a worker holding a carpet saw only a
+  /// bare backend string and could not tell a dead phone signal from a label
+  /// this client has no order for.
+  String _errorTitle(Failure failure) {
+    if (failure is NetworkFailure) return 'Internet aloqasi yo\'q';
+    if (failure is UnauthorizedFailure) return 'Sessiya tugadi, qayta kiring';
+
+    if (failure is ServerFailure) {
+      return switch (failure.statusCode) {
+        404 => 'Yorliq topilmadi',
+        422 => 'Ma\'lumot noto\'g\'ri',
+        final int code when code >= 500 => 'Serverda xatolik',
+        _ => 'Skanerlashda xatolik',
+      };
+    }
+
+    return 'Skanerlashda xatolik';
+  }
+
+  /// Confirmation before inventing demand: adding a carpet the client never
+  /// ordered creates an order line for them when the shipment is saved, and
+  /// when the carpet was produced against someone else's order that other
+  /// order stays open and still owed. Both are spelled out in the sheet.
+  Future<void> _confirmAddAnyway(ShipmentImportItemEntity item) async {
+    setState(() => _sheetOpen = true);
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _AddAnywaySheet(
+        item: item,
+        clientName: widget.clientName,
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() => _sheetOpen = false);
+
+    if (confirmed == true) {
+      _applyItem(item);
     }
   }
 
@@ -147,7 +212,16 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     result.fold((_) {}, (price) {
       if (price == null) return;
       for (final row in widget.controller.items) {
-        if (row.orderItemId == item.orderItemId && row.priceCtrl.text.isEmpty) {
+        if (row.priceCtrl.text.isNotEmpty) continue;
+
+        // Off-order rows all have a null orderItemId, so comparing those
+        // would price whichever one came first. They are identified by
+        // variant instead — the same rule addOrIncrementItem uses.
+        final isTheRow = item.isOnClientOrder
+            ? row.orderItemId == item.orderItemId
+            : row.orderItemId == null && row.variantId == item.variantId;
+
+        if (isTheRow) {
           row.priceCtrl.text = price.toStringAsFixed(2);
         }
       }
@@ -253,6 +327,182 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Confirmation sheet for a scanned carpet the selected client has no open
+/// order line for. Deliberately spells out the two consequences the worker
+/// cannot see from the shipment form: an order line will be created for this
+/// client, and if the carpet was produced for someone else, that order stays
+/// unfilled.
+class _AddAnywaySheet extends StatelessWidget {
+  final ShipmentImportItemEntity item;
+  final String clientName;
+
+  const _AddAnywaySheet({required this.item, required this.clientName});
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      if (item.colorName != null) item.colorName!.toUpperCase(),
+      if (item.sizeLabel != null) item.sizeLabel!,
+      if (item.qualityName != null) item.qualityName!,
+    ].join(' · ');
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Icon(Icons.help_outline_rounded,
+                    color: AppColors.warning, size: 26),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Buyurtmada yo\'q mahsulot',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              item.edgeCode != null
+                  ? '${item.productName} [${item.edgeCode}]'
+                  : item.productName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (subtitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            _SheetNote(
+              icon: Icons.info_outline_rounded,
+              color: Colors.white70,
+              text: '"$clientName" mijozining ochiq buyurtmasida bu mahsulot '
+                  'yo\'q. Qo\'shsangiz, yuk xati saqlanganda unga yangi '
+                  'buyurtma qatori ochiladi.',
+            ),
+            if (item.producedForClient != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: _SheetNote(
+                  icon: Icons.warning_amber_rounded,
+                  color: AppColors.warning,
+                  text: 'Bu mahsulot "${item.producedForClient}" buyurtmasi '
+                      'uchun ishlab chiqarilgan. Uning buyurtmasi yopilmaydi '
+                      've hali ham kutilib qoladi.',
+                ),
+              ),
+            if (item.stockQuantity <= 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: _SheetNote(
+                  icon: Icons.inventory_2_outlined,
+                  color: Colors.white70,
+                  text: 'Omborda kirim qilinmagan. Yuk xati saqlanganda '
+                      'avtomatik kirim qilinadi.',
+                ),
+              ),
+            const SizedBox(height: 22),
+
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Bekor qilish',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.warning,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Baribir qo\'shish',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetNote extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _SheetNote({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(color: color, fontSize: 13, height: 1.35),
+          ),
+        ),
+      ],
     );
   }
 }

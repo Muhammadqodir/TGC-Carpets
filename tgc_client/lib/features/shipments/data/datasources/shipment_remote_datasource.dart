@@ -254,6 +254,20 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
         body['data'] as Map<String, dynamic>,
       );
     } on DioException catch (e) {
+      // A 404 carrying `unmatched` is not a failure: the label resolved to a
+      // real carpet, this client just has no open order line for it. That is
+      // the "add anyway" case, so the resolved product comes back as a normal
+      // result with a null orderItemId and the UI offers to add it. Any other
+      // 404 (unreadable code, unknown label) stays an error.
+      final data = e.response?.data;
+      if (e.response?.statusCode == 404 &&
+          data is Map<String, dynamic> &&
+          data['unmatched'] is Map<String, dynamic>) {
+        return ShipmentImportItemModel.fromJson(
+          data['unmatched'] as Map<String, dynamic>,
+        );
+      }
+
       _handleDioError(e);
     }
   }

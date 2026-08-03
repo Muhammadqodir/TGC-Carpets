@@ -37,7 +37,10 @@ class ShipmentImportQualityEntity extends Equatable {
 
 /// A single shippable order item ready for import into the shipment form.
 class ShipmentImportItemEntity extends Equatable {
-  final int orderItemId;
+  /// Null only for a scanned carpet the selected client has no open order
+  /// line for — the "add anyway" case, where the backend creates the order
+  /// line at submit time. Items from the order/stock wizards always have one.
+  final int? orderItemId;
   final int variantId;
   final String productName;
   final String? colorName;
@@ -50,8 +53,19 @@ class ShipmentImportItemEntity extends Equatable {
   final String? edgeCode;
   final String? edgeTitle;
 
-  /// Available to ship: min(order_qty - shipped_qty, stock_qty). Pre-computed on backend.
+  /// How many are still unshipped on the order line. 0 when there is no order
+  /// line yet ([isOnClientOrder] false), where nothing caps the quantity.
   final int availableQuantity;
+
+  /// Warehouse stock for this variant. Informational only — a carpet whose
+  /// label was just scanned is physically present whatever this says, and the
+  /// backend books in the difference when the shipment is saved.
+  final int stockQuantity;
+
+  /// Shop name of the client this carpet was produced for, when that is
+  /// someone other than the one selected on the form. Null when the label
+  /// carries no order link, or when it is this client's own carpet.
+  final String? producedForClient;
 
   const ShipmentImportItemEntity({
     required this.orderItemId,
@@ -67,15 +81,22 @@ class ShipmentImportItemEntity extends Equatable {
     this.edgeCode,
     this.edgeTitle,
     required this.availableQuantity,
+    this.stockQuantity = 0,
+    this.producedForClient,
   });
 
   String? get sizeLabel =>
       sizeLength != null && sizeWidth != null ? '$sizeWidth×$sizeLength' : null;
 
+  /// False = the scan resolved a real carpet, but this client has no open
+  /// order line for it. Adding it anyway makes the backend create one.
+  bool get isOnClientOrder => orderItemId != null;
+
   @override
   List<Object?> get props => [
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
-        edgeCode, edgeTitle, availableQuantity,
+        edgeCode, edgeTitle, availableQuantity, stockQuantity,
+        producedForClient,
       ];
 }

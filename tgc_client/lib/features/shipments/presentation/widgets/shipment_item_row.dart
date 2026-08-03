@@ -11,8 +11,16 @@ class ShipmentItemRow {
   final int id = ++_counter;
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  final int orderItemId;
+  /// Null for a scanned carpet the client has no open order line for. The
+  /// backend creates that line when the shipment is submitted — see
+  /// ShipmentService::createOrderLinesForScannedItems().
+  final int? orderItemId;
   final int variantId;
+
+  /// True when this row came from scanning the label on a physical carpet.
+  /// Sent to the backend, which only repairs missing order lines and missing
+  /// warehouse stock for rows that carry it.
+  final bool scanned;
 
   // ── Display fields (from order item) ─────────────────────────────────────
   final String productName;
@@ -36,6 +44,7 @@ class ShipmentItemRow {
   ShipmentItemRow({
     required this.orderItemId,
     required this.variantId,
+    this.scanned = false,
     required this.productName,
     this.colorName,
     this.colorImageUrl,
@@ -58,10 +67,12 @@ class ShipmentItemRow {
     ShipmentImportItemEntity item, {
     double? lastPrice,
     int? initialQuantity,
+    bool scanned = false,
   }) {
     return ShipmentItemRow(
       orderItemId: item.orderItemId,
       variantId: item.variantId,
+      scanned: scanned,
       productName: item.productName,
       colorName: item.colorName,
       colorImageUrl: item.colorImageUrl,

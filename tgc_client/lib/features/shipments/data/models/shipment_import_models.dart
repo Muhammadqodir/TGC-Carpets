@@ -49,11 +49,16 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
     super.edgeCode,
     super.edgeTitle,
     required super.availableQuantity,
+    super.stockQuantity,
+    super.producedForClient,
   });
 
+  /// Parses both shapes the scan endpoint returns: a matched order line
+  /// (`data`), and the `unmatched` block of its 404, where `order_item_id` is
+  /// null because the order line does not exist yet.
   factory ShipmentImportItemModel.fromJson(Map<String, dynamic> json) {
     return ShipmentImportItemModel(
-      orderItemId: json['order_item_id'] as int,
+      orderItemId: json['order_item_id'] as int?,
       variantId: json['variant_id'] as int,
       productName: json['product_name'] as String? ?? '',
       colorName: json['color_name'] as String?,
@@ -66,6 +71,8 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
       edgeCode: json['edge_code'] as String?,
       edgeTitle: json['edge_title'] as String?,
       availableQuantity: json['available_quantity'] as int? ?? 0,
+      stockQuantity: json['stock_quantity'] as int? ?? 0,
+      producedForClient: json['produced_for_client'] as String?,
     );
   }
 }

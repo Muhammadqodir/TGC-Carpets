@@ -87,14 +87,22 @@ class ShipmentFormController extends ChangeNotifier {
   /// rows (unlike [importFromOrder]/[importFromStock], which replace them).
   ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item,
       {double? lastPrice}) {
-    final existing = _items.where((r) => r.orderItemId == item.orderItemId);
+    // Rows for a carpet with no order line yet cannot be matched on
+    // orderItemId — they all have none — so they are matched on the variant
+    // instead, among rows added the same way. Scanning the same off-order
+    // carpet twice is still one row of quantity 2.
+    final existing = item.isOnClientOrder
+        ? _items.where((r) => r.orderItemId == item.orderItemId)
+        : _items.where((r) => r.orderItemId == null && r.variantId == item.variantId);
+
     if (existing.isNotEmpty) {
       final row = existing.first;
       final current = row.parsedQuantity;
       // Use the just-fetched availableQuantity (not row.availableQuantity,
       // a snapshot from when the row was first added) since it reflects
-      // stock/order state as of this scan.
-      if (current >= item.availableQuantity) {
+      // stock/order state as of this scan. An off-order row has nothing to
+      // cap against: the order line is created to fit whatever ships.
+      if (item.isOnClientOrder && current >= item.availableQuantity) {
         return ScanAddResult.limitReached;
       }
       row.quantityCtrl.text = '${current + 1}';
@@ -106,6 +114,7 @@ class ShipmentFormController extends ChangeNotifier {
       item,
       lastPrice: lastPrice,
       initialQuantity: 1,
+      scanned: true,
     );
     _hookRow(row);
     _items.add(row);
