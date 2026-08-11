@@ -65,7 +65,18 @@ class ShipmentImportItemEntity extends Equatable {
   /// Shop name of the client this carpet was produced for, when that is
   /// someone other than the one selected on the form. Null when the label
   /// carries no order link, or when it is this client's own carpet.
+  ///
+  /// Non-null means shipping this carpet takes it off that client's order:
+  /// their "Tayyor" count drops and the factory owes them a replacement. The
+  /// scanner asks before doing that, whether or not this client has an order
+  /// line of their own for it.
   final String? producedForClient;
+
+  /// The production batch item the scanned label resolved to, sent back with
+  /// the shipment so the backend can move the production record onto the line
+  /// these carpets ship against. Null for items picked from the order/stock
+  /// wizards and for variant-only label shapes, which name no single carpet.
+  final int? productionBatchItemId;
 
   const ShipmentImportItemEntity({
     required this.orderItemId,
@@ -83,6 +94,7 @@ class ShipmentImportItemEntity extends Equatable {
     required this.availableQuantity,
     this.stockQuantity = 0,
     this.producedForClient,
+    this.productionBatchItemId,
   });
 
   String? get sizeLabel =>
@@ -97,6 +109,6 @@ class ShipmentImportItemEntity extends Equatable {
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
         edgeCode, edgeTitle, availableQuantity, stockQuantity,
-        producedForClient,
+        producedForClient, productionBatchItemId,
       ];
 }

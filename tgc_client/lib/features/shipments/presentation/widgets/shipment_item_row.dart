@@ -22,6 +22,16 @@ class ShipmentItemRow {
   /// warehouse stock for rows that carry it.
   final bool scanned;
 
+  /// One entry per carpet scanned into this row, naming the production batch
+  /// item its label resolved to. Two carpets off the same batch item appear
+  /// twice; a label shape that names no single carpet contributes nothing.
+  ///
+  /// The backend moves the production record of each of these onto the line
+  /// this row ships against, so a carpet made for another client stops
+  /// counting as ready for them once it leaves — see
+  /// ShipmentService::reattributeScannedProduction().
+  final List<int> scannedBatchItemIds = [];
+
   // ── Display fields (from order item) ─────────────────────────────────────
   final String productName;
   final String? colorName;
@@ -118,6 +128,13 @@ class ShipmentItemRow {
       initialQuantity: available > 0 ? available : 1,
       initialPrice: lastPrice,
     );
+  }
+
+  /// Records one more scanned carpet against this row. Ignores a null id —
+  /// the `PB{n} VAR{n}` label shape names a variant and no particular carpet,
+  /// so there is no production row for the backend to move.
+  void addScannedBatchItem(int? batchItemId) {
+    if (batchItemId != null) scannedBatchItemIds.add(batchItemId);
   }
 
   String? get sizeLabel =>

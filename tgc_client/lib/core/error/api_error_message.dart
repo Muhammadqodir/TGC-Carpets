@@ -38,3 +38,31 @@ String? apiErrorMessage(dynamic data) {
   final message = data['message'];
   return message is String && message.isNotEmpty ? message : null;
 }
+
+/// What to show when [apiErrorMessage] found nothing — a response that is not
+/// a Laravel error body at all: an HTML page from nginx, an empty body, a
+/// proxy's own error.
+///
+/// Never Dio's own `message` for these. It is four lines of English about
+/// `validateStatus` and MDN links, which is what a worker in the factory saw
+/// on a failed scan in August 2026 — unreadable to them, and it buried the
+/// only fact that mattered (the status code). This states the status plainly
+/// and appends a short excerpt of whatever did come back, so the next
+/// screenshot from the floor identifies the responder without a server login.
+String apiFallbackMessage(dynamic data, int? statusCode) {
+  final status = statusCode != null
+      ? 'Server kutilmagan javob qaytardi (HTTP $statusCode).'
+      : 'Server kutilmagan javob qaytardi.';
+
+  if (data == null) return status;
+
+  final raw = (data is String ? data : '$data')
+      .replaceAll(RegExp(r'<[^>]*>'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  if (raw.isEmpty) return status;
+
+  final excerpt = raw.length > 160 ? '${raw.substring(0, 160)}…' : raw;
+  return '$status\nJavob: $excerpt';
+}

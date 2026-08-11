@@ -322,12 +322,18 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   }
 
   Never _handleDioError(DioException e) {
+    // No response at all: the request never completed — airplane mode, wifi
+    // that dropped between the racks, a timeout. The repository turns this
+    // into "Internet aloqasi yo'q", which is the one message a worker on the
+    // floor can act on themselves.
+    if (e.response == null) throw const NetworkException();
+
     final statusCode = e.response?.statusCode;
     final data = e.response?.data;
     // Every validation error, not Laravel's "(and 1 more error)" summary.
     final message = apiErrorMessage(data);
     throw ServerException(
-      message: message ?? e.message ?? 'Server error',
+      message: message ?? apiFallbackMessage(data, statusCode),
       statusCode: statusCode,
     );
   }

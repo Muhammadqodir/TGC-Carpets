@@ -53,6 +53,16 @@ class StoreShipmentRequest extends FormRequest
             // Lines from the order/stock import wizards never set it, so their
             // behaviour is unchanged.
             'items.*.scanned'                => ['sometimes', 'boolean'],
+
+            // The production batch items the labels on this line resolved to,
+            // one entry per carpet scanned (so two carpets off one batch item
+            // send the same id twice). ShipmentService uses them to move the
+            // production record onto the line these carpets actually ship
+            // against — see reattributeScannedProduction(). Optional: a line
+            // that omits them ships exactly as before, and older app builds
+            // never send them.
+            'items.*.scanned_batch_item_ids'   => ['sometimes', 'array'],
+            'items.*.scanned_batch_item_ids.*' => ['integer', 'exists:production_batch_items,id'],
         ];
     }
 

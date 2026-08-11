@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -9,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/shipment_import_entities.dart';
 import '../../domain/repositories/shipment_repository.dart';
 import 'shipment_form_controller.dart';
+import 'shipment_item_row.dart';
 
 /// Full-screen QR scanner for adding items to a shipment straight from the
 /// production label printed on each carpet.
@@ -20,6 +23,12 @@ import 'shipment_form_controller.dart';
 /// listening to, so rows show up as soon as this page is popped. The camera
 /// stays open across multiple scans so a worker can pack a whole shipment
 /// without leaving the scanner.
+///
+/// One scan runs as three stages, each with its own full-screen state, so a
+/// worker holding a carpet at arm's length can never miss where the scan got
+/// to: the code is read (sound + vibration, instantly), the server resolves it
+/// (blocking spinner), and the outcome is shown (result screen, dismissed by
+/// hand). Nothing is left to a small indicator in a corner.
 class ShipmentQrScannerPage extends StatefulWidget {
   final int clientId;
   final String clientName;
@@ -38,90 +47,107 @@ class ShipmentQrScannerPage extends StatefulWidget {
 
 enum _FeedbackKind { added, incremented, limitReached, error }
 
+/// The outcome of one scan, as shown on the full-screen result step.
 class _ScanFeedback {
   final _FeedbackKind kind;
-  final String title;
+
+  /// What happened, in two or three words ("Qo'shildi", "Yorliq topilmadi").
+  final String headline;
+
+  /// The carpet the scan resolved to. Null on an error, where there is none.
+  final String? title;
+
+  /// Colour · size for a resolved carpet, the server's own sentence on an
+  /// error.
   final String? subtitle;
-  const _ScanFeedback(this.kind, this.title, [this.subtitle]);
+
+  /// Quantity now standing on the shipment row this scan touched, so the
+  /// worker can check it against the pile without leaving the scanner.
+  final int? quantity;
+
+  const _ScanFeedback(
+    this.kind, {
+    required this.headline,
+    this.title,
+    this.subtitle,
+    this.quantity,
+  });
 }
 
-class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
-    with SingleTickerProviderStateMixin {
+class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   final MobileScannerController _scannerCtrl = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     formats: [BarcodeFormat.qrCode],
   );
   final ShipmentRepository _repo = sl<ShipmentRepository>();
 
-  bool _busy = false;
-  /// True while the "add anyway" sheet is up, so the camera behind it cannot
-  /// stack a second sheet on top after the debounce expires.
-  bool _sheetOpen = false;
-  String? _lastCode;
-  _ScanFeedback? _feedback;
-  int _scannedCount = 0;
+  /// True from the moment a code is read until the server answers. Covers the
+  /// screen: the round trip runs over factory wifi and can take seconds, and
+  /// a worker who cannot tell "still working" from "nothing happened" scans
+  /// the same carpet again.
+  bool _resolving = false;
 
-  /// Drives the full-screen colour wash after each scan. A worker holds the
-  /// phone at arm's length over a carpet and cannot read a card at that
-  /// distance — the colour is what they actually register, so it covers the
-  /// whole frame and fades over ~1.2s rather than blinking.
-  late final AnimationController _flashCtrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  );
-  Color _flashColor = AppColors.success;
+  /// True while the "add anyway" sheet is up, so the camera behind it cannot
+  /// stack a second sheet on top.
+  bool _sheetOpen = false;
+
+  String? _lastCode;
+
+  /// Releases [_lastCode] a beat after the result screen is dismissed. The
+  /// phone is still pointed at the label just handled, so an immediate
+  /// release would re-scan it before the worker can move to the next carpet;
+  /// a label shared by two identical carpets is still re-scannable once the
+  /// timer fires.
+  Timer? _cooldown;
+
+  /// Non-null = the result screen is up and scanning is paused until the
+  /// worker dismisses it.
+  _ScanFeedback? _feedback;
+
+  int _scannedCount = 0;
 
   @override
   void dispose() {
-    _flashCtrl.dispose();
+    _cooldown?.cancel();
     _scannerCtrl.dispose();
     super.dispose();
   }
 
-  /// Colour wash + haptic + click, fired together so the scan lands whichever
-  /// sense is free: eyes on the carpet, phone in a gloved hand, or a noisy
-  /// floor. Distinct patterns per outcome — one short tap for a good scan,
-  /// a heavier double for a rejection — so it is legible without looking.
-  void _signal(_FeedbackKind kind) {
-    final color = switch (kind) {
-      _FeedbackKind.added || _FeedbackKind.incremented => AppColors.success,
-      _FeedbackKind.limitReached => AppColors.warning,
-      _FeedbackKind.error => AppColors.error,
-    };
+  /// Fired the instant a code is read, before the server is asked anything.
+  /// This is the only feedback that is honest about timing: it says "the
+  /// camera has your label", which is what the worker is waiting for while
+  /// aiming. Whether the carpet is shippable comes later, on screen.
+  void _signalCapture() {
+    HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
+  }
 
-    setState(() => _flashColor = color);
-    _flashCtrl.forward(from: 0);
-
-    switch (kind) {
-      case _FeedbackKind.added:
-      case _FeedbackKind.incremented:
-        HapticFeedback.mediumImpact();
-        SystemSound.play(SystemSoundType.click);
-      case _FeedbackKind.limitReached:
-        HapticFeedback.heavyImpact();
-        SystemSound.play(SystemSoundType.alert);
-      case _FeedbackKind.error:
-        // Two beats: unmistakably not the "accepted" pattern, even in a
-        // pocket or through a glove.
-        HapticFeedback.heavyImpact();
-        Future.delayed(const Duration(milliseconds: 160), () {
-          if (mounted) HapticFeedback.heavyImpact();
-        });
-        SystemSound.play(SystemSoundType.alert);
-    }
+  /// Extra alert for an outcome the worker has to act on. The capture click
+  /// already fired, so this exists only to separate "read, and rejected" from
+  /// "read, and fine" for someone who has looked away at the pile: two heavy
+  /// beats plus the system alert, unmistakable through a glove.
+  void _signalRejected() {
+    HapticFeedback.heavyImpact();
+    Future.delayed(const Duration(milliseconds: 160), () {
+      if (mounted) HapticFeedback.heavyImpact();
+    });
+    SystemSound.play(SystemSoundType.alert);
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_busy || _sheetOpen) return;
+    if (_resolving || _sheetOpen || _feedback != null) return;
     final code = capture.barcodes.firstOrNull?.rawValue;
     if (code == null || code.isEmpty || code == _lastCode) return;
 
+    // A different label ends any cooldown left over from the previous scan.
+    _cooldown?.cancel();
     _lastCode = code;
+    _signalCapture();
     _resolve(code);
   }
 
   Future<void> _resolve(String code) async {
-    setState(() => _busy = true);
+    setState(() => _resolving = true);
 
     try {
       final result = await _repo.getShipmentScanItem(
@@ -132,42 +158,56 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
 
       result.fold(
         (failure) {
-          _signal(_FeedbackKind.error);
-          setState(() {
-            _feedback = _ScanFeedback(
-              _FeedbackKind.error,
-              _errorTitle(failure),
-              failure.message,
-            );
-          });
+          _showResult(_ScanFeedback(
+            _FeedbackKind.error,
+            headline: _errorTitle(failure),
+            subtitle: failure.message,
+          ));
         },
         (item) {
-          // A carpet this client has no order line for is a decision, not a
-          // result: the worker confirms it in a sheet before anything is
-          // added, because adding it will invent an order line for them.
-          if (item.isOnClientOrder) {
+          // Two things make a scan a decision rather than a result, and
+          // either can be true on its own: this client has no order line for
+          // the carpet (one gets invented for them), and the carpet was
+          // produced for somebody else (it stops counting as ready for them
+          // the moment it leaves). A plain carpet off this client's own order
+          // goes straight in, which is the normal case on the floor.
+          if (item.isOnClientOrder && item.producedForClient == null) {
             _applyItem(item);
           } else {
-            _confirmAddAnyway(item);
+            _confirmScannedItem(item);
           }
         },
       );
     } finally {
-      // Debounces the dozens of detections mobile_scanner fires per second
-      // while a code sits in frame, while still letting the same label be
-      // deliberately re-scanned (e.g. two identical carpets) after a pause.
-      // Runs even on an unexpected error so scanning never gets stuck.
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        if (!mounted) return;
-        setState(() {
-          _busy = false;
-          _lastCode = null;
-        });
-      });
+      // Clears even on an unexpected error, so the spinner can never strand
+      // the scanner. Scanning stays blocked while the result screen or the
+      // sheet is up; both hand control back through _resume().
+      if (mounted) setState(() => _resolving = false);
     }
   }
 
-  /// A short headline for the feedback card, with the server's own sentence
+  /// Shows the outcome full-screen and leaves it there. Nothing auto-dismisses:
+  /// the worker's hands are on a carpet, and a card that fades on its own is
+  /// one they will miss.
+  void _showResult(_ScanFeedback feedback) {
+    if (feedback.kind == _FeedbackKind.error ||
+        feedback.kind == _FeedbackKind.limitReached) {
+      _signalRejected();
+    }
+    setState(() => _feedback = feedback);
+  }
+
+  /// Back to the camera, from the result screen or a cancelled sheet.
+  void _resume() {
+    setState(() => _feedback = null);
+
+    _cooldown?.cancel();
+    _cooldown = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) _lastCode = null;
+    });
+  }
+
+  /// A short headline for the result screen, with the server's own sentence
   /// kept underneath it. Before this, a worker holding a carpet saw only a
   /// bare backend string and could not tell a dead phone signal from a label
   /// this client has no order for.
@@ -177,6 +217,8 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
 
     if (failure is ServerFailure) {
       return switch (failure.statusCode) {
+        401 => 'Sessiya tugadi, qayta kiring',
+        403 => 'Ruxsat yo\'q',
         404 => 'Yorliq topilmadi',
         422 => 'Ma\'lumot noto\'g\'ri',
         final int code when code >= 500 => 'Serverda xatolik',
@@ -187,35 +229,107 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
     return 'Skanerlashda xatolik';
   }
 
-  /// Confirmation before inventing demand: adding a carpet the client never
-  /// ordered creates an order line for them when the shipment is saved, and
-  /// when the carpet was produced against someone else's order that other
-  /// order stays open and still owed. Both are spelled out in the sheet.
-  Future<void> _confirmAddAnyway(ShipmentImportItemEntity item) async {
+  /// Two gates before a carpet that is not simply this client's own is added.
+  ///
+  /// The first sheet explains what is true about this particular carpet — it
+  /// was made for someone else, this client never ordered it, it was never
+  /// booked into the warehouse — because none of that is visible from the
+  /// shipment form. The second is a plain yes/no naming the one consequence
+  /// that is hard to undo: another client's ready count drops, or stock goes
+  /// out. A worker scanning fifty carpets moves fast, and the sheet alone was
+  /// one tap away from being dismissed on autopilot.
+  Future<void> _confirmScannedItem(ShipmentImportItemEntity item) async {
     // Neither accepted nor rejected — a lighter tap that says "look at me",
-    // since the sheet needs a decision before anything is added.
+    // since this needs a decision before anything is added.
     HapticFeedback.selectionClick();
     setState(() => _sheetOpen = true);
 
-    final confirmed = await showModalBottomSheet<bool>(
+    final proceed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: const Color(0xFF1C1C1E),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => _AddAnywaySheet(
+      builder: (sheetContext) => _ScannedItemSheet(
         item: item,
         clientName: widget.clientName,
       ),
     );
 
     if (!mounted) return;
+
+    final confirmed = proceed == true && await _confirmFinalAdd(item);
+    if (!mounted) return;
+
     setState(() => _sheetOpen = false);
 
-    if (confirmed == true) {
+    if (confirmed) {
       _applyItem(item);
+    } else {
+      // Declined: no result screen to dismiss, so the camera is handed back
+      // here — with the same cooldown, since it is still on that label.
+      _resume();
     }
+  }
+
+  /// The second gate: one sentence, one question, two buttons.
+  Future<bool> _confirmFinalAdd(ShipmentImportItemEntity item) async {
+    final producedFor = item.producedForClient;
+
+    final consequence = producedFor != null
+        ? '"$producedFor" mijozining tayyor mahsuloti 1 taga kamayadi va bu '
+            'gilam "${widget.clientName}" yuk xatiga qo\'shiladi. '
+            'Ularning buyurtmasi qayta ishlab chiqarishga qaytadi.'
+        : 'Bu gilam ombordan chiqariladi va "${widget.clientName}" yuk xatiga '
+            'qo\'shiladi.';
+
+    final answer = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        title: const Text(
+          'Rostdan ham qo\'shilsinmi?',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          consequence,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 15,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              'Yo\'q',
+              style: TextStyle(color: Colors.white70, fontSize: 15),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: producedFor != null
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
+            child: const Text(
+              'Ha, qo\'shilsin',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return answer == true;
   }
 
   void _applyItem(ShipmentImportItemEntity item) {
@@ -228,35 +342,55 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
       if (item.sizeLabel != null) item.sizeLabel!,
     ].join(' · ');
 
-    final kind = switch (result) {
-      ScanAddResult.added => _FeedbackKind.added,
-      ScanAddResult.incremented => _FeedbackKind.incremented,
-      ScanAddResult.limitReached => _FeedbackKind.limitReached,
-    };
-    _signal(kind);
+    if (result != ScanAddResult.limitReached) _scannedCount++;
 
-    setState(() {
-      switch (result) {
-        case ScanAddResult.added:
-          _scannedCount++;
-          _feedback = _ScanFeedback(_FeedbackKind.added, title, subtitle);
-        case ScanAddResult.incremented:
-          _scannedCount++;
-          _feedback =
-              _ScanFeedback(_FeedbackKind.incremented, title, subtitle);
-        case ScanAddResult.limitReached:
-          _feedback = _ScanFeedback(
-            _FeedbackKind.limitReached,
-            title,
-            'Mavjud miqdorning barchasi qo\'shilgan',
-          );
-      }
+    _showResult(switch (result) {
+      ScanAddResult.added => _ScanFeedback(
+          _FeedbackKind.added,
+          headline: 'Qo\'shildi',
+          title: title,
+          subtitle: subtitle,
+          quantity: _rowQuantityFor(item),
+        ),
+      ScanAddResult.incremented => _ScanFeedback(
+          _FeedbackKind.incremented,
+          headline: 'Miqdor oshirildi',
+          title: title,
+          subtitle: subtitle,
+          quantity: _rowQuantityFor(item),
+        ),
+      ScanAddResult.limitReached => _ScanFeedback(
+          _FeedbackKind.limitReached,
+          headline: 'Chegaraga yetdi',
+          title: title,
+          subtitle: 'Buyurtma bo\'yicha mavjud ${item.availableQuantity} '
+              'dona allaqachon qo\'shilgan.',
+          quantity: _rowQuantityFor(item),
+        ),
     });
 
     if (result == ScanAddResult.added) {
       _fillLastPrice(item);
     }
   }
+
+  /// The form row [item] belongs to, or null before it has one.
+  ///
+  /// Off-order rows all carry a null orderItemId, so matching those on it
+  /// would return whichever came first; they are identified by variant
+  /// instead — the same rule [ShipmentFormController.addOrIncrementItem] uses.
+  ShipmentItemRow? _rowFor(ShipmentImportItemEntity item) {
+    for (final row in widget.controller.items) {
+      final isTheRow = item.isOnClientOrder
+          ? row.orderItemId == item.orderItemId
+          : row.orderItemId == null && row.variantId == item.variantId;
+      if (isTheRow) return row;
+    }
+    return null;
+  }
+
+  int? _rowQuantityFor(ShipmentImportItemEntity item) =>
+      _rowFor(item)?.parsedQuantity;
 
   /// Mirrors AddShipmentPage._importFromOrder's price fetch: a freshly added
   /// row starts with an empty price, filled in the background once the
@@ -270,20 +404,11 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
 
     result.fold((_) {}, (price) {
       if (price == null) return;
-      for (final row in widget.controller.items) {
-        if (row.priceCtrl.text.isNotEmpty) continue;
 
-        // Off-order rows all have a null orderItemId, so comparing those
-        // would price whichever one came first. They are identified by
-        // variant instead — the same rule addOrIncrementItem uses.
-        final isTheRow = item.isOnClientOrder
-            ? row.orderItemId == item.orderItemId
-            : row.orderItemId == null && row.variantId == item.variantId;
+      final row = _rowFor(item);
+      if (row == null || row.priceCtrl.text.isNotEmpty) return;
 
-        if (isTheRow) {
-          row.priceCtrl.text = price.toStringAsFixed(2);
-        }
-      }
+      row.priceCtrl.text = price.toStringAsFixed(2);
       widget.controller.notifyChanged();
     });
   }
@@ -322,37 +447,6 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
         children: [
           MobileScanner(controller: _scannerCtrl, onDetect: _onDetect),
 
-          // Result wash. Strongest at the edges and clear in the middle, so
-          // it reads instantly at arm's length without hiding the carpet the
-          // worker is aiming at. IgnorePointer because it covers the frame.
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _flashCtrl,
-                builder: (context, _) {
-                  if (_flashCtrl.value == 0) return const SizedBox.shrink();
-
-                  // Fades out over the tail of the animation rather than
-                  // linearly, so the colour is unmistakable on arrival and
-                  // still gone within ~1.2s.
-                  final opacity = (1 - _flashCtrl.value) * 0.55;
-
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        radius: 0.9,
-                        colors: [
-                          _flashColor.withValues(alpha: opacity * 0.25),
-                          _flashColor.withValues(alpha: opacity),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
           // Scan guide + counter
           Positioned.fill(
             child: Center(
@@ -387,32 +481,24 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
             child: _CounterChip(count: _scannedCount),
           ),
 
-          if (_busy && _feedback == null)
-            const Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-            ),
-
-          // Feedback card for the last scan
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _feedback != null
-                    ? _FeedbackCard(
-                        key: ValueKey(_feedback.hashCode),
-                        feedback: _feedback!,
-                      )
-                    : const SizedBox(key: ValueKey('empty'), height: 0),
-              ),
+          // The two blocking steps of a scan, over the whole camera frame.
+          // Both are opaque: at arm's length nothing smaller than the full
+          // screen is read reliably, and covering the viewfinder is itself
+          // the signal that the scanner is not listening right now.
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 160),
+              child: switch ((_resolving, _feedback)) {
+                (true, _) => const _ResolvingOverlay(key: ValueKey('busy')),
+                (false, final _ScanFeedback f) => _ScanResultOverlay(
+                    key: const ValueKey('result'),
+                    feedback: f,
+                    scannedCount: _scannedCount,
+                    onScanMore: _resume,
+                    onFinish: () => Navigator.of(context).pop(),
+                  ),
+                _ => const SizedBox.shrink(key: ValueKey('idle')),
+              },
             ),
           ),
         ],
@@ -421,16 +507,252 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage>
   }
 }
 
-/// Confirmation sheet for a scanned carpet the selected client has no open
-/// order line for. Deliberately spells out the two consequences the worker
-/// cannot see from the shipment form: an order line will be created for this
-/// client, and if the carpet was produced for someone else, that order stays
-/// unfilled.
-class _AddAnywaySheet extends StatelessWidget {
+/// Covers the frame while the server resolves a scanned label. The click and
+/// the buzz already told the worker the code was read; this says the phone is
+/// still working on it, which over factory wifi can be several seconds.
+class _ResolvingOverlay extends StatelessWidget {
+  const _ResolvingOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.88),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 5,
+              ),
+            ),
+            SizedBox(height: 28),
+            Text(
+              'QR kod o\'qildi',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Tekshirilmoqda…',
+              style: TextStyle(color: Colors.white70, fontSize: 15),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The outcome of the last scan, over the whole frame and staying put until
+/// the worker taps. Scanning is paused behind it: the deliberate tap is what
+/// stops a phone still aimed at the carpet from adding it twice, and it gives
+/// the worker a moment to check the running quantity against the pile.
+class _ScanResultOverlay extends StatelessWidget {
+  final _ScanFeedback feedback;
+  final int scannedCount;
+  final VoidCallback onScanMore;
+  final VoidCallback onFinish;
+
+  const _ScanResultOverlay({
+    super.key,
+    required this.feedback,
+    required this.scannedCount,
+    required this.onScanMore,
+    required this.onFinish,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color color, IconData icon) = switch (feedback.kind) {
+      _FeedbackKind.added => (AppColors.success, Icons.add_circle_rounded),
+      _FeedbackKind.incremented => (
+          AppColors.success,
+          Icons.check_circle_rounded
+        ),
+      _FeedbackKind.limitReached => (AppColors.warning, Icons.info_rounded),
+      _FeedbackKind.error => (AppColors.error, Icons.error_rounded),
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        // Tinted black rather than the flat colour: the icon and headline
+        // still have to read as text on top of it.
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.alphaBlend(color.withValues(alpha: 0.32), Colors.black),
+            Colors.black.withValues(alpha: 0.97),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 24),
+                      // Pops in rather than appearing, so a worker glancing
+                      // back at the phone can tell a fresh result from the
+                      // one they already dealt with.
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.6, end: 1),
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutBack,
+                        builder: (context, scale, child) =>
+                            Transform.scale(scale: scale, child: child),
+                        child: Container(
+                          width: 108,
+                          height: 108,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.6),
+                              width: 3,
+                            ),
+                          ),
+                          child: Icon(icon, color: color, size: 60),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        feedback.headline,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (feedback.title != null) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          feedback.title!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      if (feedback.subtitle != null &&
+                          feedback.subtitle!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          feedback.subtitle!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                      if (feedback.quantity != null) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Text(
+                            'Yuk xatida: ${feedback.quantity} dona',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      Text(
+                        'Jami skanerlandi: $scannedCount',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Thumb-sized and at the bottom of the screen: this is tapped
+              // once per carpet, often one-handed with the other hand on the
+              // pile.
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: FilledButton.icon(
+                  onPressed: onScanMore,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 24),
+                  label: const Text(
+                    'Yana skanerlash',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: onFinish,
+                  child: const Text(
+                    'Tayyor, yuk xatiga qaytish',
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// First gate for a scanned carpet that is not simply this client's own:
+/// what is true about it, spelled out, before anything is added.
+///
+/// Covers two situations that can occur together or apart — the carpet was
+/// produced against another client's order, and this client has no open order
+/// line for it — because the shipment form shows neither, and the worker is
+/// the only one who can see the physical carpet.
+class _ScannedItemSheet extends StatelessWidget {
   final ShipmentImportItemEntity item;
   final String clientName;
 
-  const _AddAnywaySheet({required this.item, required this.clientName});
+  const _ScannedItemSheet({required this.item, required this.clientName});
 
   @override
   Widget build(BuildContext context) {
@@ -439,6 +761,11 @@ class _AddAnywaySheet extends StatelessWidget {
       if (item.sizeLabel != null) item.sizeLabel!,
       if (item.qualityName != null) item.qualityName!,
     ].join(' · ');
+
+    final producedFor = item.producedForClient;
+    final title = producedFor != null
+        ? 'Boshqa mijozning mahsuloti'
+        : 'Buyurtmada yo\'q mahsulot';
 
     return SafeArea(
       top: false,
@@ -466,7 +793,7 @@ class _AddAnywaySheet extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Buyurtmada yo\'q mahsulot',
+                    title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 17,
@@ -498,25 +825,45 @@ class _AddAnywaySheet extends StatelessWidget {
               ),
             const SizedBox(height: 16),
 
-            _SheetNote(
-              icon: Icons.info_outline_rounded,
-              color: Colors.white70,
-              text: '"$clientName" mijozining ochiq buyurtmasida bu mahsulot '
-                  'yo\'q. Qo\'shsangiz, yuk xati saqlanganda unga yangi '
-                  'buyurtma qatori ochiladi.',
-            ),
-            if (item.producedForClient != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: _SheetNote(
-                  icon: Icons.warning_amber_rounded,
-                  color: AppColors.warning,
-                  text: 'Bu mahsulot "${item.producedForClient}" buyurtmasi '
-                      'uchun ishlab chiqarilgan. Uning buyurtmasi yopilmaydi '
-                      've hali ham kutilib qoladi.',
-                ),
+            // The carpet's own story first: whose it was made for is the
+            // fact that decides everything else on this sheet.
+            if (producedFor != null)
+              _SheetNote(
+                icon: Icons.warning_amber_rounded,
+                color: AppColors.warning,
+                text: 'Bu mahsulot "$producedFor" mijozining buyurtmasi uchun '
+                    'ishlab chiqarilgan. Qo\'shsangiz, uning tayyor soni '
+                    '1 taga kamayadi va buyurtmasi qayta ishlab chiqarishga '
+                    'qaytadi.',
+              )
+            else
+              _SheetNote(
+                icon: Icons.inventory_2_outlined,
+                color: Colors.white70,
+                text: item.stockQuantity > 0
+                    ? 'Bu mahsulot hech bir mijoz buyurtmasiga biriktirilmagan '
+                        '— ombordagi zaxiradan chiqariladi (hozir omborda: '
+                        '${item.stockQuantity} dona).'
+                    : 'Bu mahsulot hech bir mijoz buyurtmasiga biriktirilmagan '
+                        'va omborda kirim qilinmagan. Yuk xati saqlanganda '
+                        'avtomatik kirim qilinib, chiqim qilinadi.',
               ),
-            if (item.stockQuantity <= 0)
+
+            // Then what it costs this client's paperwork.
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _SheetNote(
+                icon: Icons.info_outline_rounded,
+                color: Colors.white70,
+                text: item.isOnClientOrder
+                    ? '"$clientName" mijozining ochiq buyurtma qatoriga '
+                        'yoziladi.'
+                    : '"$clientName" mijozining ochiq buyurtmasida bu mahsulot '
+                        'yo\'q. Qo\'shsangiz, yuk xati saqlanganda unga yangi '
+                        'buyurtma qatori ochiladi.',
+              ),
+            ),
+            if (producedFor != null && item.stockQuantity <= 0)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: _SheetNote(
@@ -551,7 +898,7 @@ class _AddAnywaySheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: const Text(
-                      'Baribir qo\'shish',
+                      'Davom etish',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -618,80 +965,6 @@ class _CounterChip extends StatelessWidget {
           Text(
             'Skanerlandi: $count',
             style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeedbackCard extends StatelessWidget {
-  final _ScanFeedback feedback;
-  const _FeedbackCard({super.key, required this.feedback});
-
-  @override
-  Widget build(BuildContext context) {
-    final (Color color, IconData icon) = switch (feedback.kind) {
-      _FeedbackKind.added => (AppColors.success, Icons.add_circle_rounded),
-      _FeedbackKind.incremented => (
-          AppColors.success,
-          Icons.check_circle_rounded
-        ),
-      _FeedbackKind.limitReached => (
-          AppColors.warning,
-          Icons.info_rounded
-        ),
-      _FeedbackKind.error => (AppColors.error, Icons.error_rounded),
-    };
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 26),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  feedback.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (feedback.subtitle != null && feedback.subtitle!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      feedback.subtitle!,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        height: 1.3,
-                      ),
-                      // A server error can now be several validation lines at
-                      // once, so the card grows to fit them rather than
-                      // hiding the one that mattered behind an ellipsis. The
-                      // product-name subtitle of a normal scan is one short
-                      // line, so nothing else changes shape.
-                      maxLines: 8,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-            ),
           ),
         ],
       ),

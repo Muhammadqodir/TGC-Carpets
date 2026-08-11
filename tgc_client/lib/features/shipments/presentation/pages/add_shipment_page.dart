@@ -206,6 +206,11 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
               'quantity': r.parsedQuantity,
               'price': r.parsedPrice,
               if (r.scanned) 'scanned': true,
+              // Lets the backend move each scanned carpet's production record
+              // onto the line it is shipping against, so a carpet made for
+              // another client stops counting as ready for them.
+              if (r.scanned && r.scannedBatchItemIds.isNotEmpty)
+                'scanned_batch_item_ids': r.scannedBatchItemIds,
             })
         .toList();
 

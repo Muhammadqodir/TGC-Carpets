@@ -274,18 +274,14 @@ class ShipmentImportController extends Controller
             ->orderBy('oi.id')
             ->first();
 
-        if (! $row) {
-            // Name the client the carpet was produced for when the label
-            // carries that link: "wrong client selected on the form" is the
-            // common case, and the worker can act on it only if told who.
-            $producedFor = $preferredOrderItemId
-                ? DB::table('order_items AS oi')
-                    ->join('orders AS o', 'o.id', '=', 'oi.order_id')
-                    ->join('clients AS c', 'c.id', '=', 'o.client_id')
-                    ->where('oi.id', $preferredOrderItemId)
-                    ->value('c.shop_name')
-                : null;
+        // Name the client the carpet was produced for when the label carries
+        // that link and it is not this one: "wrong client selected on the
+        // form" is the common case, and the worker can act on it only if told
+        // who. Also decides, on both branches below, whether the app asks for
+        // confirmation before taking the carpet off that client's order.
+        $producedFor = $this->producedForOtherClient($preferredOrderItemId, $clientId);
 
+        if (! $row) {
             $message = "\"{$scanned['product_name']}\" uchun ushbu mijozda ochiq buyurtma topilmadi.";
             if ($producedFor) {
                 $message .= " Bu mahsulot \"{$producedFor}\" buyurtmasi uchun ishlab chiqarilgan.";
@@ -298,7 +294,11 @@ class ShipmentImportController extends Controller
             // round trip.
             return response()->json([
                 'message'   => $message,
-                'unmatched' => $this->describeVariant($variantId, $producedFor),
+                'unmatched' => $this->describeVariant(
+                    $variantId,
+                    $producedFor,
+                    $scanned['production_batch_item_id'] ?? null,
+                ),
             ], 404);
         }
 
@@ -320,6 +320,13 @@ class ShipmentImportController extends Controller
                 'edge_title'         => $row->edge_title,
                 'available_quantity' => (int) $row->available_quantity,
                 'stock_quantity'     => (int) $row->stock_quantity,
+                // Both new in August 2026. The batch item id comes back so
+                // the shipment can move the production record with the carpet
+                // when it is saved; produced_for_client is non-null only when
+                // that move would take the carpet off somebody else's order,
+                // which is when the app stops and asks.
+                'production_batch_item_id' => $scanned['production_batch_item_id'] ?? null,
+                'produced_for_client'      => $producedFor,
             ],
         ]);
     }
@@ -333,8 +340,11 @@ class ShipmentImportController extends Controller
      * that line is what "add anyway" does, and it happens at submit time so an
      * abandoned form leaves no orphan order behind.
      */
-    private function describeVariant(int $variantId, ?string $producedFor): ?array
-    {
+    private function describeVariant(
+        int $variantId,
+        ?string $producedFor,
+        ?int $productionBatchItemId = null,
+    ): ?array {
         $row = DB::table('product_variants AS pv')
             ->join('product_colors AS pc', 'pc.id', '=', 'pv.product_color_id')
             ->join('products AS p', 'p.id', '=', 'pc.product_id')
@@ -382,6 +392,9 @@ class ShipmentImportController extends Controller
             'edge_title'          => $row->edge_title,
             'stock_quantity'      => (int) $row->stock_quantity,
             'produced_for_client' => $producedFor,
+            // Null for the `PB{n} VAR{n}` label shape, which names a variant
+            // and no particular carpet — there is no production row to move.
+            'production_batch_item_id' => $productionBatchItemId,
         ];
     }
 
@@ -441,9 +454,10 @@ class ShipmentImportController extends Controller
             }
 
             return [
-                'variant_id'           => $variant->id,
-                'source_order_item_id' => null,
-                'product_name'         => (string) $variant->productColor?->product?->name,
+                'variant_id'               => $variant->id,
+                'source_order_item_id'     => null,
+                'production_batch_item_id' => null,
+                'product_name'             => (string) $variant->productColor?->product?->name,
             ];
         }
 
@@ -458,9 +472,35 @@ class ShipmentImportController extends Controller
         }
 
         return [
-            'variant_id'           => (int) $item->product_variant_id,
-            'source_order_item_id' => $item->source_order_item_id,
-            'product_name'         => (string) $item->variant?->productColor?->product?->name,
+            'variant_id'               => (int) $item->product_variant_id,
+            'source_order_item_id'     => $item->source_order_item_id,
+            'production_batch_item_id' => (int) $item->id,
+            'product_name'             => (string) $item->variant?->productColor?->product?->name,
         ];
+    }
+
+    /**
+     * The shop name of the client this carpet was produced for, but only when
+     * that is somebody other than [$clientId].
+     *
+     * This is the fact the whole "add anyway" flow turns on. It reaches the
+     * app in both halves of a scan result — matched and unmatched — because
+     * shipping someone else's carpet has the same consequence either way:
+     * their order stops being ready and the factory owes them a replacement
+     * (ShipmentService::reattributeScannedProduction). Null means nobody is
+     * losing a carpet: it is this client's own, or it was made for stock.
+     */
+    private function producedForOtherClient(?int $sourceOrderItemId, int $clientId): ?string
+    {
+        if ($sourceOrderItemId === null) {
+            return null;
+        }
+
+        return DB::table('order_items AS oi')
+            ->join('orders AS o', 'o.id', '=', 'oi.order_id')
+            ->join('clients AS c', 'c.id', '=', 'o.client_id')
+            ->where('oi.id', $sourceOrderItemId)
+            ->where('o.client_id', '!=', $clientId)
+            ->value('c.shop_name');
     }
 }

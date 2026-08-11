@@ -24,6 +24,8 @@ class ProductionBatchItem extends Model
         'production_batch_id',
         'source_type',
         'source_order_item_id',
+        'reattributed_from_order_item_id',
+        'reattributed_by_shipment_id',
         'product_variant_id',
         'planned_quantity',
         'produced_quantity',

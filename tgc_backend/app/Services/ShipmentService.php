@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\ProductionBatchItem;
 use App\Models\ProductVariant;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
@@ -174,6 +175,15 @@ class ShipmentService
                 ]);
                 $this->stockService->applyDelta($variantId, StockMovement::TYPE_OUT, $qty);
             }
+
+            // Carpets scanned off another client's production go with the
+            // lorry, so their production record goes with them. Runs after the
+            // lines are written because it needs the shipment id to be
+            // reversible, and inside the transaction so a failed shipment
+            // never leaves production half-moved.
+            $this->reattributeScannedProduction(
+                $data['items'], (int) $data['client_id'], (int) $shipment->id
+            );
 
             // vat_amount = round(subtotal x vat_rate, 2) — applied to the
             // DISCOUNTED subtotal (config('money.vat_applies_to')), computed
@@ -625,12 +635,32 @@ class ShipmentService
             Order::where('created_from_shipment_id', $shipment->id)
                 ->update(['status' => Order::STATUS_CANCELED]);
 
+            // ── 5. Production this shipment took from another client ────────
+            // The carpets came back in step 1, so the client they were made
+            // for is owed them again and their "Tayyor" count must show it.
+            // Rows that were split on the way out stay split on the way back:
+            // the two rows add up to what the one row held, which is what any
+            // report reads, and merging them would rewrite a batch to hide a
+            // move that really happened.
+            $returned = ProductionBatchItem::where('reattributed_by_shipment_id', $shipment->id)
+                ->whereNotNull('reattributed_from_order_item_id')
+                ->get();
+
+            foreach ($returned as $batchItem) {
+                $batchItem->update([
+                    'source_order_item_id'            => $batchItem->reattributed_from_order_item_id,
+                    'reattributed_from_order_item_id' => null,
+                    'reattributed_by_shipment_id'     => null,
+                ]);
+            }
+
             Log::info('shipment.canceled', [
                 'shipment_id'           => $shipment->id,
                 'user_id'               => $userId,
                 'client_id'             => $shipment->client_id,
                 'items'                 => $shipment->items->count(),
                 'return_document_id'    => $returnDoc->id,
+                'production_returned'   => $returned->count(),
             ]);
 
             return $shipment->fresh(['client', 'user', 'canceledBy', 'items']);
@@ -727,6 +757,176 @@ class ShipmentService
         ]);
 
         return [$items, $order->id];
+    }
+
+    /**
+     * Moves the production record of scanned carpets onto the order line they
+     * are actually shipping against.
+     *
+     * A worker scans the label on the carpet in front of them. That carpet was
+     * often produced against a DIFFERENT client's order — the factory makes
+     * identical carpets and the first one to hand goes on the lorry. Until
+     * this ran, the production record stayed with the client it was made for,
+     * so their order kept showing the carpet as "Tayyor" (ready) while it was
+     * already in someone else's shop. The next person to look would ship a
+     * carpet that no longer exists.
+     *
+     * What moves is only the claim, never the total: the carpets come off the
+     * original batch item and land on a batch item pointing at the receiving
+     * client's line, in the same batch. SUM(produced_quantity) over the
+     * factory does not change — the factory made what it made. The original
+     * client's order is short again (planned drops with produced), so it
+     * reappears in the "needs production" list and the factory owes them a
+     * replacement, which is exactly the physical truth.
+     *
+     * Deliberately does nothing for:
+     *   - warehouse carpets (`source_order_item_id` null) — nobody was
+     *     promised them, and the stock OUT movement already accounts for them;
+     *   - carpets already attributed to this same client.
+     *
+     * @param array<int, array<string, mixed>> $items post-createOrderLines, so
+     *        every line has an order_item_id
+     */
+    private function reattributeScannedProduction(
+        array $items,
+        int $clientId,
+        int $shipmentId,
+    ): void {
+        foreach ($items as $item) {
+            if (! filter_var($item['scanned'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                continue;
+            }
+
+            $batchItemIds = $item['scanned_batch_item_ids'] ?? [];
+            if (! is_array($batchItemIds) || $batchItemIds === []) {
+                continue;
+            }
+
+            $targetOrderItemId = (int) $item['order_item_id'];
+            $remaining         = (int) $item['quantity'];
+
+            // One id per carpet scanned, so two carpets off the same batch
+            // item arrive as the same id twice. Capped by the line quantity:
+            // a worker may have scanned three and then typed 2.
+            foreach (array_count_values(array_map('intval', $batchItemIds)) as $batchItemId => $count) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $remaining -= $this->moveProducedCarpets(
+                    (int) $batchItemId,
+                    min($count, $remaining),
+                    $targetOrderItemId,
+                    $clientId,
+                    $shipmentId,
+                );
+            }
+        }
+    }
+
+    /**
+     * Moves up to [$quantity] produced carpets from [$batchItemId] to
+     * [$targetOrderItemId], and returns how many actually moved.
+     *
+     * The batch item may cover more carpets than are shipping — one batch item
+     * routinely stands for a dozen — so it is split rather than repointed: the
+     * original keeps what stays behind, and a new row in the same batch
+     * carries what left. planned and warehouse_received travel with produced
+     * so that neither the "still to produce" nor the "still to book in" list
+     * counts the same carpet twice; defects stay with the original, where they
+     * happened.
+     */
+    private function moveProducedCarpets(
+        int $batchItemId,
+        int $quantity,
+        int $targetOrderItemId,
+        int $clientId,
+        int $shipmentId,
+    ): int {
+        if ($quantity <= 0) {
+            return 0;
+        }
+
+        $batchItem = ProductionBatchItem::whereKey($batchItemId)->lockForUpdate()->first();
+
+        if (! $batchItem || $batchItem->source_order_item_id === null) {
+            return 0;   // a warehouse carpet: nobody's order to take it from
+        }
+
+        if ((int) $batchItem->source_order_item_id === $targetOrderItemId) {
+            return 0;   // already where it is shipping from
+        }
+
+        $sourceOrderItem = OrderItem::with('order')->find($batchItem->source_order_item_id);
+
+        if (! $sourceOrderItem || (int) ($sourceOrderItem->order?->client_id) === $clientId) {
+            return 0;   // this client's own carpet, on another of their lines
+        }
+
+        // Only produced carpets can move. A batch item with produced 0 is a
+        // plan, not a carpet; the label in the worker's hand says otherwise,
+        // but rewriting production totals off a scan is not this method's job.
+        $moved = min($quantity, (int) $batchItem->produced_quantity);
+        if ($moved <= 0) {
+            return 0;
+        }
+
+        $plannedMove  = min($moved, (int) $batchItem->planned_quantity);
+        $receivedMove = min($moved, (int) $batchItem->warehouse_received_quantity);
+
+        // Whole row: nothing would be left behind, so moving the row itself
+        // keeps the batch one row shorter and the history readable.
+        $wholeRow = $moved === (int) $batchItem->produced_quantity
+            && $plannedMove === (int) $batchItem->planned_quantity
+            && $receivedMove === (int) $batchItem->warehouse_received_quantity
+            && (int) $batchItem->defect_quantity === 0;
+
+        if ($wholeRow) {
+            $batchItem->update([
+                'source_type'                     => ProductionBatchItem::SOURCE_ORDER_ITEM,
+                'source_order_item_id'            => $targetOrderItemId,
+                // Chained moves keep the first origin: cancelling this
+                // shipment must return the carpet to the client that was
+                // promised it, not to an intermediate hop.
+                'reattributed_from_order_item_id' => $batchItem->reattributed_from_order_item_id
+                    ?? $batchItem->source_order_item_id,
+                'reattributed_by_shipment_id'     => $shipmentId,
+            ]);
+        } else {
+            $batchItem->update([
+                'planned_quantity'            => (int) $batchItem->planned_quantity - $plannedMove,
+                'produced_quantity'           => (int) $batchItem->produced_quantity - $moved,
+                'warehouse_received_quantity' => (int) $batchItem->warehouse_received_quantity - $receivedMove,
+            ]);
+
+            ProductionBatchItem::create([
+                'production_batch_id'             => $batchItem->production_batch_id,
+                'source_type'                     => ProductionBatchItem::SOURCE_ORDER_ITEM,
+                'source_order_item_id'            => $targetOrderItemId,
+                'reattributed_from_order_item_id' => $batchItem->source_order_item_id,
+                'reattributed_by_shipment_id'     => $shipmentId,
+                'product_variant_id'              => $batchItem->product_variant_id,
+                'planned_quantity'                => $plannedMove,
+                'produced_quantity'               => $moved,
+                'defect_quantity'                 => 0,
+                'warehouse_received_quantity'     => $receivedMove,
+                'notes'                           => "#{$shipmentId} yuk xati bilan skanerlab jo'natildi "
+                    . "(avval #{$batchItem->source_order_item_id} buyurtma qatoriga tegishli edi).",
+            ]);
+        }
+
+        Log::info('shipment.scan.production_reattributed', [
+            'shipment_id'            => $shipmentId,
+            'production_batch_item'  => $batchItem->id,
+            'from_order_item_id'     => $sourceOrderItem->id,
+            'from_client_id'         => $sourceOrderItem->order?->client_id,
+            'to_order_item_id'       => $targetOrderItemId,
+            'to_client_id'           => $clientId,
+            'quantity'               => $moved,
+            'whole_row'              => $wholeRow,
+        ]);
+
+        return $moved;
     }
 
     /**

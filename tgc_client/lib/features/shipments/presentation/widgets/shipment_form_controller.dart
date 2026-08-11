@@ -106,6 +106,7 @@ class ShipmentFormController extends ChangeNotifier {
         return ScanAddResult.limitReached;
       }
       row.quantityCtrl.text = '${current + 1}';
+      row.addScannedBatchItem(item.productionBatchItemId);
       notifyListeners();
       return ScanAddResult.incremented;
     }
@@ -116,6 +117,7 @@ class ShipmentFormController extends ChangeNotifier {
       initialQuantity: 1,
       scanned: true,
     );
+    row.addScannedBatchItem(item.productionBatchItemId);
     _hookRow(row);
     _items.add(row);
     notifyListeners();
