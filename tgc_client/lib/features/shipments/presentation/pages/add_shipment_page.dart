@@ -5,7 +5,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
-import 'package:tgc_client/features/shipments/presentation/widgets/price_input.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -22,7 +21,6 @@ import '../widgets/stock_picker_for_shipment_sheet.dart'
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
 import '../widgets/shipment_qr_scanner_page.dart';
-import '../../domain/repositories/shipment_repository.dart';
 
 /// Entry point for the "add shipment" form.
 ///
@@ -74,8 +72,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     final client = await ClientPickerBottomSheet.show(context);
     if (client != null && mounted) {
       setState(() => _selectedClient = client);
-      // Re-fetch prices for loaded rows when client changes
-      _refreshLastPrices();
     }
   }
 
@@ -97,30 +93,11 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       });
     }
 
-    // Add items immediately so the user sees them right away
+    // No last-price fetch here any more: this form does not carry prices, so
+    // the round trip per item bought nothing. The same lookup now backs the
+    // "Oxirgi narxlar" button on the shipment detail page, where the prices
+    // are actually typed.
     _ctrl.importFromStock(result.selectedItems, {});
-
-    // Fetch last prices in the background and fill them in as they arrive
-    final clientId = _selectedClient?.id ?? result.client.id;
-    final repo = sl<ShipmentRepository>();
-    for (final item in result.selectedItems) {
-      if (!mounted) return;
-      final r = await repo.getLastPrice(
-          variantId: item.variantId, clientId: clientId);
-      if (!mounted) return;
-      r.fold((_) {}, (price) {
-        if (price == null) return;
-        for (final row in _ctrl.items) {
-          // Both ids are nullable now; two nulls must not count as a match.
-          if (item.orderItemId != null &&
-              row.orderItemId == item.orderItemId &&
-              row.priceCtrl.text.isEmpty) {
-            row.priceCtrl.text = price.toStringAsFixed(2);
-          }
-        }
-        _ctrl.notifyChanged();
-      });
-    }
   }
 
   Future<void> _scanQr() async {
@@ -141,29 +118,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
         controller: _ctrl,
       ),
     ));
-  }
-
-  Future<void> _refreshLastPrices() async {
-    final clientId = _selectedClient?.id;
-    if (clientId == null || _ctrl.items.isEmpty) return;
-
-    final repo = sl<ShipmentRepository>();
-    final prices = <int, double>{};
-    for (final row in _ctrl.items) {
-      final r =
-          await repo.getLastPrice(variantId: row.variantId, clientId: clientId);
-      r.fold((_) {}, (price) {
-        if (price != null) prices[row.variantId] = price;
-      });
-    }
-    if (!mounted) return;
-
-    for (final row in _ctrl.items) {
-      if (prices.containsKey(row.variantId)) {
-        row.priceCtrl.text = prices[row.variantId]!.toStringAsFixed(2);
-      }
-    }
-    _ctrl.notifyChanged();
   }
 
   void _submit(BuildContext context) {
@@ -204,7 +158,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
               'order_item_id': r.orderItemId,
               'product_variant_id': r.variantId,
               'quantity': r.parsedQuantity,
-              'price': r.parsedPrice,
+              // No price: the backend stores 0.00 and the office fills it in
+              // on the shipment page.
               if (r.scanned) 'scanned': true,
               // Lets the backend move each scanned carpet's production record
               // onto the line it is shipping against, so a carpet made for
@@ -564,11 +519,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                             label: 'Jami m²',
                             value: '${_ctrl.totalSqm.toStringAsFixed(2)} m²',
                           ),
-                          const SizedBox(width: 16),
-                          _TotalChip(
-                            label: 'Jami summa',
-                            value: '\$${_ctrl.grandTotal.toStringAsFixed(2)}',
-                          ),
                           const Spacer(),
                           Text(
                             'Sana: $_formattedDate',
@@ -618,11 +568,9 @@ class _TableHeader extends StatelessWidget {
                 _HeaderCell(label: 'Sifat', flex: 2),
                 _HeaderCell(label: "O'lcham", fixedWidth: 110),
                 _HeaderCell(label: 'Miqdor', fixedWidth: 150),
-                _HeaderCell(label: 'Narx', fixedWidth: 110),
-                _HeaderCell(label: 'Narx(umumiy)', fixedWidth: 100)
               ],
               if (!isDesktop) ...[
-                _HeaderCell(label: 'Miqdor/Narx', fixedWidth: 130),
+                _HeaderCell(label: 'Miqdor', fixedWidth: 130),
               ],
               SizedBox(width: 40),
             ],
@@ -815,32 +763,10 @@ class _ItemRow extends StatelessWidget {
             ),
           ),
 
-          // Narx
-          SizedBox(
-            width: 110,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: PriceInput(
-                priceCtrl: row.priceCtrl,
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-
-          // Jami (read-only total)
-          SizedBox(
-            width: 100,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '\$${row.lineTotal.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-              ),
-            ),
-          ),
+          // No price here. A worker loading a lorry has no business guessing
+          // what the client pays, and asking them for it held up the scan
+          // flow — prices are filled in afterwards on the shipment's own
+          // page, which is also what unlocks the hisob-faktura.
 
           // Remove
           SizedBox(
@@ -948,28 +874,20 @@ class _ItemRowMobile extends StatelessWidget {
             ),
           ),
 
-          // Narx / Miqdor
+          // Miqdor — see the note on the desktop row: no price is collected
+          // here any more.
           SizedBox(
             width: 130,
             child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Column(
-                  children: [
-                    CountInput(
-                      controller: row.quantityCtrl,
-                      height: 35,
-                      min: 1,
-                      max: row.availableQuantity,
-                      onChanged: () => onChanged(),
-                    ),
-                    SizedBox(height: 4),
-                    PriceInput(
-                      priceCtrl: row.priceCtrl,
-                      onChanged: onChanged,
-                      height: 35,
-                    ),
-                  ],
-                )),
+              padding: const EdgeInsets.only(right: 8),
+              child: CountInput(
+                controller: row.quantityCtrl,
+                height: 35,
+                min: 1,
+                max: row.availableQuantity,
+                onChanged: () => onChanged(),
+              ),
+            ),
           ),
 
           // Remove

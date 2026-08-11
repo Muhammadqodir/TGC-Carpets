@@ -27,11 +27,16 @@ class ShipmentTable extends StatelessWidget {
     required this.shipments,
     required this.isLoadingMore,
     required this.scrollController,
+    this.onViewDetail,
   });
 
   final List<ShipmentEntity> shipments;
   final bool isLoadingMore;
   final ScrollController scrollController;
+
+  /// Opens the shipment's own page, where its prices are filled in and its
+  /// hisob-faktura is taken from.
+  final void Function(ShipmentEntity)? onViewDetail;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.center),
@@ -113,11 +118,17 @@ class ShipmentTable extends StatelessWidget {
         );
 
       case 2: // Total $
+        // A shipment leaves the warehouse unpriced now, so 0.00 means "still
+        // waiting for the office", not "free" — worth spotting from the list.
         return Text(
-          '\$${shipment.grandTotal.toStringAsFixed(2)}',
+          shipment.grandTotal > 0
+              ? '\$${shipment.grandTotal.toStringAsFixed(2)}'
+              : 'Narxsiz',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.success,
+                color: shipment.grandTotal > 0
+                    ? AppColors.success
+                    : AppColors.warning,
               ),
           textAlign: TextAlign.right,
         );
@@ -202,11 +213,17 @@ class ShipmentTable extends StatelessWidget {
         );
 
       case 6: // Total $
+        // A shipment leaves the warehouse unpriced now, so 0.00 means "still
+        // waiting for the office", not "free" — worth spotting from the list.
         return Text(
-          '\$${shipment.grandTotal.toStringAsFixed(2)}',
+          shipment.grandTotal > 0
+              ? '\$${shipment.grandTotal.toStringAsFixed(2)}'
+              : 'Narxsiz',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.success,
+                color: shipment.grandTotal > 0
+                    ? AppColors.success
+                    : AppColors.warning,
               ),
           textAlign: TextAlign.right,
         );
@@ -254,11 +271,11 @@ class ShipmentTable extends StatelessWidget {
         ),
         surfaceTintColor: AppColors.surface,
         color: AppColors.surface,
-        enabled: shipment.pdfUrl != null ||
-            shipment.invoiceUrl != null ||
-            shipment.xlsxUrl != null,
         onSelected: (value) {
           switch (value) {
+            case 'view':
+              onViewDetail?.call(shipment);
+              break;
             case 'pdf':
               if (shipment.pdfUrl != null) {
                 Navigator.of(context).push(
@@ -266,18 +283,6 @@ class ShipmentTable extends StatelessWidget {
                     builder: (_) => PdfViewerPage(
                       title: 'Yuk xati ${shipment.id}',
                       pdfUrl: shipment.pdfUrl!,
-                    ),
-                  ),
-                );
-              }
-              break;
-            case 'invoice':
-              if (shipment.invoiceUrl != null) {
-                Navigator.of(context).push(
-                  CupertinoPageRoute(
-                    builder: (_) => PdfViewerPage(
-                      title: 'Hisob-faktura ${shipment.id}',
-                      pdfUrl: shipment.invoiceUrl!,
                     ),
                   ),
                 );
@@ -294,6 +299,22 @@ class ShipmentTable extends StatelessWidget {
           }
         },
         itemBuilder: (context) => [
+          if (onViewDetail != null)
+            PopupMenuItem(
+              value: 'view',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedView,
+                    color: AppColors.primaryLight,
+                    size: 18,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Tafsilotlar / narxlar'),
+                ],
+              ),
+            ),
           if (shipment.pdfUrl != null)
             PopupMenuItem(
               value: 'pdf',
@@ -310,22 +331,9 @@ class ShipmentTable extends StatelessWidget {
                 ],
               ),
             ),
-          if (shipment.invoiceUrl != null)
-            PopupMenuItem(
-              value: 'invoice',
-              child: Row(
-                children: [
-                  HugeIcon(
-                    icon: HugeIcons.strokeRoundedInvoice02,
-                    color: AppColors.primary,
-                    strokeWidth: 2,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Hisob-faktura'),
-                ],
-              ),
-            ),
+          // No hisob-faktura here: it is only worth anything once prices are
+          // filled in, which happens on the shipment's own page — so that is
+          // where it is downloaded from.
           if (shipment.xlsxUrl != null)
             PopupMenuItem(
               value: 'xlsx',
@@ -362,6 +370,18 @@ class ShipmentTable extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (onViewDetail != null)
+          _ActionButton(
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedView,
+              color: AppColors.primaryLight,
+              size: 22,
+              strokeWidth: 1.5,
+            ),
+            tooltip: 'Tafsilotlar / narxlar',
+            color: AppColors.primaryLight,
+            onTap: () => onViewDetail!(shipment),
+          ),
         _ActionButton(
           icon: HugeIcon(
             icon: HugeIcons.strokeRoundedInvoice01,
@@ -379,28 +399,6 @@ class ShipmentTable extends StatelessWidget {
                       builder: (_) => PdfViewerPage(
                         title: 'Yuk xati ${shipment.id}',
                         pdfUrl: shipment.pdfUrl!,
-                      ),
-                    ),
-                  )
-              : null,
-        ),
-        _ActionButton(
-          icon: HugeIcon(
-            icon: HugeIcons.strokeRoundedInvoice02,
-            color: shipment.invoiceUrl != null
-                ? AppColors.primary
-                : AppColors.textSecondary,
-            size: 22,
-            strokeWidth: 1.5,
-          ),
-          tooltip: 'Hisob-faktura',
-          color: AppColors.primary,
-          onTap: shipment.invoiceUrl != null
-              ? () => Navigator.of(context).push(
-                    CupertinoPageRoute(
-                      builder: (_) => PdfViewerPage(
-                        title: 'Hisob-faktura ${shipment.id}',
-                        pdfUrl: shipment.invoiceUrl!,
                       ),
                     ),
                   )

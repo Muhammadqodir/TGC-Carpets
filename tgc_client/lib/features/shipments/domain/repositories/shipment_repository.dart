@@ -57,4 +57,19 @@ abstract class ShipmentRepository {
     required int id,
     String? reason,
   });
+
+  /// One shipment with its lines — the detail page's own load, so prices are
+  /// edited against what the server has rather than a row from a list that
+  /// may have been fetched an hour ago.
+  Future<Either<Failure, ShipmentEntity>> getShipment(int id);
+
+  /// Writes prices onto an existing shipment's lines. The server recomputes
+  /// the client's debt and regenerates the hisob-faktura from them, and
+  /// returns the shipment with fresh document URLs.
+  ///
+  /// [items] is `{id, price}` per line.
+  Future<Either<Failure, ShipmentEntity>> updateShipmentPrices({
+    required int id,
+    required List<Map<String, dynamic>> items,
+  });
 }

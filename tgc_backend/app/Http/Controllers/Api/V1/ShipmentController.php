@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shipment\StoreShipmentRequest;
+use App\Http\Requests\Shipment\UpdateShipmentPricesRequest;
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\ShipmentResource;
 use App\Models\Order;
@@ -72,6 +73,25 @@ class ShipmentController extends Controller
         ]);
 
         return response()->json(['data' => new ShipmentResource($canceled)]);
+    }
+
+    /**
+     * POST /shipments/{shipment}/prices
+     *
+     * Fills in the prices of an already-created shipment and regenerates its
+     * documents — the step that turns a loaded lorry into an invoice. Open to
+     * everyone who can create a shipment, which is the same access they had
+     * when prices were typed on the create form.
+     */
+    public function updatePrices(UpdateShipmentPricesRequest $request, Shipment $shipment): JsonResponse
+    {
+        $updated = $this->service->updatePrices(
+            $shipment,
+            $request->validated()['items'],
+            $request->user()->id,
+        );
+
+        return response()->json(['data' => new ShipmentResource($updated)]);
     }
 
     public function show(Shipment $shipment): JsonResponse

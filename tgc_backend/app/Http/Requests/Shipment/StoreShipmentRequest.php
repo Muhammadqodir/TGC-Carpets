@@ -41,7 +41,14 @@ class StoreShipmentRequest extends FormRequest
             'items.*.order_item_id'          => ['nullable', 'integer', 'exists:order_items,id'],
             'items.*.product_variant_id'     => ['required', 'integer', 'exists:product_variants,id'],
             'items.*.quantity'               => ['required', 'integer', 'min:1'],
-            'items.*.price'                  => ['required', 'numeric', 'min:0'],
+
+            // Optional since August 2026: the app no longer asks a warehouse
+            // worker for prices while they are loading a lorry. The shipment
+            // is created at 0.00 and the office fills the prices in afterwards
+            // on the shipment page (ShipmentService::updatePrices), which is
+            // also what unlocks the hisob-faktura. Older builds still send a
+            // price and are unaffected.
+            'items.*.price'                  => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'items.*.discount_type'          => ['nullable', 'string', 'in:none,percent,amount'],
             'items.*.discount_value'         => ['nullable', 'numeric', 'min:0'],
 

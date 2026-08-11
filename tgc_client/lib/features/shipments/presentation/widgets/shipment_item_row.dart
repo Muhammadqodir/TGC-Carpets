@@ -49,6 +49,11 @@ class ShipmentItemRow {
 
   // ── Editable fields ───────────────────────────────────────────────────────
   final TextEditingController quantityCtrl;
+
+  /// No longer shown on the shipment form — a warehouse worker is not the one
+  /// who decides what a client pays. Kept because the row's totals still read
+  /// it; the price a shipment actually goes out with is typed later, on the
+  /// shipment detail page, and lives only on the server.
   final TextEditingController priceCtrl;
 
   ShipmentItemRow({

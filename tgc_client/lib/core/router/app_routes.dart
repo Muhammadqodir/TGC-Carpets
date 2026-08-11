@@ -46,6 +46,9 @@ class AppRoutes {
   static const String addShipping = '/shipping/add';
   static const String addShippingName = 'addShipping';
 
+  static const String shipmentDetail     = '/shipping/detail';
+  static const String shipmentDetailName = 'shipmentDetail';
+
   static const String employees     = '/employees';
   static const String employeesName = 'employees';
 

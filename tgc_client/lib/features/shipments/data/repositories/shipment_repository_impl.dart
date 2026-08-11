@@ -195,6 +195,40 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
   }
 
   @override
+  Future<Either<Failure, ShipmentEntity>> getShipment(int id) async {
+    try {
+      final result = await remoteDataSource.getShipment(id);
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ShipmentEntity>> updateShipmentPrices({
+    required int id,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    try {
+      final result = await remoteDataSource.updateShipmentPrices(
+        id: id,
+        items: items,
+      );
+      return Right(result);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
   Future<Either<Failure, ShipmentEntity>> cancelShipment({
     required int id,
     String? reason,

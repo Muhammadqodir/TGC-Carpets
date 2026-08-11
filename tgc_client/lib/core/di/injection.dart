@@ -139,6 +139,9 @@ import '../../features/shipments/data/datasources/shipment_remote_datasource.dar
 import '../../features/shipments/data/repositories/shipment_repository_impl.dart';
 import '../../features/shipments/domain/repositories/shipment_repository.dart';
 import '../../features/shipments/domain/usecases/get_shipments_usecase.dart';
+import '../../features/shipments/domain/usecases/get_shipment_usecase.dart';
+import '../../features/shipments/domain/usecases/update_shipment_prices_usecase.dart';
+import '../../features/shipments/presentation/bloc/shipment_detail_cubit.dart';
 import '../../features/shipments/domain/usecases/create_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_orders_for_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_shipment_import_clients_usecase.dart';
@@ -523,8 +526,21 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(
     () => GetOrdersForShipmentUseCase(sl<ShipmentRepository>()),
   );
+  sl.registerLazySingleton(
+    () => GetShipmentUseCase(sl<ShipmentRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateShipmentPricesUseCase(sl<ShipmentRepository>()),
+  );
   sl.registerFactory(
     () => ShipmentsBloc(getShipmentsUseCase: sl<GetShipmentsUseCase>()),
+  );
+  sl.registerFactory(
+    () => ShipmentDetailCubit(
+      sl<GetShipmentUseCase>(),
+      sl<UpdateShipmentPricesUseCase>(),
+      sl<ShipmentRepository>(),
+    ),
   );
   sl.registerFactory(
     () => ShipmentFormBloc(createShipmentUseCase: sl<CreateShipmentUseCase>()),

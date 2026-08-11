@@ -172,6 +172,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
 
+        // Prices are filled in after the fact, on the shipment page: the
+        // create form no longer asks for them. POST rather than PATCH to
+        // match cancel() and to keep the body off anything that rewrites
+        // methods between the phone and nginx.
+        Route::post('shipments/{shipment}/prices', [ShipmentController::class, 'updatePrices'])
+            ->name('shipments.prices.update');
+
         // Admin only: cancelling returns the carpets to the warehouse and
         // drops the client's debt for them — see ShipmentService::cancel().
         Route::post('shipments/{shipment}/cancel', [ShipmentController::class, 'cancel'])

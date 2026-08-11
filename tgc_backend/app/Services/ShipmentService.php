@@ -116,7 +116,9 @@ class ShipmentService
             foreach ($data['items'] as $itemData) {
                 $variantId = (int) $itemData['product_variant_id'];
                 $qty       = (int) $itemData['quantity'];
-                $price     = (float) $itemData['price'];
+                // Priced later, on the shipment page, for everything the app
+                // sends today — see updatePrices().
+                $price     = (float) ($itemData['price'] ?? 0);
 
                 if (! array_key_exists($variantId, $requestedPerVariant)) {
                     // Cannot happen unless the check and the write disagree about
@@ -665,6 +667,117 @@ class ShipmentService
 
             return $shipment->fresh(['client', 'user', 'canceledBy', 'items']);
         });
+    }
+
+    /**
+     * Writes prices onto an existing shipment's lines and rebuilds its
+     * documents from them.
+     *
+     * The shipment itself does not move: no stock, no order lines, no
+     * quantities. What changes is what the client owes — the debt is a SUM
+     * over shipment_items, so it follows these prices the moment they are
+     * saved — and the three generated documents, which are regenerated here
+     * because a hisob-faktura printed from 0.00 prices is worse than none.
+     *
+     * A cancelled shipment is refused: its goods came back and nobody owes
+     * anything for them, so pricing it would resurrect a debt that was
+     * deliberately dropped.
+     *
+     * @param array<int, array<string, mixed>> $items {id, price, discount_*}
+     */
+    public function updatePrices(Shipment $shipment, array $items, int $userId): Shipment
+    {
+        if ($shipment->isCanceled()) {
+            throw ValidationException::withMessages([
+                'shipment' => 'Bekor qilingan yuk xatiga narx kiritib bo\'lmaydi.',
+            ]);
+        }
+
+        DB::transaction(function () use ($shipment, $items): void {
+            // Re-read under a lock: two people pricing the same shipment from
+            // two phones would otherwise each compute vat_amount from their
+            // own half of the lines.
+            $shipment = Shipment::whereKey($shipment->id)->lockForUpdate()->first();
+
+            $priced = collect($items)->keyBy('id');
+
+            foreach ($shipment->items()->lockForUpdate()->get() as $item) {
+                $update = $priced->get($item->id);
+                if ($update === null) {
+                    continue;   // line left untouched by this save
+                }
+
+                $item->update([
+                    'price'          => $update['price'],
+                    'discount_type'  => $update['discount_type']  ?? $item->discount_type,
+                    'discount_value' => $update['discount_value'] ?? $item->discount_value,
+                ]);
+
+                // Frozen cash value of the discount, recomputed from the new
+                // price exactly as create() does — the two must not drift.
+                $item->update(['discount_amount' => $item->discountAmount()]);
+            }
+
+            // vat_amount is derived from the discounted subtotal and stored,
+            // so it has to be rebuilt from the lines as they now stand.
+            $subtotal = '0.00';
+            foreach ($shipment->items()->get() as $item) {
+                $subtotal = bcadd($subtotal, $item->lineTotal(), 2);
+            }
+
+            $shipment->update([
+                'vat_amount' => $this->round2(
+                    bcmul($subtotal, (string) ($shipment->vat_rate ?? 0), 8)
+                ),
+            ]);
+        });
+
+        // Outside the transaction, like create(): PDF rendering is slow and
+        // memory-hungry, and a failed render must not roll back prices that
+        // are already correct. A document that fails here is rebuilt by the
+        // next save.
+        try {
+            $this->generateAndStoreInvoice($shipment->id);
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate shipment invoice after pricing', [
+                'shipment_id' => $shipment->id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $this->generateAndStoreHisobFaktura($shipment->id);
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate hisob faktura after pricing', [
+                'shipment_id' => $shipment->id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $this->generateAndStoreXlsx($shipment->id);
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate shipment XLSX after pricing', [
+                'shipment_id' => $shipment->id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+
+        Log::info('shipment.prices_updated', [
+            'shipment_id' => $shipment->id,
+            'user_id'     => $userId,
+            'lines'       => count($items),
+        ]);
+
+        return $shipment->fresh([
+            'client',
+            'user',
+            'items.variant.productColor.product',
+            'items.variant.productColor.color',
+            'items.variant.productSize',
+            'items.variant.productEdge',
+            'items.orderItem.order',
+        ]);
     }
 
     /**

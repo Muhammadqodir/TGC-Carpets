@@ -59,6 +59,15 @@ abstract class ShipmentRemoteDataSource {
     required int id,
     String? reason,
   });
+
+  Future<ShipmentModel> getShipment(int id);
+
+  /// Prices the lines of an existing shipment. Comes back with regenerated
+  /// document URLs.
+  Future<ShipmentModel> updateShipmentPrices({
+    required int id,
+    required List<Map<String, dynamic>> items,
+  });
 }
 
 class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
@@ -316,6 +325,36 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
       );
       final body = response.data as Map<String, dynamic>;
       return ShipmentModel.fromJson(body['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ShipmentModel> getShipment(int id) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.shipmentById(id));
+      return ShipmentModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<ShipmentModel> updateShipmentPrices({
+    required int id,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.shipmentPrices(id),
+        data: {'items': items},
+      );
+      return ShipmentModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
     } on DioException catch (e) {
       _handleDioError(e);
     }

@@ -368,10 +368,6 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
           quantity: _rowQuantityFor(item),
         ),
     });
-
-    if (result == ScanAddResult.added) {
-      _fillLastPrice(item);
-    }
   }
 
   /// The form row [item] belongs to, or null before it has one.
@@ -392,26 +388,9 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   int? _rowQuantityFor(ShipmentImportItemEntity item) =>
       _rowFor(item)?.parsedQuantity;
 
-  /// Mirrors AddShipmentPage._importFromOrder's price fetch: a freshly added
-  /// row starts with an empty price, filled in the background once the
-  /// client's last price for this variant comes back.
-  Future<void> _fillLastPrice(ShipmentImportItemEntity item) async {
-    final result = await _repo.getLastPrice(
-      variantId: item.variantId,
-      clientId: widget.clientId,
-    );
-    if (!mounted) return;
-
-    result.fold((_) {}, (price) {
-      if (price == null) return;
-
-      final row = _rowFor(item);
-      if (row == null || row.priceCtrl.text.isNotEmpty) return;
-
-      row.priceCtrl.text = price.toStringAsFixed(2);
-      widget.controller.notifyChanged();
-    });
-  }
+  // No last-price fetch on scan any more: the shipment form carries no
+  // prices, so it was a round trip per carpet that nothing displayed. The
+  // office fills prices in on the shipment page afterwards.
 
   @override
   Widget build(BuildContext context) {

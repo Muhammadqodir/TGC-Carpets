@@ -39,6 +39,7 @@ import '../../features/scanner/presentation/pages/scanner_page.dart';
 import '../../features/products_stock/presentation/pages/products_stock_page.dart';
 import '../../features/shipments/presentation/pages/shipments_page.dart';
 import '../../features/shipments/presentation/pages/add_shipment_page.dart';
+import '../../features/shipments/presentation/pages/shipment_detail_page.dart';
 import '../../features/payments/presentation/pages/payments_page.dart';
 import '../../features/payments/presentation/pages/add_payment_page.dart';
 import '../../features/debits/domain/entities/client_debit_entity.dart';
@@ -251,6 +252,15 @@ class AppRouter {
             path: AppRoutes.addShipping,
             name: AppRoutes.addShippingName,
             builder: (context, state) => const AddShipmentPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.shipmentDetail,
+            name: AppRoutes.shipmentDetailName,
+            // Just the id: the page loads the shipment itself, so prices are
+            // always edited against what the server holds rather than a row
+            // that has been sitting in a list.
+            builder: (context, state) =>
+                ShipmentDetailPage(shipmentId: state.extra as int),
           ),
           GoRoute(
             path: AppRoutes.payments,
