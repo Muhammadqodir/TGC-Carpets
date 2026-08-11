@@ -10,7 +10,6 @@ import 'package:tgc_client/features/clients/presentation/bloc/clients_bloc.dart'
 import 'package:tgc_client/features/clients/presentation/bloc/clients_event.dart';
 import 'package:tgc_client/features/clients/presentation/bloc/clients_state.dart';
 
-import '../../domain/entities/shipment_entity.dart';
 import '../bloc/shipments_bloc.dart';
 import '../bloc/shipments_event.dart';
 import '../bloc/shipments_state.dart';
@@ -83,18 +82,6 @@ class _ViewState extends State<_View> {
             dateRange: dateRange,
           ),
         );
-  }
-
-  /// Opens the shipment's own page. Prices are filled in there, so the list
-  /// is refreshed on the way back — a priced shipment shows a total instead
-  /// of "Narxsiz".
-  Future<void> _openDetail(ShipmentEntity shipment) async {
-    await context.pushNamed(
-      AppRoutes.shipmentDetailName,
-      extra: shipment.id,
-    );
-    if (!mounted) return;
-    context.read<ShipmentsBloc>().add(const ShipmentsRefreshRequested());
   }
 
   List<ClientEntity> _clientsFromState(ClientsState state) {
@@ -186,7 +173,6 @@ class _ViewState extends State<_View> {
                     shipments: state.shipments,
                     isLoadingMore: state.isLoadingMore,
                     scrollController: _scrollController,
-                    onViewDetail: _openDetail,
                   );
                 }
 

@@ -31,6 +31,7 @@ class EmployeeEntity extends Equatable {
   bool get isProductionManager => hasRole('production_manager');
   bool get isOrderManager => hasRole('order_manager');
   bool get isLabelManager => hasRole('label_manager');
+  bool get isPricingManager => hasRole('pricing_manager');
 
   // Legacy helpers
   bool get isWarehouse => isWarehouseManager;
@@ -52,6 +53,7 @@ class EmployeeEntity extends Equatable {
         'production_manager' => 'Ishlab Chiqarish Menejer',
         'order_manager' => 'Buyurtma Menejer',
         'label_manager' => 'Yorliq Menejer',
+        'pricing_manager' => 'Narx Menejer',
         _ => roles.first,
       };
     }

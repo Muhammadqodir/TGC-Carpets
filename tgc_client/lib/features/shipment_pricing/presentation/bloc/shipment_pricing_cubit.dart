@@ -1,23 +1,23 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../domain/entities/shipment_entity.dart';
-import '../../domain/repositories/shipment_repository.dart';
-import '../../domain/usecases/get_shipment_usecase.dart';
+import '../../../shipments/domain/entities/shipment_entity.dart';
+import '../../domain/repositories/shipment_pricing_repository.dart';
+import '../../domain/usecases/get_shipment_for_pricing_usecase.dart';
 import '../../domain/usecases/update_shipment_prices_usecase.dart';
 
-abstract class ShipmentDetailState extends Equatable {
-  const ShipmentDetailState();
+abstract class ShipmentPricingState extends Equatable {
+  const ShipmentPricingState();
 
   @override
   List<Object?> get props => [];
 }
 
-class ShipmentDetailLoading extends ShipmentDetailState {
-  const ShipmentDetailLoading();
+class ShipmentPricingLoading extends ShipmentPricingState {
+  const ShipmentPricingLoading();
 }
 
-class ShipmentDetailLoaded extends ShipmentDetailState {
+class ShipmentPricingLoaded extends ShipmentPricingState {
   final ShipmentEntity shipment;
 
   /// True while prices are being written. The page keeps showing the
@@ -29,7 +29,7 @@ class ShipmentDetailLoaded extends ShipmentDetailState {
   /// cleared on the next state so it cannot fire twice.
   final bool justSaved;
 
-  const ShipmentDetailLoaded(
+  const ShipmentPricingLoaded(
     this.shipment, {
     this.isSaving = false,
     this.justSaved = false,
@@ -39,32 +39,32 @@ class ShipmentDetailLoaded extends ShipmentDetailState {
   List<Object?> get props => [shipment, isSaving, justSaved];
 }
 
-class ShipmentDetailError extends ShipmentDetailState {
+class ShipmentPricingError extends ShipmentPricingState {
   final String message;
 
-  const ShipmentDetailError(this.message);
+  const ShipmentPricingError(this.message);
 
   @override
   List<Object?> get props => [message];
 }
 
-class ShipmentDetailCubit extends Cubit<ShipmentDetailState> {
-  final GetShipmentUseCase _getShipment;
+class ShipmentPricingCubit extends Cubit<ShipmentPricingState> {
+  final GetShipmentForPricingUseCase _getShipment;
   final UpdateShipmentPricesUseCase _updatePrices;
-  final ShipmentRepository _repository;
+  final ShipmentPricingRepository _repository;
 
-  ShipmentDetailCubit(
+  ShipmentPricingCubit(
     this._getShipment,
     this._updatePrices,
     this._repository,
-  ) : super(const ShipmentDetailLoading());
+  ) : super(const ShipmentPricingLoading());
 
   Future<void> load(int id) async {
-    emit(const ShipmentDetailLoading());
+    emit(const ShipmentPricingLoading());
     final result = await _getShipment(id);
     result.fold(
-      (failure) => emit(ShipmentDetailError(failure.message)),
-      (shipment) => emit(ShipmentDetailLoaded(shipment)),
+      (failure) => emit(ShipmentPricingError(failure.message)),
+      (shipment) => emit(ShipmentPricingLoaded(shipment)),
     );
   }
 
@@ -72,9 +72,9 @@ class ShipmentDetailCubit extends Cubit<ShipmentDetailState> {
   /// shipment, whose document URLs point at the newly generated PDFs.
   Future<bool> savePrices(int id, Map<int, double> prices) async {
     final current = state;
-    if (current is! ShipmentDetailLoaded) return false;
+    if (current is! ShipmentPricingLoaded) return false;
 
-    emit(ShipmentDetailLoaded(current.shipment, isSaving: true));
+    emit(ShipmentPricingLoaded(current.shipment, isSaving: true));
 
     final result = await _updatePrices(
       id: id,
@@ -85,11 +85,11 @@ class ShipmentDetailCubit extends Cubit<ShipmentDetailState> {
 
     return result.fold(
       (failure) {
-        emit(ShipmentDetailError(failure.message));
+        emit(ShipmentPricingError(failure.message));
         return false;
       },
       (shipment) {
-        emit(ShipmentDetailLoaded(shipment, justSaved: true));
+        emit(ShipmentPricingLoaded(shipment, justSaved: true));
         return true;
       },
     );

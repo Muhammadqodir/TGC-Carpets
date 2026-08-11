@@ -172,11 +172,17 @@ Route::prefix('v1')->group(function (): void {
         Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
 
-        // Prices are filled in after the fact, on the shipment page: the
+        // Prices are filled in after the fact, in the pricing feature: the
         // create form no longer asks for them. POST rather than PATCH to
         // match cancel() and to keep the body off anything that rewrites
         // methods between the phone and nginx.
+        //
+        // Its own role: what a shipment is worth is the office's business,
+        // not the warehouse's, and this is the endpoint that moves a client's
+        // debt. The app hides the feature from everyone else; this is what
+        // actually enforces it.
         Route::post('shipments/{shipment}/prices', [ShipmentController::class, 'updatePrices'])
+            ->middleware('role:admin,pricing_manager')
             ->name('shipments.prices.update');
 
         // Admin only: cancelling returns the carpets to the warehouse and

@@ -23,6 +23,8 @@ class User extends Authenticatable
     const ROLE_PRODUCTION_MANAGER   = 'production_manager';
     const ROLE_ORDER_MANAGER        = 'order_manager';
     const ROLE_LABEL_MANAGER        = 'label_manager';
+    /** Fills in shipment prices and takes the hisob-faktura from them. */
+    const ROLE_PRICING_MANAGER      = 'pricing_manager';
 
     const ROLES = [
         self::ROLE_ADMIN,
@@ -34,6 +36,7 @@ class User extends Authenticatable
         self::ROLE_PRODUCTION_MANAGER,
         self::ROLE_ORDER_MANAGER,
         self::ROLE_LABEL_MANAGER,
+        self::ROLE_PRICING_MANAGER,
     ];
 
     protected $fillable = [
@@ -127,6 +130,11 @@ class User extends Authenticatable
     public function isLabelManager(): bool
     {
         return $this->hasRole(self::ROLE_LABEL_MANAGER);
+    }
+
+    public function isPricingManager(): bool
+    {
+        return $this->hasRole(self::ROLE_PRICING_MANAGER);
     }
 
     // Legacy helpers (for backward compatibility)

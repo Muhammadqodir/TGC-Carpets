@@ -139,9 +139,12 @@ import '../../features/shipments/data/datasources/shipment_remote_datasource.dar
 import '../../features/shipments/data/repositories/shipment_repository_impl.dart';
 import '../../features/shipments/domain/repositories/shipment_repository.dart';
 import '../../features/shipments/domain/usecases/get_shipments_usecase.dart';
-import '../../features/shipments/domain/usecases/get_shipment_usecase.dart';
-import '../../features/shipments/domain/usecases/update_shipment_prices_usecase.dart';
-import '../../features/shipments/presentation/bloc/shipment_detail_cubit.dart';
+import '../../features/shipment_pricing/data/datasources/shipment_pricing_remote_datasource.dart';
+import '../../features/shipment_pricing/data/repositories/shipment_pricing_repository_impl.dart';
+import '../../features/shipment_pricing/domain/repositories/shipment_pricing_repository.dart';
+import '../../features/shipment_pricing/domain/usecases/get_shipment_for_pricing_usecase.dart';
+import '../../features/shipment_pricing/domain/usecases/update_shipment_prices_usecase.dart';
+import '../../features/shipment_pricing/presentation/bloc/shipment_pricing_cubit.dart';
 import '../../features/shipments/domain/usecases/create_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_orders_for_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_shipment_import_clients_usecase.dart';
@@ -526,21 +529,8 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(
     () => GetOrdersForShipmentUseCase(sl<ShipmentRepository>()),
   );
-  sl.registerLazySingleton(
-    () => GetShipmentUseCase(sl<ShipmentRepository>()),
-  );
-  sl.registerLazySingleton(
-    () => UpdateShipmentPricesUseCase(sl<ShipmentRepository>()),
-  );
   sl.registerFactory(
     () => ShipmentsBloc(getShipmentsUseCase: sl<GetShipmentsUseCase>()),
-  );
-  sl.registerFactory(
-    () => ShipmentDetailCubit(
-      sl<GetShipmentUseCase>(),
-      sl<UpdateShipmentPricesUseCase>(),
-      sl<ShipmentRepository>(),
-    ),
   );
   sl.registerFactory(
     () => ShipmentFormBloc(createShipmentUseCase: sl<CreateShipmentUseCase>()),
@@ -561,6 +551,30 @@ Future<void> initDependencies() async {
       getItemsUseCase: sl<GetShipmentImportItemsUseCase>(),
     ),
   );
+
+  // ─── Shipment Pricing Feature ──────────────────────────────────────────────
+  sl.registerLazySingleton<ShipmentPricingRemoteDataSource>(
+    () => ShipmentPricingRemoteDataSourceImpl(sl<Dio>()),
+  );
+  sl.registerLazySingleton<ShipmentPricingRepository>(
+    () => ShipmentPricingRepositoryImpl(
+      remoteDataSource: sl<ShipmentPricingRemoteDataSource>(),
+    ),
+  );
+  sl.registerLazySingleton(
+    () => GetShipmentForPricingUseCase(sl<ShipmentPricingRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateShipmentPricesUseCase(sl<ShipmentPricingRepository>()),
+  );
+  sl.registerFactory(
+    () => ShipmentPricingCubit(
+      sl<GetShipmentForPricingUseCase>(),
+      sl<UpdateShipmentPricesUseCase>(),
+      sl<ShipmentPricingRepository>(),
+    ),
+  );
+
   sl.registerLazySingleton<DashboardRemoteDataSource>(
     () => DashboardRemoteDataSourceImpl(sl<Dio>()),
   );

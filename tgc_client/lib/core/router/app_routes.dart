@@ -46,8 +46,13 @@ class AppRoutes {
   static const String addShipping = '/shipping/add';
   static const String addShippingName = 'addShipping';
 
-  static const String shipmentDetail     = '/shipping/detail';
-  static const String shipmentDetailName = 'shipmentDetail';
+  /// Pricing is its own feature, behind its own role — see
+  /// RolePermissions.canAccessShipmentPricing.
+  static const String shipmentPricing     = '/pricing';
+  static const String shipmentPricingName = 'shipmentPricing';
+
+  static const String shipmentPricingDetail     = '/pricing/detail';
+  static const String shipmentPricingDetailName = 'shipmentPricingDetail';
 
   static const String employees     = '/employees';
   static const String employeesName = 'employees';

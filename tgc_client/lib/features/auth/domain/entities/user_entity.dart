@@ -26,6 +26,10 @@ class UserEntity extends Equatable {
   bool get isOrderManager => hasRole('order_manager');
   bool get isLabelManager => hasRole('label_manager');
 
+  /// Fills in shipment prices and takes the hisob-faktura from them.
+  /// The backend enforces the same rule on POST /shipments/{id}/prices.
+  bool get isPricingManager => hasRole('pricing_manager');
+
   // Legacy helpers for backward compatibility
   bool get isWarehouse => isWarehouseManager;
   bool get isSeller => isSalesManager;

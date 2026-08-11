@@ -168,6 +168,15 @@ class _DashboardViewState extends State<_DashboardView> {
                           ));
                         }
 
+                        if (RolePermissions.canAccessShipmentPricing(user)) {
+                          visibleCards.add(_DashboardCard(
+                            icon: HugeIcons.strokeRoundedInvoice02,
+                            label: 'Narxlash',
+                            onTap: () => context
+                                .pushNamed(AppRoutes.shipmentPricingName),
+                          ));
+                        }
+
                         if (RolePermissions.canAccessWarehouse(user)) {
                           visibleCards.add(_DashboardCard(
                             icon: HugeIcons.strokeRoundedWarehouse,

@@ -11,9 +11,9 @@ import '../../../../core/ui/pages/pdf_viewer.dart';
 import '../../../../core/ui/widgets/app_badge.dart';
 import '../../../../core/ui/widgets/info_section.dart';
 import '../../../../core/ui/widgets/typograpthy.dart';
-import '../../domain/entities/shipment_entity.dart';
-import '../../domain/entities/shipment_item_entity.dart';
-import '../bloc/shipment_detail_cubit.dart';
+import '../../../shipments/domain/entities/shipment_entity.dart';
+import '../../../shipments/domain/entities/shipment_item_entity.dart';
+import '../bloc/shipment_pricing_cubit.dart';
 import '../widgets/price_input.dart';
 
 /// One shipment, and the page where it gets its prices.
@@ -24,30 +24,30 @@ import '../widgets/price_input.dart';
 /// lines, save. Saving recomputes what the client owes and regenerates the
 /// hisob-faktura, which is why the invoice is downloaded from here and not
 /// from the list.
-class ShipmentDetailPage extends StatelessWidget {
+class ShipmentPricingDetailPage extends StatelessWidget {
   final int shipmentId;
 
-  const ShipmentDetailPage({super.key, required this.shipmentId});
+  const ShipmentPricingDetailPage({super.key, required this.shipmentId});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<ShipmentDetailCubit>()..load(shipmentId),
-      child: _ShipmentDetailView(shipmentId: shipmentId),
+      create: (_) => sl<ShipmentPricingCubit>()..load(shipmentId),
+      child: _ShipmentPricingView(shipmentId: shipmentId),
     );
   }
 }
 
-class _ShipmentDetailView extends StatefulWidget {
+class _ShipmentPricingView extends StatefulWidget {
   final int shipmentId;
 
-  const _ShipmentDetailView({required this.shipmentId});
+  const _ShipmentPricingView({required this.shipmentId});
 
   @override
-  State<_ShipmentDetailView> createState() => _ShipmentDetailViewState();
+  State<_ShipmentPricingView> createState() => _ShipmentPricingViewState();
 }
 
-class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
+class _ShipmentPricingViewState extends State<_ShipmentPricingView> {
   /// One controller per shipment line, kept here rather than in the item
   /// widgets so a rebuild — including the one after saving — cannot drop what
   /// somebody has typed.
@@ -136,7 +136,7 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
     };
 
     final saved =
-        await context.read<ShipmentDetailCubit>().savePrices(shipment.id, prices);
+        await context.read<ShipmentPricingCubit>().savePrices(shipment.id, prices);
     if (!mounted) return;
 
     if (saved) setState(() => _dirty = false);
@@ -155,7 +155,7 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
   /// Explicit rather than automatic: a suggested price that appears on its own
   /// is one nobody checks before saving.
   Future<void> _fillFromLastPrices(ShipmentEntity shipment) async {
-    final cubit = context.read<ShipmentDetailCubit>();
+    final cubit = context.read<ShipmentPricingCubit>();
     final prices = await cubit.lastPricesForShipment(shipment);
     if (!mounted) return;
 
@@ -240,17 +240,26 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<ShipmentDetailCubit, ShipmentDetailState>(
+    return BlocConsumer<ShipmentPricingCubit, ShipmentPricingState>(
       listener: (context, state) {
         // A save is the one moment the server's numbers should overwrite the
         // fields; every other rebuild leaves typing in progress alone.
-        if (state is ShipmentDetailLoaded && state.justSaved) {
+        if (state is ShipmentPricingLoaded && state.justSaved) {
           _syncControllers(state.shipment, fromServer: true);
         }
       },
       builder: (context, state) {
-        final shipment = state is ShipmentDetailLoaded ? state.shipment : null;
-        final isSaving = state is ShipmentDetailLoaded && state.isSaving;
+        final shipment = state is ShipmentPricingLoaded ? state.shipment : null;
+        final isSaving = state is ShipmentPricingLoaded && state.isSaving;
+
+        // Before anything below reads a controller by line id. Nothing
+        // guarantees the listener runs first, and both the body and the save
+        // bar depend on these existing.
+        if (shipment != null) _syncControllers(shipment);
+
+        final isMobile = MediaQuery.sizeOf(context).width <
+            AppConstants.desktopBreakpoint;
+        final canPrice = shipment != null && !shipment.isCanceled;
 
         return PopScope(
           canPop: !_dirty,
@@ -261,14 +270,14 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
           child: Scaffold(
             backgroundColor: AppColors.background,
             appBar: AppBar(
-              title: Text('#${widget.shipmentId} Yuk xati'),
+              title: Text('#${widget.shipmentId} Narxlash'),
               titleSpacing: 0,
               leading: IconButton(
                 onPressed: () => context.pop(),
                 icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
               ),
               actions: [
-                if (shipment != null && !shipment.isCanceled) ...[
+                if (canPrice) ...[
                   IconButton(
                     icon: const HugeIcon(
                       icon: HugeIcons.strokeRoundedInvoice02,
@@ -279,40 +288,52 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
                     tooltip: 'Hisob-faktura',
                     onPressed: () => _openInvoice(shipment),
                   ),
-                  if (isSaving)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                  // On a phone the save button lives at the bottom instead,
+                  // where a thumb reaches it and it can carry the total —
+                  // three controls plus a heading do not fit a narrow bar.
+                  if (!isMobile)
+                    if (isSaving)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
+                      )
+                    else
+                      FilledButton.icon(
+                        onPressed: () => _save(shipment),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Saqlash'),
                       ),
-                    )
-                  else
-                    FilledButton.icon(
-                      onPressed: () => _save(shipment),
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Saqlash'),
-                    ),
                 ],
                 const SizedBox(width: 16),
               ],
             ),
             body: _buildBody(context, state),
+            bottomNavigationBar: isMobile && canPrice
+                ? _SaveBar(
+                    total: _grandTotal(shipment),
+                    unpriced: _unpricedCount(shipment),
+                    isSaving: isSaving,
+                    onSave: () => _save(shipment),
+                  )
+                : null,
           ),
         );
       },
     );
   }
 
-  Widget _buildBody(BuildContext context, ShipmentDetailState state) {
-    if (state is ShipmentDetailLoading) {
+  Widget _buildBody(BuildContext context, ShipmentPricingState state) {
+    if (state is ShipmentPricingLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state is ShipmentDetailError) {
+    if (state is ShipmentPricingError) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -323,7 +344,7 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => context
-                    .read<ShipmentDetailCubit>()
+                    .read<ShipmentPricingCubit>()
                     .load(widget.shipmentId),
                 child: const Text('Qayta urinish'),
               ),
@@ -333,13 +354,8 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
       );
     }
 
-    if (state is ShipmentDetailLoaded) {
+    if (state is ShipmentPricingLoaded) {
       final shipment = state.shipment;
-
-      // Here rather than only in the listener: nothing guarantees a listener
-      // runs before the first build of the same state, and every row below
-      // reads its controller by id.
-      _syncControllers(shipment);
 
       return SingleChildScrollView(
         padding: const EdgeInsets.all(12),
@@ -369,6 +385,93 @@ class _ShipmentDetailViewState extends State<_ShipmentDetailView> {
     }
 
     return const SizedBox.shrink();
+  }
+}
+
+// ── Mobile save bar ─────────────────────────────────────────────────────────
+
+/// The running total and the save button, pinned where a thumb lands.
+///
+/// Doubles as the answer to "am I done?": it carries the count of lines still
+/// without a price, so nobody has to scroll back through the list to check.
+class _SaveBar extends StatelessWidget {
+  final double total;
+  final int unpriced;
+  final bool isSaving;
+  final VoidCallback onSave;
+
+  const _SaveBar({
+    required this.total,
+    required this.unpriced,
+    required this.isSaving,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      elevation: 8,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SubBodyText(
+                      text: unpriced > 0
+                          ? '$unpriced ta qator narxsiz'
+                          : 'Barcha qatorlar narxlangan',
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '\$${total.toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: unpriced > 0
+                                ? AppColors.warning
+                                : AppColors.success,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 48,
+                child: isSaving
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 28),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    : FilledButton.icon(
+                        onPressed: onSave,
+                        icon: const Icon(Icons.check_rounded, size: 20),
+                        label: const Text(
+                          'Saqlash',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -538,51 +641,124 @@ class _PricedItemsCard extends StatelessWidget {
             yield const Divider(height: 1, color: AppColors.divider);
           }
         }),
-        _buildFooter(context),
+        // While it can be priced the sticky bottom bar carries the total, so
+        // repeating it here would just be a second number to scroll past.
+        if (!editable) _buildFooter(context),
       ],
     );
   }
 
+  /// One carpet, as a block a thumb can work down.
+  ///
+  /// The name gets the full width and is allowed to wrap — cutting a carpet's
+  /// name with an ellipsis is exactly how the wrong line gets priced. The
+  /// price field sits on its own row, tall enough to hit without aiming, and
+  /// is labelled with what the number means: per m² for a carpet sold by
+  /// area, per piece otherwise.
   Widget _buildMobileRow(
     BuildContext context,
     int index,
     ShipmentItemEntity item,
   ) {
+    final unpriced = editable && lineTotal(item) <= 0;
+
     return Container(
-      color: index.isOdd ? AppColors.surface.withValues(alpha: 0.5) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: index.isOdd ? AppColors.surface.withValues(alpha: 0.4) : null,
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BodyText(
-            text: '${index + 1}. ${_itemTitle(item)}',
-            fontWeight: FontWeight.w600,
-          ),
-          const SizedBox(height: 2),
-          SubBodyText(text: _itemSubtitle(item)),
-          const SizedBox(height: 8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: BodyText(text: _quantityLabel(item)),
-              ),
-              SizedBox(
-                width: 120,
-                child: _priceField(context, item),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 90,
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
                 child: Text(
-                  '\$${lineTotal(item).toStringAsFixed(2)}',
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                  '${index + 1}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _itemTitle(item),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (item.colorName != null)
+                  AppBadge(
+                    label: item.colorName!.toUpperCase(),
+                    color: AppColors.primary,
+                  ),
+                if (item.sizeLength != null && item.sizeWidth != null)
+                  AppBadge(
+                    label: '${item.sizeWidth}×${item.sizeLength}',
+                    color: AppColors.textSecondary,
+                  ),
+                AppBadge(
+                  label: _quantityLabel(item),
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SubBodyText(text: _priceUnitLabel(item)),
+                      const SizedBox(height: 4),
+                      _priceField(context, item, height: 46),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const SubBodyText(text: 'Jami'),
+                    const SizedBox(height: 6),
+                    Text(
+                      '\$${lineTotal(item).toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: unpriced
+                                ? AppColors.warning
+                                : AppColors.primary,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -673,7 +849,11 @@ class _PricedItemsCard extends StatelessWidget {
   /// The price cell. A cancelled shipment shows what it went out at and
   /// nothing more — its debt was already dropped, so there is nothing left to
   /// price, and an editable field would only invite a save that is refused.
-  Widget _priceField(BuildContext context, ShipmentItemEntity item) {
+  Widget _priceField(
+    BuildContext context,
+    ShipmentItemEntity item, {
+    double height = 35,
+  }) {
     if (!editable) {
       return Text(
         '\$${item.price.toStringAsFixed(2)}',
@@ -684,6 +864,7 @@ class _PricedItemsCard extends StatelessWidget {
     return PriceInput(
       priceCtrl: priceCtrls[item.id]!,
       onChanged: onPriceChanged,
+      height: height,
     );
   }
 
@@ -728,11 +909,15 @@ String _itemSubtitle(ShipmentItemEntity item) {
   return parts.isEmpty ? '—' : parts.join(' · ');
 }
 
-/// What the price is per — the office is typing a rate, and for a carpet sold
-/// by area that rate is per m², not per carpet.
 String _quantityLabel(ShipmentItemEntity item) => item.productUnit == 'piece'
     ? '${item.quantity} dona'
     : '${item.quantity} dona · ${item.squareMeters.toStringAsFixed(2)} m²';
+
+/// What the number in the field means. The office is typing a rate, and for a
+/// carpet sold by area that rate is per m², not per carpet — getting this
+/// wrong is a hundredfold error on an invoice.
+String _priceUnitLabel(ShipmentItemEntity item) =>
+    item.productUnit == 'piece' ? '1 dona narxi' : '1 m² narxi';
 
 String _formatDateTime(DateTime date) {
   final h = date.hour.toString().padLeft(2, '0');

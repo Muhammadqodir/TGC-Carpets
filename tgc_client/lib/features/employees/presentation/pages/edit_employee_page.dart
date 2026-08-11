@@ -50,6 +50,7 @@ class _EditEmployeeViewState extends State<_EditEmployeeView> {
     (label: 'Ishlab Chiqarish Menejer', value: 'production_manager'),
     (label: 'Buyurtma Menejer', value: 'order_manager'),
     (label: 'Yorliq Menejer', value: 'label_manager'),
+    (label: 'Narx Menejer', value: 'pricing_manager'),
   ];
 
   @override

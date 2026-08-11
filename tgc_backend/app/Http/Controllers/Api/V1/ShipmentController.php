@@ -79,9 +79,11 @@ class ShipmentController extends Controller
      * POST /shipments/{shipment}/prices
      *
      * Fills in the prices of an already-created shipment and regenerates its
-     * documents — the step that turns a loaded lorry into an invoice. Open to
-     * everyone who can create a shipment, which is the same access they had
-     * when prices were typed on the create form.
+     * documents — the step that turns a loaded lorry into an invoice.
+     *
+     * Admin or pricing_manager (role middleware on the route): this is what
+     * moves a client's debt, so it is deliberately not open to the warehouse
+     * roles that create the shipment in the first place.
      */
     public function updatePrices(UpdateShipmentPricesRequest $request, Shipment $shipment): JsonResponse
     {

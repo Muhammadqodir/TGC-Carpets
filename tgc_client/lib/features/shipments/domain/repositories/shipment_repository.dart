@@ -29,11 +29,6 @@ abstract class ShipmentRepository {
     int perPage = 50,
   });
 
-  Future<Either<Failure, double?>> getLastPrice({
-    required int variantId,
-    required int clientId,
-  });
-
   Future<Either<Failure, List<ShipmentImportClientEntity>>> getShipmentImportClients();
 
   Future<Either<Failure, List<ShipmentImportQualityEntity>>> getShipmentImportQualities({
@@ -56,20 +51,5 @@ abstract class ShipmentRepository {
   Future<Either<Failure, ShipmentEntity>> cancelShipment({
     required int id,
     String? reason,
-  });
-
-  /// One shipment with its lines — the detail page's own load, so prices are
-  /// edited against what the server has rather than a row from a list that
-  /// may have been fetched an hour ago.
-  Future<Either<Failure, ShipmentEntity>> getShipment(int id);
-
-  /// Writes prices onto an existing shipment's lines. The server recomputes
-  /// the client's debt and regenerates the hisob-faktura from them, and
-  /// returns the shipment with fresh document URLs.
-  ///
-  /// [items] is `{id, price}` per line.
-  Future<Either<Failure, ShipmentEntity>> updateShipmentPrices({
-    required int id,
-    required List<Map<String, dynamic>> items,
   });
 }

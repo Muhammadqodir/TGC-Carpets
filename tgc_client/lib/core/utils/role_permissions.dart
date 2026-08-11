@@ -23,6 +23,16 @@ class RolePermissions {
     return user.isAdmin || user.isSalesManager;
   }
 
+  /// Check if user can access Shipment pricing feature
+  ///
+  /// Separate from Shipping on purpose: the warehouse creates shipments, the
+  /// office decides what they are worth. Saving a price moves the client's
+  /// debt, so the backend enforces the same rule on the endpoint — this only
+  /// decides whether the feature is shown.
+  static bool canAccessShipmentPricing(UserEntity user) {
+    return user.isAdmin || user.isPricingManager;
+  }
+
   /// Check if user can access Warehouse feature
   static bool canAccessWarehouse(UserEntity user) {
     return user.isAdmin || user.isWarehouseManager;
@@ -76,6 +86,9 @@ class RolePermissions {
     if (canAccessOrders(user)) features.add(AppRoutes.ordersName);
     if (canAccessProduction(user)) features.add(AppRoutes.productionName);
     if (canAccessShipping(user)) features.add(AppRoutes.shippingName);
+    if (canAccessShipmentPricing(user)) {
+      features.add(AppRoutes.shipmentPricingName);
+    }
     if (canAccessWarehouse(user)) features.add(AppRoutes.warehouseName);
     if (canAccessStock(user)) features.add(AppRoutes.productsStockName);
     if (canAccessClients(user)) features.add(AppRoutes.clientsName);
