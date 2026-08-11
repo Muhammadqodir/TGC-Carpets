@@ -5,7 +5,12 @@ import '../../domain/entities/shipment_import_entities.dart';
 
 /// View-layer model for a single line item in the "add shipment" form.
 ///
-/// Each row maps to one [OrderItemEntity] and holds editable quantity + price.
+/// Each row maps to one [OrderItemEntity] and holds the editable quantity.
+///
+/// No price: a warehouse worker loading a lorry has no business guessing what
+/// a client pays, and asking them for it held up the scan flow. A shipment is
+/// created unpriced and the pricing feature fills it in afterwards, which is
+/// also what unlocks the hisob-faktura.
 class ShipmentItemRow {
   static int _counter = 0;
   final int id = ++_counter;
@@ -50,12 +55,6 @@ class ShipmentItemRow {
   // ── Editable fields ───────────────────────────────────────────────────────
   final TextEditingController quantityCtrl;
 
-  /// No longer shown on the shipment form — a warehouse worker is not the one
-  /// who decides what a client pays. Kept because the row's totals still read
-  /// it; the price a shipment actually goes out with is typed later, on the
-  /// shipment detail page, and lives only on the server.
-  final TextEditingController priceCtrl;
-
   ShipmentItemRow({
     required this.orderItemId,
     required this.variantId,
@@ -72,15 +71,10 @@ class ShipmentItemRow {
     this.edgeTitle,
     required this.availableQuantity,
     int initialQuantity = 1,
-    double? initialPrice,
-  })  : quantityCtrl =
-            TextEditingController(text: '$initialQuantity'),
-        priceCtrl = TextEditingController(
-            text: initialPrice != null ? initialPrice.toStringAsFixed(2) : '');
+  }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
 
   factory ShipmentItemRow.fromImportItem(
     ShipmentImportItemEntity item, {
-    double? lastPrice,
     int? initialQuantity,
     bool scanned = false,
   }) {
@@ -101,14 +95,12 @@ class ShipmentItemRow {
       availableQuantity: item.availableQuantity,
       initialQuantity: initialQuantity ??
           (item.availableQuantity > 0 ? item.availableQuantity : 1),
-      initialPrice: lastPrice,
     );
   }
 
   factory ShipmentItemRow.fromOrderItem(
-    OrderItemEntity item, {
-    double? lastPrice,
-  }) {
+    OrderItemEntity item,
+  ) {
     final alreadyShipped = item.shippedQuantity ?? 0;
     final remaining = item.quantity - alreadyShipped;
     final stockAvailable = item.stockAvailable ?? 0;
@@ -131,7 +123,6 @@ class ShipmentItemRow {
       edgeTitle: item.edgeTitle,
       availableQuantity: available,
       initialQuantity: available > 0 ? available : 1,
-      initialPrice: lastPrice,
     );
   }
 
@@ -145,9 +136,6 @@ class ShipmentItemRow {
   String? get sizeLabel =>
       sizeLength != null && sizeWidth != null ? '$sizeWidth×$sizeLength' : null;
 
-  double get parsedPrice =>
-      double.tryParse(priceCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
-
   int get parsedQuantity => int.tryParse(quantityCtrl.text.trim()) ?? 0;
 
   double get rowSqm =>
@@ -155,12 +143,7 @@ class ShipmentItemRow {
           ? sizeLength! * sizeWidth! * parsedQuantity / 10000.0
           : parsedQuantity.toDouble();
 
-  double get lineTotal => productUnit == 'piece'
-      ? parsedPrice * parsedQuantity
-      : parsedPrice * rowSqm;
-
   void dispose() {
     quantityCtrl.dispose();
-    priceCtrl.dispose();
   }
 }

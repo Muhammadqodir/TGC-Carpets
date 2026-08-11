@@ -110,13 +110,6 @@ class ShipmentCard extends StatelessWidget {
                   )
                 else
                   const Spacer(),
-                Text(
-                  '\$${shipment.grandTotal.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
-                ),
                 if (shipment.pdfUrl != null) ...[
                   const SizedBox(width: 8),
                   SizedBox(

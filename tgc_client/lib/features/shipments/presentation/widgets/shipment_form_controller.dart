@@ -29,11 +29,9 @@ class ShipmentFormController extends ChangeNotifier {
 
   /// Replaces all current rows with items from [order].
   /// Rows that have no remaining quantity are skipped.
-  /// [lastPrices] maps variantId → last known price.
   /// [selectedItemIds] — when non-null, only those order-item IDs are imported.
   void importFromOrder(
-    OrderEntity order,
-    Map<int, double> lastPrices, {
+    OrderEntity order, {
     Set<int>? selectedItemIds,
   }) {
     _clearRows();
@@ -48,7 +46,6 @@ class ShipmentFormController extends ChangeNotifier {
 
       final row = ShipmentItemRow.fromOrderItem(
         item,
-        lastPrice: lastPrices[item.variantId],
       );
       _hookRow(row);
       _items.add(row);
@@ -58,11 +55,7 @@ class ShipmentFormController extends ChangeNotifier {
   }
 
   /// Replaces all current rows with items from the stock import wizard.
-  /// [lastPrices] maps variantId → last known price for the client.
-  void importFromStock(
-    List<ShipmentImportItemEntity> items,
-    Map<int, double> lastPrices,
-  ) {
+  void importFromStock(List<ShipmentImportItemEntity> items) {
     _clearRows();
     importedOrder = null;
 
@@ -70,7 +63,6 @@ class ShipmentFormController extends ChangeNotifier {
       if (item.availableQuantity <= 0) continue;
       final row = ShipmentItemRow.fromImportItem(
         item,
-        lastPrice: lastPrices[item.variantId],
       );
       _hookRow(row);
       _items.add(row);
@@ -85,8 +77,7 @@ class ShipmentFormController extends ChangeNotifier {
   /// scan), capped at the server-computed [ShipmentImportItemEntity.availableQuantity].
   /// Otherwise a new row is added with quantity 1, without touching existing
   /// rows (unlike [importFromOrder]/[importFromStock], which replace them).
-  ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item,
-      {double? lastPrice}) {
+  ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item) {
     // Rows for a carpet with no order line yet cannot be matched on
     // orderItemId — they all have none — so they are matched on the variant
     // instead, among rows added the same way. Scanning the same off-order
@@ -113,7 +104,6 @@ class ShipmentFormController extends ChangeNotifier {
 
     final row = ShipmentItemRow.fromImportItem(
       item,
-      lastPrice: lastPrice,
       initialQuantity: 1,
       scanned: true,
     );
@@ -142,9 +132,6 @@ class ShipmentFormController extends ChangeNotifier {
   List<ShipmentItemRow> get filledItems =>
       _items.where((r) => r.parsedQuantity > 0).toList();
 
-  double get grandTotal =>
-      _items.fold(0.0, (sum, r) => sum + r.lineTotal);
-
   int get totalQuantity =>
       _items.fold(0, (sum, r) => sum + r.parsedQuantity);
 
@@ -163,12 +150,10 @@ class ShipmentFormController extends ChangeNotifier {
 
   void _hookRow(ShipmentItemRow row) {
     row.quantityCtrl.addListener(_onChange);
-    row.priceCtrl.addListener(_onChange);
   }
 
   void _unhookRow(ShipmentItemRow row) {
     row.quantityCtrl.removeListener(_onChange);
-    row.priceCtrl.removeListener(_onChange);
   }
 
   void _onChange() => notifyListeners();

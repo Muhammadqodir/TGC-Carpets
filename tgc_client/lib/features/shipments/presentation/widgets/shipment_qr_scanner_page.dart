@@ -388,9 +388,9 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   int? _rowQuantityFor(ShipmentImportItemEntity item) =>
       _rowFor(item)?.parsedQuantity;
 
-  // No last-price fetch on scan any more: the shipment form carries no
-  // prices, so it was a round trip per carpet that nothing displayed. The
-  // office fills prices in on the shipment page afterwards.
+  // No last-price fetch on scan any more: this form carries no prices, so it
+  // was a round trip per carpet that nothing displayed. Pricing is its own
+  // feature now.
 
   @override
   Widget build(BuildContext context) {

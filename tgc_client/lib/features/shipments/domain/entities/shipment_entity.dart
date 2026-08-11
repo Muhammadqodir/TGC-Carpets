@@ -61,9 +61,6 @@ class ShipmentEntity extends Equatable {
   /// Total quantity across all items regardless of unit.
   int get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
 
-  /// Grand total in USD.
-  double get grandTotal => items.fold(0.0, (sum, i) => sum + i.lineTotal);
-
   /// Unique, sorted order dates from all items.
   List<DateTime> get orderDates {
     final seen = <String>{};

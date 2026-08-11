@@ -3,6 +3,11 @@ import 'package:equatable/equatable.dart';
 class ShipmentItemEntity extends Equatable {
   final int id;
   final int quantity;
+
+  /// What the client is charged per piece or per m². Carried because the
+  /// server sends it, but nothing in the shipments feature reads it: money is
+  /// the pricing feature's business, and the arithmetic lives there too (see
+  /// shipment_pricing/domain/shipment_money.dart).
   final double price;
   final int? variantId;
   final String? barcodeValue;
@@ -50,13 +55,6 @@ class ShipmentItemEntity extends Equatable {
       (sizeLength != null && sizeWidth != null)
           ? sizeLength! * sizeWidth! * quantity / 10000.0
           : 0.0;
-
-  /// Line total, unit-aware:
-  ///  - piece: price × quantity
-  ///  - m2:    price × sqm
-  double get lineTotal => productUnit == 'piece'
-      ? price * quantity
-      : price * squareMeters;
 
   @override
   List<Object?> get props => [

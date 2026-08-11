@@ -15,7 +15,7 @@ import '../../../shipments/presentation/bloc/shipments_bloc.dart';
 import '../../../shipments/presentation/bloc/shipments_event.dart';
 import '../../../shipments/presentation/bloc/shipments_state.dart';
 import '../../../shipments/presentation/widgets/shipment_filter_bar.dart';
-import '../../../shipments/presentation/widgets/shipment_table.dart';
+import '../widgets/shipment_pricing_table.dart';
 
 /// The office's way in: every shipment the warehouse has sent out, waiting to
 /// be priced.
@@ -165,11 +165,11 @@ class _ViewState extends State<_View> {
                 if (state is ShipmentsLoaded) {
                   if (state.shipments.isEmpty) return const _EmptyState();
 
-                  return ShipmentTable(
+                  return ShipmentPricingTable(
                     shipments: state.shipments,
                     isLoadingMore: state.isLoadingMore,
                     scrollController: _scrollController,
-                    onViewDetail: _openPricing,
+                    onTap: _openPricing,
                   );
                 }
 

@@ -95,9 +95,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
     // No last-price fetch here any more: this form does not carry prices, so
     // the round trip per item bought nothing. The same lookup now backs the
-    // "Oxirgi narxlar" button on the shipment detail page, where the prices
-    // are actually typed.
-    _ctrl.importFromStock(result.selectedItems, {});
+    // "Oxirgi narxlar" button in the pricing feature, where prices are typed.
+    _ctrl.importFromStock(result.selectedItems);
   }
 
   Future<void> _scanQr() async {
@@ -158,8 +157,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
               'order_item_id': r.orderItemId,
               'product_variant_id': r.variantId,
               'quantity': r.parsedQuantity,
-              // No price: the backend stores 0.00 and the office fills it in
-              // on the shipment page.
+              // No price: the backend stores 0.00 and the pricing feature
+              // fills it in afterwards.
               if (r.scanned) 'scanned': true,
               // Lets the backend move each scanned carpet's production record
               // onto the line it is shipping against, so a carpet made for
@@ -763,11 +762,6 @@ class _ItemRow extends StatelessWidget {
             ),
           ),
 
-          // No price here. A worker loading a lorry has no business guessing
-          // what the client pays, and asking them for it held up the scan
-          // flow — prices are filled in afterwards on the shipment's own
-          // page, which is also what unlocks the hisob-faktura.
-
           // Remove
           SizedBox(
             width: 40,
@@ -874,8 +868,7 @@ class _ItemRowMobile extends StatelessWidget {
             ),
           ),
 
-          // Miqdor — see the note on the desktop row: no price is collected
-          // here any more.
+          // Miqdor
           SizedBox(
             width: 130,
             child: Padding(

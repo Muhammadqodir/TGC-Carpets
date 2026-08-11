@@ -27,16 +27,12 @@ class ShipmentTable extends StatelessWidget {
     required this.shipments,
     required this.isLoadingMore,
     required this.scrollController,
-    this.onViewDetail,
   });
 
   final List<ShipmentEntity> shipments;
   final bool isLoadingMore;
   final ScrollController scrollController;
 
-  /// Opens the shipment's own page, where its prices are filled in and its
-  /// hisob-faktura is taken from.
-  final void Function(ShipmentEntity)? onViewDetail;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(label: 'ID', fixedWidth: 68, alignment: Alignment.center),
@@ -47,8 +43,6 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(label: 'Hajm', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(
         label: 'Jami (m²)', flex: 2, alignment: Alignment.centerRight),
-    AppTableColumn(
-        label: 'Jami (\$)', flex: 2, alignment: Alignment.centerRight),
     AppTableColumn(label: 'Izoh', flex: 3, alignment: Alignment.center),
     AppTableColumn(label: '', fixedWidth: 144, alignment: Alignment.center),
   ];
@@ -57,8 +51,6 @@ class ShipmentTable extends StatelessWidget {
     AppTableColumn(label: 'Yuk', flex: 2, alignment: Alignment.centerLeft),
     AppTableColumn(
         label: 'Hajm', flex: 1, alignment: Alignment.centerRight),
-    AppTableColumn(
-        label: 'Jami (\$)', flex: 1, alignment: Alignment.centerRight),
     AppTableColumn(label: '', fixedWidth: 40, alignment: Alignment.center),
   ];
 
@@ -117,23 +109,7 @@ class ShipmentTable extends StatelessWidget {
           textAlign: TextAlign.left,
         );
 
-      case 2: // Total $
-        // A shipment leaves the warehouse unpriced now, so 0.00 means "still
-        // waiting for the office", not "free" — worth spotting from the list.
-        return Text(
-          shipment.grandTotal > 0
-              ? '\$${shipment.grandTotal.toStringAsFixed(2)}'
-              : 'Narxsiz',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: shipment.grandTotal > 0
-                    ? AppColors.success
-                    : AppColors.warning,
-              ),
-          textAlign: TextAlign.right,
-        );
-
-      case 3: // PDF actions
+      case 2: // PDF actions
         return _buildActions(context, shipment, isMobile: true);
 
       default:
@@ -212,23 +188,7 @@ class ShipmentTable extends StatelessWidget {
           textAlign: TextAlign.right,
         );
 
-      case 6: // Total $
-        // A shipment leaves the warehouse unpriced now, so 0.00 means "still
-        // waiting for the office", not "free" — worth spotting from the list.
-        return Text(
-          shipment.grandTotal > 0
-              ? '\$${shipment.grandTotal.toStringAsFixed(2)}'
-              : 'Narxsiz',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: shipment.grandTotal > 0
-                    ? AppColors.success
-                    : AppColors.warning,
-              ),
-          textAlign: TextAlign.right,
-        );
-
-      case 7: // Notes
+      case 6: // Notes
         return shipment.notes != null && shipment.notes!.isNotEmpty
             ? Text(
                 shipment.notes!,
@@ -243,7 +203,7 @@ class ShipmentTable extends StatelessWidget {
                     ),
               );
 
-      case 8: // PDF actions
+      case 7: // PDF actions
         return _buildActions(context, shipment, isMobile: false);
 
       default:
@@ -273,9 +233,6 @@ class ShipmentTable extends StatelessWidget {
         color: AppColors.surface,
         onSelected: (value) {
           switch (value) {
-            case 'view':
-              onViewDetail?.call(shipment);
-              break;
             case 'pdf':
               if (shipment.pdfUrl != null) {
                 Navigator.of(context).push(
@@ -299,22 +256,6 @@ class ShipmentTable extends StatelessWidget {
           }
         },
         itemBuilder: (context) => [
-          if (onViewDetail != null)
-            PopupMenuItem(
-              value: 'view',
-              child: Row(
-                children: [
-                  HugeIcon(
-                    icon: HugeIcons.strokeRoundedView,
-                    color: AppColors.primaryLight,
-                    size: 18,
-                    strokeWidth: 2,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Tafsilotlar / narxlar'),
-                ],
-              ),
-            ),
           if (shipment.pdfUrl != null)
             PopupMenuItem(
               value: 'pdf',
@@ -332,8 +273,8 @@ class ShipmentTable extends StatelessWidget {
               ),
             ),
           // No hisob-faktura here: it is only worth anything once prices are
-          // filled in, which happens on the shipment's own page — so that is
-          // where it is downloaded from.
+          // filled in, which is the pricing feature's job — so that is where
+          // it is downloaded from.
           if (shipment.xlsxUrl != null)
             PopupMenuItem(
               value: 'xlsx',
@@ -370,18 +311,6 @@ class ShipmentTable extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (onViewDetail != null)
-          _ActionButton(
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedView,
-              color: AppColors.primaryLight,
-              size: 22,
-              strokeWidth: 1.5,
-            ),
-            tooltip: 'Tafsilotlar / narxlar',
-            color: AppColors.primaryLight,
-            onTap: () => onViewDetail!(shipment),
-          ),
         _ActionButton(
           icon: HugeIcon(
             icon: HugeIcons.strokeRoundedInvoice01,
@@ -460,8 +389,7 @@ Future<void> _confirmCancel(
         children: [
           Text(
             '${shipment.clientShopName ?? '—'} · '
-            '${shipment.totalQuantity} dona · '
-            '\$${shipment.grandTotal.toStringAsFixed(2)}',
+            '${shipment.totalQuantity} dona',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
