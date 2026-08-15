@@ -127,6 +127,34 @@ class ShipmentFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Draft restore / clear ─────────────────────────────────────────────────
+
+  /// Replaces every row and the note with data read back from a saved draft.
+  ///
+  /// [importedOrder] stays null: a draft carries only the rows, and the one
+  /// live import path ([importFromStock]) leaves it null too.
+  void restoreFrom({
+    required List<ShipmentItemRow> newItems,
+    required String notes,
+  }) {
+    _clearRows();
+    _setNotes(notes);
+
+    for (final row in newItems) {
+      _hookRow(row);
+      _items.add(row);
+    }
+
+    notifyListeners();
+  }
+
+  /// Resets the form to its initial blank state.
+  void clearForm() {
+    _clearRows();
+    _setNotes('');
+    notifyListeners();
+  }
+
   // ── Computed helpers ──────────────────────────────────────────────────────
 
   List<ShipmentItemRow> get filledItems =>
@@ -146,6 +174,13 @@ class ShipmentFormController extends ChangeNotifier {
     }
     _items.clear();
     importedOrder = null;
+  }
+
+  /// Sets the note without the write itself counting as a user edit.
+  void _setNotes(String notes) {
+    notesCtrl.removeListener(_onChange);
+    notesCtrl.text = notes;
+    notesCtrl.addListener(_onChange);
   }
 
   void _hookRow(ShipmentItemRow row) {

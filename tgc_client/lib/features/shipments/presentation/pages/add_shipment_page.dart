@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgc_client/core/constants/app_constants.dart';
 import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
@@ -13,6 +14,7 @@ import '../../../../core/ui/widgets/count_input.dart';
 import '../../../../core/ui/widgets/desktop_status_bar.dart';
 import '../../../clients/domain/entities/client_entity.dart';
 import '../../../clients/presentation/widgets/client_picker_bottom_sheet.dart';
+import '../../data/services/shipment_form_draft_service.dart';
 import '../bloc/shipment_form_bloc.dart';
 import '../bloc/shipment_form_event.dart';
 import '../bloc/shipment_form_state.dart';
@@ -26,6 +28,10 @@ import '../widgets/shipment_qr_scanner_page.dart';
 ///
 /// Owns the [ShipmentFormController] so state survives layout switches.
 /// Provides the [ShipmentFormBloc] to the subtree.
+///
+/// Auto-saves a draft on every change so closing the page mid-load does not
+/// throw away a half-scanned lorry. The draft is dropped only once the
+/// shipment is saved, or when the user clears the form on purpose.
 class AddShipmentPage extends StatefulWidget {
   const AddShipmentPage({super.key});
 
@@ -40,6 +46,18 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
   ClientEntity? _selectedClient;
   late DateTime _shipmentDate;
 
+  /// True once the user has picked a date themselves. An untouched date is
+  /// left out of the draft so a draft written yesterday does not silently
+  /// back-date the shipment.
+  bool _datePicked = false;
+
+  ShipmentFormDraftService? _draft;
+
+  /// Set while restoring or clearing, so those writes do not save over the
+  /// draft they are in the middle of reading or deleting.
+  bool _suspendSave = false;
+  bool _ready = false;
+
   bool get _hasClient => _selectedClient != null;
 
   @override
@@ -47,10 +65,52 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     super.initState();
     _ctrl = ShipmentFormController();
     _shipmentDate = DateTime.now();
+    _ctrl.addListener(_onFormChanged);
+    _initDraft();
+  }
+
+  Future<void> _initDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _draft = ShipmentFormDraftService(prefs);
+
+    _suspendSave = true;
+    final draft = await _draft!.restore();
+
+    if (!mounted) {
+      // Page closed while the draft was loading. Its rows own text
+      // controllers the form never took ownership of.
+      for (final row in draft?.rows ?? const <ShipmentItemRow>[]) {
+        row.dispose();
+      }
+      return;
+    }
+
+    if (draft != null) {
+      _ctrl.restoreFrom(newItems: draft.rows, notes: draft.notes);
+      _selectedClient = draft.client;
+      if (draft.shipmentDate != null) {
+        _shipmentDate = draft.shipmentDate!;
+        _datePicked = true;
+      }
+    }
+    _suspendSave = false;
+
+    setState(() => _ready = true);
+  }
+
+  void _onFormChanged() {
+    if (!_ready || _suspendSave) return;
+    _draft?.save(
+      _ctrl,
+      client: _selectedClient,
+      shipmentDate: _datePicked ? _shipmentDate : null,
+    );
   }
 
   @override
   void dispose() {
+    _ctrl.removeListener(_onFormChanged);
     _ctrl.dispose();
     super.dispose();
   }
@@ -65,14 +125,55 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
     );
-    if (picked != null && mounted) setState(() => _shipmentDate = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _shipmentDate = picked;
+        _datePicked = true;
+      });
+      _onFormChanged();
+    }
   }
 
   Future<void> _pickClient() async {
     final client = await ClientPickerBottomSheet.show(context);
     if (client != null && mounted) {
       setState(() => _selectedClient = client);
+      _onFormChanged();
     }
+  }
+
+  /// Empties the form and throws away the stored draft.
+  Future<void> _clearForm() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Formani tozalash'),
+        content: const Text(
+            'Barcha kiritilgan ma\'lumotlar o\'chib ketadi. Davom etasizmi?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Tozalash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    _suspendSave = true;
+    _ctrl.clearForm();
+    setState(() {
+      _selectedClient = null;
+      _shipmentDate = DateTime.now();
+      _datePicked = false;
+    });
+    await _draft?.clear();
+    _suspendSave = false;
   }
 
   Future<void> _importFromOrder() async {
@@ -179,11 +280,21 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Holds the page back a frame or two until the draft is read, so the
+    // restored rows do not pop in after the user has started typing.
+    if (!_ready) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return BlocProvider(
       create: (_) => sl<ShipmentFormBloc>(),
       child: BlocListener<ShipmentFormBloc, ShipmentFormState>(
         listener: (context, state) {
           if (state is ShipmentFormSuccess) {
+            _draft?.clear();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Yuk chiqarish saqlandi.'),
@@ -216,6 +327,15 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
+                  IconButton(
+                    tooltip: 'Formani tozalash',
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedClean,
+                      size: 18,
+                      strokeWidth: 2,
+                    ),
+                    onPressed: _clearForm,
+                  ),
                   BlocBuilder<ShipmentFormBloc, ShipmentFormState>(
                     builder: (context, state) {
                       if (state is ShipmentFormSubmitting) {
@@ -333,8 +453,11 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     ),
                                     if (_selectedClient != null)
                                       GestureDetector(
-                                        onTap: () => setState(
-                                            () => _selectedClient = null),
+                                        onTap: () {
+                                          setState(
+                                              () => _selectedClient = null);
+                                          _onFormChanged();
+                                        },
                                         child: const Icon(
                                           Icons.close,
                                           size: 18,
