@@ -10,9 +10,13 @@ import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_l
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/print_history_service.dart';
 import '../../domain/entities/print_history_entity.dart';
+import '../../domain/label_print_code.dart';
 import '../../domain/label_qr_format.dart';
 import '../../domain/product_barcode.dart';
 
@@ -48,6 +52,12 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
         heightMm: 50,
         dpi: _dpi,
       );
+
+  /// "I" / "S" for the shift account printing, see label_print_code.dart.
+  String get _shift {
+    final auth = sl<AuthBloc>().state;
+    return labelShiftLetter(auth is AuthAuthenticated ? auth.user.email : null);
+  }
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -149,6 +159,9 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     setState(() => _printingItems.add(item.variantId));
 
     try {
+      // Let that rebuild paint first, so the print code carries this minute
+      // and not the moment the page was opened.
+      await WidgetsBinding.instance.endOfFrame;
       final path = await _renderLabel(key);
       if (path == null) {
         setState(() => _printingItems.remove(item.variantId));
@@ -316,6 +329,14 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     final sizeLabel = item.sizeLength != null && item.sizeWidth != null
         ? item.sizeLabel
         : null;
+    // A reprint is stamped with who reprints it and when, like any print.
+    final printCode = item.clientId == null
+        ? null
+        : buildLabelPrintCode(
+            shift: _shift,
+            clientId: item.clientId,
+            printedAt: DateTime.now(),
+          );
     switch (_labelStyle) {
       case _LabelStyle.asosiy:
         return PrintLabel7050(
@@ -326,6 +347,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
           qrData: qrData,
+          printCode: printCode,
         );
       case _LabelStyle.asosiyArab:
         return PrintLabel7050Arab(
@@ -336,6 +358,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
           qrData: qrData,
+          printCode: printCode,
         );
     }
   }

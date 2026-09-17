@@ -6,6 +6,9 @@ class LabelingItemEntity extends Equatable {
   final String? batchTitle;
   final int? machineId;
   final String? machineName;
+
+  /// The client the carpet is made for; null for a carpet made for stock.
+  final int? clientId;
   final String? clientName;
 
   final int plannedQuantity;
@@ -41,6 +44,7 @@ class LabelingItemEntity extends Equatable {
     this.batchTitle,
     this.machineId,
     this.machineName,
+    this.clientId,
     this.clientName,
     required this.plannedQuantity,
     required this.producedQuantity,
@@ -82,6 +86,7 @@ class LabelingItemEntity extends Equatable {
       batchTitle: batchTitle,
       machineId: machineId,
       machineName: machineName,
+      clientId: clientId,
       clientName: clientName,
       plannedQuantity: plannedQuantity,
       producedQuantity: producedQuantity ?? this.producedQuantity,

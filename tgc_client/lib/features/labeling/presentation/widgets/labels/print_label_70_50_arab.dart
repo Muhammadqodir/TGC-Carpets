@@ -32,6 +32,7 @@ class PrintLabel7050Arab extends StatelessWidget {
     this.color,
     this.sizeLabel,
     this.edgeCode,
+    this.printCode,
   });
 
   /// Fixed internal canvas: 80 × 50 mm at 300 DPI.
@@ -59,6 +60,10 @@ class PrintLabel7050Arab extends StatelessWidget {
   /// one, so shop scanners and systems read it as a normal retail barcode.
   final String barcodeValue;
 
+  /// Small code printed vertically on the right edge, e.g. "S_123_04_14 15.59"
+  /// (see label_print_code.dart). Left off when null.
+  final String? printCode;
+
   /// Data encoded into the QR code — format recommended: "<docId>/<variantId>".
   final String qrData;
 
@@ -68,6 +73,12 @@ class PrintLabel7050Arab extends StatelessWidget {
     final h = _kConfig.heightPx.toDouble();
     final pad = w * 0.015;
     final specFontSize = h * 0.125;
+    // The barcode digits and the print code share one size.
+    final smallTextStyle = TextStyle(
+      fontSize: h * 0.04,
+      fontWeight: FontWeight.bold,
+      color: Colors.black,
+    );
 
     return FittedBox(
       fit: BoxFit.contain,
@@ -82,35 +93,56 @@ class PrintLabel7050Arab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: pad),
-                    _SpecRow(
-                      label: 'Quality\nالجودة',
-                      value: quality ?? '—',
-                      fontSize: specFontSize,
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: pad),
+                          _SpecRow(
+                            label: 'Quality\nالجودة',
+                            value: quality ?? '—',
+                            fontSize: specFontSize,
+                          ),
+                          _SpecRow(
+                            label: 'Design\nالتصميم',
+                            value: productName ?? '—',
+                            fontSize: specFontSize,
+                            isBold: true,
+                          ),
+                          _SpecRow(
+                            label: 'Size\nالحجم',
+                            value: edgeCode != null
+                                ? '${sizeLabel ?? '—'} $edgeCode'
+                                : sizeLabel ?? '—',
+                            fontSize: specFontSize,
+                            isBold: true,
+                          ),
+                          _SpecRow(
+                            label: 'Color\nاللون',
+                            value: color ?? '—',
+                            fontSize: specFontSize,
+                          ),
+                        ],
+                      ),
                     ),
-                    _SpecRow(
-                      label: 'Design\nالتصميم',
-                      value: productName ?? '—',
-                      fontSize: specFontSize,
-                      isBold: true,
-                    ),
-                    _SpecRow(
-                      label: 'Size\nالحجم',
-                      value: edgeCode != null
-                          ? '${sizeLabel ?? '—'} $edgeCode'
-                          : sizeLabel ?? '—',
-                      fontSize: specFontSize,
-                      isBold: true,
-                    ),
-                    _SpecRow(
-                      label: 'Color\nاللون',
-                      value: color ?? '—',
-                      fontSize: specFontSize,
-                    ),
+                    if (printCode != null) ...[
+                      SizedBox(width: pad),
+                      Center(
+                        child: RotatedBox(
+                          quarterTurns: 1,
+                          child: Text(
+                            printCode!,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: smallTextStyle,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -135,10 +167,7 @@ class PrintLabel7050Arab extends StatelessWidget {
                           ),
                           drawText: true,
                           textPadding: h * 0.018,
-                          style: TextStyle(
-                            fontSize: h * 0.04,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: smallTextStyle,
                         ),
                       ),
                     ),
@@ -165,19 +194,6 @@ class PrintLabel7050Arab extends StatelessWidget {
               ),
               // ── Barcode ───────────────────────────────────────────────────
             ],
-          ),
-          Positioned(
-            bottom: h * 0.32,
-            right: 10,
-            child: Text(
-              "صحيح",
-              style: TextStyle(
-                fontSize: specFontSize*1.2,
-                height: 1,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
           ),
         ],
       ),

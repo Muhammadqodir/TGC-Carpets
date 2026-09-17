@@ -20,6 +20,11 @@ class PrintHistoryEntity extends Equatable {
   /// legacy entries can no longer be reprinted with a correct QR.
   final int? itemId;
 
+  /// The client the carpet is made for, 0 for stock. Null on entries saved
+  /// before labels carried the print code; those reprint without it rather
+  /// than with a client they may not belong to.
+  final int? clientId;
+
   const PrintHistoryEntity({
     required this.variantId,
     required this.productName,
@@ -34,6 +39,7 @@ class PrintHistoryEntity extends Equatable {
     this.batchTitle,
     required this.printedAt,
     this.itemId,
+    this.clientId,
   });
 
   String get sizeLabel {
@@ -56,6 +62,7 @@ class PrintHistoryEntity extends Equatable {
       'batchTitle': batchTitle,
       'printedAt': printedAt,
       'itemId': itemId,
+      'clientId': clientId,
     };
   }
 
@@ -74,6 +81,7 @@ class PrintHistoryEntity extends Equatable {
       batchTitle: json['batchTitle'] as String?,
       printedAt: json['printedAt'] as int,
       itemId: json['itemId'] as int?,
+      clientId: json['clientId'] as int?,
     );
   }
 
@@ -88,5 +96,6 @@ class PrintHistoryEntity extends Equatable {
         productTypeName,
         printedAt,
         itemId,
+        clientId,
       ];
 }

@@ -15,6 +15,7 @@ class ProductionBatchItemResource extends JsonResource
             'production_batch_id'         => $this->production_batch_id,
             'batch_title'                 => $this->whenLoaded('productionBatch', fn () => $this->productionBatch?->batch_title),
             'machine_name'                => $this->whenLoaded('productionBatch', fn () => $this->productionBatch?->machine?->name),
+            'client_id'                   => $this->whenLoaded('sourceOrderItem', fn () => $this->sourceOrderItem?->order?->client_id),
             'client_name'                 => $this->whenLoaded('sourceOrderItem', fn () => $this->sourceOrderItem?->order?->client?->shop_name),
             'source_type'                 => $this->source_type,
             'planned_quantity'            => $this->planned_quantity,

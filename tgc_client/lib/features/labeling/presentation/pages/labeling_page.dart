@@ -13,11 +13,14 @@ import 'package:usb_label_print/usb_label_print.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/print_history_service.dart';
 import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
+import '../../domain/label_print_code.dart';
 import '../../domain/label_qr_format.dart';
 import '../../domain/product_barcode.dart';
 import '../bloc/labeling_bloc.dart';
@@ -128,6 +131,12 @@ class _LabelingViewState extends State<_LabelingView> {
   int _dpi = 203;
 
   LabelConfig get _config => _labelSize.configWithDpi(_dpi);
+
+  /// "I" / "S" for the shift account printing, see label_print_code.dart.
+  String get _shift {
+    final auth = sl<AuthBloc>().state;
+    return labelShiftLetter(auth is AuthAuthenticated ? auth.user.email : null);
+  }
 
   // ── Printer state ─────────────────────────────────────────────────────────
   List<String> _printers = [];
@@ -480,6 +489,11 @@ class _LabelingViewState extends State<_LabelingView> {
                               sizeLabel: '200x300 R',
                               barcodeValue: productBarcode(1),
                               qrData: buildLabelQr(batchId: 1, itemId: 1),
+                              printCode: buildLabelPrintCode(
+                                shift: _shift,
+                                clientId: 123,
+                                printedAt: DateTime.now(),
+                              ),
                             ),
                           ),
                         ),
@@ -723,6 +737,11 @@ class _LabelingViewState extends State<_LabelingView> {
                           edgeCode: item.edgeCode,
                           barcodeValue: barcodeValue,
                           qrData: qrData,
+                          printCode: buildLabelPrintCode(
+                            shift: _shift,
+                            clientId: item.clientId,
+                            printedAt: DateTime.now(),
+                          ),
                         ),
                       ),
                     ),
@@ -746,6 +765,7 @@ class _LabelingViewState extends State<_LabelingView> {
     required String barcodeValue,
     required String qrData,
     String? edgeCode,
+    String? printCode,
   }) {
     switch (style) {
       case _LabelStyle.asosiy:
@@ -758,6 +778,7 @@ class _LabelingViewState extends State<_LabelingView> {
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           qrData: qrData,
+          printCode: printCode,
         );
       case _LabelStyle.asosiyArab:
         return PrintLabel7050Arab(
@@ -769,6 +790,7 @@ class _LabelingViewState extends State<_LabelingView> {
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           qrData: qrData,
+          printCode: printCode,
         );
     }
   }
