@@ -131,10 +131,9 @@ class PrintLabel7050 extends StatelessWidget {
                       ),
                     ),
                     if (printCode != null) ...[
-                      SizedBox(width: pad),
                       Center(
                         child: RotatedBox(
-                          quarterTurns: 1,
+                          quarterTurns: 3, // reads bottom to top
                           child: Text(
                             printCode!,
                             maxLines: 1,
