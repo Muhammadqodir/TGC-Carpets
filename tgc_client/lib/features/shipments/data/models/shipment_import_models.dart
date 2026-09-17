@@ -52,6 +52,7 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
     super.stockQuantity,
     super.producedForClient,
     super.productionBatchItemId,
+    super.unmatchedReason,
   });
 
   /// Parses both shapes the scan endpoint returns: a matched order line
@@ -75,6 +76,7 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
       stockQuantity: json['stock_quantity'] as int? ?? 0,
       producedForClient: json['produced_for_client'] as String?,
       productionBatchItemId: json['production_batch_item_id'] as int?,
+      unmatchedReason: json['reason'] as String?,
     );
   }
 }

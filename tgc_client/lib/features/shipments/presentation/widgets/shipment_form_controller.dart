@@ -160,6 +160,19 @@ class ShipmentFormController extends ChangeNotifier {
   List<ShipmentItemRow> get filledItems =>
       _items.where((r) => r.parsedQuantity > 0).toList();
 
+  /// Quantity already on the form per order line, summed over rows. Sent
+  /// with each scan so the server skips lines this form has already filled.
+  Map<int, int> get quantitiesByOrderItem {
+    final quantities = <int, int>{};
+    for (final row in _items) {
+      final orderItemId = row.orderItemId;
+      if (orderItemId == null) continue;
+      quantities[orderItemId] =
+          (quantities[orderItemId] ?? 0) + row.parsedQuantity;
+    }
+    return quantities;
+  }
+
   int get totalQuantity =>
       _items.fold(0, (sum, r) => sum + r.parsedQuantity);
 

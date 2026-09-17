@@ -192,6 +192,16 @@ class ProductionBatchService
         $unit = null;
 
         DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, &$unit): void {
+            // Lock the batch item before anything else. Without it, two prints
+            // of the same item — a double tap, or a retry racing the original —
+            // each took a shared lock on this row through the production_events
+            // foreign key, then each needed an exclusive one to increment
+            // produced_quantity: a deadlock, surfacing as a 500 on print-label
+            // several times a week in September 2026. Taken first, the second
+            // print simply waits, then counts (or, with the same idempotency
+            // key, replays) against the committed first.
+            ProductionBatchItem::whereKey($item->id)->lockForUpdate()->first();
+
             if ($serial !== null) {
                 $existing = ProductionUnit::where('serial', $serial)->lockForUpdate()->first();
                 if ($existing) {
@@ -259,7 +269,7 @@ class ProductionBatchService
                     ]);
                 }
             }
-        });
+        }, 3);   // a deadlock victim is retried whole instead of failing the print
 
         $freshItem = $item->fresh()->load([
             'productionBatch',

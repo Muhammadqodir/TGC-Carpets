@@ -43,9 +43,13 @@ abstract class ShipmentRemoteDataSource {
   });
 
   /// Resolves a scanned label QR code to a shippable item for [clientId].
+  ///
+  /// [inForm] is what the form already carries per order line
+  /// ({orderItemId: quantity}), so the server can skip lines that are full.
   Future<ShipmentImportItemModel> getShipmentScanItem({
     required String code,
     required int clientId,
+    Map<int, int> inForm = const {},
   });
 
   /// Cancels [id], returning the carpets to the warehouse. Admin only —
@@ -220,58 +224,111 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   Future<ShipmentImportItemModel> getShipmentScanItem({
     required String code,
     required int clientId,
+    Map<int, int> inForm = const {},
   }) async {
     try {
-      // POST, not GET: the scanned code is arbitrary text off a physical
-      // label, and in the query string it depended on every hop between the
-      // phone and nginx preserving it. In August 2026 some labels came back
-      // as "code and client_id are required" — the server receiving neither —
-      // which no amount of client-side encoding could explain. In a JSON body
-      // there is nothing left to mangle.
+      return await _scanOnce(code, clientId, inForm);
+    } on DioException catch (e) {
+      // "code/client_id missing" means the request arrived without its
+      // input: a transport accident, never a property of the label. One quiet
+      // retry costs the worker nothing and turns a one-off loss into a normal
+      // scan; only a second loss reaches the screen.
+      if (!_isMissingScanInput(e)) _throwScanError(e, code, clientId);
+
+      try {
+        return await _scanOnce(code, clientId, inForm);
+      } on DioException catch (retryError) {
+        _throwScanError(retryError, code, clientId);
+      }
+    }
+  }
+
+  /// One scan round trip, with the "add anyway" 404 already turned into a
+  /// result.
+  Future<ShipmentImportItemModel> _scanOnce(
+    String code,
+    int clientId,
+    Map<int, int> inForm,
+  ) async {
+    try {
       final response = await _dio.post(
         ApiEndpoints.shipmentImportScan,
-        data: {
+        // Code and client travel in BOTH the query string and the JSON body.
+        // Field reports of "The code field is required. (and 1 more error)"
+        // mean the server received neither; the August 2026 fix moved them
+        // from the URL into the body, and now losing either copy still leaves
+        // the other (Laravel merges query and body input). `in_form` rides in
+        // the body only — without it the server suggests lines the old way.
+        queryParameters: {
           'code': code,
           'client_id': clientId,
         },
+        data: {
+          'code': code,
+          'client_id': clientId,
+          if (inForm.isNotEmpty)
+            'in_form': {
+              for (final entry in inForm.entries) '${entry.key}': entry.value,
+            },
+        },
       );
-      final body = response.data as Map<String, dynamic>;
-      return ShipmentImportItemModel.fromJson(
-        body['data'] as Map<String, dynamic>,
-      );
+      return _parseScanItem(response.data, 'data');
     } on DioException catch (e) {
       // A 404 carrying `unmatched` is not a failure: the label resolved to a
-      // real carpet, this client just has no open order line for it. That is
-      // the "add anyway" case, so the resolved product comes back as a normal
-      // result with a null orderItemId and the UI offers to add it. Any other
-      // 404 (unreadable code, unknown label) stays an error.
+      // real carpet, this client just has no open order line with room for
+      // it. That is the "add anyway" case, so the resolved product comes back
+      // as a normal result with a null orderItemId and the UI offers to add
+      // it. Any other 404 (unreadable code, unknown label) stays an error.
       final data = e.response?.data;
       if (e.response?.statusCode == 404 &&
           data is Map<String, dynamic> &&
           data['unmatched'] is Map<String, dynamic>) {
-        return ShipmentImportItemModel.fromJson(
-          data['unmatched'] as Map<String, dynamic>,
-        );
+        return _parseScanItem(data, 'unmatched');
       }
-
-      // A 422 here means the server saw no `code`/`client_id`, which cannot
-      // originate in this method: both are non-nullable, and they now travel
-      // in a JSON body rather than a URL. If it still happens, the request
-      // body itself is being lost in transit — so the card shows what the
-      // phone had, and the difference from what the server reports names the
-      // culprit. Remove once the field reports stop.
-      if (e.response?.statusCode == 422) {
-        throw ServerException(
-          message: [
-            apiErrorMessage(data) ?? 'Server error',
-            'Yuborilgan kod: "$code" (mijoz #$clientId)',
-          ].join('\n'),
-          statusCode: 422,
-        );
-      }
-
-      _handleDioError(e);
+      rethrow;
     }
+  }
+
+  /// A 422 naming `code` or `client_id` — fields the app always sends, so
+  /// their absence is never the worker's doing.
+  bool _isMissingScanInput(DioException e) {
+    final data = e.response?.data;
+    if (e.response?.statusCode != 422 || data is! Map) return false;
+    final errors = data['errors'];
+    return errors is Map &&
+        (errors.containsKey('code') || errors.containsKey('client_id'));
+  }
+
+  /// Reads the scan item under [key] of [data], turning a body of the wrong
+  /// shape into a readable [ServerException]. A cast failure used to escape
+  /// the repository uncaught: the scanner showed nothing, and went on
+  /// ignoring that label until a different one was scanned.
+  ShipmentImportItemModel _parseScanItem(dynamic data, String key) {
+    try {
+      final item = (data as Map<String, dynamic>)[key];
+      return ShipmentImportItemModel.fromJson(item as Map<String, dynamic>);
+    } on Object {
+      throw ServerException(
+        message: apiFallbackMessage(data, null),
+      );
+    }
+  }
+
+  Never _throwScanError(DioException e, String code, int clientId) {
+    // A 422 that survived the retry: the server still saw no code or
+    // client. Show what the phone had, so the difference from what the
+    // server reports names the culprit in the next screenshot.
+    if (e.response?.statusCode == 422) {
+      throw ServerException(
+        message: [
+          apiErrorMessage(e.response?.data) ?? 'Server error',
+          'Yuborilgan kod: "$code" (mijoz #$clientId)',
+        ].join('\n'),
+        statusCode: 422,
+      );
+    }
+
+    _handleDioError(e);
   }
 
   @override

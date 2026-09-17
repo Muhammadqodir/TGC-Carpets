@@ -78,6 +78,13 @@ class ShipmentImportItemEntity extends Equatable {
   /// wizards and for variant-only label shapes, which name no single carpet.
   final int? productionBatchItemId;
 
+  /// Why an off-order scan ([isOnClientOrder] false) has no line: null or
+  /// `no_open_line` when the client never ordered this carpet (or every such
+  /// line has shipped), `open_lines_full` when they did and every open line
+  /// is already on this form. Changes only what the confirmation sheet says;
+  /// saving works the same either way.
+  final String? unmatchedReason;
+
   const ShipmentImportItemEntity({
     required this.orderItemId,
     required this.variantId,
@@ -95,6 +102,7 @@ class ShipmentImportItemEntity extends Equatable {
     this.stockQuantity = 0,
     this.producedForClient,
     this.productionBatchItemId,
+    this.unmatchedReason,
   });
 
   String? get sizeLabel =>
@@ -104,11 +112,15 @@ class ShipmentImportItemEntity extends Equatable {
   /// order line for it. Adding it anyway makes the backend create one.
   bool get isOnClientOrder => orderItemId != null;
 
+  /// True when the client did order this carpet, but every open line for it
+  /// is already filled on the form — shipping it goes beyond the order.
+  bool get isBeyondOrder => unmatchedReason == 'open_lines_full';
+
   @override
   List<Object?> get props => [
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
         edgeCode, edgeTitle, availableQuantity, stockQuantity,
-        producedForClient, productionBatchItemId,
+        producedForClient, productionBatchItemId, unmatchedReason,
       ];
 }

@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Provides three step-by-step endpoints used by the shipment
@@ -218,16 +219,35 @@ class ShipmentImportController extends Controller
      * separate bookkeeping question, and gating on it made 5,457 of prod's
      * 5,929 batch items unscannable (2026-08-03 field test). Stock still rides
      * along in the response as `stock_quantity` for information.
+     *
+     * `in_form` (optional, since September 2026) is what the shipment form
+     * already carries, as {order_item_id: quantity}. A line whose unshipped
+     * quantity is already all on the form is skipped, so scanning the next
+     * identical carpet lands on the client's next open line instead of
+     * stopping at "limit reached" — and once every open line is full, the
+     * carpet comes back `unmatched` (reason `open_lines_full`) for the same
+     * "add anyway" flow as a carpet the client never ordered. Builds that do
+     * not send it resolve exactly as before.
      */
     public function scan(Request $request): JsonResponse
     {
+        $this->recoverScanInput($request);
+
+        $missing = $this->missingScanInput($request);
+        if ($missing !== null) {
+            return $missing;
+        }
+
         $request->validate([
             'code'      => ['required', 'string'],
             'client_id' => ['required', 'integer', 'exists:clients,id'],
+            'in_form'   => ['sometimes', 'array'],
+            'in_form.*' => ['integer', 'min:0'],
         ]);
 
         $code = trim((string) $request->input('code'));
         $clientId = $request->integer('client_id');
+        $inForm = $this->inFormQuantities($request->input('in_form'));
 
         $scanned = $this->resolveVariantFromCode($code);
         if (! $scanned) {
@@ -237,7 +257,7 @@ class ShipmentImportController extends Controller
         $variantId = $scanned['variant_id'];
         $preferredOrderItemId = $scanned['source_order_item_id'];
 
-        $row = DB::table('order_items AS oi')
+        $openLines = DB::table('order_items AS oi')
             ->join('orders AS o', 'o.id', '=', 'oi.order_id')
             ->join('product_variants AS pv', 'pv.id', '=', 'oi.product_variant_id')
             ->join('product_colors AS pc', 'pc.id', '=', 'pv.product_color_id')
@@ -272,7 +292,14 @@ class ShipmentImportController extends Controller
             ])
             ->orderByRaw('(oi.id = ?) DESC', [$preferredOrderItemId ?? 0])
             ->orderBy('oi.id')
-            ->first();
+            ->get();
+
+        // The first open line the form has not already filled. A client
+        // rarely has more than a line or two per variant, so this is cheaper
+        // to decide here than to express as SQL over the posted map.
+        $row = $openLines->first(
+            fn ($line) => (int) $line->available_quantity > ($inForm[(int) $line->order_item_id] ?? 0)
+        );
 
         // Name the client the carpet was produced for when the label carries
         // that link and it is not this one: "wrong client selected on the
@@ -282,7 +309,11 @@ class ShipmentImportController extends Controller
         $producedFor = $this->producedForOtherClient($preferredOrderItemId, $clientId);
 
         if (! $row) {
-            $message = "\"{$scanned['product_name']}\" uchun ushbu mijozda ochiq buyurtma topilmadi.";
+            $linesFull = $openLines->isNotEmpty();
+
+            $message = $linesFull
+                ? "\"{$scanned['product_name']}\" bo'yicha ushbu mijozning ochiq buyurtmasi to'liq yuk xatiga qo'shilgan."
+                : "\"{$scanned['product_name']}\" uchun ushbu mijozda ochiq buyurtma topilmadi.";
             if ($producedFor) {
                 $message .= " Bu mahsulot \"{$producedFor}\" buyurtmasi uchun ishlab chiqarilgan.";
             }
@@ -292,13 +323,21 @@ class ShipmentImportController extends Controller
             // and offer "add anyway", which needs every descriptive field a
             // matched row carries — carried here so the sheet costs no second
             // round trip.
+            $unmatched = $this->describeVariant(
+                $variantId,
+                $producedFor,
+                $scanned['production_batch_item_id'] ?? null,
+            );
+            if ($unmatched !== null) {
+                // Tells the sheet which sentence is true: the client never
+                // ordered this carpet, or ordered it and every one of those
+                // is already on the lorry.
+                $unmatched['reason'] = $linesFull ? 'open_lines_full' : 'no_open_line';
+            }
+
             return response()->json([
                 'message'   => $message,
-                'unmatched' => $this->describeVariant(
-                    $variantId,
-                    $producedFor,
-                    $scanned['production_batch_item_id'] ?? null,
-                ),
+                'unmatched' => $unmatched,
             ], 404);
         }
 
@@ -329,6 +368,119 @@ class ShipmentImportController extends Controller
                 'produced_for_client'      => $producedFor,
             ],
         ]);
+    }
+
+    /**
+     * Salvages `code`/`client_id`/`in_form` from a body Laravel could not
+     * read, before validation reports them missing.
+     *
+     * Laravel decodes a JSON body with a plain json_decode(): one invalid
+     * UTF-8 byte, or a form-encoded body labelled as JSON, and the whole body
+     * reads as empty — which surfaced on the factory floor as "The code field
+     * is required. (and 1 more error)" for a request that did carry both.
+     * Values already present (from the query string, which the app now sends
+     * as well) always win; this only fills gaps.
+     */
+    private function recoverScanInput(Request $request): void
+    {
+        if ($request->filled('code') && $request->filled('client_id')) {
+            return;
+        }
+
+        $raw = (string) $request->getContent();
+        if ($raw === '') {
+            return;
+        }
+
+        $decoded = json_decode($raw, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
+        if (! is_array($decoded)) {
+            parse_str($raw, $decoded);
+        }
+
+        $recovered = [];
+        foreach (['code', 'client_id', 'in_form'] as $key) {
+            $value = $decoded[$key] ?? null;
+            if ($value !== null && $value !== '' && ! $request->filled($key)) {
+                $recovered[$key] = is_string($value) ? trim($value) : $value;
+            }
+        }
+
+        if ($recovered !== []) {
+            Log::warning('shipment.scan.input_recovered', [
+                'user_id'      => $request->user()?->id,
+                'recovered'    => array_keys($recovered),
+                'content_type' => $request->header('Content-Type'),
+            ]);
+            $request->merge($recovered);
+        }
+    }
+
+    /**
+     * The 422 for a scan that reached the server without its code or client,
+     * in words a worker can act on, and with enough logged to name the cause.
+     *
+     * Laravel's own "The code field is required. (and 1 more error)" told the
+     * worker nothing and left no trace server-side. The log entry keeps the
+     * shape of what did arrive — never the body itself beyond a short prefix,
+     * which is a label code, not client data.
+     */
+    private function missingScanInput(Request $request): ?JsonResponse
+    {
+        $errors = [];
+        if (! $request->filled('code')) {
+            $errors['code'] = ["QR kod bo'sh o'qildi yoki serverga yetib kelmadi."];
+        }
+        if (! $request->filled('client_id')) {
+            $errors['client_id'] = ["Mijoz serverga yetib kelmadi."];
+        }
+
+        if ($errors === []) {
+            return null;
+        }
+
+        $raw = (string) $request->getContent();
+        Log::warning('shipment.scan.missing_input', [
+            'user_id'        => $request->user()?->id,
+            'missing'        => array_keys($errors),
+            'method'         => $request->method(),
+            'content_type'   => $request->header('Content-Type'),
+            'content_length' => $request->header('Content-Length'),
+            'transfer_enc'   => $request->header('Transfer-Encoding'),
+            'body_bytes'     => strlen($raw),
+            'body_prefix'    => bin2hex(substr($raw, 0, 64)),
+            'query_keys'     => array_keys($request->query()),
+            'user_agent'     => $request->userAgent(),
+        ]);
+
+        return response()->json([
+            'message' => "So'rov serverga to'liq yetib kelmadi. Qayta skanerlang.",
+            'errors'  => $errors,
+        ], 422);
+    }
+
+    /**
+     * `in_form` as validated ints, {order_item_id: quantity}. JSON object
+     * keys arrive as strings, and anything that is not a positive id is
+     * dropped rather than rejected: this map only steers which line is
+     * suggested, the submit re-checks everything.
+     *
+     * @return array<int, int>
+     */
+    private function inFormQuantities(mixed $inForm): array
+    {
+        if (! is_array($inForm)) {
+            return [];
+        }
+
+        $quantities = [];
+        foreach ($inForm as $orderItemId => $quantity) {
+            if (filter_var($orderItemId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+                continue;
+            }
+            $quantities[(int) $orderItemId] = max(0, (int) $quantity);
+        }
+
+        return $quantities;
     }
 
     /**

@@ -41,9 +41,14 @@ abstract class ShipmentRepository {
   });
 
   /// Resolves a scanned label QR code to a shippable item for [clientId].
+  ///
+  /// [inForm] is the quantity the form already carries per order line
+  /// ({orderItemId: quantity}); lines it fills are skipped, and once every
+  /// open line is full the carpet comes back off-order ("add anyway").
   Future<Either<Failure, ShipmentImportItemEntity>> getShipmentScanItem({
     required String code,
     required int clientId,
+    Map<int, int> inForm = const {},
   });
 
   /// Cancels a shipment: the carpets go back into the warehouse, the order

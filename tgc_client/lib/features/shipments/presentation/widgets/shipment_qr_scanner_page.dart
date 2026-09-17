@@ -136,14 +136,26 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
 
   void _onDetect(BarcodeCapture capture) {
     if (_resolving || _sheetOpen || _feedback != null) return;
-    final code = capture.barcodes.firstOrNull?.rawValue;
-    if (code == null || code.isEmpty || code == _lastCode) return;
+    final code = _cleanCode(capture.barcodes.firstOrNull?.rawValue);
+    if (code == null || code == _lastCode) return;
 
     // A different label ends any cooldown left over from the previous scan.
     _cooldown?.cancel();
     _lastCode = code;
     _signalCapture();
     _resolve(code);
+  }
+
+  /// The label text as the server should see it, or null for nothing
+  /// usable. Printed labels hold plain ASCII like `P808 I5648`; a worn label
+  /// or a camera misread can wrap it in whitespace, a BOM or zero-width
+  /// characters, none of which the server's label patterns accept.
+  static String? _cleanCode(String? raw) {
+    if (raw == null) return null;
+    final code = raw
+        .replaceAll(RegExp(r'[\u0000-\u001F\u007F\u200B-\u200D\u2060\uFEFF]'), ' ')
+        .trim();
+    return code.isEmpty ? null : code;
   }
 
   Future<void> _resolve(String code) async {
@@ -153,6 +165,7 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
       final result = await _repo.getShipmentScanItem(
         code: code,
         clientId: widget.clientId,
+        inForm: widget.controller.quantitiesByOrderItem,
       );
       if (!mounted) return;
 
@@ -178,6 +191,18 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
           }
         },
       );
+    } catch (e) {
+      // Anything the repository did not turn into a Failure. Before this, an
+      // unexpected error showed no result at all — and since only dismissing
+      // a result releases [_lastCode], the scanner then silently ignored that
+      // label until a different one was scanned: a carpet that "won't scan".
+      if (mounted) {
+        _showResult(_ScanFeedback(
+          _FeedbackKind.error,
+          headline: 'Skanerlashda xatolik',
+          subtitle: '$e',
+        ));
+      }
     } finally {
       // Clears even on an unexpected error, so the spinner can never strand
       // the scanner. Scanning stays blocked while the result screen or the
@@ -281,8 +306,12 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
         ? '"$producedFor" mijozining tayyor mahsuloti 1 taga kamayadi va bu '
             'gilam "${widget.clientName}" yuk xatiga qo\'shiladi. '
             'Ularning buyurtmasi qayta ishlab chiqarishga qaytadi.'
-        : 'Bu gilam ombordan chiqariladi va "${widget.clientName}" yuk xatiga '
-            'qo\'shiladi.';
+        : item.isBeyondOrder
+            ? 'Bu gilam buyurtmadan ortiqcha bo\'lib "${widget.clientName}" '
+                'yuk xatiga qo\'shiladi. Yuk xati saqlanganda unga yangi '
+                'buyurtma qatori ochiladi.'
+            : 'Bu gilam ombordan chiqariladi va "${widget.clientName}" yuk '
+                'xatiga qo\'shiladi.';
 
     final answer = await showDialog<bool>(
       context: context,
@@ -744,7 +773,9 @@ class _ScannedItemSheet extends StatelessWidget {
     final producedFor = item.producedForClient;
     final title = producedFor != null
         ? 'Boshqa mijozning mahsuloti'
-        : 'Buyurtmada yo\'q mahsulot';
+        : item.isBeyondOrder
+            ? 'Buyurtmadan ortiqcha mahsulot'
+            : 'Buyurtmada yo\'q mahsulot';
 
     return SafeArea(
       top: false,
@@ -819,13 +850,21 @@ class _ScannedItemSheet extends StatelessWidget {
               _SheetNote(
                 icon: Icons.inventory_2_outlined,
                 color: Colors.white70,
-                text: item.stockQuantity > 0
-                    ? 'Bu mahsulot hech bir mijoz buyurtmasiga biriktirilmagan '
-                        '— ombordagi zaxiradan chiqariladi (hozir omborda: '
-                        '${item.stockQuantity} dona).'
-                    : 'Bu mahsulot hech bir mijoz buyurtmasiga biriktirilmagan '
-                        'va omborda kirim qilinmagan. Yuk xati saqlanganda '
-                        'avtomatik kirim qilinib, chiqim qilinadi.',
+                // Beyond the order, the carpet may well be this client's own
+                // production — so that case states only the stock, not whose
+                // order it is attached to.
+                text: switch ((item.isBeyondOrder, item.stockQuantity > 0)) {
+                  (true, true) => 'Ombordagi zaxiradan chiqariladi (hozir '
+                      'omborda: ${item.stockQuantity} dona).',
+                  (true, false) => 'Omborda kirim qilinmagan. Yuk xati '
+                      'saqlanganda avtomatik kirim qilinib, chiqim qilinadi.',
+                  (false, true) => 'Bu mahsulot hech bir mijoz buyurtmasiga '
+                      'biriktirilmagan — ombordagi zaxiradan chiqariladi '
+                      '(hozir omborda: ${item.stockQuantity} dona).',
+                  (false, false) => 'Bu mahsulot hech bir mijoz buyurtmasiga '
+                      'biriktirilmagan va omborda kirim qilinmagan. Yuk xati '
+                      'saqlanganda avtomatik kirim qilinib, chiqim qilinadi.',
+                },
               ),
 
             // Then what it costs this client's paperwork.
@@ -837,9 +876,14 @@ class _ScannedItemSheet extends StatelessWidget {
                 text: item.isOnClientOrder
                     ? '"$clientName" mijozining ochiq buyurtma qatoriga '
                         'yoziladi.'
-                    : '"$clientName" mijozining ochiq buyurtmasida bu mahsulot '
-                        'yo\'q. Qo\'shsangiz, yuk xati saqlanganda unga yangi '
-                        'buyurtma qatori ochiladi.',
+                    : item.isBeyondOrder
+                        ? '"$clientName" mijozining bu mahsulot bo\'yicha ochiq '
+                            'buyurtmasi to\'liq yuk xatiga qo\'shilgan. '
+                            'Qo\'shsangiz, yuk xati saqlanganda unga yangi '
+                            'buyurtma qatori ochiladi.'
+                        : '"$clientName" mijozining ochiq buyurtmasida bu '
+                            'mahsulot yo\'q. Qo\'shsangiz, yuk xati saqlanganda '
+                            'unga yangi buyurtma qatori ochiladi.',
               ),
             ),
             if (producedFor != null && item.stockQuantity <= 0)

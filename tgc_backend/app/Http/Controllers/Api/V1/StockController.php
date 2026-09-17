@@ -179,7 +179,7 @@ class StockController extends Controller
         $variantIds = collect($results->items())->pluck('id')->all();
         $activeReservations = $this->reservationService->reservedQuantitiesForVariants($variantIds);
 
-        $data = collect($results->items())->map(function ($row) use ($activeReservations) {
+        $data = collect($results->items())->map(function ($row) use ($activeReservations, $baseUrl) {
             $reserved = (int) $row->qty_received - (int) $row->qty_shipped;
 
             // A negative reserved quantity is impossible in a consistent

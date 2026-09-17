@@ -158,11 +158,13 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
   Future<Either<Failure, ShipmentImportItemEntity>> getShipmentScanItem({
     required String code,
     required int clientId,
+    Map<int, int> inForm = const {},
   }) async {
     try {
       final result = await remoteDataSource.getShipmentScanItem(
         code: code,
         clientId: clientId,
+        inForm: inForm,
       );
       return Right(result);
     } on NetworkException catch (e) {
