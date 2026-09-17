@@ -7,17 +7,73 @@ class ScannedItemEntity extends Equatable {
   final ScannedDestinationInfo? destination;
   final ScannedUnitInfo? unit;
 
+  /// Every label printed for the scanned batch line: who and when.
+  final ScannedLabelPrints? labelPrints;
+
+  /// Set when a shipment took this line's carpets from another client.
+  final ScannedReattributionInfo? reattribution;
+
+  /// Warehouse stock of this product right now.
+  final int? stockQuantity;
+
   const ScannedItemEntity({
     required this.item,
     required this.product,
     required this.productionBatch,
     this.destination,
     this.unit,
+    this.labelPrints,
+    this.reattribution,
+    this.stockQuantity,
   });
 
   @override
-  List<Object?> get props =>
-      [item, product, productionBatch, destination, unit];
+  List<Object?> get props => [
+        item,
+        product,
+        productionBatch,
+        destination,
+        unit,
+        labelPrints,
+        reattribution,
+        stockQuantity,
+      ];
+}
+
+/// The labels printed for one batch line. The QR on a label names the line,
+/// not one carpet, so this is the whole line's print history.
+class ScannedLabelPrints extends Equatable {
+  /// Labels printed before 2026-07-20, when prints started being recorded:
+  /// counted, but with no printer or time.
+  final int beforeTracking;
+  final List<ScannedLabelPrint> prints;
+
+  const ScannedLabelPrints({required this.beforeTracking, required this.prints});
+
+  int get total => beforeTracking + prints.length;
+
+  @override
+  List<Object?> get props => [beforeTracking, prints];
+}
+
+class ScannedLabelPrint extends Equatable {
+  final String? printedAt;
+  final String? printedByName;
+
+  const ScannedLabelPrint({this.printedAt, this.printedByName});
+
+  @override
+  List<Object?> get props => [printedAt, printedByName];
+}
+
+class ScannedReattributionInfo extends Equatable {
+  final String? fromClientName;
+  final int? shipmentId;
+
+  const ScannedReattributionInfo({this.fromClientName, this.shipmentId});
+
+  @override
+  List<Object?> get props => [fromClientName, shipmentId];
 }
 
 /// Per-carpet label info. Only present when the scanned code identifies a
@@ -120,6 +176,7 @@ class ScannedProductionBatchInfo extends Equatable {
   final String? machineName;
   final String? employeeName;
   final String? responsibleEmployeeName;
+  final String? createdAt;
 
   const ScannedProductionBatchInfo({
     required this.id,
@@ -132,6 +189,7 @@ class ScannedProductionBatchInfo extends Equatable {
     this.machineName,
     this.employeeName,
     this.responsibleEmployeeName,
+    this.createdAt,
   });
 
   @override
@@ -146,6 +204,7 @@ class ScannedProductionBatchInfo extends Equatable {
         machineName,
         employeeName,
         responsibleEmployeeName,
+        createdAt,
       ];
 }
 
@@ -153,18 +212,44 @@ class ScannedDestinationInfo extends Equatable {
   final String type; // 'client' or 'warehouse'
   final String? clientName;
   final String? region;
+  final String? contactName;
+  final String? phone;
+  final int? orderId;
   final String? orderUuid;
+  final String? orderStatus;
+  final String? orderDate;
+  final int? orderedQuantity;
+  final int? shippedQuantity;
 
   const ScannedDestinationInfo({
     required this.type,
     this.clientName,
     this.region,
+    this.contactName,
+    this.phone,
+    this.orderId,
     this.orderUuid,
+    this.orderStatus,
+    this.orderDate,
+    this.orderedQuantity,
+    this.shippedQuantity,
   });
 
   bool get isForClient => type == 'client';
   bool get isForWarehouse => type == 'warehouse';
 
   @override
-  List<Object?> get props => [type, clientName, region, orderUuid];
+  List<Object?> get props => [
+        type,
+        clientName,
+        region,
+        contactName,
+        phone,
+        orderId,
+        orderUuid,
+        orderStatus,
+        orderDate,
+        orderedQuantity,
+        shippedQuantity,
+      ];
 }

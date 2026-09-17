@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
 use App\Models\ProductionUnit;
+use App\Models\StockMovement;
 use App\Services\ProductionBatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -457,16 +458,79 @@ class ProductionBatchController extends Controller
                     'machine_name'        => $batch->machine?->name,
                     'employee_name'       => $batch->creator?->name,
                     'responsible_employee_name' => $batch->responsibleEmployee?->name,
+                    'created_at'          => $batch->created_at?->toISOString(),
                 ],
                 'destination' => $orderItem?->order?->client ? [
-                    'type'        => 'client',
-                    'client_name' => $orderItem->order->client->shop_name,
-                    'region'      => $orderItem->order->client->region,
-                    'order_uuid'  => $orderItem->order->uuid,
+                    'type'             => 'client',
+                    'client_name'      => $orderItem->order->client->shop_name,
+                    'region'           => $orderItem->order->client->region,
+                    'contact_name'     => $orderItem->order->client->contact_name,
+                    'phone'            => $orderItem->order->client->phone,
+                    'order_id'         => $orderItem->order->id,
+                    'order_uuid'       => $orderItem->order->uuid,
+                    'order_status'     => $orderItem->order->status,
+                    'order_date'       => $orderItem->order->order_date?->toDateString(),
+                    'ordered_quantity' => $orderItem->quantity,
+                    'shipped_quantity' => (int) $orderItem->shipmentItems()->sum('quantity'),
                 ] : [
                     'type' => 'warehouse',
                 ],
+                'label_prints'   => $this->labelPrints($item),
+                'reattribution'  => $this->reattribution($item),
+                'stock_quantity' => $this->stockQuantity($item->product_variant_id),
             ],
         ];
+    }
+
+    /**
+     * Every label printed for this batch line: who and when. The QR on a label
+     * names the line, not one carpet, so this is the whole line's history.
+     * Lines labelled before 2026-07-20 have backfilled rows with no real
+     * printer or time; those are only counted.
+     */
+    private function labelPrints(ProductionBatchItem $item): array
+    {
+        $units = ProductionUnit::with('printedByUser:id,name')
+            ->where('production_batch_item_id', $item->id)
+            ->orderBy('printed_at')
+            ->orderBy('id')
+            ->get(['id', 'printed_by', 'printed_at', 'backfilled_at']);
+
+        [$backfilled, $recorded] = $units->partition(fn (ProductionUnit $u) => $u->isBackfilled());
+
+        return [
+            'before_tracking' => $backfilled->count(),
+            'prints'          => $recorded->values()->map(fn (ProductionUnit $u) => [
+                'printed_at'      => $u->printed_at?->toISOString(),
+                'printed_by_name' => $u->printedByUser?->name,
+            ])->all(),
+        ];
+    }
+
+    /** Set when a shipment took this line's carpets from another client's order. */
+    private function reattribution(ProductionBatchItem $item): ?array
+    {
+        if ($item->reattributed_from_order_item_id === null) {
+            return null;
+        }
+
+        $from = OrderItem::with('order.client:id,shop_name')->find($item->reattributed_from_order_item_id);
+
+        return [
+            'from_client_name' => $from?->order?->client?->shop_name,
+            'shipment_id'      => $item->reattributed_by_shipment_id,
+        ];
+    }
+
+    /** Warehouse stock of this product right now, counted the way shipments count it. */
+    private function stockQuantity(int $variantId): int
+    {
+        $row = DB::table('stock_movements')
+            ->where('product_variant_id', $variantId)
+            ->selectRaw('COALESCE(SUM(CASE WHEN movement_type = ? THEN quantity ELSE 0 END), 0) AS qty_in', [StockMovement::TYPE_IN])
+            ->selectRaw('COALESCE(SUM(CASE WHEN movement_type = ? THEN quantity ELSE 0 END), 0) AS qty_out', [StockMovement::TYPE_OUT])
+            ->first();
+
+        return (int) $row->qty_in - (int) $row->qty_out;
     }
 }

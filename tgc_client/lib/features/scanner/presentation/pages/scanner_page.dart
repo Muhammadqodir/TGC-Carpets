@@ -5,6 +5,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
+import '../../../labeling/domain/label_qr_format.dart';
+import '../../../shipments/presentation/widgets/shipment_qr_scanner_page.dart'
+    show cleanScannedLabel;
 import '../bloc/scanner_bloc.dart';
 import '../bloc/scanner_event.dart';
 import '../bloc/scanner_state.dart';
@@ -52,14 +55,10 @@ class _ScannerViewState extends State<_ScannerView> {
   void _onDetect(BarcodeCapture capture) {
     if (_isProcessing) return;
 
-    final barcode = capture.barcodes.firstOrNull;
-    if (barcode?.rawValue == null) return;
+    final code = cleanScannedLabel(capture.barcodes.firstOrNull?.rawValue);
+    if (code == null) return;
 
-    final code = barcode!.rawValue!;
-
-    // Validate format on client side: P{batchId} I{itemId}
-    final regex = RegExp(r'^P\d+\s+I\d+$');
-    if (!regex.hasMatch(code)) {
+    if (!isProductionLabelQr(code)) {
       final messenger = ScaffoldMessenger.of(context);
       messenger.clearSnackBars();
       messenger.showSnackBar(
@@ -113,7 +112,7 @@ class _ScannerViewState extends State<_ScannerView> {
         },
         builder: (context, state) {
           if (state is ScannerLoaded) {
-            return _ResultView(item: state.item, onReset: _reset);
+            return ScanResultView(item: state.item, onReset: _reset);
           }
 
           // Show scanner overlay
@@ -177,11 +176,12 @@ class _ScannerViewState extends State<_ScannerView> {
   }
 }
 
-class _ResultView extends StatelessWidget {
+@visibleForTesting
+class ScanResultView extends StatelessWidget {
   final ScannedItemEntity item;
   final VoidCallback onReset;
 
-  const _ResultView({required this.item, required this.onReset});
+  const ScanResultView({super.key, required this.item, required this.onReset});
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +243,10 @@ class _ResultView extends StatelessWidget {
                       if (item.product.barcode != null)
                         _InfoRow(
                             label: 'Barkod', value: item.product.barcode!),
+                      if (item.stockQuantity != null)
+                        _InfoRow(
+                            label: 'Omborda hozir',
+                            value: '${item.stockQuantity} dona'),
                     ],
                   ),
                 ),
@@ -288,6 +292,11 @@ class _ResultView extends StatelessWidget {
                             label: 'Mas\'ul ishchi',
                             value:
                                 item.productionBatch.responsibleEmployeeName!),
+                      if (item.productionBatch.createdAt != null)
+                        _InfoRow(
+                            label: 'Boshlangan',
+                            value: _formatDate(
+                                item.productionBatch.createdAt!)),
                       if (item.productionBatch.completedDatetime != null)
                         _InfoRow(
                             label: 'Tugallangan',
@@ -311,6 +320,50 @@ class _ResultView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // ── Label prints of this batch line ────────────────────────
+              if (item.labelPrints != null) ...[
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Yorliq chop etilishi',
+                          style: textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        _InfoRow(
+                            label: 'Chop etilgan yorliqlar',
+                            value: '${item.labelPrints!.total} ta'),
+                        for (final print in item.labelPrints!.prints)
+                          _InfoRow(
+                            label: print.printedAt != null
+                                ? _formatDate(print.printedAt!)
+                                : '—',
+                            value: print.printedByName ?? 'Noma\'lum',
+                          ),
+                        if (item.labelPrints!.beforeTracking > 0)
+                          _InfoRow(
+                            label: '20.07.2026 gacha',
+                            value:
+                                '${item.labelPrints!.beforeTracking} ta (kim va qachon yozilmagan)',
+                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'QR kod partiya qatoriga tegishli, shuning uchun '
+                          'shu qatorning barcha yorliqlari ko\'rsatiladi.',
+                          style: textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // ── Label / Print Info ─────────────────────────────────────
               if (item.unit != null)
@@ -368,12 +421,47 @@ class _ResultView extends StatelessWidget {
                           _InfoRow(
                               label: 'Hudud',
                               value: item.destination!.region ?? '—'),
-                          if (item.destination!.orderUuid != null)
+                          if (item.destination!.contactName != null)
+                            _InfoRow(
+                                label: 'Kontakt',
+                                value: item.destination!.contactName!),
+                          if (item.destination!.phone != null)
+                            _InfoRow(
+                                label: 'Telefon',
+                                value: item.destination!.phone!),
+                          if (item.destination!.orderId != null)
                             _InfoRow(
                                 label: 'Buyurtma',
+                                value: '#${item.destination!.orderId}'),
+                          if (item.destination!.orderDate != null)
+                            _InfoRow(
+                                label: 'Buyurtma sanasi',
+                                value: _formatDay(item.destination!.orderDate!)),
+                          if (item.destination!.orderStatus != null)
+                            _InfoRow(
+                                label: 'Buyurtma holati',
+                                value: _orderStatusLabel(
+                                    item.destination!.orderStatus!)),
+                          if (item.destination!.orderedQuantity != null)
+                            _InfoRow(
+                                label: 'Jo\'natilgan',
+                                value:
+                                    '${item.destination!.shippedQuantity ?? 0} / ${item.destination!.orderedQuantity} dona'),
+                          if (item.destination!.orderUuid != null)
+                            _InfoRow(
+                                label: 'Buyurtma UUID',
                                 value: item.destination!.orderUuid!),
                         ] else
                           _InfoRow(label: 'Yo\'nalish', value: 'Ombor'),
+                        if (item.reattribution != null)
+                          _InfoRow(
+                            label: 'Boshqa mijozdan olingan',
+                            value: [
+                              item.reattribution!.fromClientName ?? '—',
+                              if (item.reattribution!.shipmentId != null)
+                                '(yuk xati #${item.reattribution!.shipmentId})',
+                            ].join(' '),
+                          ),
                       ],
                     ),
                   ),
@@ -445,14 +533,32 @@ class _ResultView extends StatelessWidget {
     }
   }
 
+  String _orderStatusLabel(String status) => switch (status) {
+        'pending' => 'Kutilmoqda',
+        'planned' => 'Rejalashtirilgan',
+        'on_production' => 'Ishlab chiqarilmoqda',
+        'done' => 'Bajarildi',
+        'shipped' => 'Jo\'natilgan',
+        'canceled' => 'Bekor qilindi',
+        _ => status,
+      };
+
+  /// The API sends times in UTC; the factory reads them in local time.
   String _formatDate(String isoDate) {
-    try {
-      final date = DateTime.parse(isoDate);
-      return '${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return isoDate;
-    }
+    final date = DateTime.tryParse(isoDate)?.toLocal();
+    if (date == null) return isoDate;
+    return '${_formatDay(isoDate)} ${_two(date.hour)}:${_two(date.minute)}';
   }
+
+  String _formatDay(String isoDate) {
+    final parsed = DateTime.tryParse(isoDate);
+    if (parsed == null) return isoDate;
+    // A bare date ("2026-09-01") has no time zone to convert.
+    final date = isoDate.length > 10 ? parsed.toLocal() : parsed;
+    return '${_two(date.day)}.${_two(date.month)}.${date.year}';
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
 }
 
 class _InfoRow extends StatelessWidget {

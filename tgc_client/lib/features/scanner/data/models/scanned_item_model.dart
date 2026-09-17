@@ -7,9 +7,15 @@ class ScannedItemModel extends ScannedItemEntity {
     required super.productionBatch,
     super.destination,
     super.unit,
+    super.labelPrints,
+    super.reattribution,
+    super.stockQuantity,
   });
 
   factory ScannedItemModel.fromJson(Map<String, dynamic> json) {
+    final prints = json['label_prints'] as Map<String, dynamic>?;
+    final reattribution = json['reattribution'] as Map<String, dynamic>?;
+
     return ScannedItemModel(
       item: ScannedItemInfoModel.fromJson(json['item']),
       product: ScannedProductInfoModel.fromJson(json['product']),
@@ -21,6 +27,25 @@ class ScannedItemModel extends ScannedItemEntity {
       unit: json['unit'] != null
           ? ScannedUnitInfoModel.fromJson(json['unit'])
           : null,
+      labelPrints: prints == null
+          ? null
+          : ScannedLabelPrints(
+              beforeTracking: prints['before_tracking'] as int? ?? 0,
+              prints: [
+                for (final p in (prints['prints'] as List? ?? const []))
+                  ScannedLabelPrint(
+                    printedAt: (p as Map<String, dynamic>)['printed_at'] as String?,
+                    printedByName: p['printed_by_name'] as String?,
+                  ),
+              ],
+            ),
+      reattribution: reattribution == null
+          ? null
+          : ScannedReattributionInfo(
+              fromClientName: reattribution['from_client_name'] as String?,
+              shipmentId: reattribution['shipment_id'] as int?,
+            ),
+      stockQuantity: json['stock_quantity'] as int?,
     );
   }
 }
@@ -107,6 +132,7 @@ class ScannedProductionBatchInfoModel extends ScannedProductionBatchInfo {
     super.machineName,
     super.employeeName,
     super.responsibleEmployeeName,
+    super.createdAt,
   });
 
   factory ScannedProductionBatchInfoModel.fromJson(Map<String, dynamic> json) {
@@ -121,6 +147,7 @@ class ScannedProductionBatchInfoModel extends ScannedProductionBatchInfo {
       machineName: json['machine_name'],
       employeeName: json['employee_name'],
       responsibleEmployeeName: json['responsible_employee_name'],
+      createdAt: json['created_at'],
     );
   }
 }
@@ -130,7 +157,14 @@ class ScannedDestinationInfoModel extends ScannedDestinationInfo {
     required super.type,
     super.clientName,
     super.region,
+    super.contactName,
+    super.phone,
+    super.orderId,
     super.orderUuid,
+    super.orderStatus,
+    super.orderDate,
+    super.orderedQuantity,
+    super.shippedQuantity,
   });
 
   factory ScannedDestinationInfoModel.fromJson(Map<String, dynamic> json) {
@@ -138,7 +172,14 @@ class ScannedDestinationInfoModel extends ScannedDestinationInfo {
       type: json['type'],
       clientName: json['client_name'],
       region: json['region'],
+      contactName: json['contact_name'],
+      phone: json['phone'],
+      orderId: json['order_id'],
       orderUuid: json['order_uuid'],
+      orderStatus: json['order_status'],
+      orderDate: json['order_date'],
+      orderedQuantity: json['ordered_quantity'],
+      shippedQuantity: json['shipped_quantity'],
     );
   }
 }
