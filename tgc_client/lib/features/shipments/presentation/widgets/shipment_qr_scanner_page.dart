@@ -13,6 +13,18 @@ import '../../domain/repositories/shipment_repository.dart';
 import 'shipment_form_controller.dart';
 import 'shipment_item_row.dart';
 
+/// The label text as the server should see it, or null for nothing usable.
+/// Printed labels hold plain ASCII like `P808 I5648`; a worn label or a camera
+/// misread can wrap it in whitespace, a BOM or zero-width characters, none of
+/// which the server's label patterns accept.
+String? cleanScannedLabel(String? raw) {
+  if (raw == null) return null;
+  final code = raw
+      .replaceAll(RegExp(r'[\u0000-\u001F\u007F\u200B-\u200D\u2060\uFEFF]'), ' ')
+      .trim();
+  return code.isEmpty ? null : code;
+}
+
 /// Full-screen QR scanner for adding items to a shipment straight from the
 /// production label printed on each carpet.
 ///
@@ -136,7 +148,7 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
 
   void _onDetect(BarcodeCapture capture) {
     if (_resolving || _sheetOpen || _feedback != null) return;
-    final code = _cleanCode(capture.barcodes.firstOrNull?.rawValue);
+    final code = cleanScannedLabel(capture.barcodes.firstOrNull?.rawValue);
     if (code == null || code == _lastCode) return;
 
     // A different label ends any cooldown left over from the previous scan.
@@ -144,18 +156,6 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     _lastCode = code;
     _signalCapture();
     _resolve(code);
-  }
-
-  /// The label text as the server should see it, or null for nothing
-  /// usable. Printed labels hold plain ASCII like `P808 I5648`; a worn label
-  /// or a camera misread can wrap it in whitespace, a BOM or zero-width
-  /// characters, none of which the server's label patterns accept.
-  static String? _cleanCode(String? raw) {
-    if (raw == null) return null;
-    final code = raw
-        .replaceAll(RegExp(r'[\u0000-\u001F\u007F\u200B-\u200D\u2060\uFEFF]'), ' ')
-        .trim();
-    return code.isEmpty ? null : code;
   }
 
   Future<void> _resolve(String code) async {

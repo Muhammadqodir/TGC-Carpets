@@ -196,15 +196,20 @@ class ShipmentService
             $shipment->update(['vat_amount' => $vatAmount]);
 
             // ── 4. Update order status if fully shipped ─────────────────────
-            if ($shipment->order_id !== null) {
-                $this->syncOrderShippedStatus($shipment->order_id);
-            }
+            // Every order a line ships against, not only the header's
+            // order_id: scanned and stock-wizard shipments carry no order_id,
+            // so a client order they finished used to stay "on production"
+            // forever. Mirrors cancel(), which already reverts by line. The
+            // auto-created order is among these lines, and is fully shipped
+            // the moment this shipment is written.
+            $orderIds = OrderItem::whereIn('id', array_column($data['items'], 'order_item_id'))
+                ->pluck('order_id')
+                ->push($shipment->order_id)
+                ->filter()
+                ->unique();
 
-            // The auto-created order is fully shipped the moment this shipment
-            // is written — that is the only reason it exists — so it flips to
-            // 'shipped' through the same path as any other order.
-            if ($autoOrderId !== null) {
-                $this->syncOrderShippedStatus($autoOrderId);
+            foreach ($orderIds as $orderId) {
+                $this->syncOrderShippedStatus((int) $orderId);
             }
 
             return $shipment->load([
