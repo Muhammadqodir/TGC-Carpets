@@ -6,7 +6,7 @@ class PrintLabelItem {
   final String? color;
   final String? sizeLabel;
 
-  /// Value encoded into the Code-128 barcode (e.g. "TGC-VAR-00000042").
+  /// Product barcode (e.g. "2984200000429"), see product_barcode.dart.
   final String barcodeValue;
 
   /// Data encoded into the QR code — format: "<docId>/<variantId>".

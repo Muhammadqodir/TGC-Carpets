@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductVariantResource;
 use App\Models\ProductVariant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,7 +22,7 @@ class ProductVariantController extends Controller
     {
         $variants = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color', 'productSize', 'productEdge'])
             ->when($request->filled('product_color_id'), fn ($q) => $q->where('product_color_id', $request->integer('product_color_id')))
-            ->when($request->filled('barcode'),          fn ($q) => $q->where('barcode_value', $request->barcode))
+            ->when($request->filled('barcode'),          fn ($q) => $this->whereBarcode($q, (string) $request->barcode))
             ->latest()
             ->paginate($this->perPage($request));
 
@@ -36,10 +37,24 @@ class ProductVariantController extends Controller
      */
     public function findByBarcode(string $barcode): JsonResponse
     {
-        $variant = ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color', 'productSize', 'productEdge'])
-            ->where('barcode_value', $barcode)
-            ->firstOrFail();
+        $variant = $this->whereBarcode(
+            ProductVariant::with(['productColor.product.productType', 'productColor.product.productQuality', 'productColor.color', 'productSize', 'productEdge']),
+            $barcode,
+        )->firstOrFail();
 
         return response()->json(['data' => new ProductVariantResource($variant)]);
+    }
+
+    /**
+     * Match the current digits-only barcode and the "TGC-00000042" still
+     * printed on labels made before it.
+     */
+    private function whereBarcode(Builder $query, string $barcode): Builder
+    {
+        $id = ProductVariant::idFromBarcode($barcode);
+
+        return $query->where(fn ($q) => $q
+            ->where('barcode_value', $barcode)
+            ->when($id !== null, fn ($q) => $q->orWhere('id', $id)));
     }
 }

@@ -14,6 +14,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/services/print_history_service.dart';
 import '../../domain/entities/print_history_entity.dart';
 import '../../domain/label_qr_format.dart';
+import '../../domain/product_barcode.dart';
 
 // ── Shared preference keys (same as labeling_page) ───────────────────────────
 const _kPrefLabelStyle = 'labeling_label_style';
@@ -271,9 +272,10 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           // ── Off-screen hidden labels for RepaintBoundary rendering ─
           ..._items.map((item) {
             final key = _keyFor(item.variantId);
-            final barcodeValue = item.variantBarcode?.isNotEmpty == true
-                ? item.variantBarcode!
-                : 'TGC-VAR-${item.variantId.toString().padLeft(8, '0')}';
+            final barcodeValue = labelBarcodeValue(
+              stored: item.variantBarcode,
+              variantId: item.variantId,
+            );
             // item.itemId is the production_batch_item id — the entity the
             // backend scan endpoint needs, not item.variantId. History
             // entries saved before this field existed have no itemId; there

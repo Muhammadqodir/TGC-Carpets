@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -458,7 +459,8 @@ class ShipmentService
             $sheet->setCellValue("A{$row}", $shipmentId);
             $sheet->setCellValue("B{$row}", $shipmentDate);
             $sheet->setCellValue("C{$row}", $fullName);
-            $sheet->setCellValue("D{$row}", $variant?->barcode_value ?? '');
+            // Explicit text: Excel shows a 13-digit number as 2.98420E+12.
+            $sheet->setCellValueExplicit("D{$row}", $variant?->barcode_value ?? '', DataType::TYPE_STRING);
             $sheet->setCellValue("E{$row}", $qty);
             $sheet->setCellValue("F{$row}", round($sqm, 4));
             $sheet->setCellValue("G{$row}", $qualityName);

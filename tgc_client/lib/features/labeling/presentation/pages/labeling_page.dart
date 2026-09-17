@@ -19,6 +19,7 @@ import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/label_qr_format.dart';
+import '../../domain/product_barcode.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
 import '../bloc/labeling_state.dart';
@@ -477,7 +478,7 @@ class _LabelingViewState extends State<_LabelingView> {
                               type: 'Classic',
                               color: 'Beige',
                               sizeLabel: '200x300 R',
-                              barcodeValue: 'TGC-00000001',
+                              barcodeValue: productBarcode(1),
                               qrData: buildLabelQr(batchId: 1, itemId: 1),
                             ),
                           ),
@@ -680,9 +681,10 @@ class _LabelingViewState extends State<_LabelingView> {
               // ── Off-screen labels rendered on-demand (only while printing) ─
               ..._renderingItems.values.map((item) {
                 final key = _keyFor(item.id);
-                final barcodeValue = item.variantBarcode?.isNotEmpty == true
-                    ? item.variantBarcode!
-                    : 'TGC-${item.variantId.toString().padLeft(8, '0')}';
+                final barcodeValue = labelBarcodeValue(
+                  stored: item.variantBarcode,
+                  variantId: item.variantId,
+                );
                 // NOT switched to item.unitSerial here on purpose: _onPrint()
                 // below renders and sends to the printer optimistically,
                 // BEFORE the print-label API response (which carries the new

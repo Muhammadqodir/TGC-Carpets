@@ -2,6 +2,8 @@ import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:usb_label_print/usb_label_print.dart';
 
+import '../../../domain/product_barcode.dart';
+
 /// A fully parameterised label widget that renders at [config.widthPx] ×
 /// [config.heightPx] logical pixels — the exact dimensions required by the
 /// thermal printer.
@@ -53,7 +55,8 @@ class PrintLabel7050 extends StatelessWidget {
   /// Edge code (e.g. "R").
   final String? edgeCode;
 
-  /// Value encoded into the Code-128 barcode (e.g. "TGC-VAR-00000042").
+  /// Product barcode (e.g. "2984200000429"). Printed as EAN-13 when it is
+  /// one, so shop scanners and systems read it as a normal retail barcode.
   final String barcodeValue;
 
   /// Data encoded into the QR code — format recommended: "<docId>/<variantId>".
@@ -122,7 +125,15 @@ class PrintLabel7050 extends StatelessWidget {
                         height: h * 0.27,
                         child: BarcodeWidget(
                           data: barcodeValue,
-                          barcode: Barcode.code128(),
+                          barcode: isEan13(barcodeValue)
+                              ? Barcode.ean13()
+                              : Barcode.code128(),
+                          // White margins scanners need: ~11 bar widths
+                          // from the label edge, ~7 before the QR code.
+                          padding: EdgeInsets.only(
+                            left: h * 0.045,
+                            right: h * 0.09,
+                          ),
                           drawText: true,
                           textPadding: h * 0.018,
                           style: TextStyle(

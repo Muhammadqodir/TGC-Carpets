@@ -70,7 +70,7 @@ class ProductVariantService
 
                 // barcode_value embeds the auto-incremented ID, set after INSERT.
                 $variant->update([
-                    'barcode_value' => 'TGC-' . str_pad($variant->id, 8, '0', STR_PAD_LEFT),
+                    'barcode_value' => ProductVariant::barcodeFor($variant->id),
                 ]);
 
                 return $variant->fresh();

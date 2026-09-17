@@ -31,7 +31,7 @@ class ProductVariantFactory extends Factory
     {
         return $this->afterCreating(function (ProductVariant $variant): void {
             if (empty($variant->barcode_value)) {
-                $variant->update(['barcode_value' => sprintf('TGC-VAR-%08d', $variant->id)]);
+                $variant->update(['barcode_value' => ProductVariant::barcodeFor($variant->id)]);
             }
         });
     }

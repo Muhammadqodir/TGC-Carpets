@@ -429,7 +429,8 @@ class ShipmentScanFlowTest extends TestCase
             'unit serial that does not exist'   => ['TGC-U-99999999'],
             'variant that does not exist'       => ['PB{%b} VAR{99999999}'],
             'April 2026 dev format batch/item'  => ['%b/%i'],
-            'the Code-128 barcode text'         => ['TGC-VAR-00000042'],
+            'the old product barcode text'      => ['TGC-VAR-00000042'],
+            'the digits-only product barcode'   => ['2984200000429'],
             'a URL'                             => ['https://erp.tgc-carpets.uz/p/1'],
         ];
     }
