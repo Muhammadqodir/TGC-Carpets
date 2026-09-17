@@ -186,6 +186,39 @@ class PrintLabelCountingTest extends TestCase
         $this->assertStringContainsString('no drift', $this->reconcileUnits());
     }
 
+    public function test_fix_command_corrects_a_line_labelled_before_tracking_without_inventing_a_printer(): void
+    {
+        // Pre-2026-07-20 shape: one backfilled 'produced' event and backfilled units only.
+        $line = $this->line(planned: 2);
+        $line->update(['produced_quantity' => 3]);
+        ProductionEvent::create([
+            'production_batch_item_id' => $line->id,
+            'event_type'               => ProductionEvent::TYPE_PRODUCED,
+            'quantity'                 => 3,
+            'occurred_at'              => '2026-06-27 22:45:43',
+            'user_id'                  => $this->shift1->id,
+            'reason'                   => 'backfill',
+            'created_at'               => now(),
+        ]);
+        foreach ([1, 2, 3] as $n) {
+            ProductionUnit::create([
+                'production_batch_item_id' => $line->id,
+                'serial'                   => sprintf('TGC-U-%08d', 90000 + $n),
+                'printed_by'               => $this->shift1->id,
+                'printed_at'               => '2026-06-27 22:45:43',
+                'status'                   => ProductionUnit::STATUS_GOOD,
+                'backfilled_at'            => '2026-07-20 00:00:00',
+            ]);
+        }
+
+        Artisan::call('production:fix-over-target', ['--apply' => true, '--user' => $this->shift2->id]);
+
+        $this->assertSame(2, $line->fresh()->produced_quantity);
+        $this->assertSame(2, (int) ProductionEvent::where('production_batch_item_id', $line->id)->sum('quantity'));
+        $this->assertSame(2, ProductionUnit::where('production_batch_item_id', $line->id)->count());
+        $this->assertSame(0, LabelReprint::count());
+    }
+
     public function test_fix_command_leaves_lines_the_warehouse_already_received_past_the_plan(): void
     {
         $line = $this->line(planned: 1);

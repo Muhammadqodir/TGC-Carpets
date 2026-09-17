@@ -19,7 +19,10 @@ use Illuminate\Support\Facades\DB;
  * For each extra carpet, in one transaction per line:
  *   - the newest non-backfilled production_unit becomes a label_reprints row
  *     (reason over_target) with the same printer and time, and is deleted, so
- *     production:reconcile-units still matches produced_quantity;
+ *     production:reconcile-units still matches produced_quantity. Lines
+ *     labelled before 2026-07-20 only have backfilled units, which name no
+ *     real printer or time: one of those is deleted with no reprint row, rather
+ *     than a row with an invented printer;
  *   - a 'correction' event of -1 is appended, so production:reconcile still
  *     matches the event log;
  *   - produced_quantity goes down by one.
@@ -87,8 +90,9 @@ class FixOverTargetProduction extends Command
             $target = max(0, $line->planned_quantity - $line->defect_quantity);
             $extra  = min($extra, $line->produced_quantity - $target);
 
+            // Real prints first, newest first; backfilled rows only after them.
             $units = ProductionUnit::where('production_batch_item_id', $line->id)
-                ->whereNull('backfilled_at')
+                ->orderByRaw('backfilled_at IS NOT NULL')
                 ->orderByDesc('printed_at')
                 ->orderByDesc('id')
                 ->limit($extra)
@@ -100,12 +104,14 @@ class FixOverTargetProduction extends Command
             }
 
             foreach ($units as $unit) {
-                LabelReprint::create([
-                    'production_batch_item_id' => $line->id,
-                    'printed_by'               => $unit->printed_by,
-                    'printed_at'               => $unit->printed_at,
-                    'reason'                   => LabelReprint::REASON_OVER_TARGET,
-                ]);
+                if (! $unit->isBackfilled()) {
+                    LabelReprint::create([
+                        'production_batch_item_id' => $line->id,
+                        'printed_by'               => $unit->printed_by,
+                        'printed_at'               => $unit->printed_at,
+                        'reason'                   => LabelReprint::REASON_OVER_TARGET,
+                    ]);
+                }
                 $unit->delete();
             }
 
