@@ -7,10 +7,13 @@ import '../models/labeling_item_model.dart';
 abstract class LabelingRemoteDataSource {
   Future<List<LabelingItemModel>> getLabelingItems();
 
+  /// [reprint]: a replacement for a torn or misprinted label. The server
+  /// records who printed it and when but does not count a carpet.
   Future<LabelingItemModel> printLabel({
     required int batchId,
     required int itemId,
     required String idempotencyKey,
+    bool reprint = false,
   });
 }
 
@@ -37,11 +40,15 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
     required int batchId,
     required int itemId,
     required String idempotencyKey,
+    bool reprint = false,
   }) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.productionBatchItemPrintLabel(batchId, itemId),
-        data: {'idempotency_key': idempotencyKey},
+        data: {
+          'idempotency_key': idempotencyKey,
+          if (reprint) 'reprint': true,
+        },
       );
       final body = response.data as Map<String, dynamic>;
       final unitMap = body['unit'] as Map<String, dynamic>?;

@@ -337,13 +337,19 @@ class ScanResultView extends StatelessWidget {
                         const SizedBox(height: 12),
                         _InfoRow(
                             label: 'Chop etilgan yorliqlar',
-                            value: '${item.labelPrints!.total} ta'),
+                            value: item.labelPrints!.reprints > 0
+                                ? '${item.labelPrints!.total} ta (shundan qayta: ${item.labelPrints!.reprints})'
+                                : '${item.labelPrints!.total} ta'),
                         for (final print in item.labelPrints!.prints)
                           _InfoRow(
                             label: print.printedAt != null
                                 ? _formatDate(print.printedAt!)
                                 : '—',
-                            value: print.printedByName ?? 'Noma\'lum',
+                            value: [
+                              print.printedByName ?? 'Noma\'lum',
+                              if (print.kind == 'reprint') '· qayta chop etish',
+                              if (print.kind == 'over_target') '· rejadan ortiq',
+                            ].join(' '),
                           ),
                         if (item.labelPrints!.beforeTracking > 0)
                           _InfoRow(

@@ -30,12 +30,14 @@ class LabelingRepositoryImpl implements LabelingRepository {
     required int batchId,
     required int itemId,
     required String idempotencyKey,
+    bool reprint = false,
   }) async {
     try {
       final result = await remoteDataSource.printLabel(
         batchId: batchId,
         itemId: itemId,
         idempotencyKey: idempotencyKey,
+        reprint: reprint,
       );
       return Right(result);
     } on NetworkException catch (e) {

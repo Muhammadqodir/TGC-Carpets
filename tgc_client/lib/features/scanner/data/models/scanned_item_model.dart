@@ -36,6 +36,7 @@ class ScannedItemModel extends ScannedItemEntity {
                   ScannedLabelPrint(
                     printedAt: (p as Map<String, dynamic>)['printed_at'] as String?,
                     printedByName: p['printed_by_name'] as String?,
+                    kind: p['kind'] as String? ?? 'print',
                   ),
               ],
             ),

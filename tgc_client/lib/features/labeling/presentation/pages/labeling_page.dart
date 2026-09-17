@@ -311,12 +311,25 @@ class _LabelingViewState extends State<_LabelingView> {
     return false;
   }
 
-  Future<void> _onPrint(LabelingItemEntity item) async {
+  /// Items whose label is being rendered or printed right now. Checked and
+  /// set synchronously, before the button can rebuild as disabled: a double
+  /// click used to print two labels and send two counts, and seven carpets on
+  /// production were counted twice that way.
+  final Set<int> _printInProgress = {};
+
+  /// [reprint]: a replacement for a torn or misprinted label, recorded on the
+  /// server but not counted as a carpet.
+  Future<void> _onPrint(LabelingItemEntity item, {bool reprint = false}) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
+    if (!_printInProgress.add(item.id)) return;
 
     // Dispatch to BLoC to mark item as printing / increment count on backend
     context.read<LabelingBloc>().add(
-          LabelingPrintRequested(batchId: item.batchId, itemId: item.id),
+          LabelingPrintRequested(
+            batchId: item.batchId,
+            itemId: item.id,
+            reprint: reprint,
+          ),
         );
 
     try {
@@ -352,11 +365,36 @@ class _LabelingViewState extends State<_LabelingView> {
       }
     } finally {
       // Remove off-screen widget and re-enable button
+      _printInProgress.remove(item.id);
       if (mounted) setState(() => _renderingItems.remove(item.id));
       context.read<LabelingBloc>().add(
             LabelingPrintCompleted(itemId: item.id),
           );
     }
+  }
+
+  Future<void> _onReprint(LabelingItemEntity item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yorliqni qayta chop etish'),
+        content: const Text(
+          'Yirtilgan yoki noto\'g\'ri chiqqan yorliq o\'rniga yangisi chop etiladi. '
+          'Gilam soniga qo\'shilmaydi, faqat kim va qachon chop etgani yoziladi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Qayta chop etish'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) await _onPrint(item, reprint: true);
   }
 
   void _showSettingsDialog() {
@@ -983,6 +1021,7 @@ class _LabelingViewState extends State<_LabelingView> {
                                   item: item,
                                   isPrintPlatform: _isPrintingPlatform,
                                   onPrint: () => _onPrint(item),
+                                  onReprint: () => _onReprint(item),
                                 ),
                               );
                             },
@@ -1088,11 +1127,13 @@ class _LabelingCardWrapper extends StatelessWidget {
     required this.item,
     required this.isPrintPlatform,
     required this.onPrint,
+    required this.onReprint,
   });
 
   final LabelingItemEntity item;
   final bool isPrintPlatform;
   final VoidCallback onPrint;
+  final VoidCallback onReprint;
 
   @override
   Widget build(BuildContext context) {
@@ -1105,6 +1146,7 @@ class _LabelingCardWrapper extends StatelessWidget {
           isPrinting: isPrinting,
           isPrintPlatform: isPrintPlatform,
           onPrint: onPrint,
+          onReprint: onReprint,
         );
       },
     );
@@ -1119,12 +1161,16 @@ class _LabelingCard extends StatelessWidget {
     required this.isPrinting,
     required this.isPrintPlatform,
     required this.onPrint,
+    required this.onReprint,
   });
 
   final LabelingItemEntity item;
   final bool isPrinting;
   final bool isPrintPlatform;
   final VoidCallback onPrint;
+
+  /// Replaces a torn or misprinted label without counting a carpet.
+  final VoidCallback onReprint;
 
   @override
   Widget build(BuildContext context) {
@@ -1205,39 +1251,56 @@ class _LabelingCard extends StatelessWidget {
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 10),
-                // ── Print button ──────────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: isPrinting ? null : onPrint,
-                    icon: isPrinting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : HugeIcon(
-                            icon: isPrintPlatform
-                                ? HugeIcons.strokeRoundedPrinter
-                                : HugeIcons.strokeRoundedShare01,
-                            color: Colors.white,
-                            strokeWidth: 2,
-                            size: 18,
-                          ),
-                    label: Text(
-                      isPrinting
-                          ? 'Chop etilmoqda...'
-                          : isPrintPlatform
-                              ? 'Yorliq chop etish'
-                              : 'Yorliq ulashish',
+                // ── Print + reprint buttons ───────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: isPrinting ? null : onPrint,
+                        icon: isPrinting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : HugeIcon(
+                                icon: isPrintPlatform
+                                    ? HugeIcons.strokeRoundedPrinter
+                                    : HugeIcons.strokeRoundedShare01,
+                                color: Colors.white,
+                                strokeWidth: 2,
+                                size: 18,
+                              ),
+                        label: Text(
+                          isPrinting
+                              ? 'Chop etilmoqda...'
+                              : isPrintPlatform
+                                  ? 'Yorliq chop etish'
+                                  : 'Yorliq ulashish',
+                        ),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                        ),
+                      ),
                     ),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
+                    const SizedBox(width: 8),
+                    IconButton.outlined(
+                      onPressed:
+                          isPrinting || item.producedQuantity == 0 ? null : onReprint,
+                      tooltip: 'Qayta chop etish (yirtilgan yorliq o\'rniga)',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                      ),
+                      icon: const HugeIcon(
+                        icon: HugeIcons.strokeRoundedRepeat,
+                        strokeWidth: 2,
+                        size: 18,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),

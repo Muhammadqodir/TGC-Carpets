@@ -66,8 +66,8 @@ class ScanItemDetailsTest extends TestCase
             $this->assertSame(0, $data['label_prints']['before_tracking']);
             // ISO in UTC: 10:15 and 21:40 Tashkent time (+05:00). The app shows them local.
             $this->assertSame([
-                ['printed_at' => '2026-09-17T05:15:00.000000Z', 'printed_by_name' => '1 SMENA (YORLIQ)'],
-                ['printed_at' => '2026-09-17T16:40:00.000000Z', 'printed_by_name' => '2 SMENA (YORLIQ)'],
+                ['printed_at' => '2026-09-17T05:15:00.000000Z', 'printed_by_name' => '1 SMENA (YORLIQ)', 'kind' => 'print'],
+                ['printed_at' => '2026-09-17T16:40:00.000000Z', 'printed_by_name' => '2 SMENA (YORLIQ)', 'kind' => 'print'],
             ], $data['label_prints']['prints']);
 
             $this->assertSame('client', $data['destination']['type']);

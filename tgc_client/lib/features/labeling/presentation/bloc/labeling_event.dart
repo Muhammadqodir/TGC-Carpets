@@ -19,10 +19,17 @@ class LabelingPrintRequested extends LabelingEvent {
   final int batchId;
   final int itemId;
 
-  const LabelingPrintRequested({required this.batchId, required this.itemId});
+  /// A replacement for a torn or misprinted label: recorded, not counted.
+  final bool reprint;
+
+  const LabelingPrintRequested({
+    required this.batchId,
+    required this.itemId,
+    this.reprint = false,
+  });
 
   @override
-  List<Object?> get props => [batchId, itemId];
+  List<Object?> get props => [batchId, itemId, reprint];
 }
 
 class LabelingPrintCompleted extends LabelingEvent {

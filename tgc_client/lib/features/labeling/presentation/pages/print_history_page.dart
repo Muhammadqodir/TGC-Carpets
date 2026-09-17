@@ -9,12 +9,14 @@ import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 import 'package:usb_label_print/usb_label_print.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/print_history_service.dart';
+import '../../domain/repositories/labeling_repository.dart';
 import '../../domain/entities/print_history_entity.dart';
 import '../../domain/label_print_code.dart';
 import '../../domain/label_qr_format.dart';
@@ -154,6 +156,8 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
 
   Future<void> _onPrint(PrintHistoryEntity item) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
+    // A double click prints once.
+    if (_printingItems.contains(item.variantId)) return;
 
     final key = _keyFor(item.variantId);
     setState(() => _printingItems.add(item.variantId));
@@ -184,13 +188,21 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           );
         }
         
+        final recorded = await _recordReprint(item);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Yorliq chop etildi'),
-              backgroundColor: AppColors.success,
-              duration: Duration(seconds: 2),
-            ),
+            recorded
+                ? const SnackBar(
+                    content: Text('Yorliq qayta chop etildi'),
+                    backgroundColor: AppColors.success,
+                    duration: Duration(seconds: 2),
+                  )
+                : const SnackBar(
+                    content: Text(
+                        'Yorliq chop etildi, lekin qayta chop etish serverga yozilmadi'),
+                    backgroundColor: AppColors.warning,
+                    duration: Duration(seconds: 4),
+                  ),
           );
         }
       } finally {
@@ -199,6 +211,20 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     } finally {
       setState(() => _printingItems.remove(item.variantId));
     }
+  }
+
+  /// Every label printed from history is a reprint of an already-counted
+  /// carpet: the server records who printed it and when, without counting.
+  /// Entries saved before the batch line id was kept cannot be recorded.
+  Future<bool> _recordReprint(PrintHistoryEntity item) async {
+    if (item.itemId == null) return false;
+    final result = await sl<LabelingRepository>().printLabel(
+      batchId: item.batchId,
+      itemId: item.itemId!,
+      idempotencyKey: const Uuid().v4(),
+      reprint: true,
+    );
+    return result.isRight();
   }
 
   Future<void> _clearHistory() async {

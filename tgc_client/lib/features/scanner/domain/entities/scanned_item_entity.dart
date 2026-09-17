@@ -52,6 +52,9 @@ class ScannedLabelPrints extends Equatable {
 
   int get total => beforeTracking + prints.length;
 
+  /// Labels printed for an already-counted carpet (not carpets themselves).
+  int get reprints => prints.where((p) => p.isReprint).length;
+
   @override
   List<Object?> get props => [beforeTracking, prints];
 }
@@ -60,10 +63,20 @@ class ScannedLabelPrint extends Equatable {
   final String? printedAt;
   final String? printedByName;
 
-  const ScannedLabelPrint({this.printedAt, this.printedByName});
+  /// `print` (a counted carpet), `reprint` (a replacement label) or
+  /// `over_target` (a print past the line's plan, not counted).
+  final String kind;
+
+  const ScannedLabelPrint({
+    this.printedAt,
+    this.printedByName,
+    this.kind = 'print',
+  });
+
+  bool get isReprint => kind != 'print';
 
   @override
-  List<Object?> get props => [printedAt, printedByName];
+  List<Object?> get props => [printedAt, printedByName, kind];
 }
 
 class ScannedReattributionInfo extends Equatable {

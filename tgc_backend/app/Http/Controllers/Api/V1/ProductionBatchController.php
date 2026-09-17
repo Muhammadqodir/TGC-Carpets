@@ -8,6 +8,7 @@ use App\Http\Requests\Production\UpdateProductionBatchRequest;
 use App\Http\Requests\Production\UpdateProductionBatchItemRequest;
 use App\Http\Resources\ProductionBatchResource;
 use App\Http\Resources\ProductionBatchItemResource;
+use App\Models\LabelReprint;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
@@ -312,6 +313,8 @@ class ProductionBatchController extends Controller
         $validated = $request->validate([
             'idempotency_key' => ['nullable', 'uuid'],
             'serial'          => ['nullable', 'string', 'regex:/^TGC-U-\d{8}$/'],
+            // true for a replacement label: recorded, never counted
+            'reprint'         => ['sometimes', 'boolean'],
         ]);
 
         $result = $this->service->incrementProducedQuantity(
@@ -319,10 +322,13 @@ class ProductionBatchController extends Controller
             $request->user()->id,
             $validated['idempotency_key'] ?? null,
             $validated['serial'] ?? null,
+            (bool) ($validated['reprint'] ?? false),
         );
 
         return response()->json([
-            'data' => new ProductionBatchItemResource($result['item']),
+            'data'    => new ProductionBatchItemResource($result['item']),
+            // false when the print was recorded as a reprint instead of a carpet
+            'counted' => $result['counted'],
             'unit' => $result['unit'] ? [
                 'serial'        => $result['unit']->serial,
                 'reprint_count' => $result['unit']->reprint_count,
@@ -498,12 +504,27 @@ class ProductionBatchController extends Controller
 
         [$backfilled, $recorded] = $units->partition(fn (ProductionUnit $u) => $u->isBackfilled());
 
+        $prints = $recorded->map(fn (ProductionUnit $u) => [
+            'printed_at'      => $u->printed_at,
+            'printed_by_name' => $u->printedByUser?->name,
+            'kind'            => 'print',
+        ])->concat(
+            LabelReprint::with('printedByUser:id,name')
+                ->where('production_batch_item_id', $item->id)
+                ->get()
+                ->map(fn (LabelReprint $r) => [
+                    'printed_at'      => $r->printed_at,
+                    'printed_by_name' => $r->printedByUser?->name,
+                    'kind'            => $r->reason,
+                ])
+        );
+
         return [
             'before_tracking' => $backfilled->count(),
-            'prints'          => $recorded->values()->map(fn (ProductionUnit $u) => [
-                'printed_at'      => $u->printed_at?->toISOString(),
-                'printed_by_name' => $u->printedByUser?->name,
-            ])->all(),
+            // kind: print (a counted carpet), reprint, over_target
+            'prints'          => $prints->sortBy(fn (array $p) => $p['printed_at'])->values()
+                ->map(fn (array $p) => [...$p, 'printed_at' => $p['printed_at']?->toISOString()])
+                ->all(),
         ];
     }
 

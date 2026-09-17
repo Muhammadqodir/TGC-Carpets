@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\LabelReprint;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
@@ -177,21 +178,35 @@ class ProductionBatchService
      * exists to fix: today's blind increment() cannot tell a reprint from
      * a new carpet.
      *
+     * A label that is not a new carpet never counts. With $reprint (the
+     * worker replacing a torn or misprinted label), or once the line already
+     * has produced_quantity >= planned_quantity - defect_quantity (a double
+     * click, or a print past the plan), the print is recorded in
+     * label_reprints — who and when — and produced_quantity stays put. Seven
+     * lines were over-counted by double clicks before this, see
+     * production:fix-over-target.
+     *
      * After incrementing, checks whether all items in the batch have
      * produced_quantity >= (planned_quantity - defect_quantity).
      * If so, the batch is automatically transitioned to completed.
      *
-     * @return array{item: ProductionBatchItem, unit: ?ProductionUnit}
+     * @return array{item: ProductionBatchItem, unit: ?ProductionUnit, counted: bool}
      */
     public function incrementProducedQuantity(
         ProductionBatchItem $item,
         int $userId,
         ?string $idempotencyKey = null,
         ?string $serial = null,
+        bool $reprint = false,
     ): array {
-        $unit = null;
+        $unit    = null;
+        $counted = false;
 
-        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, &$unit): void {
+        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, $reprint, &$unit, &$counted): void {
+            // A deadlock retry runs this again from the top.
+            $unit    = null;
+            $counted = false;
+
             // Lock the batch item before anything else. Without it, two prints
             // of the same item — a double tap, or a retry racing the original —
             // each took a shared lock on this row through the production_events
@@ -200,7 +215,7 @@ class ProductionBatchService
             // several times a week in September 2026. Taken first, the second
             // print simply waits, then counts (or, with the same idempotency
             // key, replays) against the committed first.
-            ProductionBatchItem::whereKey($item->id)->lockForUpdate()->first();
+            $locked = ProductionBatchItem::whereKey($item->id)->lockForUpdate()->first();
 
             if ($serial !== null) {
                 $existing = ProductionUnit::where('serial', $serial)->lockForUpdate()->first();
@@ -210,6 +225,40 @@ class ProductionBatchService
 
                     return;
                 }
+            }
+
+            // A retry of a request that already went through replays it,
+            // whichever way it went: checked before the plan, because the
+            // retry of the print that met the plan finds the line full.
+            if ($idempotencyKey !== null) {
+                if (ProductionEvent::where('idempotency_key', $idempotencyKey)->exists()) {
+                    $counted = true;
+
+                    return;
+                }
+                if (LabelReprint::where('idempotency_key', $idempotencyKey)->exists()) {
+                    return;
+                }
+            }
+
+            $planMet = $locked->produced_quantity >= $locked->planned_quantity - $locked->defect_quantity;
+
+            if ($reprint || $planMet) {
+                try {
+                    LabelReprint::create([
+                        'production_batch_item_id' => $item->id,
+                        'printed_by'               => $userId,
+                        'printed_at'               => now(),
+                        'reason'                   => $reprint ? LabelReprint::REASON_REPRINT : LabelReprint::REASON_OVER_TARGET,
+                        'idempotency_key'          => $idempotencyKey,
+                    ]);
+                } catch (QueryException $e) {
+                    if (! $this->isDuplicateKey($e)) {
+                        throw $e;
+                    }
+                }
+
+                return;
             }
 
             $eventData = [
@@ -237,6 +286,7 @@ class ProductionBatchService
             }
 
             $item->increment('produced_quantity');
+            $counted = true;
 
             $newUnit = ProductionUnit::create([
                 'production_batch_item_id' => $item->id,
@@ -281,7 +331,7 @@ class ProductionBatchService
             'sourceOrderItem.order.client',
         ]);
 
-        return ['item' => $freshItem, 'unit' => $unit];
+        return ['item' => $freshItem, 'unit' => $unit, 'counted' => $counted];
     }
 
     private function isDuplicateKey(QueryException $e): bool

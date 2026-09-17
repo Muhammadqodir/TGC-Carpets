@@ -40,30 +40,35 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
     final current = state;
     if (current is! LabelingLoaded) return;
 
-    // If the item is already fully labeled, skip the API call.
-    // The label still renders and prints locally.
-    final isFullyLabeled = current.items.any(
-      (i) => i.id == event.itemId && i.isFullyLabeled,
-    );
-    if (isFullyLabeled) return;
+    // Every print reaches the server, even on a line whose plan is already
+    // met: the server records it as a reprint instead of counting a carpet,
+    // so no physical label goes unrecorded.
 
     // One key per physical label. Generated once at the first tap for this
     // item and reused on every retry, so a network failure followed by the
     // operator tapping Print again resends the same key rather than a fresh
-    // one — see instructions/phase-2/02-idempotency-key.md.
-    final idempotencyKey =
-        current.pendingKeys[event.itemId] ?? const Uuid().v4();
+    // one — see instructions/phase-2/02-idempotency-key.md. A reprint never
+    // takes the pending key: the server would replay it as that reprint, and
+    // the carpet the next tap labels would go uncounted.
+    final idempotencyKey = event.reprint
+        ? const Uuid().v4()
+        : current.pendingKeys[event.itemId] ?? const Uuid().v4();
+
+    final pendingKeys = event.reprint
+        ? current.pendingKeys
+        : {...current.pendingKeys, event.itemId: idempotencyKey};
 
     // Mark item as printing
     emit(current.copyWith(
       printingItems: {...current.printingItems, event.itemId: true},
-      pendingKeys: {...current.pendingKeys, event.itemId: idempotencyKey},
+      pendingKeys: pendingKeys,
     ));
 
     final result = await _repository.printLabel(
       batchId: event.batchId,
       itemId: event.itemId,
       idempotencyKey: idempotencyKey,
+      reprint: event.reprint,
     );
 
     result.fold(
@@ -71,11 +76,14 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
         // On API failure, remove from printing state immediately. Keep the
         // pending key so the next tap for this item retries with the same
         // key instead of minting a new one.
+        // `current` predates the key, so it is put back explicitly: without
+        // it a count whose response was lost went out again under a new key
+        // and counted a second carpet.
         final updated = Map<int, bool>.from(current.printingItems)
           ..remove(event.itemId);
-        emit(current.copyWith(printingItems: updated));
+        emit(current.copyWith(printingItems: updated, pendingKeys: pendingKeys));
         emit(LabelingError(failure.message));
-        emit(current.copyWith(printingItems: updated));
+        emit(current.copyWith(printingItems: updated, pendingKeys: pendingKeys));
       },
       (updatedItem) {
         // Success (including a replay of an already-recorded key): clear

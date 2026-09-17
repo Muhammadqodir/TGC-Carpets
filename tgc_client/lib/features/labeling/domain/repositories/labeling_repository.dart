@@ -10,5 +10,6 @@ abstract class LabelingRepository {
     required int batchId,
     required int itemId,
     required String idempotencyKey,
+    bool reprint = false,
   });
 }
