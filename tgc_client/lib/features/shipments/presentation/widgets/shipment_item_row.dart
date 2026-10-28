@@ -182,9 +182,25 @@ class ShipmentItemRow {
       ));
   }
 
-  /// Adds the order line [item] resolved to, unless the row already has it,
+  /// Adds the order lines [item] knows about that the row does not have yet,
   /// and keeps the largest client-wide total seen.
+  ///
+  /// A scan carries all of the client's open lines for the carpet, so the row
+  /// knows the whole picture from the first carpet — "22 dona, 5 buyurtmada"
+  /// — and "+" pressed by hand is measured against all of it, not against the
+  /// one order the scan happened to land on.
   void absorbLineOf(ShipmentImportItemEntity item) {
+    for (final l in item.openLines) {
+      if (!orderLines.any((o) => o.orderItemId == l.orderItemId)) {
+        orderLines.add(ShipmentOrderLine(
+          orderItemId: l.orderItemId,
+          orderId: l.orderId,
+          orderDate: l.orderDate,
+          remaining: l.remaining,
+        ));
+      }
+    }
+
     final lineId = item.orderItemId;
     if (lineId != null && !orderLines.any((l) => l.orderItemId == lineId)) {
       orderLines.add(ShipmentOrderLine(

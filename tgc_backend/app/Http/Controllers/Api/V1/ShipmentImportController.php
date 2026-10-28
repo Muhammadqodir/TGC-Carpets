@@ -372,6 +372,7 @@ class ShipmentImportController extends Controller
                 // is already on the lorry.
                 $unmatched['reason'] = $linesFull ? 'open_lines_full' : 'no_open_line';
                 $unmatched['client_open_remaining'] = (int) $openLines->sum('available_quantity');
+                $unmatched['open_lines'] = $this->openLinesPayload($openLines);
             }
 
             if ($unmatched === null) {
@@ -420,6 +421,10 @@ class ShipmentImportController extends Controller
                 // all their open orders. Only past THIS is a carpet beyond
                 // the order; past one line it just spills onto the next.
                 'client_open_remaining' => (int) $openLines->sum('available_quantity'),
+                // Every open line, the chosen one first, so the form shows the
+                // whole picture from the first scan ("22 dona, 5 buyurtmada")
+                // and a quantity typed by hand is measured against all of it.
+                'open_lines'         => $this->openLinesPayload($openLines),
                 'stock_quantity'     => (int) $row->stock_quantity,
                 // Both new in August 2026. The batch item id comes back so
                 // the shipment can move the production record with the carpet
@@ -430,6 +435,22 @@ class ShipmentImportController extends Controller
                 'produced_for_client'      => $producedFor,
             ],
         ]);
+    }
+
+    /**
+     * The client's open lines for the scanned carpet, in the order the scan
+     * prefers them (the carpet's own line, then oldest first).
+     *
+     * @return array<int, array{order_item_id:int, order_id:int, order_date:?string, remaining:int}>
+     */
+    private function openLinesPayload(\Illuminate\Support\Collection $openLines): array
+    {
+        return $openLines->map(fn ($line) => [
+            'order_item_id' => (int) $line->order_item_id,
+            'order_id'      => (int) $line->order_id,
+            'order_date'    => $line->order_date ? substr((string) $line->order_date, 0, 10) : null,
+            'remaining'     => (int) $line->available_quantity,
+        ])->values()->all();
     }
 
     /**

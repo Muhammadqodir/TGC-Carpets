@@ -53,6 +53,7 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
     super.orderId,
     super.orderDate,
     super.clientOpenRemaining,
+    super.openLines,
     super.stockQuantity,
     super.producedForClient,
     super.productionBatchItemId,
@@ -81,6 +82,16 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
       orderId: json['order_id'] as int?,
       orderDate: json['order_date'] as String?,
       clientOpenRemaining: json['client_open_remaining'] as int?,
+      openLines: [
+        for (final l in (json['open_lines'] as List<dynamic>?) ?? const [])
+          if (l is Map<String, dynamic> && l['order_item_id'] is int)
+            (
+              orderItemId: l['order_item_id'] as int,
+              orderId: l['order_id'] as int?,
+              orderDate: l['order_date'] as String?,
+              remaining: l['remaining'] as int? ?? 0,
+            ),
+      ],
       stockQuantity: json['stock_quantity'] as int? ?? 0,
       producedForClient: json['produced_for_client'] as String?,
       productionBatchItemId: json['production_batch_item_id'] as int?,

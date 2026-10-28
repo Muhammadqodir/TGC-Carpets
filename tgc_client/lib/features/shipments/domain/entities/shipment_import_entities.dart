@@ -72,6 +72,11 @@ class ShipmentImportItemEntity extends Equatable {
   /// past one line it just goes on the client's next order.
   final int? clientOpenRemaining;
 
+  /// Every open order line the client has for this carpet, the scan's choice
+  /// first: order item id, order id, order date (`YYYY-MM-DD`), remaining.
+  /// Empty from the stock wizard and from servers before October 2026.
+  final List<({int orderItemId, int? orderId, String? orderDate, int remaining})> openLines;
+
   /// Warehouse stock for this variant. Informational only — a carpet whose
   /// label was just scanned is physically present whatever this says, and the
   /// backend books in the difference when the shipment is saved.
@@ -118,6 +123,7 @@ class ShipmentImportItemEntity extends Equatable {
     this.orderId,
     this.orderDate,
     this.clientOpenRemaining,
+    this.openLines = const [],
     this.stockQuantity = 0,
     this.producedForClient,
     this.productionBatchItemId,
@@ -140,7 +146,7 @@ class ShipmentImportItemEntity extends Equatable {
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
         edgeCode, edgeTitle, availableQuantity, orderRemaining, orderId, orderDate,
-        clientOpenRemaining, stockQuantity,
+        clientOpenRemaining, openLines, stockQuantity,
         producedForClient, productionBatchItemId, unmatchedReason,
       ];
 }

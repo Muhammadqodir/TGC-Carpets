@@ -1203,10 +1203,11 @@ class ShipmentRowNote extends StatelessWidget {
         'qolgan $owed dona',
       ].join(' · ');
     }
-    final ids = lines.map((l) => l.orderId).whereType<int>().map((id) => '#$id');
+    final ids = lines.map((l) => l.orderId).whereType<int>().toSet().map((id) => '#$id').toList();
+    final shown = ids.length > 4 ? [...ids.take(4), '…'] : ids;
     return [
-      ids.isEmpty ? '${lines.length} ta buyurtma' : 'Buyurtmalar ${ids.join(', ')}',
-      'qolgan $owed dona',
+      '${lines.length} ta buyurtmada qolgan $owed dona',
+      if (shown.isNotEmpty) shown.join(', '),
     ].join(' · ');
   }
 

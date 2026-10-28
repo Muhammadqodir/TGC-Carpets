@@ -210,6 +210,26 @@ class ShipmentScanFlowTest extends TestCase
         $this->assertSame(Order::STATUS_SHIPPED, $older->order->fresh()->status);
     }
 
+    public function test_the_first_scan_names_every_open_order_for_the_carpet(): void
+    {
+        $variant = $this->variant();
+        $first   = $this->orderLine($this->clientA, $variant, 4);
+        $second  = $this->orderLine($this->clientA, $variant, 6);
+        $third   = $this->orderLine($this->clientA, $variant, 2);
+        $carpet  = $this->batchItem($variant, $second, planned: 1, produced: 1, received: 1);
+        $this->receive($variant, 1);
+
+        $data = $this->scan($this->label($carpet))->assertOk()->json('data');
+
+        $this->assertSame($second->id, $data['order_item_id'], 'its own line first');
+        $this->assertSame(12, $data['client_open_remaining']);
+        $this->assertSame(
+            [[$second->id, 6], [$first->id, 4], [$third->id, 2]],
+            array_map(fn ($l) => [$l['order_item_id'], $l['remaining']], $data['open_lines']),
+        );
+        $this->assertSame($second->order_id, $data['open_lines'][0]['order_id']);
+    }
+
     public function test_a_cancelled_order_is_never_offered_or_filled(): void
     {
         $variant = $this->variant();
