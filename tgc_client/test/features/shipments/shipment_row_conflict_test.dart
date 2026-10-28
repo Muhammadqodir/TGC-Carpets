@@ -24,21 +24,27 @@ ShipmentImportItemEntity _item({
 void main() {
   test('a quantity typed past the order counts as beyond it', () {
     final row = ShipmentItemRow.fromImportItem(_item(orderRemaining: 2), initialQuantity: 5);
-    expect(row.beyondLine, 3);
+    expect(row.beyondOrder, 3);
     expect(row.isOffOrder, isFalse);
   });
 
   test('stock-capped wizard rows measure against the order, not the stock', () {
-    // Order owes 5, stock only had 2: typing 4 is a stock question, not beyond the order.
     final row = ShipmentItemRow.fromImportItem(
         _item(available: 2, orderRemaining: 5), initialQuantity: 4);
-    expect(row.beyondLine, 0);
+    expect(row.beyondOrder, 0);
+  });
+
+  test('past one order but within the client total is not beyond', () {
+    final row = ShipmentItemRow.fromImportItem(
+        _item(orderRemaining: 10, clientOpen: 44), initialQuantity: 11);
+    expect(row.beyondOrder, 0);
   });
 
   test('an off-order row is flagged as such and never as beyond', () {
     final row = ShipmentItemRow.fromImportItem(_item(orderItemId: null, available: 0), initialQuantity: 3);
     expect(row.isOffOrder, isTrue);
-    expect(row.beyondLine, 0);
+    expect(row.beyondOrder, 0);
+    expect(row.pieces.single.orderItemId, isNull);
   });
 
   test('scanning another client\'s carpet keeps their name on the row', () {
@@ -50,37 +56,14 @@ void main() {
     form.dispose();
   });
 
-  test('three orders of one carpet, each +1: past each order, not past the client', () {
-    // ABDUBANNO AKA, 2026-10-28: six open orders for 1447 350x400, 44 owed.
-    final form = ShipmentFormController();
-    for (final (id, owed, loaded) in [(18078, 10, 11), (2263, 6, 7), (7009, 6, 7)]) {
-      form.addOrIncrementItem(_item(orderItemId: id, available: owed, orderRemaining: owed, clientOpen: 44));
-      form.items.last.quantityCtrl.text = '$loaded';
-    }
-
-    expect(form.items.map((r) => r.beyondLine), [1, 1, 1]);
-    expect(form.beyondClientOrders(1), 0, reason: 'the client still owes 44');
-    expect(form.totalBeyondClientOrders, 0);
-    expect(form.isLastOnOrderRowOf(form.items.last), isTrue);
-    expect(form.isLastOnOrderRowOf(form.items.first), isFalse);
-    form.dispose();
-  });
-
-  test('past everything the client owes is beyond the order', () {
-    final form = ShipmentFormController();
-    form.addOrIncrementItem(_item(orderItemId: 1, available: 2, orderRemaining: 2, clientOpen: 3));
-    form.items.single.quantityCtrl.text = '5';
-    expect(form.beyondClientOrders(1), 2);
-    form.dispose();
-  });
-
-  test('wizard rows without the client total measure against the lines on the form', () {
-    final form = ShipmentFormController();
-    form.addOrIncrementItem(_item(orderItemId: 1, available: 2, orderRemaining: 2));
-    form.addOrIncrementItem(_item(orderItemId: 2, available: 3, orderRemaining: 3));
-    form.items[0].quantityCtrl.text = '4';
-    form.items[1].quantityCtrl.text = '3';
-    expect(form.beyondClientOrders(1), 2);
+  test('a stock import of one product on two lines is one row', () {
+    final form = ShipmentFormController()
+      ..importFromStock([
+        _item(orderItemId: 1, available: 2, orderRemaining: 2),
+        _item(orderItemId: 2, available: 3, orderRemaining: 3),
+      ]);
+    expect(form.items.single.parsedQuantity, 5);
+    expect(form.items.single.pieces.map((p) => (p.orderItemId, p.quantity)), [(1, 2), (2, 3)]);
     form.dispose();
   });
 }

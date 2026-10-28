@@ -84,8 +84,8 @@ class ShipmentFormDraftService {
   // ── Serialisation helpers ───────────────────────────────────────────────────
 
   static Map<String, dynamic> _rowToJson(ShipmentItemRow r) => {
-        'order_item_id': r.orderItemId,
         'variant_id': r.variantId,
+        'order_lines': [for (final l in r.orderLines) l.toJson()],
         'scanned': r.scanned,
         'scanned_batch_item_ids': r.scannedBatchItemIds,
         'produced_for_clients': r.producedForClients.toList(),
@@ -99,17 +99,12 @@ class ShipmentFormDraftService {
         'product_unit': r.productUnit,
         'edge_code': r.edgeCode,
         'edge_title': r.edgeTitle,
-        'available_quantity': r.availableQuantity,
-        'order_remaining': r.orderRemaining,
-        'order_id': r.orderId,
-        'order_date': r.orderDate,
         'client_open_remaining': r.clientOpenRemaining,
         'quantity': r.quantityCtrl.text,
       };
 
   static ShipmentItemRow _rowFromJson(Map<String, dynamic> json) {
     final row = ShipmentItemRow(
-      orderItemId: json['order_item_id'] as int?,
       variantId: json['variant_id'] as int,
       scanned: json['scanned'] as bool? ?? false,
       productName: json['product_name'] as String? ?? '',
@@ -122,12 +117,26 @@ class ShipmentFormDraftService {
       productUnit: json['product_unit'] as String?,
       edgeCode: json['edge_code'] as String?,
       edgeTitle: json['edge_title'] as String?,
-      availableQuantity: json['available_quantity'] as int? ?? 0,
-      orderRemaining: json['order_remaining'] as int?,
-      orderId: json['order_id'] as int?,
-      orderDate: json['order_date'] as String?,
       clientOpenRemaining: json['client_open_remaining'] as int?,
     );
+
+    final lines = json['order_lines'];
+    if (lines is List) {
+      for (final l in lines) {
+        row.orderLines.add(ShipmentOrderLine.fromJson(l as Map<String, dynamic>));
+      }
+    } else if (json['order_item_id'] is int) {
+      // A draft saved before rows were one per product: one line per row.
+      // restoreFrom() merges rows of the same product back together.
+      row.orderLines.add(ShipmentOrderLine(
+        orderItemId: json['order_item_id'] as int,
+        orderId: json['order_id'] as int?,
+        orderDate: json['order_date'] as String?,
+        remaining: json['order_remaining'] as int? ??
+            json['available_quantity'] as int? ??
+            0,
+      ));
+    }
 
     row.quantityCtrl.text = (json['quantity'] as String?) ?? '';
 

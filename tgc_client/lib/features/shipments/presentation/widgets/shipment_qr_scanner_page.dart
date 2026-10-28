@@ -377,8 +377,14 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     return answer == true;
   }
 
+  /// Adds the carpet and goes straight back to the list, which shows what
+  /// this did to the shipment — the product's total, the orders it covers,
+  /// every warning — far better than a card here could. Only refusals and
+  /// errors stay on this screen.
   void _applyItem(ShipmentImportItemEntity item) {
     final result = widget.controller.addOrIncrementItem(item);
+    _scannedCount++;
+
     final title = item.edgeCode != null
         ? '${item.productName} [${item.edgeCode}]'
         : item.productName;
@@ -387,64 +393,24 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
       if (item.sizeLabel != null) item.sizeLabel!,
     ].join(' · ');
 
-    if (result != ScanAddResult.limitReached) _scannedCount++;
-
-    // Added or counted up: back to the list, which shows what this did to
-    // the shipment far better than a card here could. Only a refusal stays
-    // on screen, because there is nothing new on the list to look at.
-    final row = _rowFor(item);
-    if (result != ScanAddResult.limitReached && row != null) {
-      Navigator.of(context).pop(ShipmentScanOutcome(
-        row: row,
-        incremented: result == ScanAddResult.incremented,
-        title: [title, if (subtitle.isNotEmpty) subtitle].join(' · '),
+    final row = widget.controller.rowOf(item.variantId);
+    if (row == null) {
+      // Cannot happen — addOrIncrementItem just made or found it. Say so on
+      // the result screen rather than leave the worker guessing.
+      _showResult(_ScanFeedback(
+        _FeedbackKind.error,
+        headline: 'Skanerlashda xatolik',
+        subtitle: 'Mahsulot ro\'yxatga qo\'shilmadi. Qayta skanerlang.',
       ));
       return;
     }
 
-    _showResult(switch (result) {
-      ScanAddResult.added => _ScanFeedback(
-          _FeedbackKind.added,
-          headline: 'Qo\'shildi',
-          title: title,
-          subtitle: subtitle,
-          quantity: _rowQuantityFor(item),
-        ),
-      ScanAddResult.incremented => _ScanFeedback(
-          _FeedbackKind.incremented,
-          headline: 'Miqdor oshirildi',
-          title: title,
-          subtitle: subtitle,
-          quantity: _rowQuantityFor(item),
-        ),
-      ScanAddResult.limitReached => _ScanFeedback(
-          _FeedbackKind.limitReached,
-          headline: 'Chegaraga yetdi',
-          title: title,
-          subtitle: 'Buyurtma bo\'yicha mavjud ${item.availableQuantity} '
-              'dona allaqachon qo\'shilgan.',
-          quantity: _rowQuantityFor(item),
-        ),
-    });
+    Navigator.of(context).pop(ShipmentScanOutcome(
+      row: row,
+      incremented: result == ScanAddResult.incremented,
+      title: [title, if (subtitle.isNotEmpty) subtitle].join(' · '),
+    ));
   }
-
-  /// The form row [item] belongs to, or null before it has one.
-  ///
-  /// Off-order rows all carry a null orderItemId, so matching those on it
-  /// would return whichever came first; they are identified by variant
-  /// instead — the same rule [ShipmentFormController.addOrIncrementItem] uses.
-  ShipmentItemRow? _rowFor(ShipmentImportItemEntity item) {
-    for (final row in widget.controller.items) {
-      final isTheRow = item.isOnClientOrder
-          ? row.orderItemId == item.orderItemId
-          : row.orderItemId == null && row.variantId == item.variantId;
-      if (isTheRow) return row;
-    }
-    return null;
-  }
-
-  int? _rowQuantityFor(ShipmentImportItemEntity item) =>
-      _rowFor(item)?.parsedQuantity;
 
   // No last-price fetch on scan any more: this form carries no prices, so it
   // was a round trip per carpet that nothing displayed. Pricing is its own

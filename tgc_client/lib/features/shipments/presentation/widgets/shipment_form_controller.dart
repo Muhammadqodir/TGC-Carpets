@@ -6,7 +6,7 @@ import 'shipment_item_row.dart';
 
 /// Outcome of [ShipmentFormController.addOrIncrementItem], used by the QR
 /// scanner UI to decide what feedback to show.
-enum ScanAddResult { added, incremented, limitReached }
+enum ScanAddResult { added, incremented }
 
 /// Holds all mutable state for the "add shipment" form.
 ///
@@ -44,59 +44,59 @@ class ShipmentFormController extends ChangeNotifier {
       final alreadyShipped = item.shippedQuantity ?? 0;
       if (alreadyShipped >= item.quantity) continue; // fully shipped — skip
 
-      final row = ShipmentItemRow.fromOrderItem(
-        item,
-      );
-      _hookRow(row);
-      _items.add(row);
+      final incoming = ShipmentItemRow.fromOrderItem(item);
+      final existing = _rowOf(incoming.variantId);
+      if (existing == null) {
+        _hookRow(incoming);
+        _items.add(incoming);
+      } else {
+        // Same product on another line of the order: one row, both lines.
+        existing.orderLines.addAll(incoming.orderLines);
+        existing.quantityCtrl.text =
+            '${existing.parsedQuantity + incoming.parsedQuantity}';
+        incoming.dispose();
+      }
     }
 
     notifyListeners();
   }
 
-  /// Replaces all current rows with items from the stock import wizard.
+  /// Replaces all current rows with items from the stock import wizard,
+  /// one row per product however many order lines it covers.
   void importFromStock(List<ShipmentImportItemEntity> items) {
     _clearRows();
     importedOrder = null;
 
     for (final item in items) {
       if (item.availableQuantity <= 0) continue;
-      final row = ShipmentItemRow.fromImportItem(
-        item,
-      );
-      _hookRow(row);
-      _items.add(row);
+      final existing = _rowOf(item.variantId);
+      if (existing == null) {
+        final row = ShipmentItemRow.fromImportItem(item);
+        _hookRow(row);
+        _items.add(row);
+      } else {
+        existing.absorbLineOf(item);
+        existing.quantityCtrl.text =
+            '${existing.parsedQuantity + item.availableQuantity}';
+      }
     }
 
     notifyListeners();
   }
 
-  /// Called when a QR code scanned on the "add shipment" page resolves to a
-  /// shippable item. If a row for the same order item already exists its
-  /// quantity is incremented by 1 (re-scan = +1, one physical carpet per
-  /// scan), capped at the server-computed [ShipmentImportItemEntity.availableQuantity].
-  /// Otherwise a new row is added with quantity 1, without touching existing
-  /// rows (unlike [importFromOrder]/[importFromStock], which replace them).
+  /// Called for each carpet the QR scanner resolves: +1 on the product's
+  /// row, or a new row of 1. One row per product — the order line the server
+  /// picked joins the row's lines, so the same carpet on three of the
+  /// client's orders is one row of 3, not three rows. Never capped: carpets
+  /// past what the client owes still ship, beyond the order, and the scanner
+  /// has already asked before handing such a carpet over.
   ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item) {
-    // Rows for a carpet with no order line yet cannot be matched on
-    // orderItemId — they all have none — so they are matched on the variant
-    // instead, among rows added the same way. Scanning the same off-order
-    // carpet twice is still one row of quantity 2.
-    final existing = item.isOnClientOrder
-        ? _items.where((r) => r.orderItemId == item.orderItemId)
-        : _items.where((r) => r.orderItemId == null && r.variantId == item.variantId);
+    final row = _rowOf(item.variantId);
 
-    if (existing.isNotEmpty) {
-      final row = existing.first;
-      final current = row.parsedQuantity;
-      // Use the just-fetched availableQuantity (not row.availableQuantity,
-      // a snapshot from when the row was first added) since it reflects
-      // stock/order state as of this scan. An off-order row has nothing to
-      // cap against: the order line is created to fit whatever ships.
-      if (item.isOnClientOrder && current >= item.availableQuantity) {
-        return ScanAddResult.limitReached;
-      }
-      row.quantityCtrl.text = '${current + 1}';
+    if (row != null) {
+      row.absorbLineOf(item);
+      row.scanned = true;
+      row.quantityCtrl.text = '${row.parsedQuantity + 1}';
       row.addScannedBatchItem(item.productionBatchItemId);
       if (item.producedForClient != null) {
         row.producedForClients.add(item.producedForClient!);
@@ -105,19 +105,29 @@ class ShipmentFormController extends ChangeNotifier {
       return ScanAddResult.incremented;
     }
 
-    final row = ShipmentItemRow.fromImportItem(
+    final created = ShipmentItemRow.fromImportItem(
       item,
       initialQuantity: 1,
       scanned: true,
     );
-    row.addScannedBatchItem(item.productionBatchItemId);
+    created.addScannedBatchItem(item.productionBatchItemId);
     if (item.producedForClient != null) {
-      row.producedForClients.add(item.producedForClient!);
+      created.producedForClients.add(item.producedForClient!);
     }
-    _hookRow(row);
-    _items.add(row);
+    _hookRow(created);
+    _items.add(created);
     notifyListeners();
     return ScanAddResult.added;
+  }
+
+  /// The row of [variantId], or null.
+  ShipmentItemRow? rowOf(int variantId) => _rowOf(variantId);
+
+  ShipmentItemRow? _rowOf(int variantId) {
+    for (final r in _items) {
+      if (r.variantId == variantId) return r;
+    }
+    return null;
   }
 
   void removeRow(int index) {
@@ -147,8 +157,31 @@ class ShipmentFormController extends ChangeNotifier {
     _setNotes(notes);
 
     for (final row in newItems) {
-      _hookRow(row);
-      _items.add(row);
+      final existing = _rowOf(row.variantId);
+      if (existing == null) {
+        _hookRow(row);
+        _items.add(row);
+        continue;
+      }
+      // Drafts from before one-row-per-product hold the same carpet on
+      // several rows: fold them into one.
+      for (final line in row.orderLines) {
+        if (!existing.orderLines.any((l) => l.orderItemId == line.orderItemId)) {
+          existing.orderLines.add(line);
+        }
+      }
+      existing.quantityCtrl.text =
+          '${existing.parsedQuantity + row.parsedQuantity}';
+      existing.scanned = existing.scanned || row.scanned;
+      existing.scannedBatchItemIds.addAll(row.scannedBatchItemIds);
+      existing.producedForClients.addAll(row.producedForClients);
+      final total = row.clientOpenRemaining;
+      if (total != null &&
+          (existing.clientOpenRemaining == null ||
+              total > existing.clientOpenRemaining!)) {
+        existing.clientOpenRemaining = total;
+      }
+      row.dispose();
     }
 
     notifyListeners();
@@ -163,67 +196,22 @@ class ShipmentFormController extends ChangeNotifier {
 
   // ── Computed helpers ──────────────────────────────────────────────────────
 
-  /// Carpets of [variantId] on this form beyond everything the client still
-  /// owes for it, across all their open orders — what the backend will put
-  /// on the shipment's own order. Rows past their own line but within the
-  /// client's total are not counted: those carpets go on the client's next
-  /// order (ShipmentService::splitOverOrderedLines).
-  ///
-  /// What is owed comes from the scan (clientOpenRemaining, every open line);
-  /// for wizard rows, which do not carry it, the lines on the form are the
-  /// best the form knows.
-  int beyondClientOrders(int variantId) {
-    final onOrder =
-        _items.where((r) => r.variantId == variantId && !r.isOffOrder);
-    if (onOrder.isEmpty) return 0;
-
-    final loaded = onOrder.fold<int>(0, (sum, r) => sum + r.parsedQuantity);
-
-    final scannedTotals =
-        onOrder.map((r) => r.clientOpenRemaining).whereType<int>();
-    final perLine = <int, int>{
-      for (final r in onOrder)
-        r.orderItemId!: r.orderRemaining ?? r.availableQuantity,
-    };
-    final fromLines = perLine.values.fold<int>(0, (sum, v) => sum + v);
-    final owed = scannedTotals.isEmpty
-        ? fromLines
-        : [fromLines, ...scannedTotals].reduce((a, b) => a > b ? a : b);
-
-    return loaded > owed ? loaded - owed : 0;
-  }
-
-  /// The row of [variantId] that carries the "beyond the order" note: the
-  /// last on-order one, so the warning appears once rather than on every
-  /// order of the same carpet.
-  bool isLastOnOrderRowOf(ShipmentItemRow row) =>
-      !row.isOffOrder &&
-      identical(
-        _items.lastWhere(
-          (r) => r.variantId == row.variantId && !r.isOffOrder,
-          orElse: () => row,
-        ),
-        row,
-      );
-
   /// Every carpet on the form beyond what its client's orders owe.
-  int get totalBeyondClientOrders => {
-        for (final r in _items)
-          if (!r.isOffOrder) r.variantId,
-      }.fold<int>(0, (sum, v) => sum + beyondClientOrders(v));
+  int get totalBeyondClientOrders =>
+      _items.fold<int>(0, (sum, r) => sum + r.beyondOrder);
 
   List<ShipmentItemRow> get filledItems =>
       _items.where((r) => r.parsedQuantity > 0).toList();
 
-  /// Quantity already on the form per order line, summed over rows. Sent
-  /// with each scan so the server skips lines this form has already filled.
+  /// Quantity already on the form per order line, never past what a line
+  /// owes. Sent with each scan so the server offers the client's next open
+  /// line instead of one this form has already filled.
   Map<int, int> get quantitiesByOrderItem {
     final quantities = <int, int>{};
     for (final row in _items) {
-      final orderItemId = row.orderItemId;
-      if (orderItemId == null) continue;
-      quantities[orderItemId] =
-          (quantities[orderItemId] ?? 0) + row.parsedQuantity;
+      row.filledLines.forEach((lineId, quantity) {
+        quantities[lineId] = (quantities[lineId] ?? 0) + quantity;
+      });
     }
     return quantities;
   }

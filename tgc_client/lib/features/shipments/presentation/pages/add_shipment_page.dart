@@ -25,6 +25,7 @@ import '../widgets/stock_picker_for_shipment_sheet.dart'
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
 import '../widgets/shipment_qr_scanner_page.dart';
+import 'shipment_review_page.dart';
 
 /// Entry point for the "add shipment" form.
 ///
@@ -150,57 +151,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       setState(() => _selectedClient = client);
       _onFormChanged();
     }
-  }
-
-  /// One last look before saving a form whose rows go past the client's
-  /// order, or take carpets made for someone else. The rows already say so
-  /// one by one (_RowConflictNote); this adds them up, because saving is what
-  /// opens the extra order lines and moves the other clients' production.
-  /// Nothing to confirm → true straight away.
-  Future<bool> _confirmConflicts(List<ShipmentItemRow> rows) async {
-    final offOrder = rows
-        .where((r) => r.isOffOrder)
-        .fold<int>(0, (sum, r) => sum + r.parsedQuantity);
-    // Across all of the client's orders, not per row: past one order the
-    // carpets just go on the next one, which needs no confirmation.
-    final beyond = _ctrl.totalBeyondClientOrders;
-    final others = {for (final r in rows) ...r.producedForClients};
-
-    if (offOrder == 0 && beyond == 0 && others.isEmpty) return true;
-
-    final lines = [
-      if (beyond > 0)
-        '• $beyond dona mijozning barcha buyurtmalaridan ortiqcha yuklanmoqda.',
-      if (offOrder > 0) '• $offOrder dona mijoz buyurtmasida yo\'q.',
-      if (beyond > 0 || offOrder > 0)
-        'Ular uchun "${_selectedClient?.shopName ?? ''}" mijoziga alohida '
-            'buyurtma qatori ochiladi.',
-      if (others.isNotEmpty)
-        '• ${others.join(', ')} uchun ishlab chiqarilgan gilamlar bor — '
-            'ularning tayyor soni kamayadi va buyurtmasi qayta ishlab '
-            'chiqarishga qaytadi.',
-    ];
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Buyurtmaga mos kelmaydigan mahsulotlar'),
-        content: Text(lines.join('\n\n')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Tekshirish'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Saqlash'),
-          ),
-        ],
-      ),
-    );
-
-    return confirmed == true;
   }
 
   /// Empties the form and throws away the stored draft.
@@ -355,32 +305,44 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       return;
     }
 
-    if (!await _confirmConflicts(filled)) return;
-    if (!context.mounted) return;
+    // The whole list once more, the conflicts added up, and the note — then
+    // the shipment is written.
+    final confirmed = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => ShipmentReviewPage(
+        controller: _ctrl,
+        clientName: _selectedClient!.shopName,
+        date: _formattedDate,
+      ),
+    ));
+    if (confirmed != true || !context.mounted) return;
 
     final dateStr = _shipmentDate.toIso8601String();
     final notes = _ctrl.notesCtrl.text.trim().isEmpty
         ? null
         : _ctrl.notesCtrl.text.trim();
 
-    final items = filled
-        .map((r) => {
-              // Null for a scanned carpet with no order line; the backend
-              // creates one, but only because `scanned` vouches that a real
-              // labelled carpet is being shipped.
-              'order_item_id': r.orderItemId,
-              'product_variant_id': r.variantId,
-              'quantity': r.parsedQuantity,
-              // No price: the backend stores 0.00 and the pricing feature
-              // fills it in afterwards.
-              if (r.scanned) 'scanned': true,
-              // Lets the backend move each scanned carpet's production record
-              // onto the line it is shipping against, so a carpet made for
-              // another client stops counting as ready for them.
-              if (r.scanned && r.scannedBatchItemIds.isNotEmpty)
-                'scanned_batch_item_ids': r.scannedBatchItemIds,
-            })
-        .toList();
+    // One row per product on screen, one item per order line on the wire:
+    // ShipmentItemRow.pieces splits each row over the lines it covers.
+    final items = [
+      for (final r in filled)
+        for (final piece in r.pieces)
+          {
+            // Null for a scanned carpet with no order line; the backend
+            // creates one, but only because `scanned` vouches that a real
+            // labelled carpet is being shipped.
+            'order_item_id': piece.orderItemId,
+            'product_variant_id': r.variantId,
+            'quantity': piece.quantity,
+            // No price: the backend stores 0.00 and the pricing feature
+            // fills it in afterwards.
+            if (r.scanned) 'scanned': true,
+            // Lets the backend move each scanned carpet's production record
+            // onto the line it is shipping against, so a carpet made for
+            // another client stops counting as ready for them.
+            if (r.scanned && piece.scannedBatchItemIds.isNotEmpty)
+              'scanned_batch_item_ids': piece.scannedBatchItemIds,
+          },
+    ];
 
     context.read<ShipmentFormBloc>().add(ShipmentFormSubmitted(
           clientId: _selectedClient!.id,
@@ -612,7 +574,11 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                 padding:
                                     const EdgeInsets.fromLTRB(12, 12, 8, 8),
                                 child: Text(
-                                  'Mahsulotlar',
+                                  // The total the worker counts the lorry
+                                  // against, where they look while scanning.
+                                  _ctrl.totalQuantity > 0
+                                      ? 'Mahsulotlar · ${_ctrl.totalQuantity} dona'
+                                      : 'Mahsulotlar',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
@@ -725,20 +691,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                     ),
                     const Divider(height: 1, color: AppColors.divider),
 
-                    // ── Notes ──────────────────────────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      child: TextFormField(
-                        controller: _ctrl.notesCtrl,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Izoh (ixtiyoriy)',
-                          hintText: "Qo'shimcha ma'lumot...",
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                    ),
+                    // Notes moved to the review step (ShipmentReviewPage),
+                    // where the whole list is read once before saving.
 
                     // ── Status bar ─────────────────────────────────────────────
                     DesktopStatusBar(
@@ -903,7 +857,7 @@ class _ItemRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  _RowConflictNote(row: row, form: form),
+                  ShipmentRowNote(row: row),
                 ],
               ),
             ),
@@ -1116,7 +1070,7 @@ class _ItemRowMobile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  _RowConflictNote(row: row, form: form),
+                  ShipmentRowNote(row: row),
                 ],
               ),
             ),
@@ -1161,33 +1115,20 @@ class _ItemRowMobile extends StatelessWidget {
 
 /// What a row is and what is unusual about it, under its name.
 ///
-/// First which order it is ("Buyurtma #214 · 08.10.2026 · qolgan 10"): a
-/// client often has several orders for the same carpet, and the scanner fills
-/// them one after another, so the same carpet on three rows is three orders,
-/// not a duplicate. Then, only when true: a carpet this client never ordered,
-/// carpets past this order that go on the client's next one, carpets beyond
-/// everything the client ordered, and the other client a scanned carpet was
-/// produced for. None of it blocks saving; it says what saving will do.
-class _RowConflictNote extends StatelessWidget {
-  const _RowConflictNote({required this.row, required this.form});
+/// First which of the client's orders it covers ("Buyurtma #214 · 08.10 ·
+/// qolgan 10 dona"; several orders listed together, since one product is one
+/// row however many orders it spans). Then, only when true: a carpet this
+/// client never ordered, carpets beyond everything the client ordered, and
+/// the other client a scanned carpet was produced for. None of it blocks
+/// saving; it says what saving will do.
+class ShipmentRowNote extends StatelessWidget {
+  const ShipmentRowNote({super.key, required this.row});
 
   final ShipmentItemRow row;
-  final ShipmentFormController form;
 
   @override
   Widget build(BuildContext context) {
-    final beyondAll = form.isLastOnOrderRowOf(row)
-        ? form.beyondClientOrders(row.variantId)
-        : 0;
-    final pastLine = row.beyondLine;
-
-    final caption = row.isOffOrder
-        ? null
-        : [
-            if (row.orderId != null) 'Buyurtma #${row.orderId}',
-            if (row.orderDate != null) _formatDate(row.orderDate!),
-            'qolgan ${row.orderRemaining ?? row.availableQuantity} dona',
-          ].join(' · ');
+    final caption = row.isOffOrder ? null : orderCaption(row);
 
     final notes = <(IconData, Color, String)>[
       if (row.isOffOrder)
@@ -1196,18 +1137,11 @@ class _RowConflictNote extends StatelessWidget {
           AppColors.warning,
           'Buyurtmada yo\'q — saqlanganda yangi buyurtma qatori ochiladi',
         ),
-      if (pastLine > 0 && beyondAll == 0)
-        (
-          Icons.info_outline_rounded,
-          AppColors.textSecondary,
-          'Bu buyurtmadan $pastLine dona ortiq — mijozning keyingi ochiq '
-              'buyurtmasiga yoziladi',
-        ),
-      if (beyondAll > 0)
+      if (row.beyondOrder > 0)
         (
           Icons.warning_amber_rounded,
           AppColors.warning,
-          'Mijozning barcha buyurtmalaridan $beyondAll dona ortiq — '
+          'Mijoz buyurtmalaridan ${row.beyondOrder} dona ortiq — '
               'ortiqchasi alohida buyurtma qatoriga yoziladi',
         ),
       if (row.producedForClients.isNotEmpty)
@@ -1254,6 +1188,26 @@ class _RowConflictNote extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// "Buyurtma #214 · 08.10.2026 · qolgan 10 dona", or for several orders
+  /// "Buyurtmalar #214, #34, #80 · qolgan 22 dona".
+  static String orderCaption(ShipmentItemRow row) {
+    final lines = row.orderLines;
+    final owed = row.owed;
+    if (lines.length == 1) {
+      final l = lines.single;
+      return [
+        if (l.orderId != null) 'Buyurtma #${l.orderId}',
+        if (l.orderDate != null) _formatDate(l.orderDate!),
+        'qolgan $owed dona',
+      ].join(' · ');
+    }
+    final ids = lines.map((l) => l.orderId).whereType<int>().map((id) => '#$id');
+    return [
+      ids.isEmpty ? '${lines.length} ta buyurtma' : 'Buyurtmalar ${ids.join(', ')}',
+      'qolgan $owed dona',
+    ].join(' · ');
   }
 
   /// "2026-10-08" → "08.10.2026", the way dates read everywhere else here.
