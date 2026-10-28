@@ -499,22 +499,19 @@ class _MachineCard extends StatelessWidget {
             ),
             _line(secondary, 'Ish kuni', '${row.workingDays}'),
           ],
-          if (row.totalDefects > 0 || row.extraPrints > 0) ...[
+          if (row.totalDefects > 0) ...[
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 4,
               children: [
-                if (row.totalDefects > 0)
-                  _Stat(
+                _Stat(
                     label: 'Brak',
                     value: row.defectRate != null && !idle
                         ? '${row.totalDefects} · ${row.defectRate!.toStringAsFixed(1)}%'
                         : '${row.totalDefects}',
                     color: AppColors.error,
                   ),
-                if (row.extraPrints > 0)
-                  _Stat(label: 'Qayta chop', value: '${row.extraPrints}', color: AppColors.warning),
               ],
             ),
           ],

@@ -248,13 +248,26 @@ class _OperationsBlock extends StatelessWidget {
         machines,
         const SizedBox(height: 12),
         _SectionCard(
-          title: 'Soatlik faollik',
+          title: 'Soatlik ishlab chiqarish',
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
-            child: ProductionHourlyChart(
-              cells: ops.heatmap,
-              shifts: ops.byShift,
-              metric: metric,
+            padding: const EdgeInsets.fromLTRB(8, 0, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 0, 10),
+                  child: Text(
+                    'Tanlangan davrda har bir soatda jami qancha ishlab chiqarilgan '
+                    '(yorliq chop etilgan vaqt bo\'yicha)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+                ProductionHourlyChart(
+                  cells: ops.heatmap,
+                  shifts: ops.byShift,
+                  metric: metric,
+                ),
+              ],
             ),
           ),
         ),
