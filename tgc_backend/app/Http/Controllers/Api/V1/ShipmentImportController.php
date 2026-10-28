@@ -167,6 +167,7 @@ class ShipmentImportController extends Controller
                 'pe.code AS edge_code',
                 'pe.title AS edge_title',
                 DB::raw('LEAST(oi.quantity - COALESCE(si.shipped_qty, 0), sm.stock) AS available_quantity'),
+                DB::raw('(oi.quantity - COALESCE(si.shipped_qty, 0)) AS order_remaining'),
             ])
             ->orderBy('p.name')
             ->orderBy('co.name')
@@ -189,6 +190,9 @@ class ShipmentImportController extends Controller
                 'edge_code'          => $r->edge_code,
                 'edge_title'         => $r->edge_title,
                 'available_quantity' => (int) $r->available_quantity,
+                // What the order line still owes, apart from stock: past this
+                // the app warns "beyond the order" (see splitOverOrderedLines).
+                'order_remaining'    => (int) $r->order_remaining,
             ]),
         ]);
     }
@@ -380,6 +384,7 @@ class ShipmentImportController extends Controller
                 'edge_code'          => $row->edge_code,
                 'edge_title'         => $row->edge_title,
                 'available_quantity' => (int) $row->available_quantity,
+                'order_remaining'    => (int) $row->available_quantity,
                 'stock_quantity'     => (int) $row->stock_quantity,
                 // Both new in August 2026. The batch item id comes back so
                 // the shipment can move the production record with the carpet

@@ -57,6 +57,11 @@ class ShipmentImportItemEntity extends Equatable {
   /// line yet ([isOnClientOrder] false), where nothing caps the quantity.
   final int availableQuantity;
 
+  /// What the order line still owes, regardless of stock. Null from servers
+  /// before October 2026, where [availableQuantity] (capped by stock in the
+  /// wizard) is the best guess. Past this the row is beyond the order.
+  final int? orderRemaining;
+
   /// Warehouse stock for this variant. Informational only — a carpet whose
   /// label was just scanned is physically present whatever this says, and the
   /// backend books in the difference when the shipment is saved.
@@ -99,6 +104,7 @@ class ShipmentImportItemEntity extends Equatable {
     this.edgeCode,
     this.edgeTitle,
     required this.availableQuantity,
+    this.orderRemaining,
     this.stockQuantity = 0,
     this.producedForClient,
     this.productionBatchItemId,
@@ -120,7 +126,7 @@ class ShipmentImportItemEntity extends Equatable {
   List<Object?> get props => [
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
-        edgeCode, edgeTitle, availableQuantity, stockQuantity,
+        edgeCode, edgeTitle, availableQuantity, orderRemaining, stockQuantity,
         producedForClient, productionBatchItemId, unmatchedReason,
       ];
 }

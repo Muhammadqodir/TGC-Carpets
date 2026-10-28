@@ -60,6 +60,10 @@ class ShipmentService
             $shipmentDate = Carbon::parse($data['shipment_datetime']);
 
             // ── 0. Repairs for scanned lines, before anything is validated ──
+            // More carpets than an order line still owes: the excess ships
+            // beyond the order, on the invented order below, instead of
+            // silently over-shipping the client's own line.
+            $data['items'] = $this->splitOverOrderedLines($data['items']);
             [$data['items'], $autoOrderId] = $this->createOrderLinesForScannedItems(
                 $data['items'], (int) $data['client_id'], $userId, $shipmentDate
             );
@@ -818,6 +822,103 @@ class ShipmentService
     }
 
     /**
+     * Caps every line at what its order line still owes and moves the rest to
+     * a new line with no order item, which createOrderLinesForScannedItems()
+     * then puts on the shipment's invented order.
+     *
+     * Before this, a quantity typed above the order (or posted by an app that
+     * never checked) was written straight onto the client's line: the line
+     * read "ordered 3, shipped 5", and StoreShipmentRequest only logged it
+     * (shipments.enforce_item_validation is off on prod). The user's rule is
+     * that a worker may load more than was ordered, but it must be visible as
+     * beyond the order rather than corrupt the order itself.
+     *
+     * The excess keeps its line's `scanned` flag — so a scanned carpet the
+     * warehouse never booked is still received on the way out, and a wizard
+     * line still has to be covered by stock — and the scanned batch item ids
+     * beyond the capped quantity, so production moves with the right carpets.
+     *
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function splitOverOrderedLines(array $items): array
+    {
+        $orderItemIds = array_values(array_unique(array_filter(array_map(
+            fn ($item) => isset($item['order_item_id']) ? (int) $item['order_item_id'] : null,
+            $items,
+        ))));
+
+        if ($orderItemIds === []) {
+            return $items;
+        }
+
+        // Locked so two shipments for the same line cannot both see room.
+        $ordered = OrderItem::whereIn('id', $orderItemIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->pluck('quantity', 'id');
+
+        $shipped = DB::table('shipment_items AS si')
+            ->join('shipments AS s', 's.id', '=', 'si.shipment_id')
+            ->whereNull('s.canceled_at')
+            ->whereIn('si.order_item_id', $orderItemIds)
+            ->groupBy('si.order_item_id')
+            ->selectRaw('si.order_item_id AS id, SUM(si.quantity) AS qty')
+            ->pluck('qty', 'id');
+
+        $room = [];
+        foreach ($ordered as $id => $quantity) {
+            $room[(int) $id] = max(0, (int) $quantity - (int) ($shipped[$id] ?? 0));
+        }
+
+        $result = [];
+        $excessLog = [];
+        foreach ($items as $item) {
+            $orderItemId = isset($item['order_item_id']) ? (int) $item['order_item_id'] : null;
+
+            if ($orderItemId === null || ! array_key_exists($orderItemId, $room)) {
+                $result[] = $item;
+                continue;
+            }
+
+            $quantity = (int) $item['quantity'];
+            $fits     = min($quantity, $room[$orderItemId]);
+            $excess   = $quantity - $fits;
+            $room[$orderItemId] -= $fits;
+
+            if ($excess === 0) {
+                $result[] = $item;
+                continue;
+            }
+
+            $batchIds = is_array($item['scanned_batch_item_ids'] ?? null)
+                ? array_values($item['scanned_batch_item_ids'])
+                : [];
+
+            if ($fits > 0) {
+                $result[] = array_merge($item, [
+                    'quantity'               => $fits,
+                    'scanned_batch_item_ids' => array_slice($batchIds, 0, $fits),
+                ]);
+            }
+
+            $result[] = array_merge($item, [
+                'order_item_id'          => null,
+                'quantity'               => $excess,
+                'scanned_batch_item_ids' => array_slice($batchIds, $fits),
+            ]);
+
+            $excessLog[$orderItemId] = ($excessLog[$orderItemId] ?? 0) + $excess;
+        }
+
+        if ($excessLog !== []) {
+            Log::info('shipment.beyond_order_split', ['excess_by_order_item' => $excessLog]);
+        }
+
+        return $result;
+    }
+
+    /**
      * Gives every scanned line without an `order_item_id` one to hang off.
      *
      * `shipment_items.order_item_id` is NOT NULL, so "ship a carpet this client
@@ -857,8 +958,8 @@ class ShipmentService
             'client_id'  => $clientId,
             'status'     => Order::STATUS_DONE,
             'order_date' => $shipmentDate->toDateString(),
-            'notes'      => 'Yuk xati bilan avtomatik yaratildi: skanerlangan, '
-                . 'lekin mijozning ochiq buyurtmasida bo\'lmagan mahsulotlar.',
+            'notes'      => 'Yuk xati bilan avtomatik yaratildi: mijozning ochiq '
+                . 'buyurtmasida bo\'lmagan yoki buyurtmadan ortiqcha yuklangan mahsulotlar.',
         ]);
 
         // One order line per shipment line, quantity matched, so the order is
@@ -1272,15 +1373,18 @@ class ShipmentService
 
             if ($currentStock < $requested) {
                 // Attach the error to the first line for this variant so the UI
-                // has somewhere to put it.
+                // has somewhere to put it. In Uzbek and by name: the app shows
+                // this sentence to the worker as is, and "variant ID 1332"
+                // meant nothing to them.
                 $firstIndex = $lineIndexes[$variantId][0];
-                $lineCount  = count($lineIndexes[$variantId]);
 
-                $errors["items.{$firstIndex}.quantity"] = [
-                    $lineCount > 1
-                        ? "Insufficient stock for variant ID {$variantId}. Available: {$currentStock}, Requested: {$requested} across {$lineCount} lines."
-                        : "Insufficient stock for variant ID {$variantId}. Available: {$currentStock}, Requested: {$requested}.",
-                ];
+                $errors["items.{$firstIndex}.quantity"] = [sprintf(
+                    "\"%s\" omborda yetarli emas: omborda %d dona, yuk xatida %d dona. "
+                    . "Mahsulotni omborga kirim qiling yoki QR kod orqali skanerlab qo'shing.",
+                    $this->variantLabel($variantId),
+                    max(0, $currentStock),
+                    $requested,
+                )];
             }
         }
 
@@ -1289,6 +1393,27 @@ class ShipmentService
         }
 
         return $requestedPerVariant;
+    }
+
+    /** "6506 krem 200x300" — how a worker recognises a carpet. */
+    private function variantLabel(int $variantId): string
+    {
+        $variant = ProductVariant::with(['productColor.product', 'productColor.color', 'productSize'])
+            ->find($variantId);
+
+        if (! $variant) {
+            return "#{$variantId}";
+        }
+
+        $size = $variant->productSize
+            ? "{$variant->productSize->width}x{$variant->productSize->length}"
+            : null;
+
+        return trim(implode(' ', array_filter([
+            $variant->productColor?->product?->name,
+            $variant->productColor?->color?->name,
+            $size,
+        ]))) ?: "#{$variantId}";
     }
 
     /** bcmath truncates; this rounds half-up, matching ShipmentItem::round2(). */

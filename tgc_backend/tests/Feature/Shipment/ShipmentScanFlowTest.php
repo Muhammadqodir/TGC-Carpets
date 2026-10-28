@@ -153,6 +153,60 @@ class ShipmentScanFlowTest extends TestCase
         $this->assertSame(1, $lineB->fresh()->quantity, 'B\'s order itself is untouched');
     }
 
+    public function test_a_quantity_typed_past_the_order_ships_the_excess_beyond_the_order(): void
+    {
+        $variant = $this->variant();
+        $line    = $this->orderLine($this->clientA, $variant, 2);
+        $this->receive($variant, 5);
+
+        // A wizard row (not scanned) whose quantity the worker raised to 5.
+        $this->rows = [[
+            'order_item_id'          => $line->id,
+            'product_variant_id'     => $variant->id,
+            'quantity'               => 5,
+            'scanned'                => false,
+            'scanned_batch_item_ids' => [],
+        ]];
+        $shipmentId = $this->saveForm()->assertCreated()->json('data.id');
+
+        $this->assertSame(2, $this->shippedOn($line), 'the client\'s own line is filled, never over-shipped');
+        $extra = OrderItem::whereHas('order', fn ($q) => $q->where('created_from_shipment_id', $shipmentId))->get();
+        $this->assertCount(1, $extra);
+        $this->assertSame(3, (int) $extra->first()->quantity);
+        $this->assertSame(3, $this->shippedOn($extra->first()));
+        $this->assertSame(0, $this->stock($variant));
+        $this->assertSame(Order::STATUS_SHIPPED, $line->order->fresh()->status);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/v1/shipments/{$shipmentId}/cancel", ['reason' => 'test'])
+            ->assertOk();
+
+        $this->assertSame(0, $this->shippedOn($line));
+        $this->assertSame(5, $this->stock($variant));
+        $this->assertSame(Order::STATUS_CANCELED, $extra->first()->order->fresh()->status);
+    }
+
+    public function test_beyond_the_order_without_stock_is_refused_in_words_a_worker_reads(): void
+    {
+        $variant = $this->variant();
+        $line    = $this->orderLine($this->clientA, $variant, 1);
+        $this->receive($variant, 1);
+
+        $this->rows = [[
+            'order_item_id'          => $line->id,
+            'product_variant_id'     => $variant->id,
+            'quantity'               => 3,
+            'scanned'                => false,
+            'scanned_batch_item_ids' => [],
+        ]];
+
+        $message = $this->saveForm()->assertStatus(422)->json('errors')['items.0.quantity'][0];
+        $this->assertStringContainsString('omborda yetarli emas', $message);
+        $this->assertStringContainsString('omborda 1 dona, yuk xatida 3 dona', $message);
+        $this->assertSame(0, Order::whereNotNull('created_from_shipment_id')->count(), 'rolled back');
+    }
+
     public function test_a_done_order_that_loses_its_carpet_goes_back_to_production_and_returns_on_cancel(): void
     {
         $variant = $this->variant();

@@ -49,15 +49,16 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
     super.edgeCode,
     super.edgeTitle,
     required super.availableQuantity,
+    super.orderRemaining,
     super.stockQuantity,
     super.producedForClient,
     super.productionBatchItemId,
     super.unmatchedReason,
   });
 
-  /// Parses both shapes the scan endpoint returns: a matched order line
-  /// (`data`), and the `unmatched` block of its 404, where `order_item_id` is
-  /// null because the order line does not exist yet.
+  /// Parses both shapes the scan endpoint returns: a matched order line, and
+  /// an unmatched carpet, where `order_item_id` is null because the order
+  /// line does not exist yet.
   factory ShipmentImportItemModel.fromJson(Map<String, dynamic> json) {
     return ShipmentImportItemModel(
       orderItemId: json['order_item_id'] as int?,
@@ -73,6 +74,7 @@ class ShipmentImportItemModel extends ShipmentImportItemEntity {
       edgeCode: json['edge_code'] as String?,
       edgeTitle: json['edge_title'] as String?,
       availableQuantity: json['available_quantity'] as int? ?? 0,
+      orderRemaining: json['order_remaining'] as int?,
       stockQuantity: json['stock_quantity'] as int? ?? 0,
       producedForClient: json['produced_for_client'] as String?,
       productionBatchItemId: json['production_batch_item_id'] as int?,

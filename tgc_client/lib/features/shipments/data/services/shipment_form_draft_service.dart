@@ -88,6 +88,7 @@ class ShipmentFormDraftService {
         'variant_id': r.variantId,
         'scanned': r.scanned,
         'scanned_batch_item_ids': r.scannedBatchItemIds,
+        'produced_for_clients': r.producedForClients.toList(),
         'product_name': r.productName,
         'color_name': r.colorName,
         'color_image_url': r.colorImageUrl,
@@ -99,6 +100,7 @@ class ShipmentFormDraftService {
         'edge_code': r.edgeCode,
         'edge_title': r.edgeTitle,
         'available_quantity': r.availableQuantity,
+        'order_remaining': r.orderRemaining,
         'quantity': r.quantityCtrl.text,
       };
 
@@ -118,6 +120,7 @@ class ShipmentFormDraftService {
       edgeCode: json['edge_code'] as String?,
       edgeTitle: json['edge_title'] as String?,
       availableQuantity: json['available_quantity'] as int? ?? 0,
+      orderRemaining: json['order_remaining'] as int?,
     );
 
     row.quantityCtrl.text = (json['quantity'] as String?) ?? '';
@@ -127,6 +130,9 @@ class ShipmentFormDraftService {
     // as ready for whoever it was made for.
     for (final id in (json['scanned_batch_item_ids'] as List<dynamic>?) ?? []) {
       row.addScannedBatchItem(id as int?);
+    }
+    for (final name in (json['produced_for_clients'] as List<dynamic>?) ?? []) {
+      if (name is String) row.producedForClients.add(name);
     }
 
     return row;

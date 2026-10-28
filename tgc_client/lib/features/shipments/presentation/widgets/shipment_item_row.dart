@@ -37,6 +37,11 @@ class ShipmentItemRow {
   /// ShipmentService::reattributeScannedProduction().
   final List<int> scannedBatchItemIds = [];
 
+  /// Shop names of the other clients the carpets scanned into this row were
+  /// produced for. Shown on the row, so the conflict the scanner asked about
+  /// stays visible on the form until the shipment is saved.
+  final Set<String> producedForClients = {};
+
   // ── Display fields (from order item) ─────────────────────────────────────
   final String productName;
   final String? colorName;
@@ -49,8 +54,13 @@ class ShipmentItemRow {
   final String? edgeCode;
   final String? edgeTitle;
 
-  /// Max shippable quantity = order qty - already shipped qty.
+  /// What the source offered when the row was added: unshipped on the order
+  /// line, capped by stock for rows from the stock wizard.
   final int availableQuantity;
+
+  /// What the order line still owes, regardless of stock. Null for rows with
+  /// no order line, and for rows from servers that did not report it.
+  final int? orderRemaining;
 
   // ── Editable fields ───────────────────────────────────────────────────────
   final TextEditingController quantityCtrl;
@@ -70,6 +80,7 @@ class ShipmentItemRow {
     this.edgeCode,
     this.edgeTitle,
     required this.availableQuantity,
+    this.orderRemaining,
     int initialQuantity = 1,
   }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
 
@@ -93,6 +104,9 @@ class ShipmentItemRow {
       edgeCode: item.edgeCode,
       edgeTitle: item.edgeTitle,
       availableQuantity: item.availableQuantity,
+      orderRemaining: item.isOnClientOrder
+          ? (item.orderRemaining ?? item.availableQuantity)
+          : null,
       initialQuantity: initialQuantity ??
           (item.availableQuantity > 0 ? item.availableQuantity : 1),
     );
@@ -122,6 +136,7 @@ class ShipmentItemRow {
       edgeCode: item.edgeCode,
       edgeTitle: item.edgeTitle,
       availableQuantity: available,
+      orderRemaining: remaining < 0 ? 0 : remaining,
       initialQuantity: available > 0 ? available : 1,
     );
   }
@@ -137,6 +152,21 @@ class ShipmentItemRow {
       sizeLength != null && sizeWidth != null ? '$sizeWidth×$sizeLength' : null;
 
   int get parsedQuantity => int.tryParse(quantityCtrl.text.trim()) ?? 0;
+
+  /// Carpets on this row beyond what its order line still owes. They still
+  /// ship: the backend caps the line and puts the rest on the shipment's own
+  /// order (ShipmentService::splitOverOrderedLines), so the form only has to
+  /// say so. 0 for rows with no order line — those are wholly off-order,
+  /// see [isOffOrder].
+  int get beyondOrder {
+    if (orderItemId == null) return 0;
+    final owed = orderRemaining ?? availableQuantity;
+    final excess = parsedQuantity - owed;
+    return excess > 0 ? excess : 0;
+  }
+
+  /// A carpet this client has no order line for; one is opened on save.
+  bool get isOffOrder => orderItemId == null;
 
   double get rowSqm =>
       (sizeLength != null && sizeWidth != null)

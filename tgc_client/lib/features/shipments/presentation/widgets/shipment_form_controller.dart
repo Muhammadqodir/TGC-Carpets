@@ -98,6 +98,9 @@ class ShipmentFormController extends ChangeNotifier {
       }
       row.quantityCtrl.text = '${current + 1}';
       row.addScannedBatchItem(item.productionBatchItemId);
+      if (item.producedForClient != null) {
+        row.producedForClients.add(item.producedForClient!);
+      }
       notifyListeners();
       return ScanAddResult.incremented;
     }
@@ -108,6 +111,9 @@ class ShipmentFormController extends ChangeNotifier {
       scanned: true,
     );
     row.addScannedBatchItem(item.productionBatchItemId);
+    if (item.producedForClient != null) {
+      row.producedForClients.add(item.producedForClient!);
+    }
     _hookRow(row);
     _items.add(row);
     notifyListeners();

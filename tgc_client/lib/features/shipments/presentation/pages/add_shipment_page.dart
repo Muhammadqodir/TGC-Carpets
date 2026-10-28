@@ -142,6 +142,54 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     }
   }
 
+  /// One last look before saving a form whose rows go past the client's
+  /// order, or take carpets made for someone else. The rows already say so
+  /// one by one (_RowConflictNote); this adds them up, because saving is what
+  /// opens the extra order lines and moves the other clients' production.
+  /// Nothing to confirm → true straight away.
+  Future<bool> _confirmConflicts(List<ShipmentItemRow> rows) async {
+    final offOrder = rows
+        .where((r) => r.isOffOrder)
+        .fold<int>(0, (sum, r) => sum + r.parsedQuantity);
+    final beyond = rows.fold<int>(0, (sum, r) => sum + r.beyondOrder);
+    final others = {for (final r in rows) ...r.producedForClients};
+
+    if (offOrder == 0 && beyond == 0 && others.isEmpty) return true;
+
+    final lines = [
+      if (beyond > 0) '• $beyond dona buyurtmadan ortiqcha yuklanmoqda.',
+      if (offOrder > 0) '• $offOrder dona mijoz buyurtmasida yo\'q.',
+      if (beyond > 0 || offOrder > 0)
+        'Ular uchun "${_selectedClient?.shopName ?? ''}" mijoziga alohida '
+            'buyurtma qatori ochiladi.',
+      if (others.isNotEmpty)
+        '• ${others.join(', ')} uchun ishlab chiqarilgan gilamlar bor — '
+            'ularning tayyor soni kamayadi va buyurtmasi qayta ishlab '
+            'chiqarishga qaytadi.',
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buyurtmaga mos kelmaydigan mahsulotlar'),
+        content: Text(lines.join('\n\n')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Tekshirish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+            child: const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed == true;
+  }
+
   /// Empties the form and throws away the stored draft.
   Future<void> _clearForm() async {
     final confirmed = await showDialog<bool>(
@@ -220,7 +268,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     ));
   }
 
-  void _submit(BuildContext context) {
+  Future<void> _submit(BuildContext context) async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_hasClient) {
@@ -244,6 +292,9 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       );
       return;
     }
+
+    if (!await _confirmConflicts(filled)) return;
+    if (!context.mounted) return;
 
     final dateStr = _shipmentDate.toIso8601String();
     final notes = _ctrl.notesCtrl.text.trim().isEmpty
@@ -770,15 +821,22 @@ class _ItemRow extends StatelessWidget {
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                row.edgeCode != null
-                    ? '${row.productName} [${row.edgeCode}]'
-                    : row.productName,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    row.edgeCode != null
+                        ? '${row.productName} [${row.edgeCode}]'
+                        : row.productName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  _RowConflictNote(row: row),
+                ],
               ),
             ),
           ),
@@ -879,7 +937,9 @@ class _ItemRow extends StatelessWidget {
               child: CountInput(
                 controller: row.quantityCtrl,
                 min: 1,
-                max: row.availableQuantity,
+                // No max: loading more than the order owes is allowed, and
+                // _RowConflictNote says what happens to the excess. A cap
+                // here used to stop "+" silently — and at 0 on off-order rows.
                 onChanged: () => onChanged(),
               ),
             ),
@@ -985,7 +1045,8 @@ class _ItemRowMobile extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ],
-                  )
+                  ),
+                  _RowConflictNote(row: row),
                 ],
               ),
             ),
@@ -1000,7 +1061,9 @@ class _ItemRowMobile extends StatelessWidget {
                 controller: row.quantityCtrl,
                 height: 35,
                 min: 1,
-                max: row.availableQuantity,
+                // No max: loading more than the order owes is allowed, and
+                // _RowConflictNote says what happens to the excess. A cap
+                // here used to stop "+" silently — and at 0 on off-order rows.
                 onChanged: () => onChanged(),
               ),
             ),
@@ -1020,6 +1083,75 @@ class _ItemRowMobile extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What is unusual about a row, in one line under its name: a carpet this
+/// client never ordered, carpets beyond what the order line owes, or the
+/// other client a scanned carpet was produced for. None of it blocks saving;
+/// it tells the worker what saving will do, before they confirm it.
+class _RowConflictNote extends StatelessWidget {
+  const _RowConflictNote({required this.row});
+
+  final ShipmentItemRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final notes = <(IconData, Color, String)>[
+      if (row.isOffOrder)
+        (
+          Icons.add_box_outlined,
+          AppColors.warning,
+          'Buyurtmada yo\'q — saqlanganda yangi buyurtma qatori ochiladi',
+        ),
+      if (row.beyondOrder > 0)
+        (
+          Icons.warning_amber_rounded,
+          AppColors.warning,
+          'Buyurtmadan ${row.beyondOrder} dona ortiq '
+              '(buyurtmada ${row.parsedQuantity - row.beyondOrder} dona qolgan) — '
+              'ortiqchasi alohida buyurtma qatoriga yoziladi',
+        ),
+      if (row.producedForClients.isNotEmpty)
+        (
+          Icons.swap_horiz_rounded,
+          AppColors.error,
+          '${row.producedForClients.join(', ')} uchun ishlab chiqarilgan — '
+              'ularning tayyor soni kamayadi',
+        ),
+    ];
+
+    if (notes.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (icon, color, text) in notes)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

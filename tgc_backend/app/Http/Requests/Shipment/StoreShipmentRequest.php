@@ -5,7 +5,6 @@ namespace App\Http\Requests\Shipment;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
@@ -147,15 +146,6 @@ class StoreShipmentRequest extends FormRequest
                 ->get()
                 ->keyBy('id');
 
-            // Cancelled shipments do not count against the order line: their
-            // goods came back, so that quantity is shippable again.
-            $shippedPerOrderItem = DB::table('shipment_items as si')
-                ->join('shipments as s', 's.id', '=', 'si.shipment_id')
-                ->whereNull('s.canceled_at')
-                ->whereIn('si.order_item_id', array_keys($requestedPerOrderItem))
-                ->groupBy('si.order_item_id')
-                ->pluck(DB::raw('COALESCE(SUM(si.quantity), 0)'), 'si.order_item_id');
-
             foreach ($data['items'] ?? [] as $index => $item) {
                 if (($item['order_item_id'] ?? null) === null) {
                     continue;   // scanned line; its order item does not exist yet
@@ -192,23 +182,11 @@ class StoreShipmentRequest extends FormRequest
                 }
             }
 
-            // ── Over-shipping, checked per order_item across all lines ─────────
-            foreach ($requestedPerOrderItem as $orderItemId => $requested) {
-                $orderItem = $orderItems->get($orderItemId);
-                if (! $orderItem) {
-                    continue;
-                }
-
-                $shipped   = (int) ($shippedPerOrderItem[$orderItemId] ?? 0);
-                $remaining = $orderItem->quantity - $shipped;
-
-                if ($requested > $remaining) {
-                    $violations["order_item.{$orderItemId}.quantity"] = sprintf(
-                        'Order item #%d: %d requested, only %d unshipped (ordered %d, already shipped %d).',
-                        $orderItemId, $requested, max(0, $remaining), $orderItem->quantity, $shipped
-                    );
-                }
-            }
+            // Over-shipping is no longer a violation: since October 2026
+            // ShipmentService::splitOverOrderedLines() caps each line at what
+            // its order line owes and ships the rest beyond the order, on the
+            // shipment's own invented order. Loading more than was ordered is
+            // allowed (user's call); writing it onto the order line is not.
 
             $this->reportViolations($violations, $v);
         });
