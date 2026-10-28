@@ -77,6 +77,7 @@ class ApiEndpoints {
   // Orders
   static const String orders = '/orders';
   static String orderById(int id) => '/orders/$id';
+  static String orderMarkDelivered(int id) => '/orders/$id/mark-delivered';
 
   // Machines
   static const String machines = '/machines';

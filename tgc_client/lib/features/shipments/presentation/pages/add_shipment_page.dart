@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -42,6 +44,12 @@ class AddShipmentPage extends StatefulWidget {
 class _AddShipmentPageState extends State<AddShipmentPage> {
   late final ShipmentFormController _ctrl;
   final _formKey = GlobalKey<FormState>();
+  final _listCtrl = ScrollController();
+
+  /// The row the last scan added to or counted up, tinted for a moment so
+  /// the eye lands on it when the scanner hands back to the list.
+  int? _highlightRowId;
+  Timer? _highlightTimer;
 
   ClientEntity? _selectedClient;
   late DateTime _shipmentDate;
@@ -110,6 +118,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
   @override
   void dispose() {
+    _listCtrl.dispose();
+    _highlightTimer?.cancel();
     _ctrl.removeListener(_onFormChanged);
     _ctrl.dispose();
     super.dispose();
@@ -262,13 +272,62 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       return;
     }
 
-    await Navigator.of(context).push(MaterialPageRoute(
+    final outcome =
+        await Navigator.of(context).push<ShipmentScanOutcome>(MaterialPageRoute(
       builder: (_) => ShipmentQrScannerPage(
         clientId: _selectedClient!.id,
         clientName: _selectedClient!.shopName,
         controller: _ctrl,
       ),
     ));
+    if (outcome == null || !mounted) return;
+
+    _showScanOutcome(outcome);
+  }
+
+  /// Back from a successful scan: point at the row it changed and say what
+  /// happened, with the next scan one tap away in the snackbar as well as on
+  /// the floating button.
+  void _showScanOutcome(ShipmentScanOutcome outcome) {
+    setState(() => _highlightRowId = outcome.row.id);
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _highlightRowId = null);
+    });
+
+    // Rows are built lazily, so scroll proportionally first; the list is
+    // short enough (tens of rows) that this lands on or next to the row.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_listCtrl.hasClients) return;
+      final index = _ctrl.items.indexOf(outcome.row);
+      if (index < 0) return;
+      final max = _listCtrl.position.maxScrollExtent;
+      final target = _ctrl.items.length <= 1
+          ? 0.0
+          : max * index / (_ctrl.items.length - 1);
+      _listCtrl.animateTo(
+        target.clamp(0.0, max),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+
+    final quantity = outcome.row.parsedQuantity;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        backgroundColor: AppColors.success,
+        duration: const Duration(seconds: 4),
+        content: Text(
+          '${outcome.incremented ? 'Miqdor oshirildi' : 'Qo\'shildi'}: '
+          '${outcome.title} — $quantity dona',
+        ),
+        action: SnackBarAction(
+          label: 'Yana',
+          textColor: Colors.white,
+          onPressed: _scanQr,
+        ),
+      ));
   }
 
   Future<void> _submit(BuildContext context) async {
@@ -370,6 +429,15 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
           builder: (context, _) {
             return Scaffold(
               backgroundColor: AppColors.background,
+              // The main action on the floor, under the thumb: scan, look at
+              // the list, scan again.
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: _scanQr,
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: const Text('Skanerlash'),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
               appBar: AppBar(
                 title: const Text('Yangi yuk chiqarish'),
                 titleSpacing: 0,
@@ -559,15 +627,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                             ),
                             if (isDesktop) ...[
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
-                                child: TextButton.icon(
-                                  onPressed: _scanQr,
-                                  icon: const Icon(
-                                      Icons.qr_code_scanner_rounded, size: 16),
-                                  label: const Text('QR skanerlash'),
-                                ),
-                              ),
-                              Padding(
                                 padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
                                 child: TextButton.icon(
                                   onPressed: _importFromOrder,
@@ -577,14 +636,6 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                 ),
                               ),
                             ] else ...[
-                              IconButton(
-                                onPressed: _scanQr,
-                                icon: const Icon(
-                                    Icons.qr_code_scanner_rounded, size: 22),
-                                color: AppColors.primary,
-                                tooltip: 'QR skanerlash',
-                                visualDensity: VisualDensity.compact,
-                              ),
                               IconButton(
                                 onPressed: _importFromOrder,
                                 icon: const Icon(Icons.download_rounded,
@@ -629,13 +680,22 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                               ),
                             )
                           : ListView.separated(
-                              padding: EdgeInsets.zero,
+                              controller: _listCtrl,
+                              // Room for the scan button over the last row.
+                              padding: const EdgeInsets.only(bottom: 88),
                               itemCount: _ctrl.items.length,
                               separatorBuilder: (_, __) => const Divider(
                                   height: 1, color: AppColors.divider),
                               itemBuilder: (context, index) {
                                 final row = _ctrl.items[index];
-                                return LayoutBuilder(
+                                final highlighted = row.id == _highlightRowId;
+                                return AnimatedContainer(
+                                  key: ValueKey('hl-${row.id}'),
+                                  duration: const Duration(milliseconds: 400),
+                                  color: highlighted
+                                      ? AppColors.success.withValues(alpha: 0.15)
+                                      : Colors.transparent,
+                                  child: LayoutBuilder(
                                     builder: (context, constraints) {
                                   final isDesktop = constraints.maxWidth >=
                                       AppConstants.desktopBreakpoint;
@@ -658,7 +718,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                       onChanged: _ctrl.notifyChanged,
                                     );
                                   }
-                                });
+                                }),
+                                );
                               },
                             ),
                     ),

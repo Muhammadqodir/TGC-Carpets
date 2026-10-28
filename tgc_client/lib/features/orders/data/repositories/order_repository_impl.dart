@@ -121,6 +121,19 @@ class OrderRepositoryImpl implements OrderRepository {
   }
 
   @override
+  Future<Either<Failure, OrderEntity>> markOrderDelivered(int id, {String? reason}) async {
+    try {
+      return Right(await remoteDataSource.markOrderDelivered(id, reason: reason));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> deleteOrder(int id) async {
     try {
       await remoteDataSource.deleteOrder(id);

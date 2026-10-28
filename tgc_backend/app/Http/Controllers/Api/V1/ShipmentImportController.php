@@ -61,8 +61,10 @@ class ShipmentImportController extends Controller
             ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
-            // including the auto-order of a cancelled scanned shipment.
-            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
+            // including the auto-order of a cancelled scanned shipment — and
+            // nor does one closed as delivered outside the system
+            // (OrderService::markDelivered).
+            ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
             ->whereRaw('sm.stock > 0')
             ->select([
                 'c.id',
@@ -109,8 +111,10 @@ class ShipmentImportController extends Controller
             ->where('o.client_id', $request->integer('client_id'))
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
-            // including the auto-order of a cancelled scanned shipment.
-            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
+            // including the auto-order of a cancelled scanned shipment — and
+            // nor does one closed as delivered outside the system
+            // (OrderService::markDelivered).
+            ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
             ->whereRaw('sm.stock > 0')
             ->select([
                 'pq.quality_name',
@@ -160,8 +164,10 @@ class ShipmentImportController extends Controller
             ->where('pq.quality_name', $request->string('quality_name'))
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
-            // including the auto-order of a cancelled scanned shipment.
-            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
+            // including the auto-order of a cancelled scanned shipment — and
+            // nor does one closed as delivered outside the system
+            // (OrderService::markDelivered).
+            ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
             ->whereRaw('sm.stock > 0')
             ->select([
                 'oi.id AS order_item_id',
@@ -300,8 +306,10 @@ class ShipmentImportController extends Controller
             ->where('oi.product_variant_id', $variantId)
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
-            // including the auto-order of a cancelled scanned shipment.
-            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
+            // including the auto-order of a cancelled scanned shipment — and
+            // nor does one closed as delivered outside the system
+            // (OrderService::markDelivered).
+            ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
             ->select([
                 'oi.id AS order_item_id',
                 'o.id AS order_id',

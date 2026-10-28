@@ -36,4 +36,6 @@ abstract class OrderRepository {
   });
 
   Future<Either<Failure, void>> deleteOrder(int id);
+
+  Future<Either<Failure, OrderEntity>> markOrderDelivered(int id, {String? reason});
 }

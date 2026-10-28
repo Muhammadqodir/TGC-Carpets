@@ -57,6 +57,22 @@ class ShipmentQrScannerPage extends StatefulWidget {
   State<ShipmentQrScannerPage> createState() => _ShipmentQrScannerPageState();
 }
 
+/// What one successful scan did, handed back to the shipment form: since
+/// October 2026 the scanner closes after every carpet it adds, so the worker
+/// sees the real list — every order the carpet landed on, every warning —
+/// before scanning the next one.
+class ShipmentScanOutcome {
+  final ShipmentItemRow row;
+  final bool incremented;
+  final String title;
+
+  const ShipmentScanOutcome({
+    required this.row,
+    required this.incremented,
+    required this.title,
+  });
+}
+
 enum _FeedbackKind { added, incremented, limitReached, error }
 
 /// The outcome of one scan, as shown on the full-screen result step.
@@ -372,6 +388,19 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     ].join(' · ');
 
     if (result != ScanAddResult.limitReached) _scannedCount++;
+
+    // Added or counted up: back to the list, which shows what this did to
+    // the shipment far better than a card here could. Only a refusal stays
+    // on screen, because there is nothing new on the list to look at.
+    final row = _rowFor(item);
+    if (result != ScanAddResult.limitReached && row != null) {
+      Navigator.of(context).pop(ShipmentScanOutcome(
+        row: row,
+        incremented: result == ScanAddResult.incremented,
+        title: [title, if (subtitle.isNotEmpty) subtitle].join(' · '),
+      ));
+      return;
+    }
 
     _showResult(switch (result) {
       ScanAddResult.added => _ScanFeedback(

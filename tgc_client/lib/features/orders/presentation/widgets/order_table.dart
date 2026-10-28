@@ -18,6 +18,7 @@ class OrderTable extends StatelessWidget {
     this.onViewDetail,
     this.onEdit,
     this.onCopy,
+    this.onMarkDelivered,
   });
 
   final List<OrderEntity> orders;
@@ -27,6 +28,7 @@ class OrderTable extends StatelessWidget {
   final void Function(OrderEntity)? onViewDetail;
   final void Function(OrderEntity)? onEdit;
   final void Function(OrderEntity)? onCopy;
+  final void Function(OrderEntity)? onMarkDelivered;
 
   static const _columns = <AppTableColumn>[
     AppTableColumn(
@@ -144,7 +146,8 @@ class OrderTable extends StatelessWidget {
             onViewDetail: onViewDetail,
             onEdit: onEdit,
             onDelete: onDelete,
-            onCopy: onCopy);
+            onCopy: onCopy,
+            onMarkDelivered: onMarkDelivered);
 
       default:
         return const SizedBox.shrink();
@@ -189,6 +192,7 @@ class OrderTable extends StatelessWidget {
           onEdit: onEdit,
           onDelete: onDelete,
           onCopy: onCopy,
+          onMarkDelivered: onMarkDelivered,
           compact: true,
         );
 
@@ -208,6 +212,7 @@ class _ActionsCell extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onCopy,
+    this.onMarkDelivered,
     this.compact = false,
   });
 
@@ -216,7 +221,16 @@ class _ActionsCell extends StatelessWidget {
   final void Function(OrderEntity)? onEdit;
   final void Function(OrderEntity)? onDelete;
   final void Function(OrderEntity)? onCopy;
+  final void Function(OrderEntity)? onMarkDelivered;
   final bool compact;
+
+  /// Same statuses OrderService::markDelivered accepts.
+  bool get _canMarkDelivered => const {
+        'pending',
+        'planned',
+        'on_production',
+        'done',
+      }.contains(order.status);
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +252,9 @@ class _ActionsCell extends StatelessWidget {
               break;
             case 'delete':
               onDelete?.call(order);
+              break;
+            case 'delivered':
+              onMarkDelivered?.call(order);
               break;
           }
         },
@@ -287,6 +304,22 @@ class _ActionsCell extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   const Text('Tahrirlash'),
+                ],
+              ),
+            ),
+          if (_canMarkDelivered && onMarkDelivered != null)
+            PopupMenuItem(
+              value: 'delivered',
+              child: Row(
+                children: [
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedDeliveryTruck01,
+                    color: AppColors.success,
+                    size: 18,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Yetkazildi deb belgilash'),
                 ],
               ),
             ),
@@ -342,6 +375,17 @@ class _ActionsCell extends StatelessWidget {
               ),
               onPressed: () => onEdit!(order),
               tooltip: 'Tahrirlash',
+            ),
+          ],
+          if (_canMarkDelivered && onMarkDelivered != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              icon: HugeIcon(
+                icon: HugeIcons.strokeRoundedDeliveryTruck01,
+                color: AppColors.success,
+              ),
+              onPressed: () => onMarkDelivered!(order),
+              tooltip: 'Yetkazildi deb belgilash',
             ),
           ],
           if (order.status == 'pending' && onDelete != null) ...[

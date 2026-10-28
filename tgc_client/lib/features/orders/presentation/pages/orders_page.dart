@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../clients/domain/entities/client_entity.dart';
 import '../../data/services/order_form_draft_service.dart';
 import '../../domain/entities/order_entity.dart';
+import '../../domain/repositories/order_repository.dart';
 import '../../domain/usecases/get_order_usecase.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_event.dart';
@@ -107,6 +108,91 @@ class _OrdersContentState extends State<_OrdersContent> {
       context.read<OrdersBloc>().add(OrderDeleted(order.id));
     }
   }
+
+  /// Closes an order that left the factory without a shipment in the ERP.
+  /// The warning spells out what does and does not change, because the
+  /// order disappears from the production list and the scanner for good.
+  Future<void> _markDelivered(OrderEntity order) async {
+    final reasonCtrl = TextEditingController();
+    final ordered = order.totalQuantity;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: AppColors.warning, size: 36),
+        title: Text('#${order.id} buyurtma yetkazildimi?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${order.clientShopName ?? 'Mijoz'} · '
+                '${_formatDate(order.orderDate)} · jami $ordered dona\n',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const Text(
+                'Faqat yuk xatisiz, tizimdan tashqarida yetkazilgan eski '
+                'buyurtmalar uchun.\n\n'
+                '• Buyurtma "Jo\'natildi" holatiga o\'tadi.\n'
+                '• Ishlab chiqarish ro\'yxatidan va yuk xati skanerida '
+                'chiqmaydi.\n'
+                '• Ombor qoldig\'i va ishlab chiqarish partiyalari '
+                'o\'zgarmaydi.\n'
+                '• Kim va qachon belgilagani izohga yoziladi.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonCtrl,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  labelText: 'Sabab (ixtiyoriy)',
+                  hintText: 'Masalan: avgustda olib ketilgan',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Ha, yetkazildi'),
+          ),
+        ],
+      ),
+    );
+
+    final reason = reasonCtrl.text;
+    reasonCtrl.dispose();
+    if (confirmed != true || !mounted) return;
+
+    final result =
+        await sl<OrderRepository>().markOrderDelivered(order.id, reason: reason);
+    if (!mounted) return;
+
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(failure.message),
+        backgroundColor: AppColors.error,
+      )),
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('#${order.id} buyurtma yetkazildi deb belgilandi.'),
+          backgroundColor: AppColors.success,
+        ));
+        context.read<OrdersBloc>().add(const OrdersRefreshRequested());
+      },
+    );
+  }
+
+  static String _formatDate(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
 
   Future<void> _navigateToEdit(OrderEntity order) async {
     // Warn before editing orders that are beyond the initial pending state.
@@ -319,6 +405,7 @@ class _OrdersContentState extends State<_OrdersContent> {
                       onEdit: _navigateToEdit,
                       onDelete: _deleteOrder,
                       onCopy: _copyOrder,
+                      onMarkDelivered: _markDelivered,
                     );
                   }
                   return const SizedBox.shrink();

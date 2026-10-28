@@ -872,7 +872,7 @@ class ShipmentService
                 ->whereIn('order_items.id', $postedIds)
                 ->orWhere(fn ($q2) => $q2
                     ->where('o.client_id', $clientId)
-                    ->where('o.status', '!=', Order::STATUS_CANCELED)
+                    ->whereNotIn('o.status', [Order::STATUS_CANCELED, Order::STATUS_SHIPPED])
                     ->whereIn('order_items.product_variant_id', array_keys($variantIds))))
             ->orderBy('order_items.id')
             ->lockForUpdate()
@@ -890,7 +890,8 @@ class ShipmentService
         $spillTo = [];   // variant => this client's open line ids, oldest first
         foreach ($lines as $line) {
             $room[$line->id] = max(0, (int) $line->quantity - (int) ($shipped[$line->id] ?? 0));
-            if ((int) $line->client_id === $clientId && $line->status !== Order::STATUS_CANCELED) {
+            if ((int) $line->client_id === $clientId
+                && ! in_array($line->status, [Order::STATUS_CANCELED, Order::STATUS_SHIPPED], true)) {
                 $spillTo[(int) $line->product_variant_id][] = (int) $line->id;
             }
         }

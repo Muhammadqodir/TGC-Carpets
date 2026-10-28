@@ -223,6 +223,36 @@ class ShipmentScanFlowTest extends TestCase
         $this->assertSame('no_open_line', $scan['item']['reason']);
     }
 
+    public function test_an_order_marked_delivered_is_closed_and_never_offered_again(): void
+    {
+        $variant = $this->variant();
+        $line    = $this->orderLine($this->clientA, $variant, 4);
+        $carpet  = $this->batchItem($variant, null, planned: 1, produced: 1, received: 1);
+        $this->receive($variant, 1);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->postJson("/api/v1/orders/{$line->order_id}/mark-delivered", ['reason' => 'avgustda olib ketilgan'])
+            ->assertOk()
+            ->assertJsonPath('data.status', Order::STATUS_SHIPPED);
+
+        $order = $line->order->fresh();
+        $this->assertStringContainsString('yetkazildi deb belgilandi', $order->notes);
+        $this->assertStringContainsString('avgustda olib ketilgan', $order->notes);
+        $this->assertSame(1, $this->stock($variant), 'stock is not invented either way');
+
+        $scan = $this->scanIntoForm($this->label($carpet));
+        $this->assertNull($scan['item']['order_item_id'], 'the delivered order is not offered');
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->getJson('/api/v1/orders?for_production=1')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $line->order_id]);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->postJson("/api/v1/orders/{$line->order_id}/mark-delivered")
+            ->assertStatus(422);
+    }
+
     public function test_beyond_the_order_without_stock_is_refused_in_words_a_worker_reads(): void
     {
         $variant = $this->variant();

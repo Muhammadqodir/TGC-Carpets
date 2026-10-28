@@ -38,6 +38,9 @@ abstract class OrderRemoteDataSource {
   });
 
   Future<void> deleteOrder(int id);
+
+  /// Closes an order delivered outside the system (no shipment).
+  Future<OrderModel> markOrderDelivered(int id, {String? reason});
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -152,6 +155,23 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         },
       );
 
+      return OrderModel.fromJson(
+        (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<OrderModel> markOrderDelivered(int id, {String? reason}) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.orderMarkDelivered(id),
+        data: {
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        },
+      );
       return OrderModel.fromJson(
         (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
       );

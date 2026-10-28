@@ -164,6 +164,7 @@ Route::prefix('v1')->group(function (): void {
 
         // Orders
         Route::apiResource('orders', OrderController::class);
+        Route::post('orders/{order}/mark-delivered', [OrderController::class, 'markDelivered'])->name('orders.mark-delivered');
 
         // Shipments
         Route::get('shipments/orders-for-shipment', [ShipmentController::class, 'ordersForShipment'])->name('shipments.orders-for-shipment');

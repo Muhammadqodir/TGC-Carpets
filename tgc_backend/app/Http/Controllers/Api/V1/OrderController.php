@@ -97,6 +97,22 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * POST /orders/{order}/mark-delivered — see OrderService::markDelivered().
+     */
+    public function markDelivered(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+
+        try {
+            $updated = $this->service->markDelivered($order, $request->user()->id, $data['reason'] ?? null);
+
+            return response()->json(['data' => new OrderResource($updated)]);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
     public function destroy(Order $order): JsonResponse
     {
         try {
