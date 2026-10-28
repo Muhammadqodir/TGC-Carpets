@@ -108,7 +108,8 @@ class ShipmentScanFlowTest extends TestCase
 
         $scan = $this->scanIntoForm($this->label($carpet));
 
-        $this->assertSame(404, $scan['status']);
+        // 200, not 404: prod's nginx replaced 404 bodies with its own page.
+        $this->assertSame(200, $scan['status']);
         $this->assertTrue($scan['asked']);
         $this->assertSame('added', $scan['outcome']);
         $this->assertNull($scan['item']['order_item_id']);
@@ -150,6 +151,33 @@ class ShipmentScanFlowTest extends TestCase
         $this->assertSame($shipmentId, $carpet->reattributed_by_shipment_id);
         $this->assertSame(0, $this->producedFor($lineB), 'B\'s "Tayyor" drops: the factory owes them a carpet');
         $this->assertSame(1, $lineB->fresh()->quantity, 'B\'s order itself is untouched');
+    }
+
+    public function test_a_done_order_that_loses_its_carpet_goes_back_to_production_and_returns_on_cancel(): void
+    {
+        $variant = $this->variant();
+        $lineB   = $this->orderLine($this->clientB, $variant, 1);
+        $lineB->order->update(['status' => Order::STATUS_DONE]);
+        $carpet  = $this->batchItem($variant, $lineB, planned: 1, produced: 1, received: 1);
+        $this->receive($variant, 1);
+
+        $this->scanIntoForm($this->label($carpet));
+        $shipmentId = $this->saveForm()->assertCreated()->json('data.id');
+
+        // 'done' is invisible to the "needs production" list; B is owed a
+        // replacement, so the order must be back where that list sees it.
+        $this->assertSame(Order::STATUS_PENDING, $lineB->order->fresh()->status);
+        $this->actingAs($this->worker, 'sanctum')
+            ->getJson('/api/v1/orders?for_production=1')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $lineB->order_id]);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/v1/shipments/{$shipmentId}/cancel", ['reason' => 'test'])
+            ->assertOk();
+
+        $this->assertSame(Order::STATUS_DONE, $lineB->order->fresh()->status, 'carpet is back: B is ready again');
     }
 
     public function test_another_clients_carpet_lands_on_this_clients_own_line_when_they_ordered_it_too(): void
@@ -447,9 +475,13 @@ class ShipmentScanFlowTest extends TestCase
             '%i'     => $carpets->id,
         ]);
 
+        // 422 under `label`: a 404 body never got past prod's nginx, and a
+        // `code` error would trigger the app's silent lost-input retry.
         $this->scan($code)
-            ->assertNotFound()
-            ->assertExactJson(['message' => 'Mahsulot topilmadi.']);
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Mahsulot topilmadi.')
+            ->assertJsonValidationErrors(['label'])
+            ->assertJsonMissingValidationErrors(['code', 'client_id']);
     }
 
     // ── Getting the request there ─────────────────────────────────────────────
@@ -622,8 +654,9 @@ class ShipmentScanFlowTest extends TestCase
     {
         $response = $this->scan($code, $this->clientA, $this->inForm());
         $item = match (true) {
-            $response->status() === 200                                   => $response->json('data'),
-            $response->status() === 404 && is_array($response->json('unmatched')) => $response->json('unmatched'),
+            // Exactly what the released app reads: a 200 with the item under
+            // `data`, its null order_item_id meaning "ask, then add anyway".
+            $response->status() === 200 => $response->json('data'),
             default                                                       => null,
         };
 

@@ -251,7 +251,17 @@ class ShipmentImportController extends Controller
 
         $scanned = $this->resolveVariantFromCode($code);
         if (! $scanned) {
-            return response()->json(['message' => 'Mahsulot topilmadi.'], 404);
+            // 422, not 404: prod's nginx replaces every upstream 404 body with
+            // its own HTML page (fastcgi_intercept_errors + error_page 404), so
+            // a 404 reached the worker as "404 Not Found nginx". The key is
+            // `label`, not `code` — the app retries silently on a `code` error,
+            // which means "the request lost its input", not "unknown label".
+            return response()->json([
+                'message' => 'Mahsulot topilmadi.',
+                'errors'  => ['label' => [
+                    "Bu QR kod bo'yicha mahsulot topilmadi. Yorliq eski yoki shikastlangan bo'lishi mumkin.",
+                ]],
+            ], 422);
         }
 
         $variantId = $scanned['variant_id'];
@@ -318,11 +328,9 @@ class ShipmentImportController extends Controller
                 $message .= " Bu mahsulot \"{$producedFor}\" buyurtmasi uchun ishlab chiqarilgan.";
             }
 
-            // Stays a 404 so the released 1.3.0 build keeps showing `message`
-            // exactly as it does today. Newer builds read `unmatched` instead
-            // and offer "add anyway", which needs every descriptive field a
-            // matched row carries — carried here so the sheet costs no second
-            // round trip.
+            // The "add anyway" payload needs every descriptive field a matched
+            // row carries — carried here so the sheet costs no second round
+            // trip.
             $unmatched = $this->describeVariant(
                 $variantId,
                 $producedFor,
@@ -335,13 +343,27 @@ class ShipmentImportController extends Controller
                 $unmatched['reason'] = $linesFull ? 'open_lines_full' : 'no_open_line';
             }
 
+            if ($unmatched === null) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            // A 200 with the carpet under `data` (order_item_id null), not
+            // the 404 this used to be. Prod's nginx swapped that 404 body for
+            // its own HTML page, so from 1.3.4 on the "add anyway" sheet never
+            // opened and the worker saw "404 Not Found nginx" (2026-10-19 log).
+            // Apps since 1.3.4 already read a null order_item_id under `data`
+            // as "ask, then add anyway", so this needs no app release.
+            // `unmatched` and `message` stay for any client reading them.
             return response()->json([
+                'data'      => $unmatched,
+                'matched'   => false,
                 'message'   => $message,
                 'unmatched' => $unmatched,
-            ], 404);
+            ]);
         }
 
         return response()->json([
+            'matched' => true,
             'data' => [
                 'order_item_id'      => $row->order_item_id,
                 'variant_id'         => $row->variant_id,

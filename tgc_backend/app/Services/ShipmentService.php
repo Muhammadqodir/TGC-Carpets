@@ -654,6 +654,7 @@ class ShipmentService
             $returned = ProductionBatchItem::where('reattributed_by_shipment_id', $shipment->id)
                 ->whereNotNull('reattributed_from_order_item_id')
                 ->get();
+            $returnedToOrders = $this->ordersReattributedFrom((int) $shipment->id);
 
             foreach ($returned as $batchItem) {
                 $batchItem->update([
@@ -661,6 +662,10 @@ class ShipmentService
                     'reattributed_from_order_item_id' => null,
                     'reattributed_by_shipment_id'     => null,
                 ]);
+            }
+
+            foreach ($returnedToOrders as $orderId) {
+                $this->refreshProductionStatus($orderId, afterReturn: true);
             }
 
             Log::info('shipment.canceled', [
@@ -941,6 +946,103 @@ class ShipmentService
                     $shipmentId,
                 );
             }
+        }
+
+        // The orders the carpets were taken from are short again. One that was
+        // 'done' is invisible to the "needs production" list (it filters on
+        // pending/planned/on_production), so the replacement the factory now
+        // owes would never be made.
+        foreach ($this->ordersReattributedFrom($shipmentId) as $orderId) {
+            $this->refreshProductionStatus($orderId, afterReturn: false);
+        }
+    }
+
+    /**
+     * Ids of the orders that [$shipmentId] took produced carpets from.
+     *
+     * @return array<int, int>
+     */
+    private function ordersReattributedFrom(int $shipmentId): array
+    {
+        return DB::table('production_batch_items AS pbi')
+            ->join('order_items AS oi', 'oi.id', '=', 'pbi.reattributed_from_order_item_id')
+            ->where('pbi.reattributed_by_shipment_id', $shipmentId)
+            ->distinct()
+            ->pluck('oi.order_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Re-derives the production status of an order whose produced carpets
+     * were moved by a shipment: away from it on create ([$afterReturn]
+     * false), or back to it on cancel (true).
+     *
+     * Moving away only ever demotes: an order no longer covered by planned
+     * production goes back to 'pending' (as ProductionBatchService does when
+     * a batch is cancelled), and a 'done' order that still is covered goes
+     * back to 'on_production'. Moving back only ever promotes, and only as
+     * far as the numbers show: covered again → 'on_production', every carpet
+     * in the warehouse again → 'done'. Shipped and cancelled orders are never
+     * touched.
+     */
+    private function refreshProductionStatus(int $orderId, bool $afterReturn): void
+    {
+        $order = Order::with('items')->find($orderId);
+
+        if (! $order || $order->items->isEmpty() || ! in_array($order->status, [
+            Order::STATUS_PENDING,
+            Order::STATUS_PLANNED,
+            Order::STATUS_ON_PRODUCTION,
+            Order::STATUS_DONE,
+        ], true)) {
+            return;
+        }
+
+        $itemIds = $order->items->pluck('id');
+
+        $planned = DB::table('production_batch_items AS pbi')
+            ->join('production_batches AS pb', 'pb.id', '=', 'pbi.production_batch_id')
+            ->whereIn('pbi.source_order_item_id', $itemIds)
+            ->where('pb.status', '!=', \App\Models\ProductionBatch::STATUS_CANCELLED)
+            ->groupBy('pbi.source_order_item_id')
+            ->selectRaw('pbi.source_order_item_id AS id, SUM(pbi.planned_quantity) AS qty')
+            ->pluck('qty', 'id');
+
+        // All batches, cancelled ones included, as WarehouseDocumentService
+        // counts it: a received carpet exists whatever became of its batch.
+        $received = DB::table('production_batch_items')
+            ->whereIn('source_order_item_id', $itemIds)
+            ->groupBy('source_order_item_id')
+            ->selectRaw('source_order_item_id AS id, SUM(warehouse_received_quantity) AS qty')
+            ->pluck('qty', 'id');
+
+        $allPlanned  = $order->items->every(fn ($i) => (int) ($planned[$i->id] ?? 0) >= $i->quantity);
+        $allReceived = $order->items->every(fn ($i) => (int) ($received[$i->id] ?? 0) >= $i->quantity);
+
+        $status = $order->status;
+        if (! $afterReturn) {
+            if (! $allPlanned) {
+                $status = Order::STATUS_PENDING;
+            } elseif ($status === Order::STATUS_DONE && ! $allReceived) {
+                $status = Order::STATUS_ON_PRODUCTION;
+            }
+        } elseif ($allPlanned) {
+            if ($allReceived) {
+                $status = Order::STATUS_DONE;
+            } elseif ($status === Order::STATUS_PENDING) {
+                $status = Order::STATUS_ON_PRODUCTION;
+            }
+        }
+
+        if ($status !== $order->status) {
+            Log::info('shipment.scan.order_status_refreshed', [
+                'order_id' => $order->id,
+                'from'     => $order->status,
+                'to'       => $status,
+                'reason'   => $afterReturn ? 'production_returned' : 'production_taken',
+            ]);
+            $order->update(['status' => $status]);
         }
     }
 

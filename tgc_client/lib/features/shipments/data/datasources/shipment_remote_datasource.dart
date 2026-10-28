@@ -274,11 +274,12 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
       );
       return _parseScanItem(response.data, 'data');
     } on DioException catch (e) {
-      // A 404 carrying `unmatched` is not a failure: the label resolved to a
-      // real carpet, this client just has no open order line with room for
-      // it. That is the "add anyway" case, so the resolved product comes back
-      // as a normal result with a null orderItemId and the UI offers to add
-      // it. Any other 404 (unreadable code, unknown label) stays an error.
+      // The "add anyway" case — the label resolved to a real carpet, this
+      // client just has no open order line with room for it — arrives as a
+      // 200 with a null order_item_id under `data` since October 2026 and is
+      // handled above. Servers before that sent it as a 404 carrying
+      // `unmatched`, which prod's nginx replaced with its own HTML page; still
+      // read here in case one answers that way.
       final data = e.response?.data;
       if (e.response?.statusCode == 404 &&
           data is Map<String, dynamic> &&
@@ -315,6 +316,23 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   }
 
   Never _throwScanError(DioException e, String code, int clientId) {
+    // A label the server could not resolve to any carpet. Sent as a 422
+    // (under `label`) because a 404 body never got past prod's nginx; shown
+    // as the 404 it means, so the headline reads "Yorliq topilmadi".
+    final data = e.response?.data;
+    if (e.response?.statusCode == 422 &&
+        data is Map &&
+        data['errors'] is Map &&
+        (data['errors'] as Map).containsKey('label')) {
+      throw ServerException(
+        message: [
+          apiErrorMessage(data) ?? 'Mahsulot topilmadi.',
+          'Kod: "$code"',
+        ].join('\n'),
+        statusCode: 404,
+      );
+    }
+
     // A 422 that survived the retry: the server still saw no code or
     // client. Show what the phone had, so the difference from what the
     // server reports names the culprit in the next screenshot.
