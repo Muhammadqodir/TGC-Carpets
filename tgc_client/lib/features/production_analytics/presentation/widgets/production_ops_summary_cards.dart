@@ -50,9 +50,7 @@ class ProductionOpsSummaryCards extends StatelessWidget {
       _Tile(
         label: 'Qayta chop etilgan',
         value: '${s.extraPrints}',
-        caption: s.overTargetPrints > 0
-            ? '${s.reprints} qayta · ${s.overTargetPrints} ortiqcha'
-            : 'yorliq',
+        caption: 'yorliq',
         icon: Icons.print_outlined,
         color: AppColors.warning,
       ),

@@ -231,9 +231,7 @@ class _CapacityRow extends StatelessWidget {
                 if (row.extraPrints > 0)
                   _Stat(
                     label: 'Qayta chop',
-                    value: row.overTargetPrints > 0
-                        ? '${row.reprints} + ${row.overTargetPrints} ortiqcha'
-                        : '${row.reprints}',
+                    value: '${row.extraPrints}',
                     color: AppColors.warning,
                   ),
               ],

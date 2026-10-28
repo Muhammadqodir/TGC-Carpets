@@ -59,7 +59,8 @@ class ProductionCapacityStats extends Equatable {
   double? utilizationOf(AnalyticsMetric m) =>
       m == AnalyticsMetric.quantity ? utilizationQuantity : utilizationSqm;
 
-  /// Labels printed that did not count a carpet.
+  /// Labels printed that did not count a carpet. Shown as one "qayta chop"
+  /// figure: over-target prints are reprints too, as far as the floor goes.
   int get extraPrints => reprints + overTargetPrints;
 
   @override
