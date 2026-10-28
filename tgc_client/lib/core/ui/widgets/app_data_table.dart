@@ -161,15 +161,17 @@ class _AppTableHeader extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              col.label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: isActive
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-              overflow: TextOverflow.ellipsis,
+            Flexible(
+              child: Text(
+                col.label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (col.sortKey != null) ...[
               const SizedBox(width: 2),
