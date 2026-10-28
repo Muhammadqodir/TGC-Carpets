@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Analytics\ProductionAnalyticsRequest;
 use App\Http\Resources\ProductionAnalyticsResource;
 use App\Services\ProductionAnalyticsService;
+use App\Services\ProductionOperationsAnalyticsService;
 use Illuminate\Http\JsonResponse;
 
 class ProductionAnalyticsController extends Controller
 {
     public function __construct(
         private readonly ProductionAnalyticsService $analyticsService,
+        private readonly ProductionOperationsAnalyticsService $operationsService,
     ) {}
 
     /**
@@ -38,6 +40,26 @@ class ProductionAnalyticsController extends Controller
             ],
             ...$report,
         ]))->response();
+    }
+
+    /**
+     * GET /api/v1/analytics/production/operations
+     *
+     * Output, capacity, defects and reprints per shift (the account that
+     * printed the label) and per machine, plus a weekday × hour heatmap.
+     * Query params: period_from, period_to (production days).
+     */
+    public function operations(ProductionAnalyticsRequest $request): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'period' => [
+                    'from' => $request->periodFrom(),
+                    'to'   => $request->periodTo(),
+                ],
+                ...$this->operationsService->getReport($request->periodFrom(), $request->periodTo()),
+            ],
+        ]);
     }
 
     /**

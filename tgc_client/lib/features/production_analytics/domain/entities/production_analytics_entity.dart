@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'production_operations_entity.dart';
+
 class ProductionDimensionItem extends Equatable {
   final int? id;
   final String name;
@@ -66,6 +68,9 @@ class ProductionAnalyticsEntity extends Equatable {
   final List<ProductionDimensionItem> byQuality;
   final List<ProductionDimensionItem> byEdge;
 
+  /// Shifts, machines and hours; null when the server could not provide it.
+  final ProductionOperationsEntity? operations;
+
   const ProductionAnalyticsEntity({
     required this.periodFrom,
     required this.periodTo,
@@ -77,7 +82,23 @@ class ProductionAnalyticsEntity extends Equatable {
     required this.bySize,
     required this.byQuality,
     required this.byEdge,
+    this.operations,
   });
+
+  ProductionAnalyticsEntity withOperations(ProductionOperationsEntity? ops) =>
+      ProductionAnalyticsEntity(
+        periodFrom: periodFrom,
+        periodTo:   periodTo,
+        trendBy:    trendBy,
+        summary:    summary,
+        trend:      trend,
+        byType:     byType,
+        byColor:    byColor,
+        bySize:     bySize,
+        byQuality:  byQuality,
+        byEdge:     byEdge,
+        operations: ops,
+      );
 
   @override
   List<Object?> get props => [
@@ -91,5 +112,6 @@ class ProductionAnalyticsEntity extends Equatable {
         bySize,
         byQuality,
         byEdge,
+        operations,
       ];
 }

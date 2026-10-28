@@ -9,4 +9,9 @@ return [
     // delta and getting his sign-off — see
     // instructions/phase-2/04-repoint-analytics-to-occurred-at.md "Rollout".
     'source' => env('ANALYTICS_SOURCE', 'legacy'),
+
+    // Hour (local time, 0-23) a production day starts at, for the shift and
+    // machine report. A night shift that runs past midnight is one working
+    // day, not two halves. 0 = calendar days.
+    'production_day_start_hour' => (int) env('PRODUCTION_DAY_START_HOUR', 8),
 ];

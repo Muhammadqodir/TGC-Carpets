@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/production_analytics_entity.dart';
+import '../../domain/entities/production_operations_entity.dart';
 import '../../domain/repositories/production_analytics_repository.dart';
 import '../datasources/production_analytics_remote_datasource.dart';
 
@@ -18,12 +19,21 @@ class ProductionAnalyticsRepositoryImpl implements ProductionAnalyticsRepository
     required String trendBy,
   }) async {
     try {
-      final result = await _remoteDataSource.getAnalytics(
-        periodFrom: periodFrom,
-        periodTo:   periodTo,
-        trendBy:    trendBy,
-      );
-      return Right(result);
+      // Fetched side by side. The shift / machine report is optional: a
+      // server without that endpoint yet still shows the rest of the page.
+      final results = await Future.wait<Object?>([
+        _remoteDataSource.getAnalytics(
+          periodFrom: periodFrom,
+          periodTo:   periodTo,
+          trendBy:    trendBy,
+        ),
+        _remoteDataSource
+            .getOperations(periodFrom: periodFrom, periodTo: periodTo)
+            .then<ProductionOperationsEntity?>((o) => o)
+            .catchError((Object _) => null),
+      ]);
+      final report = results[0] as ProductionAnalyticsEntity;
+      return Right(report.withOperations(results[1] as ProductionOperationsEntity?));
     } on UnauthorizedException {
       return const Left(UnauthorizedFailure());
     } on ServerException catch (e) {

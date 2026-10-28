@@ -76,6 +76,9 @@ Route::prefix('v1')->group(function (): void {
 
         // Production Analytics (produced items statistics)
         Route::get('analytics/production', [ProductionAnalyticsController::class, 'index'])->name('analytics.production');
+        // Shifts, machines, hours — always from production_events.
+        Route::get('analytics/production/operations', [ProductionAnalyticsController::class, 'operations'])
+            ->name('analytics.production.operations');
         // Phase 2 step 04 rollout tool — legacy vs event-sourced numbers, admin-only.
         // Temporary: remove along with the legacy path once ANALYTICS_SOURCE=events
         // has shipped and been confirmed. See instructions/phase-2/04.
