@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tgc_client/features/product_analytics/domain/entities/product_analytics_entity.dart';
 import 'package:tgc_client/features/production_analytics/data/models/production_operations_model.dart';
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_capacity_section.dart';
-import 'package:tgc_client/features/production_analytics/presentation/widgets/production_hourly_heatmap.dart';
+import 'package:tgc_client/features/production_analytics/presentation/widgets/production_hourly_chart.dart';
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_ops_summary_cards.dart';
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_shift_trend_chart.dart';
 
@@ -108,7 +108,7 @@ void main() {
                   icon: Icons.groups_2_outlined,
                 ),
                 ProductionMachineGrid(rows: ops.byMachine, metric: metric),
-                ProductionHourlyHeatmap(cells: ops.heatmap, shifts: ops.byShift, metric: metric),
+                ProductionHourlyChart(cells: ops.heatmap, shifts: ops.byShift, metric: metric),
               ],
             ),
           ),
@@ -116,11 +116,6 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Bu davrda ishlamagan'), findsOneWidget);
-
-        // Filtering the heatmap to one shift.
-        await tester.tap(find.text('1 SMENA (YORLIQ)').last);
-        await tester.pump();
-        expect(tester.takeException(), isNull);
       });
     }
   }

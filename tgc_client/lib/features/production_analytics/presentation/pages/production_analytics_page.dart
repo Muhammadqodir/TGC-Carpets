@@ -13,7 +13,7 @@ import '../bloc/production_analytics_event.dart';
 import '../bloc/production_analytics_state.dart';
 import '../widgets/production_analytics_summary_cards.dart';
 import '../widgets/production_capacity_section.dart';
-import '../widgets/production_hourly_heatmap.dart';
+import '../widgets/production_hourly_chart.dart';
 import '../widgets/production_shift_trend_chart.dart';
 import '../widgets/production_ops_summary_cards.dart';
 
@@ -248,10 +248,13 @@ class _OperationsBlock extends StatelessWidget {
         const SizedBox(height: 12),
         _SectionCard(
           title: 'Soatlik faollik',
-          child: ProductionHourlyHeatmap(
-            cells: ops.heatmap,
-            shifts: ops.byShift,
-            metric: metric,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
+            child: ProductionHourlyChart(
+              cells: ops.heatmap,
+              shifts: ops.byShift,
+              metric: metric,
+            ),
           ),
         ),
       ],
