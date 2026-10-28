@@ -71,6 +71,11 @@ class _SizeSummaryColumnState extends State<SizeSummaryColumn> {
       child: Column(
         children: [
           SummaryCell(
+            label: 'Soni',
+            value: '$qty dona',
+            isHighlighted: widget.isHighlighted,
+          ),
+          SummaryCell(
             label: 'Uzunlik',
             value: '${totalM.toStringAsFixed(1)} m',
             isHighlighted: widget.isHighlighted,

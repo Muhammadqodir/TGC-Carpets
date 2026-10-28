@@ -13,7 +13,7 @@ abstract class ProductAttributesRemoteDataSource {
   Future<ColorModel> createColor({required String name});
   Future<ColorModel> updateColor({required int id, required String name});
   Future<int> checkColorUsage({required int id});
-  Future<void> deleteColor({required int id, int? replaceWithId});
+  Future<void> deleteColor({required int id, int? replaceWithId, bool hide = false});
 
   // Product Types
   Future<List<ProductTypeModel>> getProductTypes();
@@ -22,7 +22,7 @@ abstract class ProductAttributesRemoteDataSource {
   Future<int> checkProductTypeUsage({required int id});
   Future<ProductTypeModel> archiveProductType({required int id});
   Future<ProductTypeModel> unarchiveProductType({required int id});
-  Future<void> deleteProductType({required int id, int? replaceWithId});
+  Future<void> deleteProductType({required int id, int? replaceWithId, bool hide = false});
 
   // Product Qualities
   Future<List<ProductQualityModel>> getProductQualities();
@@ -31,21 +31,21 @@ abstract class ProductAttributesRemoteDataSource {
   Future<int> checkProductQualityUsage({required int id});
   Future<ProductQualityModel> archiveProductQuality({required int id});
   Future<ProductQualityModel> unarchiveProductQuality({required int id});
-  Future<void> deleteProductQuality({required int id, int? replaceWithId});
+  Future<void> deleteProductQuality({required int id, int? replaceWithId, bool hide = false});
 
   // Product Sizes
   Future<List<ProductSizeModel>> getProductSizes({int? productTypeId});
   Future<ProductSizeModel> createProductSize({required int length, required int width, required int productTypeId});
   Future<ProductSizeModel> updateProductSize({required int id, required int length, required int width, required int productTypeId});
   Future<int> checkProductSizeUsage({required int id});
-  Future<void> deleteProductSize({required int id, int? replaceWithId});
+  Future<void> deleteProductSize({required int id, int? replaceWithId, bool hide = false});
 
   // Product Edges
   Future<List<ProductEdgeModel>> getProductEdges();
   Future<ProductEdgeModel> createProductEdge({required String code, required String title});
   Future<ProductEdgeModel> updateProductEdge({required int id, required String code, required String title});
   Future<int> checkProductEdgeUsage({required int id});
-  Future<void> deleteProductEdge({required int id, int? replaceWithId});
+  Future<void> deleteProductEdge({required int id, int? replaceWithId, bool hide = false});
 }
 
 class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDataSource {
@@ -94,11 +94,14 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<void> deleteColor({required int id, int? replaceWithId}) async {
+  Future<void> deleteColor({required int id, int? replaceWithId, bool hide = false}) async {
     try {
       await _dio.delete(
         ApiEndpoints.colorById(id),
-        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+        data: {
+          if (replaceWithId != null) 'replace_with_id': replaceWithId,
+          if (hide) 'mode': 'hide',
+        },
       );
     } on DioException catch (e) {
       _handleDioError(e);
@@ -177,11 +180,14 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<void> deleteProductType({required int id, int? replaceWithId}) async {
+  Future<void> deleteProductType({required int id, int? replaceWithId, bool hide = false}) async {
     try {
       await _dio.delete(
         ApiEndpoints.productTypeById(id),
-        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+        data: {
+          if (replaceWithId != null) 'replace_with_id': replaceWithId,
+          if (hide) 'mode': 'hide',
+        },
       );
     } on DioException catch (e) {
       _handleDioError(e);
@@ -272,11 +278,14 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<void> deleteProductQuality({required int id, int? replaceWithId}) async {
+  Future<void> deleteProductQuality({required int id, int? replaceWithId, bool hide = false}) async {
     try {
       await _dio.delete(
         ApiEndpoints.productQualityById(id),
-        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+        data: {
+          if (replaceWithId != null) 'replace_with_id': replaceWithId,
+          if (hide) 'mode': 'hide',
+        },
       );
     } on DioException catch (e) {
       _handleDioError(e);
@@ -340,11 +349,14 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<void> deleteProductSize({required int id, int? replaceWithId}) async {
+  Future<void> deleteProductSize({required int id, int? replaceWithId, bool hide = false}) async {
     try {
       await _dio.delete(
         ApiEndpoints.productSizeById(id),
-        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+        data: {
+          if (replaceWithId != null) 'replace_with_id': replaceWithId,
+          if (hide) 'mode': 'hide',
+        },
       );
     } on DioException catch (e) {
       _handleDioError(e);
@@ -399,11 +411,14 @@ class ProductAttributesRemoteDataSourceImpl implements ProductAttributesRemoteDa
   }
 
   @override
-  Future<void> deleteProductEdge({required int id, int? replaceWithId}) async {
+  Future<void> deleteProductEdge({required int id, int? replaceWithId, bool hide = false}) async {
     try {
       await _dio.delete(
         ApiEndpoints.productEdgeById(id),
-        data: {if (replaceWithId != null) 'replace_with_id': replaceWithId},
+        data: {
+          if (replaceWithId != null) 'replace_with_id': replaceWithId,
+          if (hide) 'mode': 'hide',
+        },
       );
     } on DioException catch (e) {
       _handleDioError(e);

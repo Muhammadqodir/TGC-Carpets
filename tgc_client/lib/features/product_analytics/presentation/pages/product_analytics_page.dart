@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/product_analytics_entity.dart';
 import '../bloc/product_analytics_bloc.dart';
 import '../bloc/product_analytics_event.dart';
 import '../bloc/product_analytics_state.dart';
@@ -36,8 +37,17 @@ class ProductAnalyticsPage extends StatelessWidget {
   }
 }
 
-class _ProductAnalyticsView extends StatelessWidget {
+class _ProductAnalyticsView extends StatefulWidget {
   const _ProductAnalyticsView();
+
+  @override
+  State<_ProductAnalyticsView> createState() => _ProductAnalyticsViewState();
+}
+
+class _ProductAnalyticsViewState extends State<_ProductAnalyticsView> {
+  // Held here, above the bloc builder, so it survives the loading spinner
+  // that replaces the content on every period change or refresh.
+  AnalyticsMetric _metric = AnalyticsMetric.quantity;
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +134,8 @@ class _ProductAnalyticsView extends StatelessWidget {
                         return _AnalyticsContent(
                           data: data,
                           isWide: isWide,
+                          metric: _metric,
+                          onMetricChanged: (m) => setState(() => _metric = m),
                         );
                       },
                     ),
@@ -141,10 +153,17 @@ class _ProductAnalyticsView extends StatelessWidget {
 // ─── Content layout ───────────────────────────────────────────────────────────
 
 class _AnalyticsContent extends StatelessWidget {
-  final dynamic data;
+  final ProductAnalyticsEntity data;
   final bool isWide;
+  final AnalyticsMetric metric;
+  final ValueChanged<AnalyticsMetric> onMetricChanged;
 
-  const _AnalyticsContent({required this.data, required this.isWide});
+  const _AnalyticsContent({
+    required this.data,
+    required this.isWide,
+    required this.metric,
+    required this.onMetricChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -152,21 +171,25 @@ class _AnalyticsContent extends StatelessWidget {
       AnalyticsDimensionSection(
         title: 'Tur bo\'yicha',
         items: data.byType,
+        metric: metric,
         accentColor: AppColors.primary,
       ),
       AnalyticsDimensionSection(
         title: 'Rang bo\'yicha',
         items: data.byColor,
+        metric: metric,
         accentColor: const Color(0xFF7B5EA7),
       ),
       AnalyticsDimensionSection(
         title: 'O\'lcham bo\'yicha',
         items: data.bySize,
+        metric: metric,
         accentColor: const Color(0xFF2196A6),
       ),
       AnalyticsDimensionSection(
         title: 'Sifat bo\'yicha',
         items: data.byQuality,
+        metric: metric,
         accentColor: AppColors.accent,
       ),
     ];
@@ -176,10 +199,21 @@ class _AnalyticsContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Metric switcher: count carpets or square metres
+          Align(
+            alignment: Alignment.centerRight,
+            child: _MetricSwitcher(
+              value: metric,
+              onChanged: onMetricChanged,
+            ),
+          ),
+
           // Summary cards
           AnalyticsSummaryCards(
             totalOrders: data.summary.totalOrders,
             totalItems:  data.summary.totalItems,
+            totalSqm:    data.summary.totalSqm,
+            metric:      metric,
           ),
 
           // Trend chart
@@ -192,6 +226,7 @@ class _AnalyticsContent extends StatelessWidget {
                 child: AnalyticsTrendChart(
                   trend:   data.trend,
                   trendBy: data.trendBy,
+                  metric:  metric,
                 ),
               ),
             ),
@@ -215,9 +250,39 @@ class _AnalyticsContent extends StatelessWidget {
             colorOptions:   data.byColor,
             sizeOptions:    data.bySize,
             edgeOptions:    data.byEdge,
+            metric:         metric,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MetricSwitcher extends StatelessWidget {
+  final AnalyticsMetric value;
+  final ValueChanged<AnalyticsMetric> onChanged;
+
+  const _MetricSwitcher({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<AnalyticsMetric>(
+      segments: const [
+        ButtonSegment(
+          value: AnalyticsMetric.quantity,
+          label: Text('Dona'),
+          icon: Icon(Icons.numbers_rounded, size: 16),
+        ),
+        ButtonSegment(
+          value: AnalyticsMetric.sqm,
+          label: Text('m²'),
+          icon: Icon(Icons.square_foot_rounded, size: 16),
+        ),
+      ],
+      selected: {value},
+      showSelectedIcon: false,
+      style: const ButtonStyle(visualDensity: VisualDensity.compact),
+      onSelectionChanged: (s) => onChanged(s.first),
     );
   }
 }

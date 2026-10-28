@@ -134,12 +134,13 @@ class ProductVariant extends Model
 
     public function productSize(): BelongsTo
     {
-        return $this->belongsTo(ProductSize::class);
+        // withTrashed: a hidden size/edge still belongs to variants that use it.
+        return $this->belongsTo(ProductSize::class)->withTrashed();
     }
 
     public function productEdge(): BelongsTo
     {
-        return $this->belongsTo(ProductEdge::class);
+        return $this->belongsTo(ProductEdge::class)->withTrashed();
     }
 
     public function warehouseDocumentItems(): HasMany

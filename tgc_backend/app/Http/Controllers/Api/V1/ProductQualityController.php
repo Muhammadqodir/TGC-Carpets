@@ -22,6 +22,15 @@ class ProductQualityController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Adding a name that was hidden brings the old row back, links intact.
+        if ($hidden = ProductQuality::onlyTrashed()->where('quality_name', $request->input('quality_name'))->first()) {
+            $data = $request->validate(['density' => ['nullable', 'integer', 'min:1']]);
+            $hidden->restore();
+            $hidden->update($data);
+
+            return response()->json(['data' => new ProductQualityResource($hidden)]);
+        }
+
         $data = $request->validate([
             'quality_name' => ['required', 'string', 'max:100', Rule::unique('product_qualities', 'quality_name')],
             'density'      => ['nullable', 'integer', 'min:1'],
@@ -73,6 +82,15 @@ class ProductQualityController extends Controller
 
     public function destroy(Request $request, ProductQuality $productQuality): JsonResponse
     {
+        // mode=hide: soft-delete. It drops out of the pickers and lists, but
+        // every product / variant / order that uses it keeps it unchanged.
+        // Re-creating the same name later brings it back (see store()).
+        if ($request->input('mode') === 'hide') {
+            $productQuality->delete();
+
+            return response()->json(['message' => 'Product quality hidden.']);
+        }
+
         $usageCount = $productQuality->products()->count();
 
         if ($usageCount > 0) {
@@ -84,7 +102,7 @@ class ProductQualityController extends Controller
                 ->update(['product_quality_id' => $request->replace_with_id]);
         }
 
-        $productQuality->delete();
+        $productQuality->forceDelete();
 
         return response()->json(['message' => 'Product quality deleted successfully.']);
     }

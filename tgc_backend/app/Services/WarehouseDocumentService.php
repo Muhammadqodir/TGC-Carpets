@@ -334,7 +334,7 @@ class WarehouseDocumentService
      */
     private function defaultEdgeId(): ?int
     {
-        return ProductEdge::where('code', 'R')->value('id');
+        return ProductEdge::withTrashed()->where('code', 'R')->value('id');
     }
 
     private function getStock(int $variantId): int

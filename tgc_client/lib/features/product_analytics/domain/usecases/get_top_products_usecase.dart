@@ -14,6 +14,7 @@ class GetTopProductsParams extends Equatable {
   final int? sizeId;
   final int? edgeId;
   final int limit;
+  final AnalyticsMetric metric;
 
   const GetTopProductsParams({
     required this.periodFrom,
@@ -24,11 +25,12 @@ class GetTopProductsParams extends Equatable {
     this.sizeId,
     this.edgeId,
     this.limit = 10,
+    this.metric = AnalyticsMetric.quantity,
   });
 
   @override
   List<Object?> get props =>
-      [periodFrom, periodTo, typeId, qualityId, colorId, sizeId, edgeId, limit];
+      [periodFrom, periodTo, typeId, qualityId, colorId, sizeId, edgeId, limit, metric];
 }
 
 class GetTopProductsUseCase {
@@ -46,6 +48,7 @@ class GetTopProductsUseCase {
       sizeId:     params.sizeId,
       edgeId:     params.edgeId,
       limit:      params.limit,
+      metric:     params.metric,
     );
   }
 }

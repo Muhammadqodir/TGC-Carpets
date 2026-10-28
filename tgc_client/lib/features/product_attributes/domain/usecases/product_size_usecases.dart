@@ -20,6 +20,6 @@ class UpdateProductSizeUseCase {
 class DeleteProductSizeUseCase {
   final ProductAttributesRepository _repository;
   const DeleteProductSizeUseCase(this._repository);
-  Future<Either<Failure, void>> call({required int id, int? replaceWithId}) =>
-      _repository.deleteProductSize(id: id, replaceWithId: replaceWithId);
+  Future<Either<Failure, void>> call({required int id, int? replaceWithId, bool hide = false}) =>
+      _repository.deleteProductSize(id: id, replaceWithId: replaceWithId, hide: hide);
 }

@@ -9,12 +9,14 @@ enum _ViewMode { chart, list }
 class AnalyticsDimensionSection extends StatefulWidget {
   final String title;
   final List<AnalyticsDimensionItem> items;
+  final AnalyticsMetric metric;
   final Color accentColor;
 
   const AnalyticsDimensionSection({
     super.key,
     required this.title,
     required this.items,
+    this.metric = AnalyticsMetric.quantity,
     this.accentColor = AppColors.primary,
   });
 
@@ -29,6 +31,10 @@ class _AnalyticsDimensionSectionState
 
   @override
   Widget build(BuildContext context) {
+    // The API orders rows by quantity; re-rank when counting m².
+    final items = [...widget.items]
+      ..sort((a, b) => b.valueOf(widget.metric).compareTo(a.valueOf(widget.metric)));
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -68,7 +74,7 @@ class _AnalyticsDimensionSectionState
 
           const SizedBox(height: 12),
 
-          if (widget.items.isEmpty)
+          if (items.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Text(
@@ -81,13 +87,15 @@ class _AnalyticsDimensionSectionState
               duration: const Duration(milliseconds: 220),
               child: _mode == _ViewMode.chart
                   ? _ChartView(
-                      key: const ValueKey('chart'),
-                      items: widget.items,
+                      key: ValueKey('chart_${widget.metric.name}'),
+                      items: items,
+                      metric: widget.metric,
                       accentColor: widget.accentColor,
                     )
                   : _ListView(
-                      key: const ValueKey('list'),
-                      items: widget.items,
+                      key: ValueKey('list_${widget.metric.name}'),
+                      items: items,
+                      metric: widget.metric,
                       accentColor: widget.accentColor,
                     ),
             ),
@@ -154,16 +162,22 @@ class _ToggleBtn extends StatelessWidget {
 
 class _ChartView extends StatelessWidget {
   final List<AnalyticsDimensionItem> items;
+  final AnalyticsMetric metric;
   final Color accentColor;
 
-  const _ChartView({super.key, required this.items, required this.accentColor});
+  const _ChartView({
+    super.key,
+    required this.items,
+    required this.metric,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Show top 8 to keep the chart readable
     final display = items.take(8).toList();
     final maxY = display
-            .map((e) => e.totalQuantity.toDouble())
+            .map((e) => e.valueOf(metric))
             .reduce((a, b) => a > b ? a : b) *
         1.2;
 
@@ -180,7 +194,7 @@ class _ChartView extends StatelessWidget {
                 getTooltipItem: (group, _, rod, __) {
                   final name = display[group.x].name;
                   return BarTooltipItem(
-                    '$name\n${rod.toY.toInt()} dona',
+                    '$name\n${metric.format(rod.toY)}',
                     const TextStyle(color: Colors.white, fontSize: 11),
                   );
                 },
@@ -253,7 +267,7 @@ class _ChartView extends StatelessWidget {
                 x: entry.key,
                 barRods: [
                   BarChartRodData(
-                    toY: entry.value.totalQuantity.toDouble(),
+                    toY: entry.value.valueOf(metric),
                     color: accentColor.withValues(alpha: opacity),
                     width: 18,
                     borderRadius: const BorderRadius.vertical(
@@ -274,9 +288,15 @@ class _ChartView extends StatelessWidget {
 
 class _ListView extends StatelessWidget {
   final List<AnalyticsDimensionItem> items;
+  final AnalyticsMetric metric;
   final Color accentColor;
 
-  const _ListView({super.key, required this.items, required this.accentColor});
+  const _ListView({
+    super.key,
+    required this.items,
+    required this.metric,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +341,7 @@ class _ListView extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${items[index].totalQuantity} dona',
+                      metric.format(items[index].valueOf(metric)),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
@@ -331,7 +351,7 @@ class _ListView extends StatelessWidget {
                     SizedBox(
                       width: 44,
                       child: Text(
-                        '${items[index].percentage}%',
+                        '${items[index].shareOf(metric)}%',
                         textAlign: TextAlign.end,
                         style: TextStyle(
                           fontSize: 12,
@@ -346,7 +366,7 @@ class _ListView extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: items[index].percentage / 100,
+                    value: items[index].shareOf(metric) / 100,
                     backgroundColor: accentColor.withAlpha(20),
                     valueColor: AlwaysStoppedAnimation(accentColor),
                     minHeight: 4,

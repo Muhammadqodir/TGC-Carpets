@@ -12,7 +12,7 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, ColorEntity>> createColor({required String name});
   Future<Either<Failure, ColorEntity>> updateColor({required int id, required String name});
   Future<Either<Failure, int>> checkColorUsage({required int id});
-  Future<Either<Failure, void>> deleteColor({required int id, int? replaceWithId});
+  Future<Either<Failure, void>> deleteColor({required int id, int? replaceWithId, bool hide = false});
 
   // ── Product Types ─────────────────────────────────────────────────────────
   Future<Either<Failure, List<ProductTypeEntity>>> getProductTypes();
@@ -21,7 +21,7 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, int>> checkProductTypeUsage({required int id});
   Future<Either<Failure, ProductTypeEntity>> archiveProductType({required int id});
   Future<Either<Failure, ProductTypeEntity>> unarchiveProductType({required int id});
-  Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId});
+  Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId, bool hide = false});
 
   // ── Product Qualities ─────────────────────────────────────────────────────
   Future<Either<Failure, List<ProductQualityEntity>>> getProductQualities();
@@ -30,19 +30,19 @@ abstract class ProductAttributesRepository {
   Future<Either<Failure, int>> checkProductQualityUsage({required int id});
   Future<Either<Failure, ProductQualityEntity>> archiveProductQuality({required int id});
   Future<Either<Failure, ProductQualityEntity>> unarchiveProductQuality({required int id});
-  Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId});
+  Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId, bool hide = false});
 
   // ── Product Sizes ─────────────────────────────────────────────────────────
   Future<Either<Failure, List<ProductSizeEntity>>> getProductSizes({int? productTypeId});
   Future<Either<Failure, ProductSizeEntity>> createProductSize({required int length, required int width, required int productTypeId});
   Future<Either<Failure, ProductSizeEntity>> updateProductSize({required int id, required int length, required int width, required int productTypeId});
   Future<Either<Failure, int>> checkProductSizeUsage({required int id});
-  Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId});
+  Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId, bool hide = false});
 
   // ── Product Edges ─────────────────────────────────────────────────────────
   Future<Either<Failure, List<ProductEdgeEntity>>> getProductEdges();
   Future<Either<Failure, ProductEdgeEntity>> createProductEdge({required String code, required String title});
   Future<Either<Failure, ProductEdgeEntity>> updateProductEdge({required int id, required String code, required String title});
   Future<Either<Failure, int>> checkProductEdgeUsage({required int id});
-  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId});
+  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId, bool hide = false});
 }

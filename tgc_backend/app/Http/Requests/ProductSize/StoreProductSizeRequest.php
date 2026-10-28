@@ -21,10 +21,12 @@ class StoreProductSizeRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:product_types,id',
+                // Hidden (soft-deleted) sizes don't count: the controller restores them.
                 Rule::unique('product_sizes')->where(function ($query) {
                     return $query
                         ->where('length', $this->input('length'))
-                        ->where('width',  $this->input('width'));
+                        ->where('width',  $this->input('width'))
+                        ->whereNull('deleted_at');
                 }),
             ],
         ];

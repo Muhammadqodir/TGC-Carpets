@@ -34,6 +34,6 @@ class UnarchiveProductTypeUseCase {
 class DeleteProductTypeUseCase {
   final ProductAttributesRepository _repository;
   const DeleteProductTypeUseCase(this._repository);
-  Future<Either<Failure, void>> call({required int id, int? replaceWithId}) =>
-      _repository.deleteProductType(id: id, replaceWithId: replaceWithId);
+  Future<Either<Failure, void>> call({required int id, int? replaceWithId, bool hide = false}) =>
+      _repository.deleteProductType(id: id, replaceWithId: replaceWithId, hide: hide);
 }

@@ -6,6 +6,8 @@ class ProductColorBreakdownModel extends ProductColorBreakdown {
     super.imageUrl,
     required super.quantity,
     required super.percentage,
+    super.sqm,
+    super.sqmPercentage,
   });
 
   factory ProductColorBreakdownModel.fromJson(Map<String, dynamic> json) {
@@ -14,6 +16,8 @@ class ProductColorBreakdownModel extends ProductColorBreakdown {
       imageUrl:   json['image_url'] as String?,
       quantity:   json['quantity'] as int? ?? 0,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
+      sqm:           (json['sqm'] as num?)?.toDouble() ?? 0.0,
+      sqmPercentage: (json['sqm_percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -25,6 +29,8 @@ class ProductSizeBreakdownModel extends ProductSizeBreakdown {
     required super.length,
     required super.quantity,
     required super.percentage,
+    super.sqm,
+    super.sqmPercentage,
   });
 
   factory ProductSizeBreakdownModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +40,8 @@ class ProductSizeBreakdownModel extends ProductSizeBreakdown {
       length:     json['length'] as int?,
       quantity:   json['quantity'] as int? ?? 0,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
+      sqm:           (json['sqm'] as num?)?.toDouble() ?? 0.0,
+      sqmPercentage: (json['sqm_percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -47,6 +55,8 @@ class TopProductItemModel extends TopProductItem {
     required super.ordersCount,
     required super.totalQuantity,
     required super.percentage,
+    super.totalSqm,
+    super.sqmPercentage,
     required super.colors,
     required super.sizes,
   });
@@ -60,6 +70,8 @@ class TopProductItemModel extends TopProductItem {
       ordersCount:   json['orders_count'] as int? ?? 0,
       totalQuantity: json['total_quantity'] as int? ?? 0,
       percentage:    (json['percentage'] as num?)?.toDouble() ?? 0.0,
+      totalSqm:      (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
+      sqmPercentage: (json['sqm_percentage'] as num?)?.toDouble() ?? 0.0,
       colors: (json['colors'] as List<dynamic>? ?? [])
           .map((e) => ProductColorBreakdownModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -77,6 +89,8 @@ class AnalyticsDimensionItemModel extends AnalyticsDimensionItem {
     required super.ordersCount,
     required super.totalQuantity,
     required super.percentage,
+    super.totalSqm,
+    super.sqmPercentage,
   });
 
   factory AnalyticsDimensionItemModel.fromJson(Map<String, dynamic> json) {
@@ -86,6 +100,8 @@ class AnalyticsDimensionItemModel extends AnalyticsDimensionItem {
       ordersCount:    json['orders_count'] as int? ?? 0,
       totalQuantity:  json['total_quantity'] as int? ?? 0,
       percentage:     (json['percentage'] as num?)?.toDouble() ?? 0.0,
+      totalSqm:       (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
+      sqmPercentage:  (json['sqm_percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -95,6 +111,7 @@ class AnalyticsTrendPointModel extends AnalyticsTrendPoint {
     required super.label,
     required super.ordersCount,
     required super.totalQuantity,
+    super.totalSqm,
   });
 
   factory AnalyticsTrendPointModel.fromJson(Map<String, dynamic> json) {
@@ -102,6 +119,7 @@ class AnalyticsTrendPointModel extends AnalyticsTrendPoint {
       label:          json['label'] as String? ?? '',
       ordersCount:    json['orders_count'] as int? ?? 0,
       totalQuantity:  json['total_quantity'] as int? ?? 0,
+      totalSqm:       (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -110,12 +128,14 @@ class AnalyticsSummaryModel extends AnalyticsSummary {
   const AnalyticsSummaryModel({
     required super.totalOrders,
     required super.totalItems,
+    super.totalSqm,
   });
 
   factory AnalyticsSummaryModel.fromJson(Map<String, dynamic> json) {
     return AnalyticsSummaryModel(
       totalOrders: json['total_orders'] as int? ?? 0,
       totalItems:  json['total_items'] as int? ?? 0,
+      totalSqm:    (json['total_sqm'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

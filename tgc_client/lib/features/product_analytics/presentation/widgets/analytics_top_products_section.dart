@@ -19,6 +19,7 @@ class AnalyticsTopProductsSection extends StatefulWidget {
   final List<AnalyticsDimensionItem> colorOptions;
   final List<AnalyticsDimensionItem> sizeOptions;
   final List<AnalyticsDimensionItem> edgeOptions;
+  final AnalyticsMetric metric;
 
   const AnalyticsTopProductsSection({
     super.key,
@@ -29,6 +30,7 @@ class AnalyticsTopProductsSection extends StatefulWidget {
     required this.colorOptions,
     required this.sizeOptions,
     required this.edgeOptions,
+    this.metric = AnalyticsMetric.quantity,
   });
 
   @override
@@ -48,6 +50,7 @@ class _AnalyticsTopProductsSectionState
       periodFrom: widget.periodFrom,
       periodTo:   widget.periodTo,
     );
+    if (widget.metric != AnalyticsMetric.quantity) _cubit.setMetric(widget.metric);
   }
 
   @override
@@ -57,6 +60,7 @@ class _AnalyticsTopProductsSectionState
         oldWidget.periodTo != widget.periodTo) {
       _cubit.updatePeriod(widget.periodFrom, widget.periodTo);
     }
+    if (oldWidget.metric != widget.metric) _cubit.setMetric(widget.metric);
   }
 
   @override
@@ -75,6 +79,7 @@ class _AnalyticsTopProductsSectionState
         colorOptions:   widget.colorOptions,
         sizeOptions:    widget.sizeOptions,
         edgeOptions:    widget.edgeOptions,
+        metric:         widget.metric,
       ),
     );
   }
@@ -88,6 +93,7 @@ class _TopProductsContent extends StatelessWidget {
   final List<AnalyticsDimensionItem> colorOptions;
   final List<AnalyticsDimensionItem> sizeOptions;
   final List<AnalyticsDimensionItem> edgeOptions;
+  final AnalyticsMetric metric;
 
   const _TopProductsContent({
     required this.typeOptions,
@@ -95,6 +101,7 @@ class _TopProductsContent extends StatelessWidget {
     required this.colorOptions,
     required this.sizeOptions,
     required this.edgeOptions,
+    required this.metric,
   });
 
   @override
@@ -228,6 +235,7 @@ class _TopProductsContent extends StatelessWidget {
                     itemBuilder: (context, index) => _ProductTile(
                       rank: index + 1,
                       item: products[index],
+                      metric: metric,
                     ),
                   ),
                 ),
@@ -427,8 +435,9 @@ class _AttrDropdown<T> extends StatelessWidget {
 class _ProductTile extends StatelessWidget {
   final int rank;
   final TopProductItem item;
+  final AnalyticsMetric metric;
 
-  const _ProductTile({required this.rank, required this.item});
+  const _ProductTile({required this.rank, required this.item, required this.metric});
 
   @override
   Widget build(BuildContext context) {
@@ -490,14 +499,14 @@ class _ProductTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${item.totalQuantity}',
+                  metric.format(item.valueOf(metric)),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                 ),
                 Text(
-                  '${item.percentage}%',
+                  '${item.shareOf(metric)}%',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -513,9 +522,9 @@ class _ProductTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (item.colors.isNotEmpty)
-                  _ColorBreakdown(colors: item.colors),
+                  _ColorBreakdown(colors: item.colors, metric: metric),
                 if (item.sizes.isNotEmpty)
-                  _SizeBreakdown(sizes: item.sizes),
+                  _SizeBreakdown(sizes: item.sizes, metric: metric),
                 const SizedBox(height: 8),
               ],
             ),
@@ -530,7 +539,8 @@ class _ProductTile extends StatelessWidget {
 
 class _ColorBreakdown extends StatelessWidget {
   final List<ProductColorBreakdown> colors;
-  const _ColorBreakdown({required this.colors});
+  final AnalyticsMetric metric;
+  const _ColorBreakdown({required this.colors, required this.metric});
 
   static Color _swatchOf(String name) {
     final hue = (name.hashCode.abs() % 360).toDouble();
@@ -557,7 +567,7 @@ class _ColorBreakdown extends StatelessWidget {
             spacing: 10,
             runSpacing: 8,
             children: colors
-                .map((c) => _ColorChip(c: c, swatchOf: _swatchOf))
+                .map((c) => _ColorChip(c: c, metric: metric, swatchOf: _swatchOf))
                 .toList(),
           ),
         ],
@@ -568,9 +578,10 @@ class _ColorBreakdown extends StatelessWidget {
 
 class _ColorChip extends StatelessWidget {
   final ProductColorBreakdown c;
+  final AnalyticsMetric metric;
   final Color Function(String) swatchOf;
 
-  const _ColorChip({required this.c, required this.swatchOf});
+  const _ColorChip({required this.c, required this.metric, required this.swatchOf});
 
   @override
   Widget build(BuildContext context) {
@@ -594,7 +605,7 @@ class _ColorChip extends StatelessWidget {
         thumbnail,
         const SizedBox(width: 5),
         Text(
-          '${c.name}  ${c.percentage}%',
+          '${c.name}  ${c.shareOf(metric)}%',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AppColors.textPrimary,
               ),
@@ -608,7 +619,8 @@ class _ColorChip extends StatelessWidget {
 
 class _SizeBreakdown extends StatelessWidget {
   final List<ProductSizeBreakdown> sizes;
-  const _SizeBreakdown({required this.sizes});
+  final AnalyticsMetric metric;
+  const _SizeBreakdown({required this.sizes, required this.metric});
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +650,7 @@ class _SizeBreakdown extends StatelessWidget {
                   border: Border.all(color: AppColors.divider),
                 ),
                 child: Text(
-                  '${s.label}  ${s.percentage}%',
+                  '${s.label}  ${s.shareOf(metric)}%',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500,

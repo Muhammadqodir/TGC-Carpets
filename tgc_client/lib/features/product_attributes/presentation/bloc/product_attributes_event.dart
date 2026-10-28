@@ -37,9 +37,11 @@ class ColorUpdateRequested extends ProductAttributesEvent {
 class ColorDeleteRequested extends ProductAttributesEvent {
   final int id;
   final int? replaceWithId;
-  const ColorDeleteRequested(this.id, {this.replaceWithId});
+  /// Soft-delete: hide from pickers, leave every product that uses it as is.
+  final bool hide;
+  const ColorDeleteRequested(this.id, {this.replaceWithId, this.hide = false});
   @override
-  List<Object?> get props => [id, replaceWithId];
+  List<Object?> get props => [id, replaceWithId, hide];
 }
 
 // ── Product Types ─────────────────────────────────────────────────────────────
@@ -64,9 +66,11 @@ class ProductTypeUpdateRequested extends ProductAttributesEvent {
 class ProductTypeDeleteRequested extends ProductAttributesEvent {
   final int id;
   final int? replaceWithId;
-  const ProductTypeDeleteRequested(this.id, {this.replaceWithId});
+  /// Soft-delete: hide from pickers, leave every product that uses it as is.
+  final bool hide;
+  const ProductTypeDeleteRequested(this.id, {this.replaceWithId, this.hide = false});
   @override
-  List<Object?> get props => [id, replaceWithId];
+  List<Object?> get props => [id, replaceWithId, hide];
 }
 
 class ProductTypeArchiveToggleRequested extends ProductAttributesEvent {
@@ -99,9 +103,11 @@ class ProductQualityUpdateRequested extends ProductAttributesEvent {
 class ProductQualityDeleteRequested extends ProductAttributesEvent {
   final int id;
   final int? replaceWithId;
-  const ProductQualityDeleteRequested(this.id, {this.replaceWithId});
+  /// Soft-delete: hide from pickers, leave every product that uses it as is.
+  final bool hide;
+  const ProductQualityDeleteRequested(this.id, {this.replaceWithId, this.hide = false});
   @override
-  List<Object?> get props => [id, replaceWithId];
+  List<Object?> get props => [id, replaceWithId, hide];
 }
 
 class ProductQualityArchiveToggleRequested extends ProductAttributesEvent {
@@ -136,9 +142,11 @@ class ProductSizeUpdateRequested extends ProductAttributesEvent {
 class ProductSizeDeleteRequested extends ProductAttributesEvent {
   final int id;
   final int? replaceWithId;
-  const ProductSizeDeleteRequested(this.id, {this.replaceWithId});
+  /// Soft-delete: hide from pickers, leave every product that uses it as is.
+  final bool hide;
+  const ProductSizeDeleteRequested(this.id, {this.replaceWithId, this.hide = false});
   @override
-  List<Object?> get props => [id];
+  List<Object?> get props => [id, replaceWithId, hide];
 }
 
 // ── Product Edges ─────────────────────────────────────────────────────────────
@@ -163,7 +171,9 @@ class ProductEdgeUpdateRequested extends ProductAttributesEvent {
 class ProductEdgeDeleteRequested extends ProductAttributesEvent {
   final int id;
   final int? replaceWithId;
-  const ProductEdgeDeleteRequested(this.id, {this.replaceWithId});
+  /// Soft-delete: hide from pickers, leave every product that uses it as is.
+  final bool hide;
+  const ProductEdgeDeleteRequested(this.id, {this.replaceWithId, this.hide = false});
   @override
-  List<Object?> get props => [id, replaceWithId];
+  List<Object?> get props => [id, replaceWithId, hide];
 }

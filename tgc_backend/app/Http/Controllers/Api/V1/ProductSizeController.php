@@ -31,6 +31,20 @@ class ProductSizeController extends Controller
 
     public function store(StoreProductSizeRequest $request): JsonResponse
     {
+        // Adding a size that was hidden brings the old row back, links intact.
+        $hidden = ProductSize::onlyTrashed()
+            ->where('length', $request->input('length'))
+            ->where('width', $request->input('width'))
+            ->where('product_type_id', $request->input('product_type_id'))
+            ->first();
+
+        if ($hidden) {
+            $hidden->restore();
+            $hidden->load('productType');
+
+            return response()->json(['data' => new ProductSizeResource($hidden)]);
+        }
+
         $size = ProductSize::create($request->validated());
         $size->load('productType');
 
@@ -59,6 +73,15 @@ class ProductSizeController extends Controller
 
     public function destroy(Request $request, ProductSize $productSize): JsonResponse
     {
+        // mode=hide: soft-delete. It drops out of the pickers and lists, but
+        // every product / variant / order that uses it keeps it unchanged.
+        // Re-creating the same name later brings it back (see store()).
+        if ($request->input('mode') === 'hide') {
+            $productSize->delete();
+
+            return response()->json(['message' => 'Product size hidden.']);
+        }
+
         $usageCount = $productSize->variants()->count();
 
         if ($usageCount > 0) {
@@ -92,7 +115,7 @@ class ProductSizeController extends Controller
                 ->update(['product_size_id' => $validated['replace_with_id']]);
         }
 
-        $productSize->delete();
+        $productSize->forceDelete();
 
         return response()->json(['message' => 'Product size deleted successfully.']);
     }

@@ -11,6 +11,15 @@ use Illuminate\Support\Facades\Storage;
 class ProductAnalyticsService
 {
     /**
+     * Ordered square metres for the rows in the group. `sqm_sz` is the size
+     * joined in baseQuery(); items without a size count as 0 m².
+     */
+    private const SQM_SUM = 'COALESCE(SUM(order_items.quantity * sqm_sz.width * sqm_sz.length), 0) / 10000';
+
+    /** Bumped when the cached report shape changes (v2: added *_sqm fields). */
+    private const CACHE_VERSION = 'v2';
+
+    /**
      * Return the full analytics report for ordered products in the given date range.
      *
      * Cached: 5 minutes when the period includes today, 60 minutes for purely historical ranges.
@@ -18,7 +27,7 @@ class ProductAnalyticsService
     public function getReport(string $from, string $to, string $trendBy = 'day'): array
     {
         $ttl    = $this->resolveTtl($to);
-        $cacheKey = "analytics:products:{$from}:{$to}:{$trendBy}";
+        $cacheKey = "analytics:products:" . self::CACHE_VERSION . ":{$from}:{$to}:{$trendBy}";
 
         return Cache::remember($cacheKey, $ttl, function () use ($from, $to, $trendBy): array {
             return [
@@ -47,12 +56,14 @@ class ProductAnalyticsService
         ?int $sizeId,
         ?int $edgeId,
         int $limit = 10,
+        string $metric = 'quantity',
     ): array {
         $ttl = $this->resolveTtl($to);
-        $cacheKey = "analytics:top-products:{$from}:{$to}:t{$typeId}:q{$qualityId}:c{$colorId}:s{$sizeId}:e{$edgeId}:l{$limit}";
+        $cacheKey = "analytics:top-products:" . self::CACHE_VERSION . ":{$from}:{$to}:t{$typeId}:q{$qualityId}:c{$colorId}:s{$sizeId}:e{$edgeId}:l{$limit}:m{$metric}";
 
-        return Cache::remember($cacheKey, $ttl, function () use ($from, $to, $typeId, $qualityId, $colorId, $sizeId, $edgeId, $limit): array {
-            $total = $this->filteredTotal($from, $to, $typeId, $qualityId, $colorId, $sizeId, $edgeId);
+        return Cache::remember($cacheKey, $ttl, function () use ($from, $to, $typeId, $qualityId, $colorId, $sizeId, $edgeId, $limit, $metric): array {
+            [$total, $totalSqm] = $this->filteredTotals($from, $to, $typeId, $qualityId, $colorId, $sizeId, $edgeId);
+            $rankBy = $metric === 'sqm' ? self::SQM_SUM : 'SUM(order_items.quantity)';
 
             $query = $this->baseQuery($from, $to)
                 ->leftJoin('product_types',    'product_types.id',    '=', 'products.product_type_id')
@@ -63,10 +74,11 @@ class ProductAnalyticsService
                      COALESCE(product_types.type, 'Noma\'lum') as type_name,
                      COALESCE(product_qualities.quality_name, 'Noma\'lum') as quality_name,
                      COUNT(DISTINCT orders.id) as orders_count,
-                     COALESCE(SUM(order_items.quantity), 0) as total_quantity"
+                     COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                     " . self::SQM_SUM . " as total_sqm"
                 )
                 ->groupBy('products.id', 'products.name', 'product_types.type', 'product_qualities.quality_name')
-                ->orderByRaw('SUM(order_items.quantity) DESC')
+                ->orderByRaw("{$rankBy} DESC")
                 ->limit($limit);
 
             $this->applyFilters($query, $typeId, $qualityId, $colorId, $sizeId, $edgeId);
@@ -89,7 +101,8 @@ class ProductAnalyticsService
                     "products.id as product_id,
                      COALESCE(colors.name, 'Noma\'lum') as color_name,
                      product_colors.image as image,
-                     COALESCE(SUM(order_items.quantity), 0) as quantity"
+                     COALESCE(SUM(order_items.quantity), 0) as quantity,
+                     " . self::SQM_SUM . " as sqm"
                 )
                 ->groupBy('products.id', 'colors.name', 'product_colors.image')
                 ->orderByRaw('SUM(order_items.quantity) DESC')
@@ -105,51 +118,15 @@ class ProductAnalyticsService
                     "products.id as product_id,
                      product_sizes.width,
                      product_sizes.length,
-                     COALESCE(SUM(order_items.quantity), 0) as quantity"
+                     COALESCE(SUM(order_items.quantity), 0) as quantity,
+                     " . self::SQM_SUM . " as sqm"
                 )
                 ->groupBy('products.id', 'product_sizes.width', 'product_sizes.length')
                 ->orderByRaw('SUM(order_items.quantity) DESC')
                 ->get()
                 ->groupBy(fn ($r) => (string) $r->product_id);
 
-            return $productRows->map(function ($r) use ($total, $colorsByProduct, $sizesByProduct): array {
-                $qty = (int) $r->total_quantity;
-                $pid = (string) $r->id;
-
-                $colors = ($colorsByProduct[$pid] ?? collect())->map(function ($c) use ($qty): array {
-                    $cQty = (int) $c->quantity;
-                    return [
-                        'name'       => $c->color_name,
-                        'image_url'  => $c->image ? Storage::disk('public')->url($c->image) : null,
-                        'quantity'   => $cQty,
-                        'percentage' => $qty > 0 ? round(($cQty / $qty) * 100, 1) : 0.0,
-                    ];
-                })->values()->all();
-
-                $sizes = ($sizesByProduct[$pid] ?? collect())->map(function ($s) use ($qty): array {
-                    $sQty  = (int) $s->quantity;
-                    $label = ($s->width && $s->length) ? "{$s->width}x{$s->length}" : "O'lchamsiz";
-                    return [
-                        'label'      => $label,
-                        'width'      => $s->width,
-                        'length'     => $s->length,
-                        'quantity'   => $sQty,
-                        'percentage' => $qty > 0 ? round(($sQty / $qty) * 100, 1) : 0.0,
-                    ];
-                })->values()->all();
-
-                return [
-                    'id'             => $r->id,
-                    'name'           => $r->name,
-                    'type_name'      => $r->type_name,
-                    'quality_name'   => $r->quality_name,
-                    'orders_count'   => (int) $r->orders_count,
-                    'total_quantity' => $qty,
-                    'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
-                    'colors'         => $colors,
-                    'sizes'          => $sizes,
-                ];
-            })->all();
+            return $this->mergeTopProducts($productRows, $total, $totalSqm, $colorsByProduct, $sizesByProduct);
         });
     }
 
@@ -166,6 +143,7 @@ class ProductAnalyticsService
             ->join('product_variants', 'product_variants.id', '=', 'order_items.product_variant_id')
             ->join('product_colors', 'product_colors.id', '=', 'product_variants.product_color_id')
             ->join('products', 'products.id', '=', 'product_colors.product_id')
+            ->leftJoin('product_sizes as sqm_sz', 'sqm_sz.id', '=', 'product_variants.product_size_id')
             ->where('orders.status', '!=', Order::STATUS_CANCELED)
             ->whereBetween(DB::raw('DATE(orders.order_date)'), [$from, $to])
             ->whereNull('products.deleted_at');
@@ -174,12 +152,13 @@ class ProductAnalyticsService
     private function querySummary(string $from, string $to): array
     {
         $row = $this->baseQuery($from, $to)
-            ->selectRaw('COUNT(DISTINCT orders.id) as total_orders, COALESCE(SUM(order_items.quantity), 0) as total_items')
+            ->selectRaw('COUNT(DISTINCT orders.id) as total_orders, COALESCE(SUM(order_items.quantity), 0) as total_items, ' . self::SQM_SUM . ' as total_sqm')
             ->first();
 
         return [
             'total_orders' => (int) ($row->total_orders ?? 0),
             'total_items'  => (int) ($row->total_items  ?? 0),
+            'total_sqm'    => round((float) ($row->total_sqm ?? 0), 2),
         ];
     }
 
@@ -195,7 +174,8 @@ class ProductAnalyticsService
             ->selectRaw(
                 "DATE_FORMAT(orders.order_date, '{$dateFormat}') as period_label,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity"
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 " . self::SQM_SUM . " as total_sqm"
             )
             ->groupByRaw("DATE_FORMAT(orders.order_date, '{$dateFormat}')")
             ->orderByRaw("DATE_FORMAT(orders.order_date, '{$dateFormat}')")
@@ -205,12 +185,14 @@ class ProductAnalyticsService
             'label'          => $r->period_label,
             'orders_count'   => (int) $r->orders_count,
             'total_quantity' => (int) $r->total_quantity,
+            'total_sqm'      => round((float) $r->total_sqm, 2),
         ])->all();
     }
 
     private function queryByType(string $from, string $to): array
     {
-        $total = $this->totalItems($from, $to);
+        $total    = $this->totalItems($from, $to);
+        $totalSqm = $this->totalSqm($from, $to);
 
         $rows = $this->baseQuery($from, $to)
             ->leftJoin('product_types', 'product_types.id', '=', 'products.product_type_id')
@@ -218,19 +200,21 @@ class ProductAnalyticsService
                 'product_types.id,
                  COALESCE(product_types.type, ?) as name,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 ' . self::SQM_SUM . ' as total_sqm',
                 ['Noma\'lum']
             )
             ->groupBy('product_types.id', 'product_types.type')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $total);
+        return $this->appendPercentage($rows, $total, $totalSqm);
     }
 
     private function queryByColor(string $from, string $to): array
     {
-        $total = $this->totalItems($from, $to);
+        $total    = $this->totalItems($from, $to);
+        $totalSqm = $this->totalSqm($from, $to);
 
         $rows = $this->baseQuery($from, $to)
             ->leftJoin('colors', 'colors.id', '=', 'product_colors.color_id')
@@ -238,19 +222,21 @@ class ProductAnalyticsService
                 'colors.id,
                  COALESCE(colors.name, ?) as name,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 ' . self::SQM_SUM . ' as total_sqm',
                 ['Noma\'lum']
             )
             ->groupBy('colors.id', 'colors.name')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $total);
+        return $this->appendPercentage($rows, $total, $totalSqm);
     }
 
     private function queryBySize(string $from, string $to): array
     {
-        $total = $this->totalItems($from, $to);
+        $total    = $this->totalItems($from, $to);
+        $totalSqm = $this->totalSqm($from, $to);
 
         $rows = $this->baseQuery($from, $to)
             ->leftJoin('product_sizes', 'product_sizes.id', '=', 'product_variants.product_size_id')
@@ -264,19 +250,21 @@ class ProductAnalyticsService
                  product_sizes.width,
                  product_sizes.length,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 ' . self::SQM_SUM . ' as total_sqm',
                 ['O\'lchamsiz']
             )
             ->groupBy('product_sizes.id', 'product_sizes.width', 'product_sizes.length')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $total);
+        return $this->appendPercentage($rows, $total, $totalSqm);
     }
 
     private function queryByQuality(string $from, string $to): array
     {
-        $total = $this->totalItems($from, $to);
+        $total    = $this->totalItems($from, $to);
+        $totalSqm = $this->totalSqm($from, $to);
 
         $rows = $this->baseQuery($from, $to)
             ->leftJoin('product_qualities', 'product_qualities.id', '=', 'products.product_quality_id')
@@ -284,14 +272,15 @@ class ProductAnalyticsService
                 'product_qualities.id,
                  COALESCE(product_qualities.quality_name, ?) as name,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 ' . self::SQM_SUM . ' as total_sqm',
                 ['Noma\'lum']
             )
             ->groupBy('product_qualities.id', 'product_qualities.quality_name')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $total);
+        return $this->appendPercentage($rows, $total, $totalSqm);
     }
 
     private function queryTopProducts(string $from, string $to): array
@@ -308,7 +297,8 @@ class ProductAnalyticsService
                  COALESCE(product_types.type, 'Noma\'lum') as type_name,
                  COALESCE(product_qualities.quality_name, 'Noma\'lum') as quality_name,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity"
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 " . self::SQM_SUM . " as total_sqm"
             )
             ->groupBy('products.id', 'products.name', 'product_types.type', 'product_qualities.quality_name')
             ->orderByRaw('SUM(order_items.quantity) DESC')
@@ -328,7 +318,8 @@ class ProductAnalyticsService
                 "products.id as product_id,
                  COALESCE(colors.name, 'Noma\'lum') as color_name,
                  product_colors.image as image,
-                 COALESCE(SUM(order_items.quantity), 0) as quantity"
+                 COALESCE(SUM(order_items.quantity), 0) as quantity,
+                 " . self::SQM_SUM . " as sqm"
             )
             ->groupBy('products.id', 'colors.name', 'product_colors.image')
             ->orderByRaw('SUM(order_items.quantity) DESC')
@@ -343,7 +334,8 @@ class ProductAnalyticsService
                 "products.id as product_id,
                  product_sizes.width,
                  product_sizes.length,
-                 COALESCE(SUM(order_items.quantity), 0) as quantity"
+                 COALESCE(SUM(order_items.quantity), 0) as quantity,
+                 " . self::SQM_SUM . " as sqm"
             )
             ->groupBy('products.id', 'product_sizes.width', 'product_sizes.length')
             ->orderByRaw('SUM(order_items.quantity) DESC')
@@ -351,51 +343,13 @@ class ProductAnalyticsService
             ->groupBy(fn ($r) => (string) $r->product_id);
 
         // ── Merge ────────────────────────────────────────────────────────────
-        return $productRows->map(function ($r) use ($total, $colorsByProduct, $sizesByProduct): array {
-            $qty = (int) $r->total_quantity;
-            $pid = (string) $r->id;
-
-            $colors = ($colorsByProduct[$pid] ?? collect())->map(function ($c) use ($qty): array {
-                $cQty = (int) $c->quantity;
-                return [
-                    'name'       => $c->color_name,
-                    'image_url'  => $c->image ? Storage::disk('public')->url($c->image) : null,
-                    'quantity'   => $cQty,
-                    'percentage' => $qty > 0 ? round(($cQty / $qty) * 100, 1) : 0.0,
-                ];
-            })->values()->all();
-
-            $sizes = ($sizesByProduct[$pid] ?? collect())->map(function ($s) use ($qty): array {
-                $sQty  = (int) $s->quantity;
-                $label = ($s->width && $s->length)
-                    ? "{$s->width}x{$s->length}"
-                    : "O'lchamsiz";
-                return [
-                    'label'      => $label,
-                    'width'      => $s->width,
-                    'length'     => $s->length,
-                    'quantity'   => $sQty,
-                    'percentage' => $qty > 0 ? round(($sQty / $qty) * 100, 1) : 0.0,
-                ];
-            })->values()->all();
-
-            return [
-                'id'             => $r->id,
-                'name'           => $r->name,
-                'type_name'      => $r->type_name,
-                'quality_name'   => $r->quality_name,
-                'orders_count'   => (int) $r->orders_count,
-                'total_quantity' => $qty,
-                'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
-                'colors'         => $colors,
-                'sizes'          => $sizes,
-            ];
-        })->all();
+        return $this->mergeTopProducts($productRows, $total, $this->totalSqm($from, $to), $colorsByProduct, $sizesByProduct);
     }
 
     private function queryByEdge(string $from, string $to): array
     {
-        $total = $this->totalItems($from, $to);
+        $total    = $this->totalItems($from, $to);
+        $totalSqm = $this->totalSqm($from, $to);
 
         $rows = $this->baseQuery($from, $to)
             ->leftJoin('product_edges', 'product_edges.id', '=', 'product_variants.product_edge_id')
@@ -403,28 +357,30 @@ class ProductAnalyticsService
                 'product_edges.id,
                  COALESCE(product_edges.title, ?) as name,
                  COUNT(DISTINCT orders.id) as orders_count,
-                 COALESCE(SUM(order_items.quantity), 0) as total_quantity',
+                 COALESCE(SUM(order_items.quantity), 0) as total_quantity,
+                 ' . self::SQM_SUM . ' as total_sqm',
                 ['Noma\'lum']
             )
             ->groupBy('product_edges.id', 'product_edges.title')
             ->orderByRaw('SUM(order_items.quantity) DESC')
             ->get();
 
-        return $this->appendPercentage($rows, $total);
+        return $this->appendPercentage($rows, $total, $totalSqm);
     }
 
     // ─── Utilities ────────────────────────────────────────────────────────────
 
-    private function filteredTotal(
+    /** @return array{0: int, 1: float} [quantity, m²] for the filtered rows */
+    private function filteredTotals(
         string $from, string $to,
         ?int $typeId, ?int $qualityId, ?int $colorId, ?int $sizeId, ?int $edgeId,
-    ): int {
-        $query = $this->applyFilters(
-            $this->baseQuery($from, $to)->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total'),
+    ): array {
+        $row = $this->applyFilters(
+            $this->baseQuery($from, $to)->selectRaw('COALESCE(SUM(order_items.quantity), 0) as total, ' . self::SQM_SUM . ' as total_sqm'),
             $typeId, $qualityId, $colorId, $sizeId, $edgeId,
-        );
+        )->first();
 
-        return (int) $query->value('total');
+        return [(int) ($row->total ?? 0), (float) ($row->total_sqm ?? 0)];
     }
 
     /**
@@ -443,6 +399,13 @@ class ProductAnalyticsService
         return $query;
     }
 
+    private function totalSqm(string $from, string $to): float
+    {
+        return (float) $this->baseQuery($from, $to)
+            ->selectRaw(self::SQM_SUM . ' as total_sqm')
+            ->value('total_sqm');
+    }
+
     private function totalItems(string $from, string $to): int
     {
         return (int) $this->baseQuery($from, $to)
@@ -450,16 +413,76 @@ class ProductAnalyticsService
             ->value('total');
     }
 
-    private function appendPercentage($rows, int $total): array
+    private function appendPercentage($rows, int $total, float $totalSqm): array
     {
-        return $rows->map(function ($row) use ($total): array {
+        return $rows->map(function ($row) use ($total, $totalSqm): array {
             $qty = (int) $row->total_quantity;
+            $sqm = (float) $row->total_sqm;
             return [
                 'id'             => $row->id,
                 'name'           => $row->name,
                 'orders_count'   => (int) $row->orders_count,
                 'total_quantity' => $qty,
                 'percentage'     => $total > 0 ? round(($qty / $total) * 100, 1) : 0.0,
+                'total_sqm'      => round($sqm, 2),
+                'sqm_percentage' => $totalSqm > 0 ? round(($sqm / $totalSqm) * 100, 1) : 0.0,
+            ];
+        })->all();
+    }
+
+    /**
+     * Shape top-product rows plus their colour / size breakdowns. Each share is
+     * given both by quantity (`percentage`) and by area (`sqm_percentage`).
+     */
+    private function mergeTopProducts($productRows, int $total, float $totalSqm, $colorsByProduct, $sizesByProduct): array
+    {
+        $pct = fn (float $part, float $whole): float => $whole > 0 ? round(($part / $whole) * 100, 1) : 0.0;
+
+        return $productRows->map(function ($r) use ($total, $totalSqm, $colorsByProduct, $sizesByProduct, $pct): array {
+            $qty = (int) $r->total_quantity;
+            $sqm = (float) $r->total_sqm;
+            $pid = (string) $r->id;
+
+            $colors = ($colorsByProduct[$pid] ?? collect())->map(function ($c) use ($qty, $sqm, $pct): array {
+                $cQty = (int) $c->quantity;
+                $cSqm = (float) $c->sqm;
+                return [
+                    'name'           => $c->color_name,
+                    'image_url'      => $c->image ? Storage::disk('public')->url($c->image) : null,
+                    'quantity'       => $cQty,
+                    'percentage'     => $pct($cQty, $qty),
+                    'sqm'            => round($cSqm, 2),
+                    'sqm_percentage' => $pct($cSqm, $sqm),
+                ];
+            })->values()->all();
+
+            $sizes = ($sizesByProduct[$pid] ?? collect())->map(function ($s) use ($qty, $sqm, $pct): array {
+                $sQty  = (int) $s->quantity;
+                $sSqm  = (float) $s->sqm;
+                $label = ($s->width && $s->length) ? "{$s->width}x{$s->length}" : "O'lchamsiz";
+                return [
+                    'label'          => $label,
+                    'width'          => $s->width,
+                    'length'         => $s->length,
+                    'quantity'       => $sQty,
+                    'percentage'     => $pct($sQty, $qty),
+                    'sqm'            => round($sSqm, 2),
+                    'sqm_percentage' => $pct($sSqm, $sqm),
+                ];
+            })->values()->all();
+
+            return [
+                'id'             => $r->id,
+                'name'           => $r->name,
+                'type_name'      => $r->type_name,
+                'quality_name'   => $r->quality_name,
+                'orders_count'   => (int) $r->orders_count,
+                'total_quantity' => $qty,
+                'percentage'     => $pct($qty, $total),
+                'total_sqm'      => round($sqm, 2),
+                'sqm_percentage' => $pct($sqm, $totalSqm),
+                'colors'         => $colors,
+                'sizes'          => $sizes,
             ];
         })->all();
     }

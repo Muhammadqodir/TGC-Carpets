@@ -7,11 +7,13 @@ import '../../domain/entities/product_analytics_entity.dart';
 class AnalyticsTrendChart extends StatelessWidget {
   final List<AnalyticsTrendPoint> trend;
   final String trendBy;
+  final AnalyticsMetric metric;
 
   const AnalyticsTrendChart({
     super.key,
     required this.trend,
     required this.trendBy,
+    this.metric = AnalyticsMetric.quantity,
   });
 
   @override
@@ -29,12 +31,12 @@ class AnalyticsTrendChart extends StatelessWidget {
     }
 
     final maxY = trend
-            .map((e) => e.totalQuantity.toDouble())
+            .map((e) => e.valueOf(metric))
             .reduce((a, b) => a > b ? a : b) *
         1.2;
 
     final spots = trend.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.totalQuantity.toDouble());
+      return FlSpot(entry.key.toDouble(), entry.value.valueOf(metric));
     }).toList();
 
     return SizedBox(
@@ -120,7 +122,7 @@ class AnalyticsTrendChart extends StatelessWidget {
             touchTooltipData: LineTouchTooltipData(
               getTooltipItems: (spots) => spots
                   .map((s) => LineTooltipItem(
-                        '${s.y.toInt()} dona',
+                        metric.format(s.y),
                         const TextStyle(color: Colors.white, fontSize: 12),
                       ))
                   .toList(),

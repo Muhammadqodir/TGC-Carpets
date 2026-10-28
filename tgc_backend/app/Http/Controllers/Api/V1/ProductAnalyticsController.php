@@ -53,6 +53,7 @@ class ProductAnalyticsController extends Controller
      *   size_id      (integer, optional)
      *   edge_id      (integer, optional)
      *   limit        (10|20|30|40|50, default: 10)
+     *   metric       (quantity|sqm, default: quantity) — what "top" is ranked by
      */
     public function topProducts(TopProductsFilterRequest $request): JsonResponse
     {
@@ -65,6 +66,7 @@ class ProductAnalyticsController extends Controller
             sizeId:    $request->sizeId(),
             edgeId:    $request->edgeId(),
             limit:     $request->limit(),
+            metric:    $request->metric(),
         );
 
         return response()->json(['data' => ['top_products' => $products]]);

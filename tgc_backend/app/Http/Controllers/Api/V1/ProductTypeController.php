@@ -20,6 +20,10 @@ class ProductTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if ($hidden = ProductType::onlyTrashed()->where('type', $request->input('type'))->first()) {
+            return $this->restoreHidden($request, $hidden);
+        }
+
         $validated = $request->validate([
             'type'         => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')],
             'is_printable' => ['sometimes', 'boolean'],
@@ -28,6 +32,17 @@ class ProductTypeController extends Controller
         $productType = ProductType::create($validated);
 
         return response()->json(['data' => new ProductTypeResource($productType)], 201);
+    }
+
+    /** Adding a name that was hidden brings the old row back, links intact. */
+    private function restoreHidden(Request $request, ProductType $productType): JsonResponse
+    {
+        $validated = $request->validate(['is_printable' => ['sometimes', 'boolean']]);
+
+        $productType->restore();
+        $productType->update($validated);
+
+        return response()->json(['data' => new ProductTypeResource($productType)]);
     }
 
     public function update(Request $request, ProductType $productType): JsonResponse
@@ -71,6 +86,15 @@ class ProductTypeController extends Controller
 
     public function destroy(Request $request, ProductType $productType): JsonResponse
     {
+        // mode=hide: soft-delete. It drops out of the pickers and lists, but
+        // every product / variant / order that uses it keeps it unchanged.
+        // Re-creating the same name later brings it back (see store()).
+        if ($request->input('mode') === 'hide') {
+            $productType->delete();
+
+            return response()->json(['message' => 'Product type hidden.']);
+        }
+
         $usageCount = $productType->products()->count();
 
         if ($usageCount > 0) {
@@ -82,7 +106,7 @@ class ProductTypeController extends Controller
                 ->update(['product_type_id' => $request->replace_with_id]);
         }
 
-        $productType->delete();
+        $productType->forceDelete();
 
         return response()->json(['message' => 'Product type deleted successfully.']);
     }

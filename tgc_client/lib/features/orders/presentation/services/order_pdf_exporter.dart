@@ -53,6 +53,7 @@ class OrderPdfExporter {
   static const _fsTd     = 7.5;
   static const _fsSizeHd = 7.0; // size column header numbers (width/length)
   static const _fsType  = 6.5;
+  static const _fsNotes = 8.5;
 
   // ─── Entry point ─────────────────────────────────────────────────────────
   Future<Uint8List> export(OrderEntity order) async {
@@ -135,9 +136,11 @@ class OrderPdfExporter {
     }
 
     // ── Horizontal pagination ───────────────────────────────────────────────
-    final availW    = landscape.availableWidth - _kMargin * 2;
+    // The page uses its own _kMargin, not the format's default 2 cm margins,
+    // so the usable width is the full page width minus _kMargin on each side.
+    final availW    = landscape.width - _kMargin * 2;
     final fixedW    = _kColNum + _kColMeta + _kColTot;
-    final maxSzPage = ((availW - fixedW) / _kColSize).floor().clamp(1, 999) + 3;
+    final maxSzPage = ((availW - fixedW) / _kColSize).floor().clamp(1, 999);
 
     final sizeChunks = <List<int>>[];
     if (sizeIds.isEmpty) {
@@ -249,6 +252,39 @@ class OrderPdfExporter {
           sizeMeta:        sizeMeta,
           chunkTypeGroups: chunkTypeGroups,
           typeColorMap:    typeColorMap,
+          label:           'Jami uzunlik (m)',
+          valueFn: (sizeId, colorIds) {
+            final m = sizeMeta[sizeId];
+            if (m?.sizeLength == null) return '—';
+            double sum = 0;
+            for (final c in colorIds) {
+              final it = cellMap[(c, sizeId)];
+              if (it != null) sum += m!.sizeLength! * it.quantity / 100.0;
+            }
+            return sum.toStringAsFixed(1);
+          },
+          totalFn: (colorIds, chunkSizes) {
+            double t = 0;
+            for (final c in colorIds) {
+              for (final s in chunkSizes) {
+                final it = cellMap[(c, s)];
+                final m  = sizeMeta[s];
+                if (it != null && m?.sizeLength != null) {
+                  t += m!.sizeLength! * it.quantity / 100.0;
+                }
+              }
+            }
+            return '${t.toStringAsFixed(1)} m';
+          },
+          topThick: false,
+        ));
+        buildWidgets.add(_totalsRow(
+          rowKeys:         chunkRowKeys,
+          chunk:           chunk,
+          cellMap:         cellMap,
+          sizeMeta:        sizeMeta,
+          chunkTypeGroups: chunkTypeGroups,
+          typeColorMap:    typeColorMap,
           label:           'Jami m²',
           valueFn: (sizeId, colorIds) {
             final m = sizeMeta[sizeId];
@@ -334,19 +370,29 @@ class OrderPdfExporter {
                       runSpacing: 1,
                       children: [
                         _metaChip('Mijoz',  '${order.clientShopName ?? '—'} / ${order.clientRegion ?? '—'}'),
+                        if (order.clientPhone != null && order.clientPhone!.trim().isNotEmpty)
+                          _metaChip('Tel',  order.clientPhone!.trim()),
                         _metaChip('Sana',   _fmtDate(order.orderDate)),
                         _metaChip('Xodim',  order.userName),
                         _metaChip('Holat',  _statusLabel(order.status)),
                         _metaChip('Jami',   '${order.totalQuantity} dona  |  ${order.totalSqm.toStringAsFixed(2)} m²'),
                       ],
                     ),
-                    if (order.notes != null && order.notes!.isNotEmpty) ...[
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        'Izoh: ${order.notes!}',
-                        style: pw.TextStyle(fontSize: 6.5, color: _infoText),
-                        maxLines:  1,
-                        overflow:  pw.TextOverflow.clip,
+                    if (_oneLine(order.notes).isNotEmpty) ...[
+                      pw.SizedBox(height: 3),
+                      // Full note, flattened to one paragraph; wraps instead
+                      // of being cut off.
+                      pw.RichText(
+                        text: pw.TextSpan(children: [
+                          pw.TextSpan(
+                            text:  'Izoh: ',
+                            style: pw.TextStyle(fontSize: _fsNotes, color: _infoText, fontWeight: pw.FontWeight.bold),
+                          ),
+                          pw.TextSpan(
+                            text:  _oneLine(order.notes),
+                            style: pw.TextStyle(fontSize: _fsNotes, color: PdfColors.white),
+                          ),
+                        ]),
                       ),
                     ],
                   ],
@@ -575,6 +621,7 @@ class OrderPdfExporter {
         fontSize:  _fsTd,
         thickLeft: thick,
         topThick:  topThick,
+        fit:       true,
       );
     });
 
@@ -583,7 +630,7 @@ class OrderPdfExporter {
       _cell(text: '',    width: _kColNum,  height: _kRowH, bg: rowBg, topThick: topThick),
       _cell(text: label, width: _kColMeta, height: _kRowH, bg: rowBg, fg: _primary, bold: true, fontSize: _fsTd, align: pw.TextAlign.left, topThick: topThick),
       ...sizeCells,
-      _cell(text: totalFn(rowKeys, chunk), width: _kColTot, height: _kRowH, bg: rowBg, fg: _primary, bold: true, fontSize: _fsTd, topThick: topThick),
+      _cell(text: totalFn(rowKeys, chunk), width: _kColTot, height: _kRowH, bg: rowBg, fg: _primary, bold: true, fontSize: _fsTd, topThick: topThick, fit: true),
     ]);
   }
 
@@ -599,10 +646,23 @@ class OrderPdfExporter {
     pw.TextAlign align = pw.TextAlign.center,
     bool thickLeft     = false,
     bool topThick      = false,
+    bool fit           = false, // shrink a single line to the cell instead of wrapping
   }) {
     final containerAlign = align == pw.TextAlign.left
         ? pw.Alignment.centerLeft
         : pw.Alignment.center;
+
+    final label = pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontSize:   fontSize,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        color:      fg ?? PdfColors.black,
+      ),
+      textAlign: align,
+      maxLines:  fit ? 1 : 2,
+      overflow:  pw.TextOverflow.clip,
+    );
 
     return pw.Container(
       width:  width,
@@ -618,17 +678,7 @@ class OrderPdfExporter {
       ),
       alignment: containerAlign,
       padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize:   fontSize,
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color:      fg ?? PdfColors.black,
-        ),
-        textAlign: align,
-        maxLines:  2,
-        overflow:  pw.TextOverflow.clip,
-      ),
+      child: fit ? pw.FittedBox(fit: pw.BoxFit.scaleDown, child: label) : label,
     );
   }
 
@@ -675,6 +725,18 @@ class OrderPdfExporter {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+  /// Collapses a multi-line note into one line so it reads as a single paragraph.
+  /// Lines already ending in punctuation are joined with a space, others with "; ".
+  String _oneLine(String? s) {
+    final lines = (s ?? '').split(RegExp(r'[\r\n]+')).map((l) => l.trim()).where((l) => l.isNotEmpty);
+    final out = StringBuffer();
+    for (final l in lines) {
+      if (out.isNotEmpty) out.write(RegExp(r'[.,;:!?]$').hasMatch(out.toString()) ? ' ' : '; ');
+      out.write(l);
+    }
+    return out.toString();
+  }
+
   String _statusLabel(String s) => switch (s) {
         'pending'       => 'Kutilmoqda',
         'planned'       => 'Rejalashtirilgan',

@@ -20,6 +20,6 @@ class UpdateColorUseCase {
 class DeleteColorUseCase {
   final ProductAttributesRepository _repository;
   const DeleteColorUseCase(this._repository);
-  Future<Either<Failure, void>> call({required int id, int? replaceWithId}) =>
-      _repository.deleteColor(id: id, replaceWithId: replaceWithId);
+  Future<Either<Failure, void>> call({required int id, int? replaceWithId, bool hide = false}) =>
+      _repository.deleteColor(id: id, replaceWithId: replaceWithId, hide: hide);
 }

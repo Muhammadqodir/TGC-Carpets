@@ -37,7 +37,7 @@ class ClientDataTable extends StatelessWidget {
   ];
 
   static const _mobileColumns = <AppTableColumn>[
-    AppTableColumn(label: 'Do\'kon / Viloyat', flex: 3, alignment: Alignment.centerLeft),
+    AppTableColumn(label: 'Do\'kon / ID / Viloyat', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Kontakt / Telefon', flex: 3, alignment: Alignment.centerLeft),
     AppTableColumn(label: 'Amallar', fixedWidth: 88),
   ];
@@ -167,7 +167,23 @@ class ClientDataTable extends StatelessWidget {
               maxLines: 1,
             ),
             const SizedBox(height: 2),
-            AppBadge(label: client.region, color: AppColors.accent),
+            Row(
+              children: [
+                Text(
+                  '#${client.id}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: AppBadge(label: client.region, color: AppColors.accent),
+                ),
+              ],
+            ),
           ],
         );
       case 1: // contact / phone

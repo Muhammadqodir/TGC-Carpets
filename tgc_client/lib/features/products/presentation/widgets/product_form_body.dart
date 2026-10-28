@@ -134,18 +134,40 @@ class ProductFormBodyState extends State<ProductFormBody> {
                 ProductFormFailure s => s.productQualities,
                 _ => const [],
               };
+              // A product can still point at a type/quality an admin has
+              // since hidden; keep it selectable so the form shows it as is.
+              final initial = widget.initialProduct;
+              final hiddenType = selectedTypeId != null &&
+                      selectedTypeId == initial?.productTypeId &&
+                      !types.any((t) => t.id == selectedTypeId)
+                  ? DropdownMenuItem<int>(
+                      value: selectedTypeId,
+                      child: Text(
+                          '${initial?.productType?.type ?? 'Tur #$selectedTypeId'} (yashirilgan)'),
+                    )
+                  : null;
+              final hiddenQuality = selectedQualityId != null &&
+                      selectedQualityId == initial?.productQualityId &&
+                      !qualities.any((q) => q.id == selectedQualityId)
+                  ? DropdownMenuItem<int>(
+                      value: selectedQualityId,
+                      child: Text(
+                          '${initial?.productQuality?.qualityName ?? 'Sifat #$selectedQualityId'} (yashirilgan)'),
+                    )
+                  : null;
               return Column(
                 children: [
                   DropdownButtonFormField<int>(
                     decoration:
                         const InputDecoration(labelText: 'Mahsulot turi'),
                     value: selectedTypeId,
-                    items: types
-                        .map((t) => DropdownMenuItem<int>(
-                              value: t.id,
-                              child: Text(t.type),
-                            ))
-                        .toList(),
+                    items: [
+                      if (hiddenType != null) hiddenType,
+                      ...types.map((t) => DropdownMenuItem<int>(
+                            value: t.id,
+                            child: Text(t.type),
+                          )),
+                    ],
                     onChanged: (v) =>
                         setState(() => selectedTypeId = v),
                     hint: const Text('Tur tanlang (ixtiyoriy)'),
@@ -155,14 +177,15 @@ class ProductFormBodyState extends State<ProductFormBody> {
                     decoration:
                         const InputDecoration(labelText: 'Sifat'),
                     value: selectedQualityId,
-                    items: qualities
-                        .map((q) => DropdownMenuItem<int>(
-                              value: q.id,
-                              child: Text(q.density != null
-                                  ? '${q.qualityName} (${q.density})'
-                                  : q.qualityName),
-                            ))
-                        .toList(),
+                    items: [
+                      if (hiddenQuality != null) hiddenQuality,
+                      ...qualities.map((q) => DropdownMenuItem<int>(
+                            value: q.id,
+                            child: Text(q.density != null
+                                ? '${q.qualityName} (${q.density})'
+                                : q.qualityName),
+                          )),
+                    ],
                     onChanged: (v) =>
                         setState(() => selectedQualityId = v),
                     hint: const Text('Sifat tanlang (ixtiyoriy)'),

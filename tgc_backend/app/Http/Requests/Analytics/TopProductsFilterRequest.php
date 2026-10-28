@@ -22,6 +22,7 @@ class TopProductsFilterRequest extends FormRequest
             'size_id'     => ['nullable', 'integer'],
             'edge_id'     => ['nullable', 'integer'],
             'limit'       => ['nullable', 'integer', 'in:10,20,30,40,50'],
+            'metric'      => ['nullable', 'in:quantity,sqm'],
         ];
     }
 
@@ -33,4 +34,5 @@ class TopProductsFilterRequest extends FormRequest
     public function sizeId(): ?int       { return $this->filled('size_id')    ? (int) $this->input('size_id')    : null; }
     public function edgeId(): ?int       { return $this->filled('edge_id')    ? (int) $this->input('edge_id')    : null; }
     public function limit(): int         { return (int) $this->input('limit', 10); }
+    public function metric(): string     { return $this->input('metric') === 'sqm' ? 'sqm' : 'quantity'; }
 }

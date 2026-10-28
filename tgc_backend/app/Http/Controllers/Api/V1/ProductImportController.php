@@ -74,7 +74,8 @@ class ProductImportController extends Controller
                 }
 
                 // ── 2. Resolve color ────────────────────────────────────────
-                $color = Color::firstOrCreate(['name' => $colorName]);
+                // withTrashed: reuse a hidden colour rather than hit its unique name.
+                $color = Color::withTrashed()->firstOrCreate(['name' => $colorName]);
 
                 // ── 3. Create product-color (skip if already exists) ────────
                 $exists = ProductColor::where('product_id', $product->id)

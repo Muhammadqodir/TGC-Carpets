@@ -162,12 +162,12 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await deleteColorUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    final result = await deleteColorUseCase(id: event.id, replaceWithId: event.replaceWithId, hide: event.hide);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) => emit(current.copyWith(
         colors: current.colors.where((c) => c.id != event.id).toList(),
-        actionStatus: const AttributeActionSuccess('Rang o\'chirildi.'),
+        actionStatus: AttributeActionSuccess(event.hide ? 'Rang yashirildi.' : 'Rang o\'chirildi.'),
       )),
     );
   }
@@ -217,13 +217,13 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await deleteProductTypeUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    final result = await deleteProductTypeUseCase(id: event.id, replaceWithId: event.replaceWithId, hide: event.hide);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) => emit(current.copyWith(
         productTypes: current.productTypes.where((t) => t.id != event.id).toList(),
         productSizes: current.productSizes.where((s) => s.productTypeId != event.id).toList(),
-        actionStatus: const AttributeActionSuccess('Tur o\'chirildi.'),
+        actionStatus: AttributeActionSuccess(event.hide ? 'Tur yashirildi.' : 'Tur o\'chirildi.'),
       )),
     );
   }
@@ -296,12 +296,12 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await deleteProductQualityUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    final result = await deleteProductQualityUseCase(id: event.id, replaceWithId: event.replaceWithId, hide: event.hide);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) => emit(current.copyWith(
         productQualities: current.productQualities.where((q) => q.id != event.id).toList(),
-        actionStatus: const AttributeActionSuccess('Sifat o\'chirildi.'),
+        actionStatus: AttributeActionSuccess(event.hide ? 'Sifat yashirildi.' : 'Sifat o\'chirildi.'),
       )),
     );
   }
@@ -393,7 +393,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await deleteProductSizeUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    final result = await deleteProductSizeUseCase(id: event.id, replaceWithId: event.replaceWithId, hide: event.hide);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) {
@@ -401,7 +401,7 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
         ProductSizePickerSheet.clearCache();
         emit(current.copyWith(
           productSizes: current.productSizes.where((s) => s.id != event.id).toList(),
-          actionStatus: const AttributeActionSuccess('O\'lcham o\'chirildi.'),
+          actionStatus: AttributeActionSuccess(event.hide ? 'O\'lcham yashirildi.' : 'O\'lcham o\'chirildi.'),
         ));
       },
     );
@@ -454,12 +454,12 @@ class ProductAttributesBloc extends Bloc<ProductAttributesEvent, ProductAttribut
     final current = _requireLoaded(emit);
     if (current == null) return;
     emit(current.copyWith(actionStatus: const AttributeActionPending()));
-    final result = await deleteProductEdgeUseCase(id: event.id, replaceWithId: event.replaceWithId);
+    final result = await deleteProductEdgeUseCase(id: event.id, replaceWithId: event.replaceWithId, hide: event.hide);
     result.fold(
       (f) => emit(current.copyWith(actionStatus: AttributeActionFailure(f.message))),
       (_) => emit(current.copyWith(
         productEdges: current.productEdges.where((e) => e.id != event.id).toList(),
-        actionStatus: const AttributeActionSuccess('Qirra o\'chirildi.'),
+        actionStatus: AttributeActionSuccess(event.hide ? 'Qirra yashirildi.' : 'Qirra o\'chirildi.'),
       )),
     );
   }

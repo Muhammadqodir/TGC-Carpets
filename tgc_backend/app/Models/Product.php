@@ -76,12 +76,14 @@ class Product extends Model
 
     public function productQuality(): BelongsTo
     {
-        return $this->belongsTo(ProductQuality::class);
+        // withTrashed: a hidden quality still belongs to products that use it.
+        return $this->belongsTo(ProductQuality::class)->withTrashed();
     }
 
     public function productType(): BelongsTo
     {
-        return $this->belongsTo(ProductType::class);
+        // withTrashed: a hidden type still belongs to products that use it.
+        return $this->belongsTo(ProductType::class)->withTrashed();
     }
 
     public function productColors(): HasMany

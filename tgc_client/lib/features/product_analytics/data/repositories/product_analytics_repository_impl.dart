@@ -43,6 +43,7 @@ class ProductAnalyticsRepositoryImpl implements ProductAnalyticsRepository {
     int? sizeId,
     int? edgeId,
     int limit = 10,
+    AnalyticsMetric metric = AnalyticsMetric.quantity,
   }) async {
     try {
       final result = await _remoteDataSource.getTopProducts(
@@ -54,6 +55,7 @@ class ProductAnalyticsRepositoryImpl implements ProductAnalyticsRepository {
         sizeId:     sizeId,
         edgeId:     edgeId,
         limit:      limit,
+        metric:     metric.apiValue,
       );
       return Right(result);
     } on UnauthorizedException {

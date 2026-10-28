@@ -47,8 +47,9 @@ class ProductVariantService
 
         // Load relationships to compute sku_code upfront.
         $pc   = ProductColor::with(['product', 'color'])->findOrFail($productColorId);
-        $size = $sizeId ? ProductSize::findOrFail($sizeId) : null;
-        $edge = $edgeId ? ProductEdge::findOrFail($edgeId) : null;
+        // withTrashed: existing orders may still carry a size/edge that was hidden.
+        $size = $sizeId ? ProductSize::withTrashed()->findOrFail($sizeId) : null;
+        $edge = $edgeId ? ProductEdge::withTrashed()->findOrFail($edgeId) : null;
 
         $sku = ProductVariant::generateSku(
             $pc->product->name,

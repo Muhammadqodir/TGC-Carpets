@@ -20,6 +20,6 @@ class UpdateProductEdgeUseCase {
 class DeleteProductEdgeUseCase {
   final ProductAttributesRepository _repository;
   const DeleteProductEdgeUseCase(this._repository);
-  Future<Either<Failure, void>> call({required int id, int? replaceWithId}) =>
-      _repository.deleteProductEdge(id: id, replaceWithId: replaceWithId);
+  Future<Either<Failure, void>> call({required int id, int? replaceWithId, bool hide = false}) =>
+      _repository.deleteProductEdge(id: id, replaceWithId: replaceWithId, hide: hide);
 }

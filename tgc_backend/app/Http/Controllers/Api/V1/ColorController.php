@@ -30,7 +30,11 @@ class ColorController extends Controller
             'name' => ['required', 'string', 'max:100'],
         ]);
 
-        $color = Color::firstOrCreate(['name' => $validated['name']]);
+        // withTrashed: adding a name that was hidden brings the old row back.
+        $color = Color::withTrashed()->firstOrCreate(['name' => $validated['name']]);
+        if ($color->trashed()) {
+            $color->restore();
+        }
 
         return response()->json(
             ['data' => new ColorResource($color)],
@@ -56,6 +60,15 @@ class ColorController extends Controller
 
     public function destroy(Request $request, Color $color): JsonResponse
     {
+        // mode=hide: soft-delete. It drops out of the pickers and lists, but
+        // every product / variant / order that uses it keeps it unchanged.
+        // Re-creating the same name later brings it back (see store()).
+        if ($request->input('mode') === 'hide') {
+            $color->delete();
+
+            return response()->json(['message' => 'Color hidden.']);
+        }
+
         $usageCount = $color->productColors()->count();
 
         if ($usageCount > 0) {
@@ -87,7 +100,7 @@ class ColorController extends Controller
             });
         }
 
-        $color->delete();
+        $color->forceDelete();
 
         return response()->json(['message' => 'Color deleted successfully.']);
     }

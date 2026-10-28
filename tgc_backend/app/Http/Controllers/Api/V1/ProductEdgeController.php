@@ -21,6 +21,17 @@ class ProductEdgeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Adding a code that was hidden brings the old row back, links intact.
+        if ($hidden = ProductEdge::onlyTrashed()->where('code', $request->input('code'))->first()) {
+            $data = $request->validate([
+                'title' => ['required', 'string', 'max:100', Rule::unique('product_edges', 'title')->ignore($hidden->id)],
+            ]);
+            $hidden->restore();
+            $hidden->update($data);
+
+            return response()->json(['data' => new ProductEdgeResource($hidden)]);
+        }
+
         $data = $request->validate([
             'code'  => ['required', 'string', 'max:10', Rule::unique('product_edges', 'code')],
             'title' => ['required', 'string', 'max:100', Rule::unique('product_edges', 'title')],
@@ -50,6 +61,15 @@ class ProductEdgeController extends Controller
 
     public function destroy(Request $request, ProductEdge $productEdge): JsonResponse
     {
+        // mode=hide: soft-delete. It drops out of the pickers and lists, but
+        // every product / variant / order that uses it keeps it unchanged.
+        // Re-creating the same name later brings it back (see store()).
+        if ($request->input('mode') === 'hide') {
+            $productEdge->delete();
+
+            return response()->json(['message' => 'Product edge hidden.']);
+        }
+
         $usageCount = $productEdge->productVariants()->count();
 
         if ($usageCount > 0) {
@@ -82,7 +102,7 @@ class ProductEdgeController extends Controller
             $productEdge->productVariants()->update(['product_edge_id' => $validated['replace_with_id']]);
         }
 
-        $productEdge->delete();
+        $productEdge->forceDelete();
 
         return response()->json(['message' => 'Product edge deleted successfully.']);
     }

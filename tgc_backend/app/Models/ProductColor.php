@@ -35,7 +35,8 @@ class ProductColor extends Model
 
     public function color(): BelongsTo
     {
-        return $this->belongsTo(Color::class);
+        // withTrashed: a hidden colour still belongs to products that use it.
+        return $this->belongsTo(Color::class)->withTrashed();
     }
 
     public function variants(): HasMany

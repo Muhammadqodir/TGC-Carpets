@@ -15,6 +15,7 @@ class TopProductsFilterCubit extends Cubit<TopProductsFilterState> {
   int? _sizeId;
   int? _edgeId;
   int _limit = 10;
+  AnalyticsMetric _metric = AnalyticsMetric.quantity;
 
   TopProductsFilterCubit({
     required GetTopProductsUseCase useCase,
@@ -63,6 +64,13 @@ class TopProductsFilterCubit extends Cubit<TopProductsFilterState> {
     load();
   }
 
+  /// Re-ranks the list by carpets or by m² (the server picks the top N).
+  void setMetric(AnalyticsMetric metric) {
+    if (metric == _metric) return;
+    _metric = metric;
+    load();
+  }
+
   Future<void> load() async {
     final prev = _currentProducts();
     emit(TopProductsFilterLoading(
@@ -84,6 +92,7 @@ class TopProductsFilterCubit extends Cubit<TopProductsFilterState> {
       sizeId:     _sizeId,
       edgeId:     _edgeId,
       limit:      _limit,
+      metric:     _metric,
     ));
 
     result.fold(

@@ -48,8 +48,8 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.checkColorUsage(id: id));
 
   @override
-  Future<Either<Failure, void>> deleteColor({required int id, int? replaceWithId}) =>
-      _execute(() => remoteDataSource.deleteColor(id: id, replaceWithId: replaceWithId));
+  Future<Either<Failure, void>> deleteColor({required int id, int? replaceWithId, bool hide = false}) =>
+      _execute(() => remoteDataSource.deleteColor(id: id, replaceWithId: replaceWithId, hide: hide));
 
   // ── Product Types ──────────────────────────────────────────────────────────
 
@@ -78,8 +78,8 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.unarchiveProductType(id: id));
 
   @override
-  Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId}) =>
-      _execute(() => remoteDataSource.deleteProductType(id: id, replaceWithId: replaceWithId));
+  Future<Either<Failure, void>> deleteProductType({required int id, int? replaceWithId, bool hide = false}) =>
+      _execute(() => remoteDataSource.deleteProductType(id: id, replaceWithId: replaceWithId, hide: hide));
 
   // ── Product Qualities ──────────────────────────────────────────────────────
 
@@ -108,8 +108,8 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.unarchiveProductQuality(id: id));
 
   @override
-  Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId}) =>
-      _execute(() => remoteDataSource.deleteProductQuality(id: id, replaceWithId: replaceWithId));
+  Future<Either<Failure, void>> deleteProductQuality({required int id, int? replaceWithId, bool hide = false}) =>
+      _execute(() => remoteDataSource.deleteProductQuality(id: id, replaceWithId: replaceWithId, hide: hide));
 
   // ── Product Sizes ──────────────────────────────────────────────────────────
 
@@ -130,8 +130,8 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.checkProductSizeUsage(id: id));
 
   @override
-  Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId}) =>
-      _execute(() => remoteDataSource.deleteProductSize(id: id, replaceWithId: replaceWithId));
+  Future<Either<Failure, void>> deleteProductSize({required int id, int? replaceWithId, bool hide = false}) =>
+      _execute(() => remoteDataSource.deleteProductSize(id: id, replaceWithId: replaceWithId, hide: hide));
 
   // ── Product Edges ──────────────────────────────────────────────────────────
 
@@ -152,6 +152,6 @@ class ProductAttributesRepositoryImpl implements ProductAttributesRepository {
       _execute(() => remoteDataSource.checkProductEdgeUsage(id: id));
 
   @override
-  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId}) =>
-      _execute(() => remoteDataSource.deleteProductEdge(id: id, replaceWithId: replaceWithId));
+  Future<Either<Failure, void>> deleteProductEdge({required int id, int? replaceWithId, bool hide = false}) =>
+      _execute(() => remoteDataSource.deleteProductEdge(id: id, replaceWithId: replaceWithId, hide: hide));
 }

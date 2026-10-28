@@ -173,8 +173,9 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                     ),
                   ),
                 ),
+                // Matches the three summary cells (Soni + Uzunlik + Maydon).
                 SizedBox(
-                  height: 80,
+                  height: 120,
                 ),
               ],
             ),
@@ -325,7 +326,7 @@ class _OrderItemsSheetState extends State<OrderItemsSheet> {
                     ),
                   ),
 
-                  // ── Summary row (Uzunlik + Maydon per size column) ───────
+                  // ── Summary row (Soni + Uzunlik + Maydon per size column) ───────
                   Row(
                     children: widget.ctrl.matrixSizeColumns
                         .map((size) => SizeSummaryColumn(

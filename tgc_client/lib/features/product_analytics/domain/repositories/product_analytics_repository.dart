@@ -19,5 +19,6 @@ abstract class ProductAnalyticsRepository {
     int? sizeId,
     int? edgeId,
     int limit = 10,
+    AnalyticsMetric metric = AnalyticsMetric.quantity,
   });
 }

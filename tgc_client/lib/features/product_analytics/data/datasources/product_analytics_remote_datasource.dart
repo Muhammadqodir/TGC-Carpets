@@ -20,6 +20,7 @@ abstract class ProductAnalyticsRemoteDataSource {
     int? sizeId,
     int? edgeId,
     int limit = 10,
+    String metric = 'quantity',
   });
 }
 
@@ -67,12 +68,14 @@ class ProductAnalyticsRemoteDataSourceImpl
     int? sizeId,
     int? edgeId,
     int limit = 10,
+    String metric = 'quantity',
   }) async {
     try {
       final params = <String, dynamic>{
         'period_from': periodFrom,
         'period_to':   periodTo,
         'limit':       limit,
+        'metric':      metric,
       };
       if (typeId != null)    params['type_id']    = typeId;
       if (qualityId != null) params['quality_id'] = qualityId;

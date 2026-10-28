@@ -1,11 +1,28 @@
 import 'package:equatable/equatable.dart';
 
+/// What the order statistics page counts: carpets (dona) or area (m²).
+enum AnalyticsMetric {
+  quantity,
+  sqm;
+
+  /// Query value for the `metric` parameter of the top-products endpoint.
+  String get apiValue => name;
+
+  String get unit => this == quantity ? 'dona' : 'm²';
+
+  /// Formats [v] with its unit, e.g. "12 dona" or "34.5 m²".
+  String format(num v) =>
+      this == quantity ? '${v.round()} $unit' : '${v.toStringAsFixed(1)} $unit';
+}
+
 class AnalyticsDimensionItem extends Equatable {
   final int? id;
   final String name;
   final int ordersCount;
   final int totalQuantity;
   final double percentage;
+  final double totalSqm;
+  final double sqmPercentage;
 
   const AnalyticsDimensionItem({
     required this.id,
@@ -13,25 +30,39 @@ class AnalyticsDimensionItem extends Equatable {
     required this.ordersCount,
     required this.totalQuantity,
     required this.percentage,
+    this.totalSqm = 0,
+    this.sqmPercentage = 0,
   });
 
+  double valueOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? totalQuantity.toDouble() : totalSqm;
+
+  double shareOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? percentage : sqmPercentage;
+
   @override
-  List<Object?> get props => [id, name, ordersCount, totalQuantity, percentage];
+  List<Object?> get props =>
+      [id, name, ordersCount, totalQuantity, percentage, totalSqm, sqmPercentage];
 }
 
 class AnalyticsTrendPoint extends Equatable {
   final String label;
   final int ordersCount;
   final int totalQuantity;
+  final double totalSqm;
 
   const AnalyticsTrendPoint({
     required this.label,
     required this.ordersCount,
     required this.totalQuantity,
+    this.totalSqm = 0,
   });
 
+  double valueOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? totalQuantity.toDouble() : totalSqm;
+
   @override
-  List<Object?> get props => [label, ordersCount, totalQuantity];
+  List<Object?> get props => [label, ordersCount, totalQuantity, totalSqm];
 }
 
 class ProductColorBreakdown extends Equatable {
@@ -39,16 +70,23 @@ class ProductColorBreakdown extends Equatable {
   final String? imageUrl;
   final int quantity;
   final double percentage;
+  final double sqm;
+  final double sqmPercentage;
 
   const ProductColorBreakdown({
     required this.name,
     this.imageUrl,
     required this.quantity,
     required this.percentage,
+    this.sqm = 0,
+    this.sqmPercentage = 0,
   });
 
+  double shareOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? percentage : sqmPercentage;
+
   @override
-  List<Object?> get props => [name, imageUrl, quantity, percentage];
+  List<Object?> get props => [name, imageUrl, quantity, percentage, sqm, sqmPercentage];
 }
 
 class ProductSizeBreakdown extends Equatable {
@@ -57,6 +95,8 @@ class ProductSizeBreakdown extends Equatable {
   final int? length;
   final int quantity;
   final double percentage;
+  final double sqm;
+  final double sqmPercentage;
 
   const ProductSizeBreakdown({
     required this.label,
@@ -64,10 +104,16 @@ class ProductSizeBreakdown extends Equatable {
     required this.length,
     required this.quantity,
     required this.percentage,
+    this.sqm = 0,
+    this.sqmPercentage = 0,
   });
 
+  double shareOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? percentage : sqmPercentage;
+
   @override
-  List<Object?> get props => [label, width, length, quantity, percentage];
+  List<Object?> get props =>
+      [label, width, length, quantity, percentage, sqm, sqmPercentage];
 }
 
 class TopProductItem extends Equatable {
@@ -78,6 +124,8 @@ class TopProductItem extends Equatable {
   final int ordersCount;
   final int totalQuantity;
   final double percentage;
+  final double totalSqm;
+  final double sqmPercentage;
   final List<ProductColorBreakdown> colors;
   final List<ProductSizeBreakdown> sizes;
 
@@ -89,26 +137,38 @@ class TopProductItem extends Equatable {
     required this.ordersCount,
     required this.totalQuantity,
     required this.percentage,
+    this.totalSqm = 0,
+    this.sqmPercentage = 0,
     required this.colors,
     required this.sizes,
   });
 
+  double valueOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? totalQuantity.toDouble() : totalSqm;
+
+  double shareOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? percentage : sqmPercentage;
+
   @override
-  List<Object?> get props =>
-      [id, name, typeName, qualityName, ordersCount, totalQuantity, percentage, colors, sizes];
+  List<Object?> get props => [
+        id, name, typeName, qualityName, ordersCount, totalQuantity, percentage,
+        totalSqm, sqmPercentage, colors, sizes,
+      ];
 }
 
 class AnalyticsSummary extends Equatable {
   final int totalOrders;
   final int totalItems;
+  final double totalSqm;
 
   const AnalyticsSummary({
     required this.totalOrders,
     required this.totalItems,
+    this.totalSqm = 0,
   });
 
   @override
-  List<Object?> get props => [totalOrders, totalItems];
+  List<Object?> get props => [totalOrders, totalItems, totalSqm];
 }
 
 class ProductAnalyticsEntity extends Equatable {

@@ -155,7 +155,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             );
                             if (result.confirmed && context.mounted) {
                               context.read<ProductAttributesBloc>().add(
-                                ColorDeleteRequested(c.id as int, replaceWithId: result.replaceWithId),
+                                ColorDeleteRequested(c.id as int, replaceWithId: result.replaceWithId, hide: result.hide),
                               );
                             }
                           },
@@ -209,7 +209,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             );
                             if (result.confirmed && context.mounted) {
                               context.read<ProductAttributesBloc>().add(
-                                ProductTypeDeleteRequested(t.id as int, replaceWithId: result.replaceWithId),
+                                ProductTypeDeleteRequested(t.id as int, replaceWithId: result.replaceWithId, hide: result.hide),
                               );
                             }
                           },
@@ -270,7 +270,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             );
                             if (result.confirmed && context.mounted) {
                               context.read<ProductAttributesBloc>().add(
-                                ProductQualityDeleteRequested(q.id as int, replaceWithId: result.replaceWithId),
+                                ProductQualityDeleteRequested(q.id as int, replaceWithId: result.replaceWithId, hide: result.hide),
                               );
                             }
                           },
@@ -334,7 +334,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             );
                             if (result.confirmed && context.mounted) {
                               context.read<ProductAttributesBloc>().add(
-                                ProductSizeDeleteRequested(s.id as int, replaceWithId: result.replaceWithId),
+                                ProductSizeDeleteRequested(s.id as int, replaceWithId: result.replaceWithId, hide: result.hide),
                               );
                             }
                           },
@@ -383,7 +383,7 @@ class _ProductAttributesViewState extends State<_ProductAttributesView>
                             );
                             if (result.confirmed && context.mounted) {
                               context.read<ProductAttributesBloc>().add(
-                                    ProductEdgeDeleteRequested(e.id as int, replaceWithId: result.replaceWithId),
+                                    ProductEdgeDeleteRequested(e.id as int, replaceWithId: result.replaceWithId, hide: result.hide),
                                   );
                             }
                           },
