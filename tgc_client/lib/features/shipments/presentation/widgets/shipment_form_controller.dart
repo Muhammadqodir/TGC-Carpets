@@ -163,6 +163,55 @@ class ShipmentFormController extends ChangeNotifier {
 
   // ── Computed helpers ──────────────────────────────────────────────────────
 
+  /// Carpets of [variantId] on this form beyond everything the client still
+  /// owes for it, across all their open orders — what the backend will put
+  /// on the shipment's own order. Rows past their own line but within the
+  /// client's total are not counted: those carpets go on the client's next
+  /// order (ShipmentService::splitOverOrderedLines).
+  ///
+  /// What is owed comes from the scan (clientOpenRemaining, every open line);
+  /// for wizard rows, which do not carry it, the lines on the form are the
+  /// best the form knows.
+  int beyondClientOrders(int variantId) {
+    final onOrder =
+        _items.where((r) => r.variantId == variantId && !r.isOffOrder);
+    if (onOrder.isEmpty) return 0;
+
+    final loaded = onOrder.fold<int>(0, (sum, r) => sum + r.parsedQuantity);
+
+    final scannedTotals =
+        onOrder.map((r) => r.clientOpenRemaining).whereType<int>();
+    final perLine = <int, int>{
+      for (final r in onOrder)
+        r.orderItemId!: r.orderRemaining ?? r.availableQuantity,
+    };
+    final fromLines = perLine.values.fold<int>(0, (sum, v) => sum + v);
+    final owed = scannedTotals.isEmpty
+        ? fromLines
+        : [fromLines, ...scannedTotals].reduce((a, b) => a > b ? a : b);
+
+    return loaded > owed ? loaded - owed : 0;
+  }
+
+  /// The row of [variantId] that carries the "beyond the order" note: the
+  /// last on-order one, so the warning appears once rather than on every
+  /// order of the same carpet.
+  bool isLastOnOrderRowOf(ShipmentItemRow row) =>
+      !row.isOffOrder &&
+      identical(
+        _items.lastWhere(
+          (r) => r.variantId == row.variantId && !r.isOffOrder,
+          orElse: () => row,
+        ),
+        row,
+      );
+
+  /// Every carpet on the form beyond what its client's orders owe.
+  int get totalBeyondClientOrders => {
+        for (final r in _items)
+          if (!r.isOffOrder) r.variantId,
+      }.fold<int>(0, (sum, v) => sum + beyondClientOrders(v));
+
   List<ShipmentItemRow> get filledItems =>
       _items.where((r) => r.parsedQuantity > 0).toList();
 

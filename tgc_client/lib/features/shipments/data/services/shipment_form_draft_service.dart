@@ -101,6 +101,9 @@ class ShipmentFormDraftService {
         'edge_title': r.edgeTitle,
         'available_quantity': r.availableQuantity,
         'order_remaining': r.orderRemaining,
+        'order_id': r.orderId,
+        'order_date': r.orderDate,
+        'client_open_remaining': r.clientOpenRemaining,
         'quantity': r.quantityCtrl.text,
       };
 
@@ -121,6 +124,9 @@ class ShipmentFormDraftService {
       edgeTitle: json['edge_title'] as String?,
       availableQuantity: json['available_quantity'] as int? ?? 0,
       orderRemaining: json['order_remaining'] as int?,
+      orderId: json['order_id'] as int?,
+      orderDate: json['order_date'] as String?,
+      clientOpenRemaining: json['client_open_remaining'] as int?,
     );
 
     row.quantityCtrl.text = (json['quantity'] as String?) ?? '';

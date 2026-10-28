@@ -62,6 +62,16 @@ class ShipmentImportItemEntity extends Equatable {
   /// wizard) is the best guess. Past this the row is beyond the order.
   final int? orderRemaining;
 
+  /// The order this line belongs to, and its date. Shown on the form so two
+  /// rows of the same carpet read as two orders, not as a duplicate.
+  final int? orderId;
+  final String? orderDate;
+
+  /// What this client still owes for this carpet across ALL their open
+  /// orders, as of the scan. Only past this is a carpet beyond the order;
+  /// past one line it just goes on the client's next order.
+  final int? clientOpenRemaining;
+
   /// Warehouse stock for this variant. Informational only — a carpet whose
   /// label was just scanned is physically present whatever this says, and the
   /// backend books in the difference when the shipment is saved.
@@ -105,6 +115,9 @@ class ShipmentImportItemEntity extends Equatable {
     this.edgeTitle,
     required this.availableQuantity,
     this.orderRemaining,
+    this.orderId,
+    this.orderDate,
+    this.clientOpenRemaining,
     this.stockQuantity = 0,
     this.producedForClient,
     this.productionBatchItemId,
@@ -126,7 +139,8 @@ class ShipmentImportItemEntity extends Equatable {
   List<Object?> get props => [
         orderItemId, variantId, productName, colorName, colorImageUrl,
         qualityName, typeName, sizeLength, sizeWidth, productUnit,
-        edgeCode, edgeTitle, availableQuantity, orderRemaining, stockQuantity,
+        edgeCode, edgeTitle, availableQuantity, orderRemaining, orderId, orderDate,
+        clientOpenRemaining, stockQuantity,
         producedForClient, productionBatchItemId, unmatchedReason,
       ];
 }

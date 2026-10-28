@@ -60,6 +60,9 @@ class ShipmentImportController extends Controller
             ->leftJoin(DB::raw(self::SHIPPED_SUB . ' AS si'), 'si.order_item_id', '=', 'oi.id')
             ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
+            // A cancelled order owes nothing, however much it never shipped —
+            // including the auto-order of a cancelled scanned shipment.
+            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
             ->whereRaw('sm.stock > 0')
             ->select([
                 'c.id',
@@ -105,6 +108,9 @@ class ShipmentImportController extends Controller
             ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
             ->where('o.client_id', $request->integer('client_id'))
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
+            // A cancelled order owes nothing, however much it never shipped —
+            // including the auto-order of a cancelled scanned shipment.
+            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
             ->whereRaw('sm.stock > 0')
             ->select([
                 'pq.quality_name',
@@ -153,9 +159,14 @@ class ShipmentImportController extends Controller
             ->where('o.client_id', $request->integer('client_id'))
             ->where('pq.quality_name', $request->string('quality_name'))
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
+            // A cancelled order owes nothing, however much it never shipped —
+            // including the auto-order of a cancelled scanned shipment.
+            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
             ->whereRaw('sm.stock > 0')
             ->select([
                 'oi.id AS order_item_id',
+                'o.id AS order_id',
+                'o.order_date',
                 'pv.id AS variant_id',
                 'p.name AS product_name',
                 'co.name AS color_name',
@@ -178,6 +189,8 @@ class ShipmentImportController extends Controller
         return response()->json([
             'data' => $rows->map(fn ($r) => [
                 'order_item_id'      => $r->order_item_id,
+                'order_id'           => (int) $r->order_id,
+                'order_date'         => $r->order_date ? substr((string) $r->order_date, 0, 10) : null,
                 'variant_id'         => $r->variant_id,
                 'product_name'       => $r->product_name,
                 'color_name'         => $r->color_name,
@@ -286,8 +299,13 @@ class ShipmentImportController extends Controller
             ->where('o.client_id', $clientId)
             ->where('oi.product_variant_id', $variantId)
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
+            // A cancelled order owes nothing, however much it never shipped —
+            // including the auto-order of a cancelled scanned shipment.
+            ->where('o.status', '!=', \App\Models\Order::STATUS_CANCELED)
             ->select([
                 'oi.id AS order_item_id',
+                'o.id AS order_id',
+                'o.order_date',
                 'pv.id AS variant_id',
                 'p.name AS product_name',
                 'co.name AS color_name',
@@ -345,6 +363,7 @@ class ShipmentImportController extends Controller
                 // ordered this carpet, or ordered it and every one of those
                 // is already on the lorry.
                 $unmatched['reason'] = $linesFull ? 'open_lines_full' : 'no_open_line';
+                $unmatched['client_open_remaining'] = (int) $openLines->sum('available_quantity');
             }
 
             if ($unmatched === null) {
@@ -385,6 +404,14 @@ class ShipmentImportController extends Controller
                 'edge_title'         => $row->edge_title,
                 'available_quantity' => (int) $row->available_quantity,
                 'order_remaining'    => (int) $row->available_quantity,
+                // Which order this row is, so several rows of the same carpet
+                // read as several orders rather than as duplicates.
+                'order_id'           => (int) $row->order_id,
+                'order_date'         => $row->order_date ? substr((string) $row->order_date, 0, 10) : null,
+                // Everything this client still owes for this carpet across
+                // all their open orders. Only past THIS is a carpet beyond
+                // the order; past one line it just spills onto the next.
+                'client_open_remaining' => (int) $openLines->sum('available_quantity'),
                 'stock_quantity'     => (int) $row->stock_quantity,
                 // Both new in August 2026. The batch item id comes back so
                 // the shipment can move the production record with the carpet

@@ -151,13 +151,16 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     final offOrder = rows
         .where((r) => r.isOffOrder)
         .fold<int>(0, (sum, r) => sum + r.parsedQuantity);
-    final beyond = rows.fold<int>(0, (sum, r) => sum + r.beyondOrder);
+    // Across all of the client's orders, not per row: past one order the
+    // carpets just go on the next one, which needs no confirmation.
+    final beyond = _ctrl.totalBeyondClientOrders;
     final others = {for (final r in rows) ...r.producedForClients};
 
     if (offOrder == 0 && beyond == 0 && others.isEmpty) return true;
 
     final lines = [
-      if (beyond > 0) '• $beyond dona buyurtmadan ortiqcha yuklanmoqda.',
+      if (beyond > 0)
+        '• $beyond dona mijozning barcha buyurtmalaridan ortiqcha yuklanmoqda.',
       if (offOrder > 0) '• $offOrder dona mijoz buyurtmasida yo\'q.',
       if (beyond > 0 || offOrder > 0)
         'Ular uchun "${_selectedClient?.shopName ?? ''}" mijoziga alohida '
@@ -640,6 +643,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     return _ItemRow(
                                       key: ValueKey(row.id),
                                       row: row,
+                                      form: _ctrl,
                                       index: index,
                                       onRemove: () => _ctrl.removeRow(index),
                                       onChanged: _ctrl.notifyChanged,
@@ -648,6 +652,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                     return _ItemRowMobile(
                                       key: ValueKey(row.id),
                                       row: row,
+                                      form: _ctrl,
                                       index: index,
                                       onRemove: () => _ctrl.removeRow(index),
                                       onChanged: _ctrl.notifyChanged,
@@ -785,12 +790,14 @@ class _ItemRow extends StatelessWidget {
   const _ItemRow({
     super.key,
     required this.row,
+    required this.form,
     required this.index,
     required this.onRemove,
     required this.onChanged,
   });
 
   final ShipmentItemRow row;
+  final ShipmentFormController form;
   final int index;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
@@ -835,7 +842,7 @@ class _ItemRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  _RowConflictNote(row: row),
+                  _RowConflictNote(row: row, form: form),
                 ],
               ),
             ),
@@ -969,12 +976,14 @@ class _ItemRowMobile extends StatelessWidget {
   const _ItemRowMobile({
     super.key,
     required this.row,
+    required this.form,
     required this.index,
     required this.onRemove,
     required this.onChanged,
   });
 
   final ShipmentItemRow row;
+  final ShipmentFormController form;
   final int index;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
@@ -1046,7 +1055,7 @@ class _ItemRowMobile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  _RowConflictNote(row: row),
+                  _RowConflictNote(row: row, form: form),
                 ],
               ),
             ),
@@ -1089,17 +1098,36 @@ class _ItemRowMobile extends StatelessWidget {
   }
 }
 
-/// What is unusual about a row, in one line under its name: a carpet this
-/// client never ordered, carpets beyond what the order line owes, or the
-/// other client a scanned carpet was produced for. None of it blocks saving;
-/// it tells the worker what saving will do, before they confirm it.
+/// What a row is and what is unusual about it, under its name.
+///
+/// First which order it is ("Buyurtma #214 · 08.10.2026 · qolgan 10"): a
+/// client often has several orders for the same carpet, and the scanner fills
+/// them one after another, so the same carpet on three rows is three orders,
+/// not a duplicate. Then, only when true: a carpet this client never ordered,
+/// carpets past this order that go on the client's next one, carpets beyond
+/// everything the client ordered, and the other client a scanned carpet was
+/// produced for. None of it blocks saving; it says what saving will do.
 class _RowConflictNote extends StatelessWidget {
-  const _RowConflictNote({required this.row});
+  const _RowConflictNote({required this.row, required this.form});
 
   final ShipmentItemRow row;
+  final ShipmentFormController form;
 
   @override
   Widget build(BuildContext context) {
+    final beyondAll = form.isLastOnOrderRowOf(row)
+        ? form.beyondClientOrders(row.variantId)
+        : 0;
+    final pastLine = row.beyondLine;
+
+    final caption = row.isOffOrder
+        ? null
+        : [
+            if (row.orderId != null) 'Buyurtma #${row.orderId}',
+            if (row.orderDate != null) _formatDate(row.orderDate!),
+            'qolgan ${row.orderRemaining ?? row.availableQuantity} dona',
+          ].join(' · ');
+
     final notes = <(IconData, Color, String)>[
       if (row.isOffOrder)
         (
@@ -1107,12 +1135,18 @@ class _RowConflictNote extends StatelessWidget {
           AppColors.warning,
           'Buyurtmada yo\'q — saqlanganda yangi buyurtma qatori ochiladi',
         ),
-      if (row.beyondOrder > 0)
+      if (pastLine > 0 && beyondAll == 0)
+        (
+          Icons.info_outline_rounded,
+          AppColors.textSecondary,
+          'Bu buyurtmadan $pastLine dona ortiq — mijozning keyingi ochiq '
+              'buyurtmasiga yoziladi',
+        ),
+      if (beyondAll > 0)
         (
           Icons.warning_amber_rounded,
           AppColors.warning,
-          'Buyurtmadan ${row.beyondOrder} dona ortiq '
-              '(buyurtmada ${row.parsedQuantity - row.beyondOrder} dona qolgan) — '
+          'Mijozning barcha buyurtmalaridan $beyondAll dona ortiq — '
               'ortiqchasi alohida buyurtma qatoriga yoziladi',
         ),
       if (row.producedForClients.isNotEmpty)
@@ -1124,7 +1158,9 @@ class _RowConflictNote extends StatelessWidget {
         ),
     ];
 
-    if (notes.isEmpty) return const SizedBox.shrink();
+    if (caption == null && notes.isEmpty) return const SizedBox.shrink();
+
+    final small = Theme.of(context).textTheme.bodySmall;
 
     return Padding(
       padding: const EdgeInsets.only(top: 4),
@@ -1132,6 +1168,8 @@ class _RowConflictNote extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (caption != null)
+            Text(caption, style: small?.copyWith(color: AppColors.textSecondary)),
           for (final (icon, color, text) in notes)
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -1143,10 +1181,10 @@ class _RowConflictNote extends StatelessWidget {
                   Expanded(
                     child: Text(
                       text,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: small?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -1155,6 +1193,12 @@ class _RowConflictNote extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// "2026-10-08" → "08.10.2026", the way dates read everywhere else here.
+  static String _formatDate(String iso) {
+    final parts = iso.split('-');
+    return parts.length == 3 ? '${parts[2]}.${parts[1]}.${parts[0]}' : iso;
   }
 }
 

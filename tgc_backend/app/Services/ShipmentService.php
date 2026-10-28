@@ -63,7 +63,7 @@ class ShipmentService
             // More carpets than an order line still owes: the excess ships
             // beyond the order, on the invented order below, instead of
             // silently over-shipping the client's own line.
-            $data['items'] = $this->splitOverOrderedLines($data['items']);
+            $data['items'] = $this->splitOverOrderedLines($data['items'], (int) $data['client_id']);
             [$data['items'], $autoOrderId] = $this->createOrderLinesForScannedItems(
                 $data['items'], (int) $data['client_id'], $userId, $shipmentDate
             );
@@ -822,69 +822,98 @@ class ShipmentService
     }
 
     /**
-     * Caps every line at what its order line still owes and moves the rest to
-     * a new line with no order item, which createOrderLinesForScannedItems()
-     * then puts on the shipment's invented order.
+     * Caps every line at what its order line still owes. The excess goes to
+     * the same client's other open lines for the same carpet, oldest first,
+     * and only what even those cannot take goes to a line with no order item,
+     * which createOrderLinesForScannedItems() puts on the shipment's own
+     * invented order.
      *
      * Before this, a quantity typed above the order (or posted by an app that
      * never checked) was written straight onto the client's line: the line
      * read "ordered 3, shipped 5", and StoreShipmentRequest only logged it
-     * (shipments.enforce_item_validation is off on prod). The user's rule is
-     * that a worker may load more than was ordered, but it must be visible as
-     * beyond the order rather than corrupt the order itself.
+     * (shipments.enforce_item_validation is off on prod). A client routinely
+     * has several orders for the same carpet (ABDUBANNO AKA had six for one
+     * on 2026-10-28), so going past one line is usually not beyond the order
+     * at all — it is the next order.
      *
-     * The excess keeps its line's `scanned` flag — so a scanned carpet the
+     * Every piece keeps its line's `scanned` flag — so a scanned carpet the
      * warehouse never booked is still received on the way out, and a wizard
-     * line still has to be covered by stock — and the scanned batch item ids
-     * beyond the capped quantity, so production moves with the right carpets.
+     * line still has to be covered by stock — and its share of the scanned
+     * batch item ids, in order, so production moves with the right carpets.
      *
      * @param array<int, array<string, mixed>> $items
      * @return array<int, array<string, mixed>>
      */
-    private function splitOverOrderedLines(array $items): array
+    private function splitOverOrderedLines(array $items, int $clientId): array
     {
-        $orderItemIds = array_values(array_unique(array_filter(array_map(
-            fn ($item) => isset($item['order_item_id']) ? (int) $item['order_item_id'] : null,
-            $items,
-        ))));
+        $variantIds = [];
+        foreach ($items as $item) {
+            if (isset($item['order_item_id'])) {
+                $variantIds[(int) $item['product_variant_id']] = true;
+            }
+        }
 
-        if ($orderItemIds === []) {
+        if ($variantIds === []) {
             return $items;
         }
 
-        // Locked so two shipments for the same line cannot both see room.
-        $ordered = OrderItem::whereIn('id', $orderItemIds)
-            ->orderBy('id')
+        // Every line that may take carpets: the posted ones (whoever they
+        // belong to — StoreShipmentRequest polices that) and this client's
+        // open lines for the same carpets. Locked so two shipments cannot
+        // both see the same room.
+        $postedIds = array_values(array_unique(array_map(
+            fn ($item) => (int) $item['order_item_id'],
+            array_filter($items, fn ($item) => isset($item['order_item_id'])),
+        )));
+
+        $lines = OrderItem::query()
+            ->join('orders AS o', 'o.id', '=', 'order_items.order_id')
+            ->where(fn ($q) => $q
+                ->whereIn('order_items.id', $postedIds)
+                ->orWhere(fn ($q2) => $q2
+                    ->where('o.client_id', $clientId)
+                    ->where('o.status', '!=', Order::STATUS_CANCELED)
+                    ->whereIn('order_items.product_variant_id', array_keys($variantIds))))
+            ->orderBy('order_items.id')
             ->lockForUpdate()
-            ->pluck('quantity', 'id');
+            ->get(['order_items.id', 'order_items.quantity', 'order_items.product_variant_id', 'o.client_id', 'o.status']);
 
         $shipped = DB::table('shipment_items AS si')
             ->join('shipments AS s', 's.id', '=', 'si.shipment_id')
             ->whereNull('s.canceled_at')
-            ->whereIn('si.order_item_id', $orderItemIds)
+            ->whereIn('si.order_item_id', $lines->pluck('id'))
             ->groupBy('si.order_item_id')
             ->selectRaw('si.order_item_id AS id, SUM(si.quantity) AS qty')
             ->pluck('qty', 'id');
 
         $room = [];
-        foreach ($ordered as $id => $quantity) {
-            $room[(int) $id] = max(0, (int) $quantity - (int) ($shipped[$id] ?? 0));
+        $spillTo = [];   // variant => this client's open line ids, oldest first
+        foreach ($lines as $line) {
+            $room[$line->id] = max(0, (int) $line->quantity - (int) ($shipped[$line->id] ?? 0));
+            if ((int) $line->client_id === $clientId && $line->status !== Order::STATUS_CANCELED) {
+                $spillTo[(int) $line->product_variant_id][] = (int) $line->id;
+            }
         }
 
-        $result = [];
-        $excessLog = [];
-        foreach ($items as $item) {
+        // First every line takes what it can on its own order line, so a
+        // spill from one row never eats room another row was posted against.
+        $pieces = [];
+        foreach ($items as $index => $item) {
             $orderItemId = isset($item['order_item_id']) ? (int) $item['order_item_id'] : null;
-
             if ($orderItemId === null || ! array_key_exists($orderItemId, $room)) {
-                $result[] = $item;
+                $pieces[$index] = ['fits' => (int) $item['quantity'], 'excess' => 0];
                 continue;
             }
 
-            $quantity = (int) $item['quantity'];
-            $fits     = min($quantity, $room[$orderItemId]);
-            $excess   = $quantity - $fits;
+            $fits = min((int) $item['quantity'], $room[$orderItemId]);
             $room[$orderItemId] -= $fits;
+            $pieces[$index] = ['fits' => $fits, 'excess' => (int) $item['quantity'] - $fits];
+        }
+
+        $result = [];
+        $moved  = [];
+        foreach ($items as $index => $item) {
+            ['fits' => $fits, 'excess' => $excess] = $pieces[$index];
 
             if ($excess === 0) {
                 $result[] = $item;
@@ -894,25 +923,45 @@ class ShipmentService
             $batchIds = is_array($item['scanned_batch_item_ids'] ?? null)
                 ? array_values($item['scanned_batch_item_ids'])
                 : [];
+            $offset = 0;
+            $piece = function (?int $orderItemId, int $quantity) use ($item, $batchIds, &$offset): array {
+                $slice = array_slice($batchIds, $offset, $quantity);
+                $offset += $quantity;
+
+                return array_merge($item, [
+                    'order_item_id'          => $orderItemId,
+                    'quantity'               => $quantity,
+                    'scanned_batch_item_ids' => $slice,
+                ]);
+            };
 
             if ($fits > 0) {
-                $result[] = array_merge($item, [
-                    'quantity'               => $fits,
-                    'scanned_batch_item_ids' => array_slice($batchIds, 0, $fits),
-                ]);
+                $result[] = $piece((int) $item['order_item_id'], $fits);
             }
 
-            $result[] = array_merge($item, [
-                'order_item_id'          => null,
-                'quantity'               => $excess,
-                'scanned_batch_item_ids' => array_slice($batchIds, $fits),
-            ]);
+            foreach ($spillTo[(int) $item['product_variant_id']] ?? [] as $lineId) {
+                if ($excess === 0) {
+                    break;
+                }
+                $take = min($excess, $room[$lineId]);
+                if ($take <= 0) {
+                    continue;
+                }
+                $room[$lineId] -= $take;
+                $excess -= $take;
+                $result[] = $piece($lineId, $take);
+                $moved['other_open_line'][$lineId] = ($moved['other_open_line'][$lineId] ?? 0) + $take;
+            }
 
-            $excessLog[$orderItemId] = ($excessLog[$orderItemId] ?? 0) + $excess;
+            if ($excess > 0) {
+                $result[] = $piece(null, $excess);
+                $moved['beyond_order'][(int) $item['order_item_id']] =
+                    ($moved['beyond_order'][(int) $item['order_item_id']] ?? 0) + $excess;
+            }
         }
 
-        if ($excessLog !== []) {
-            Log::info('shipment.beyond_order_split', ['excess_by_order_item' => $excessLog]);
+        if ($moved !== []) {
+            Log::info('shipment.over_ordered_lines_split', $moved);
         }
 
         return $result;

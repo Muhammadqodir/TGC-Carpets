@@ -187,6 +187,42 @@ class ShipmentScanFlowTest extends TestCase
         $this->assertSame(Order::STATUS_CANCELED, $extra->first()->order->fresh()->status);
     }
 
+    public function test_past_one_order_the_excess_fills_the_clients_other_orders_first(): void
+    {
+        $variant = $this->variant();
+        $newer   = $this->orderLine($this->clientA, $variant, 2);
+        $older   = $this->orderLine($this->clientA, $variant, 2);   // id after, still "another open line"
+        $this->receive($variant, 5);
+
+        $this->rows = [[
+            'order_item_id'          => $newer->id,
+            'product_variant_id'     => $variant->id,
+            'quantity'               => 5,
+            'scanned'                => false,
+            'scanned_batch_item_ids' => [],
+        ]];
+        $shipmentId = $this->saveForm()->assertCreated()->json('data.id');
+
+        $this->assertSame(2, $this->shippedOn($newer));
+        $this->assertSame(2, $this->shippedOn($older), 'the next order takes the spill before anything is invented');
+        $extra = OrderItem::whereHas('order', fn ($q) => $q->where('created_from_shipment_id', $shipmentId))->get();
+        $this->assertSame([1], $extra->pluck('quantity')->map(fn ($q) => (int) $q)->all(), 'only what no order owes is beyond');
+        $this->assertSame(Order::STATUS_SHIPPED, $older->order->fresh()->status);
+    }
+
+    public function test_a_cancelled_order_is_never_offered_or_filled(): void
+    {
+        $variant = $this->variant();
+        $dead    = $this->orderLine($this->clientA, $variant, 3);
+        $dead->order->update(['status' => Order::STATUS_CANCELED]);
+        $carpet  = $this->batchItem($variant, null, planned: 1, produced: 1, received: 1);
+        $this->receive($variant, 1);
+
+        $scan = $this->scanIntoForm($this->label($carpet));
+        $this->assertNull($scan['item']['order_item_id']);
+        $this->assertSame('no_open_line', $scan['item']['reason']);
+    }
+
     public function test_beyond_the_order_without_stock_is_refused_in_words_a_worker_reads(): void
     {
         $variant = $this->variant();

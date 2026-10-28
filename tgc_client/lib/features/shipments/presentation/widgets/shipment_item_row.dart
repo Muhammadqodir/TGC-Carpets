@@ -62,6 +62,14 @@ class ShipmentItemRow {
   /// no order line, and for rows from servers that did not report it.
   final int? orderRemaining;
 
+  /// Which order the line belongs to, for the caption under the name.
+  final int? orderId;
+  final String? orderDate;
+
+  /// What the client owed for this carpet across all open orders when it
+  /// was scanned. Null for wizard rows and older servers.
+  final int? clientOpenRemaining;
+
   // ── Editable fields ───────────────────────────────────────────────────────
   final TextEditingController quantityCtrl;
 
@@ -81,6 +89,9 @@ class ShipmentItemRow {
     this.edgeTitle,
     required this.availableQuantity,
     this.orderRemaining,
+    this.orderId,
+    this.orderDate,
+    this.clientOpenRemaining,
     int initialQuantity = 1,
   }) : quantityCtrl = TextEditingController(text: '$initialQuantity');
 
@@ -107,6 +118,9 @@ class ShipmentItemRow {
       orderRemaining: item.isOnClientOrder
           ? (item.orderRemaining ?? item.availableQuantity)
           : null,
+      orderId: item.orderId,
+      orderDate: item.orderDate,
+      clientOpenRemaining: item.clientOpenRemaining,
       initialQuantity: initialQuantity ??
           (item.availableQuantity > 0 ? item.availableQuantity : 1),
     );
@@ -153,12 +167,13 @@ class ShipmentItemRow {
 
   int get parsedQuantity => int.tryParse(quantityCtrl.text.trim()) ?? 0;
 
-  /// Carpets on this row beyond what its order line still owes. They still
-  /// ship: the backend caps the line and puts the rest on the shipment's own
-  /// order (ShipmentService::splitOverOrderedLines), so the form only has to
-  /// say so. 0 for rows with no order line — those are wholly off-order,
-  /// see [isOffOrder].
-  int get beyondOrder {
+  /// Carpets on this row beyond what ITS order line still owes. Not the same
+  /// as beyond the client's order: the backend first puts them on the
+  /// client's other open orders for the carpet, and only the rest on the
+  /// shipment's own order (ShipmentService::splitOverOrderedLines) — see
+  /// ShipmentFormController.beyondClientOrders. 0 for rows with no order
+  /// line, which are wholly off-order ([isOffOrder]).
+  int get beyondLine {
     if (orderItemId == null) return 0;
     final owed = orderRemaining ?? availableQuantity;
     final excess = parsedQuantity - owed;
