@@ -443,7 +443,8 @@ class _ProductTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasDetails = item.colors.isNotEmpty || item.sizes.isNotEmpty;
 
-    return Theme(
+    // Own Material so the tile's ink isn't hidden behind the white card.
+    return Material(type: MaterialType.transparency, child: Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -531,7 +532,7 @@ class _ProductTile extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

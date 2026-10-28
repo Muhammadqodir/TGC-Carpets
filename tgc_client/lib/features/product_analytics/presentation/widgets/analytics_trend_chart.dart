@@ -1,18 +1,25 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/ui/widgets/stacked_bar_chart.dart';
 import '../../domain/entities/product_analytics_entity.dart';
 
+/// Ordered carpets per day (or week / month) as bars, totals on top, the
+/// same look as the production charts. Hover or tap a bar for the date
+/// and the number of orders.
 class AnalyticsTrendChart extends StatelessWidget {
   final List<AnalyticsTrendPoint> trend;
   final String trendBy;
+  final String periodFrom;
+  final String periodTo;
   final AnalyticsMetric metric;
 
   const AnalyticsTrendChart({
     super.key,
     required this.trend,
     required this.trendBy,
+    required this.periodFrom,
+    required this.periodTo,
     this.metric = AnalyticsMetric.quantity,
   });
 
@@ -30,126 +37,25 @@ class AnalyticsTrendChart extends StatelessWidget {
       );
     }
 
-    final maxY = trend
-            .map((e) => e.valueOf(metric))
-            .reduce((a, b) => a > b ? a : b) *
-        1.2;
+    final byLabel = {for (final t in trend) t.label: t};
+    final buckets = {...TrendLabels.allDays(trendBy, periodFrom, periodTo), ...byLabel.keys}
+        .toList()
+      ..sort();
 
-    final spots = trend.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.valueOf(metric));
-    }).toList();
-
-    return SizedBox(
-      height: 160,
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: maxY > 0 ? maxY / 4 : 1,
-            getDrawingHorizontalLine: (_) => FlLine(
-              color: AppColors.divider,
-              strokeWidth: 1,
-            ),
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 36,
-                getTitlesWidget: (value, meta) => value == meta.max &&
-                        value % meta.appliedInterval != 0
-                    ? const SizedBox.shrink()
-                    : Text(
-                        compactNumber(value),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                interval: _labelInterval,
-                getTitlesWidget: (value, _) {
-                  final idx = value.toInt();
-                  if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _formatLabel(trend[idx].label),
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border(
-              bottom: BorderSide(color: AppColors.divider),
-              left:   BorderSide(color: AppColors.divider),
-            ),
-          ),
-          minX: 0,
-          maxX: (trend.length - 1).toDouble(),
-          minY: 0,
-          maxY: maxY > 0 ? maxY : 10,
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: true,
-              color: AppColors.primary,
-              barWidth: 2.5,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                color: AppColors.primary.withAlpha(30),
-              ),
-            ),
-          ],
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipItems: (spots) => spots
-                  .map((s) => LineTooltipItem(
-                        metric.format(s.y),
-                        const TextStyle(color: Colors.white, fontSize: 12),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ),
-      ),
+    return StackedBarChart(
+      axisLabels: [for (final b in buckets) TrendLabels.short(b, trendBy)],
+      titles: [for (final b in buckets) TrendLabels.long(b, trendBy)],
+      notes: [
+        for (final b in buckets)
+          (byLabel[b]?.ordersCount ?? 0) > 0 ? '${byLabel[b]!.ordersCount} ta buyurtma' : '',
+      ],
+      values: [
+        for (final b in buckets) {0: byLabel[b]?.valueOf(metric) ?? 0},
+      ],
+      series: const [0],
+      names: const {0: 'Buyurtmalar'},
+      format: metric.format,
+      decimals: metric == AnalyticsMetric.sqm,
     );
-  }
-
-  double get _labelInterval {
-    if (trend.length <= 7) return 1;
-    if (trend.length <= 30) return 5;
-    if (trend.length <= 60) return 10;
-    return (trend.length / 6).roundToDouble();
-  }
-
-  String _formatLabel(String raw) {
-    // raw is: yyyy-MM-dd | yyyy-WW | yyyy-MM
-    if (raw.contains('-') && raw.length == 10) {
-      // daily: show MM/dd
-      final parts = raw.split('-');
-      if (parts.length == 3) return '${parts[1]}/${parts[2]}';
-    }
-    return raw;
   }
 }

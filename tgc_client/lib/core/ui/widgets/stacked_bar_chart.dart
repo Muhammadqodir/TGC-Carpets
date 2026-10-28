@@ -1,37 +1,50 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../product_analytics/domain/entities/product_analytics_entity.dart';
+import '../../theme/app_colors.dart';
 
-/// Bars stacked by shift, shared by the daily trend and the hourly chart.
+/// Bars stacked by series (e.g. by shift), used by the analytics trend and
+/// hourly charts.
 ///
 /// No y axis: the width goes to the bars, and each labelled bar carries
 /// its total on top. Every bar is labelled when there is room; on a narrow
 /// screen only the bars with an x-axis label under them, plus the tallest.
 /// Hover or tap any bar for the full breakdown.
-class ProductionStackedBarChart extends StatelessWidget {
+class StackedBarChart extends StatelessWidget {
   /// Short x-axis label per bar, e.g. "14.10" or "09".
   final List<String> axisLabels;
 
   /// Tooltip heading per bar, e.g. "14.10.2026, Se".
   final List<String> titles;
 
-  /// Per bar: account id → value.
+  /// Optional extra tooltip line per bar, e.g. "4 ta buyurtma".
+  final List<String>? notes;
+
+  /// Per bar: series id → value.
   final List<Map<int, double>> values;
   final List<int> series;
   final Map<int, String> names;
-  final AnalyticsMetric metric;
 
-  const ProductionStackedBarChart({
+  /// Full value with unit for the tooltip, e.g. "12 dona" / "34.5 m²".
+  final String Function(double) format;
+
+  /// Whether small values keep one decimal on the bar tops (m²).
+  final bool decimals;
+
+  const StackedBarChart({
     super.key,
     required this.axisLabels,
     required this.titles,
     required this.values,
     required this.series,
     required this.names,
-    required this.metric,
+    required this.format,
+    this.decimals = false,
+    this.notes,
   });
+
+  /// A single, unstacked series: no legend, no per-series tooltip lines.
+  bool get _single => series.length <= 1;
 
   static const palette = [
     AppColors.primaryLight,
@@ -103,7 +116,7 @@ class ProductionStackedBarChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        legend(series, names),
+        if (!_single) legend(series, names),
         LayoutBuilder(
           builder: (context, c) {
             final w = c.maxWidth;
@@ -229,13 +242,14 @@ class ProductionStackedBarChart extends StatelessWidget {
 
   BarTooltipItem _tooltip(int i, double total, Map<int, Color> colorOf) {
     final v = values[i];
+    final note = notes?[i];
     return BarTooltipItem(
       '${titles[i]}\n',
       const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
       textAlign: TextAlign.left,
       children: [
         for (final id in series)
-          if ((v[id] ?? 0) > 0)
+          if (!_single && (v[id] ?? 0) > 0)
             TextSpan(
               text: '${names[id] ?? 'Noma\'lum'}: ',
               style: TextStyle(
@@ -245,15 +259,20 @@ class ProductionStackedBarChart extends StatelessWidget {
               ),
               children: [
                 TextSpan(
-                  text: '${metric.format(v[id]!)}\n',
+                  text: '${format(v[id]!)}\n',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontSize: 12),
                 ),
               ],
             ),
         TextSpan(
-          text: 'Jami: ${metric.format(total)}',
+          text: _single ? format(total) : 'Jami: ${format(total)}',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
         ),
+        if (note != null && note.isNotEmpty)
+          TextSpan(
+            text: '\n$note',
+            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w400, fontSize: 12),
+          ),
       ],
     );
   }
@@ -262,7 +281,60 @@ class ProductionStackedBarChart extends StatelessWidget {
   String _compact(double v) {
     if (v >= 10000) return '${(v / 1000).toStringAsFixed(0)}k';
     if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
-    if (metric == AnalyticsMetric.sqm && v < 100) return v.toStringAsFixed(1);
+    if (decimals && v < 100) return v.toStringAsFixed(1);
     return v.round().toString();
   }
+}
+
+/// Labels for trend buckets as the analytics APIs send them:
+/// day "2026-10-14", week "2026-43", month "2026-10".
+class TrendLabels {
+  TrendLabels._();
+
+  static const _weekdays = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+
+  /// Every day from [from] to [to] for a daily chart, so a day with
+  /// nothing shows as a gap instead of disappearing. Empty otherwise.
+  static List<String> allDays(String trendBy, String from, String to) {
+    if (trendBy != 'day') return const [];
+    final f = DateTime.tryParse(from);
+    final t = DateTime.tryParse(to);
+    if (f == null || t == null) return const [];
+    return [
+      for (var d = f; !d.isAfter(t); d = DateTime(d.year, d.month, d.day + 1))
+        '${d.year}-${_two(d.month)}-${_two(d.day)}',
+    ];
+  }
+
+  /// Axis label: "14.10", "43-h", "10.26".
+  static String short(String raw, String trendBy) {
+    if (trendBy == 'day' && raw.length == 10) {
+      return '${raw.substring(8)}.${raw.substring(5, 7)}';
+    }
+    if (trendBy == 'week') return '${raw.split('-').last}-h';
+    if (trendBy == 'month' && raw.length == 7) {
+      return '${raw.substring(5)}.${raw.substring(2, 4)}';
+    }
+    return raw;
+  }
+
+  /// Tooltip heading: "14.10.2026, Se", "2026, 43-hafta", "10.2026".
+  static String long(String raw, String trendBy) {
+    if (trendBy == 'day') {
+      final d = DateTime.tryParse(raw);
+      if (d != null) {
+        return '${_two(d.day)}.${_two(d.month)}.${d.year}, ${_weekdays[d.weekday - 1]}';
+      }
+    }
+    if (trendBy == 'week') {
+      final p = raw.split('-');
+      if (p.length == 2) return '${p[0]}, ${p[1]}-hafta';
+    }
+    if (trendBy == 'month' && raw.length == 7) {
+      return '${raw.substring(5)}.${raw.substring(0, 4)}';
+    }
+    return raw;
+  }
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/ui/widgets/stacked_bar_chart.dart';
 import '../../../product_analytics/domain/entities/product_analytics_entity.dart';
 import '../../domain/entities/production_operations_entity.dart';
-import 'production_stacked_bar_chart.dart';
 
 /// Labels printed per clock hour over the whole period, stacked by shift
 /// in the same colours as the trend chart. Shows when the floor is busy,
@@ -40,13 +40,14 @@ class ProductionHourlyChart extends StatelessWidget {
       byHour[c.hour][c.userId] = (byHour[c.hour][c.userId] ?? 0) + c.valueOf(metric);
     }
 
-    return ProductionStackedBarChart(
+    return StackedBarChart(
       axisLabels: [for (var h = 0; h < 24; h++) _two(h)],
       titles: [for (var h = 0; h < 24; h++) '${_two(h)}:00 – ${_two(h)}:59'],
       values: byHour,
-      series: ProductionStackedBarChart.seriesOf(cells.map((c) => c.userId), names),
+      series: StackedBarChart.seriesOf(cells.map((c) => c.userId), names),
       names: names,
-      metric: metric,
+      format: metric.format,
+      decimals: metric == AnalyticsMetric.sqm,
     );
   }
 

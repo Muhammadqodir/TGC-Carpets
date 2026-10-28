@@ -216,9 +216,11 @@ class _AnalyticsContent extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
                 child: AnalyticsTrendChart(
-                  trend:   data.trend,
-                  trendBy: data.trendBy,
-                  metric:  metric,
+                  trend:      data.trend,
+                  trendBy:    data.trendBy,
+                  periodFrom: data.periodFrom,
+                  periodTo:   data.periodTo,
+                  metric:     metric,
                 ),
               ),
             ),
