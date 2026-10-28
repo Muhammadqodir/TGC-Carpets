@@ -186,6 +186,7 @@ class _AnalyticsContent extends StatelessWidget {
             totalBatches:  data.summary.totalBatches,
             totalProduced: data.summary.totalProduced,
             totalSqm:      data.summary.totalSqm,
+            metric:        metric,
           ),
 
           if (ops != null) ...[
