@@ -53,7 +53,9 @@ class ProductionOperationsModel extends ProductionOperationsEntity {
     required super.dayStartHour,
     required super.periodDays,
     required super.backfilledExcluded,
+    required super.trendBy,
     required super.summary,
+    required super.trend,
     required super.byShift,
     required super.byMachine,
     required super.heatmap,
@@ -70,7 +72,17 @@ class ProductionOperationsModel extends ProductionOperationsEntity {
       dayStartHour:       (json['day_start_hour'] as num?)?.toInt() ?? 0,
       periodDays:         (summary['period_days'] as num?)?.toInt() ?? 0,
       backfilledExcluded: (summary['backfilled_excluded'] as num?)?.toInt() ?? 0,
+      trendBy:            (json['period'] as Map<String, dynamic>?)?['trend_by'] as String? ?? 'day',
       summary:            ProductionCapacityStatsModel.fromJson({...summary, 'name': 'Jami'}),
+      trend: (json['trend'] as List<dynamic>? ?? []).map((e) {
+        final t = e as Map<String, dynamic>;
+        return ProductionShiftTrendPoint(
+          label:         t['label'] as String? ?? '',
+          userId:        (t['user_id'] as num?)?.toInt() ?? 0,
+          totalQuantity: (t['total_quantity'] as num?)?.toInt() ?? 0,
+          totalSqm:      (t['total_sqm'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList(),
       byShift:            rows('by_shift'),
       byMachine:          rows('by_machine'),
       heatmap: (json['heatmap'] as List<dynamic>? ?? []).map((e) {

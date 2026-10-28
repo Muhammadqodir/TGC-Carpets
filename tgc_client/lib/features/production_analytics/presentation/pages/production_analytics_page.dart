@@ -11,11 +11,10 @@ import '../../domain/entities/production_operations_entity.dart';
 import '../bloc/production_analytics_bloc.dart';
 import '../bloc/production_analytics_event.dart';
 import '../bloc/production_analytics_state.dart';
-import '../widgets/production_analytics_dimension_section.dart';
 import '../widgets/production_analytics_summary_cards.dart';
-import '../widgets/production_analytics_trend_chart.dart';
 import '../widgets/production_capacity_section.dart';
 import '../widgets/production_hourly_heatmap.dart';
+import '../widgets/production_shift_trend_chart.dart';
 import '../widgets/production_ops_summary_cards.dart';
 
 class ProductionAnalyticsPage extends StatelessWidget {
@@ -134,17 +133,7 @@ class _ProductionAnalyticsViewState extends State<_ProductionAnalyticsView> {
                           ),
                     ),
                   ProductionAnalyticsLoaded(:final data) =>
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Responsive: >700px = 2-col grid, else single column
-                        final isWide = constraints.maxWidth > 700;
-                        return _AnalyticsContent(
-                          data: data,
-                          isWide: isWide,
-                          metric: _metric,
-                        );
-                      },
-                    ),
+                    _AnalyticsContent(data: data, metric: _metric),
                   _ => const SizedBox.shrink(),
                 },
               ),
@@ -160,50 +149,38 @@ class _ProductionAnalyticsViewState extends State<_ProductionAnalyticsView> {
 
 class _AnalyticsContent extends StatelessWidget {
   final ProductionAnalyticsEntity data;
-  final bool isWide;
   final AnalyticsMetric metric;
 
-  const _AnalyticsContent({
-    required this.data,
-    required this.isWide,
-    required this.metric,
-  });
+  const _AnalyticsContent({required this.data, required this.metric});
 
   @override
   Widget build(BuildContext context) {
-    final sections = [
-      ProductionAnalyticsDimensionSection(
-        title: 'Tur bo\'yicha',
-        items: data.byType,
-        accentColor: AppColors.primary,
-      ),
-      ProductionAnalyticsDimensionSection(
-        title: 'Rang bo\'yicha',
-        items: data.byColor,
-        accentColor: const Color(0xFF7B5EA7),
-      ),
-      ProductionAnalyticsDimensionSection(
-        title: 'O\'lcham bo\'yicha',
-        items: data.bySize,
-        accentColor: const Color(0xFF2196A6),
-      ),
-      ProductionAnalyticsDimensionSection(
-        title: 'Sifat bo\'yicha',
-        items: data.byQuality,
-        accentColor: AppColors.accent,
-      ),
-      ProductionAnalyticsDimensionSection(
-        title: 'Chegara bo\'yicha',
-        items: data.byEdge,
-        accentColor: const Color(0xFFC77B3F),
-      ),
-    ];
+    final ops = data.operations;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Output per day, split by shift
+          if (ops != null) ...[
+            _SectionCard(
+              title: 'Ishlab chiqarish dinamikasi',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
+                child: ProductionShiftTrendChart(
+                  trend:      ops.trend,
+                  shifts:     ops.byShift,
+                  trendBy:    ops.trendBy,
+                  periodFrom: data.periodFrom,
+                  periodTo:   data.periodTo,
+                  metric:     metric,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+
           // Summary cards
           ProductionAnalyticsSummaryCards(
             totalBatches:  data.summary.totalBatches,
@@ -211,33 +188,10 @@ class _AnalyticsContent extends StatelessWidget {
             totalSqm:      data.summary.totalSqm,
           ),
 
-          if (data.operations != null) ...[
+          if (ops != null) ...[
             const SizedBox(height: 4),
-            _OperationsBlock(ops: data.operations!, isWide: isWide, metric: metric),
+            _OperationsBlock(ops: ops, metric: metric),
           ],
-
-          // Trend chart
-          if (data.trend.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: 'Ishlab chiqarish dinamikasi',
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
-                child: ProductionAnalyticsTrendChart(
-                  trend:   data.trend,
-                  trendBy: data.trendBy,
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          // Dimension sections — responsive grid
-          if (isWide)
-            _TwoColumnGrid(sections: sections)
-          else
-            _SingleColumn(sections: sections),
         ],
       ),
     );
@@ -248,10 +202,9 @@ class _AnalyticsContent extends StatelessWidget {
 
 class _OperationsBlock extends StatelessWidget {
   final ProductionOperationsEntity ops;
-  final bool isWide;
   final AnalyticsMetric metric;
 
-  const _OperationsBlock({required this.ops, required this.isWide, required this.metric});
+  const _OperationsBlock({required this.ops, required this.metric});
 
   @override
   Widget build(BuildContext context) {
@@ -272,12 +225,9 @@ class _OperationsBlock extends StatelessWidget {
       metric: metric,
       icon: Icons.groups_2_outlined,
     );
-    final machines = ProductionCapacitySection(
-      title: 'Stanoklar bo\'yicha',
+    final machines = ProductionMachineGrid(
       rows: ops.byMachine,
       metric: metric,
-      icon: Icons.precision_manufacturing_outlined,
-      accentColor: const Color(0xFF2196A6),
     );
 
     return Column(
@@ -292,20 +242,9 @@ class _OperationsBlock extends StatelessWidget {
         ),
         ProductionOpsSummaryCards(ops: ops, metric: metric),
         const SizedBox(height: 12),
-        if (isWide)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: shifts),
-              const SizedBox(width: 12),
-              Expanded(child: machines),
-            ],
-          )
-        else ...[
-          shifts,
-          const SizedBox(height: 12),
-          machines,
-        ],
+        shifts,
+        const SizedBox(height: 12),
+        machines,
         const SizedBox(height: 12),
         _SectionCard(
           title: 'Soatlik faollik',
@@ -385,56 +324,6 @@ class _SectionCard extends StatelessWidget {
           child,
         ],
       ),
-    );
-  }
-}
-
-class _TwoColumnGrid extends StatelessWidget {
-  final List<Widget> sections;
-
-  const _TwoColumnGrid({required this.sections});
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (var i = 0; i < sections.length; i += 2) {
-      rows.add(
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: sections[i]),
-              const SizedBox(width: 12),
-              Expanded(
-                child: i + 1 < sections.length
-                    ? sections[i + 1]
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (i + 2 < sections.length) rows.add(const SizedBox(height: 12));
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: rows,
-    );
-  }
-}
-
-class _SingleColumn extends StatelessWidget {
-  final List<Widget> sections;
-
-  const _SingleColumn({required this.sections});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: sections
-          .expand((s) => [s, const SizedBox(height: 12)])
-          .take(sections.length * 2 - 1)
-          .toList(),
     );
   }
 }

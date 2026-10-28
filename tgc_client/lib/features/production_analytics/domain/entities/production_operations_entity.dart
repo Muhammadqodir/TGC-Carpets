@@ -108,6 +108,27 @@ class ProductionHeatmapCell extends Equatable {
   List<Object?> get props => [userId, weekday, hour, totalQuantity, totalSqm];
 }
 
+/// One shift's output in one period bucket (production day, week or month).
+class ProductionShiftTrendPoint extends Equatable {
+  final String label;
+  final int userId;
+  final int totalQuantity;
+  final double totalSqm;
+
+  const ProductionShiftTrendPoint({
+    required this.label,
+    required this.userId,
+    required this.totalQuantity,
+    required this.totalSqm,
+  });
+
+  double valueOf(AnalyticsMetric m) =>
+      m == AnalyticsMetric.quantity ? totalQuantity.toDouble() : totalSqm;
+
+  @override
+  List<Object?> get props => [label, userId, totalQuantity, totalSqm];
+}
+
 class ProductionOperationsEntity extends Equatable {
   /// Local hour a production day starts at (a night shift is one day).
   final int dayStartHour;
@@ -115,7 +136,9 @@ class ProductionOperationsEntity extends Equatable {
 
   /// Pre-July carpets left out: they have no shift, hour or real day.
   final int backfilledExcluded;
+  final String trendBy;
   final ProductionCapacityStats summary;
+  final List<ProductionShiftTrendPoint> trend;
   final List<ProductionCapacityStats> byShift;
   final List<ProductionCapacityStats> byMachine;
   final List<ProductionHeatmapCell> heatmap;
@@ -124,7 +147,9 @@ class ProductionOperationsEntity extends Equatable {
     required this.dayStartHour,
     required this.periodDays,
     required this.backfilledExcluded,
+    required this.trendBy,
     required this.summary,
+    required this.trend,
     required this.byShift,
     required this.byMachine,
     required this.heatmap,
@@ -132,5 +157,5 @@ class ProductionOperationsEntity extends Equatable {
 
   @override
   List<Object?> get props =>
-      [dayStartHour, periodDays, backfilledExcluded, summary, byShift, byMachine, heatmap];
+      [dayStartHour, periodDays, backfilledExcluded, trendBy, summary, trend, byShift, byMachine, heatmap];
 }

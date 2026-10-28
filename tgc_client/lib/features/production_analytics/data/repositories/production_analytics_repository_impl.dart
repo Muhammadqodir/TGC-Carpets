@@ -28,7 +28,7 @@ class ProductionAnalyticsRepositoryImpl implements ProductionAnalyticsRepository
           trendBy:    trendBy,
         ),
         _remoteDataSource
-            .getOperations(periodFrom: periodFrom, periodTo: periodTo)
+            .getOperations(periodFrom: periodFrom, periodTo: periodTo, trendBy: trendBy)
             .then<ProductionOperationsEntity?>((o) => o)
             .catchError((Object _) => null),
       ]);

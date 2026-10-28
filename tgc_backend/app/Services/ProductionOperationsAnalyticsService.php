@@ -34,14 +34,15 @@ use Illuminate\Support\Facades\DB;
  */
 class ProductionOperationsAnalyticsService
 {
-    public function getReport(string $from, string $to): array
+    public function getReport(string $from, string $to, string $trendBy = 'day'): array
     {
         $dayStart = $this->dayStartHour();
-        $cacheKey = "analytics:production-ops:{$from}:{$to}:{$dayStart}";
+        $cacheKey = "analytics:production-ops:{$from}:{$to}:{$trendBy}:{$dayStart}";
 
         return Cache::remember($cacheKey, $this->resolveTtl($to), fn (): array => [
             'day_start_hour' => $dayStart,
             'summary'        => $this->summary($from, $to),
+            'trend'          => $this->trend($from, $to, $trendBy),
             'by_shift'       => $this->byShift($from, $to),
             'by_machine'     => $this->byMachine($from, $to),
             'heatmap'        => $this->heatmap($from, $to),
@@ -124,6 +125,39 @@ class ProductionOperationsAnalyticsService
             ->unique()->values();
 
         return $this->assembleRows($ids, $names, $daily, $defects, $reprints);
+    }
+
+    /**
+     * Output per period bucket per account that printed — the per-shift
+     * bars of the trend chart. 'produced' events only, like byShift(), so
+     * the bars add up to the shift totals. Buckets are production days
+     * (or ISO weeks / months of them).
+     */
+    private function trend(string $from, string $to, string $trendBy): array
+    {
+        $format = match ($trendBy) {
+            'week'  => '%x-%v',
+            'month' => '%Y-%m',
+            default => '%Y-%m-%d',
+        };
+        $bucket = "DATE_FORMAT(DATE_SUB(e.occurred_at, INTERVAL {$this->dayStartHour()} HOUR), '{$format}')";
+
+        return $this->eventsQuery($from, $to)
+            ->where('e.event_type', ProductionEvent::TYPE_PRODUCED)
+            ->selectRaw(
+                "{$bucket} as label, e.user_id, "
+                . 'SUM(e.quantity) as total_quantity, ' . $this->sqmSum() . ' as total_sqm'
+            )
+            ->groupByRaw("{$bucket}, e.user_id")
+            ->orderByRaw("{$bucket}, e.user_id")
+            ->get()
+            ->map(fn ($r) => [
+                'label'          => $r->label,
+                'user_id'        => (int) $r->user_id,
+                'total_quantity' => (int) $r->total_quantity,
+                'total_sqm'      => round((float) $r->total_sqm, 2),
+            ])
+            ->all();
     }
 
     /**

@@ -15,6 +15,7 @@ abstract class ProductionAnalyticsRemoteDataSource {
   Future<ProductionOperationsModel> getOperations({
     required String periodFrom,
     required String periodTo,
+    required String trendBy,
   });
 }
 
@@ -56,6 +57,7 @@ class ProductionAnalyticsRemoteDataSourceImpl
   Future<ProductionOperationsModel> getOperations({
     required String periodFrom,
     required String periodTo,
+    required String trendBy,
   }) async {
     try {
       final response = await _dio.get(
@@ -63,6 +65,7 @@ class ProductionAnalyticsRemoteDataSourceImpl
         queryParameters: {
           'period_from': periodFrom,
           'period_to':   periodTo,
+          'trend_by':    trendBy,
         },
       );
 

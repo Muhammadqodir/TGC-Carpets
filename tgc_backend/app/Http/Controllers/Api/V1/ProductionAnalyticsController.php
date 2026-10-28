@@ -47,7 +47,8 @@ class ProductionAnalyticsController extends Controller
      *
      * Output, capacity, defects and reprints per shift (the account that
      * printed the label) and per machine, plus a weekday × hour heatmap.
-     * Query params: period_from, period_to (production days).
+     * Query params: period_from, period_to (production days),
+     * trend_by (day|week|month, default day) for the per-shift trend.
      */
     public function operations(ProductionAnalyticsRequest $request): JsonResponse
     {
@@ -55,9 +56,14 @@ class ProductionAnalyticsController extends Controller
             'data' => [
                 'period' => [
                     'from' => $request->periodFrom(),
-                    'to'   => $request->periodTo(),
+                    'to'       => $request->periodTo(),
+                    'trend_by' => $request->trendBy(),
                 ],
-                ...$this->operationsService->getReport($request->periodFrom(), $request->periodTo()),
+                ...$this->operationsService->getReport(
+                    $request->periodFrom(),
+                    $request->periodTo(),
+                    $request->trendBy(),
+                ),
             ],
         ]);
     }

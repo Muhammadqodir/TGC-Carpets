@@ -5,6 +5,7 @@ import 'package:tgc_client/features/production_analytics/data/models/production_
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_capacity_section.dart';
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_hourly_heatmap.dart';
 import 'package:tgc_client/features/production_analytics/presentation/widgets/production_ops_summary_cards.dart';
+import 'package:tgc_client/features/production_analytics/presentation/widgets/production_shift_trend_chart.dart';
 
 Map<String, dynamic> _row(int? id, String name, int qty, {int days = 20, int defects = 0}) => {
       'id': id,
@@ -27,7 +28,18 @@ Map<String, dynamic> _row(int? id, String name, int qty, {int days = 20, int def
     };
 
 final _json = <String, dynamic>{
-  'period': {'from': '2026-09-29', 'to': '2026-10-28'},
+  'period': {'from': '2026-09-29', 'to': '2026-10-28', 'trend_by': 'day'},
+  'trend': [
+    for (var d = 1; d <= 28; d++)
+      if (d % 7 != 4)
+        for (final u in [5, 6])
+          {
+            'label': '2026-10-${d.toString().padLeft(2, '0')}',
+            'user_id': u,
+            'total_quantity': 30 + (d * 7 + u * 5) % 25,
+            'total_sqm': (30 + (d * 7 + u * 5) % 25) * 6.0,
+          },
+  ],
   'day_start_hour': 8,
   'summary': {
     ..._row(null, '', 2400, days: 26, defects: 31),
@@ -62,10 +74,12 @@ void main() {
     expect(ops.byMachine[2].bestDayQuantityDate, isNull);
     expect(ops.heatmap, hasLength(168));
     expect(ops.summary.extraPrints, 4);
+    expect(ops.trendBy, 'day');
+    expect(ops.trend.first.userId, 5);
     expect(ops.byMachine[2].extraPrints, 0);
   });
 
-  for (final width in [360.0, 1280.0]) {
+  for (final width in [360.0, 900.0, 1280.0]) {
     for (final metric in AnalyticsMetric.values) {
       testWidgets('renders without overflow at ${width.toInt()}px, ${metric.name}', (tester) async {
         tester.view.physicalSize = Size(width, 2400);
@@ -78,6 +92,14 @@ void main() {
             body: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                ProductionShiftTrendChart(
+                  trend: ops.trend,
+                  shifts: ops.byShift,
+                  trendBy: ops.trendBy,
+                  periodFrom: '2026-09-29',
+                  periodTo: '2026-10-28',
+                  metric: metric,
+                ),
                 ProductionOpsSummaryCards(ops: ops, metric: metric),
                 ProductionCapacitySection(
                   title: 'Smenalar',
@@ -85,12 +107,7 @@ void main() {
                   metric: metric,
                   icon: Icons.groups_2_outlined,
                 ),
-                ProductionCapacitySection(
-                  title: 'Stanoklar',
-                  rows: ops.byMachine,
-                  metric: metric,
-                  icon: Icons.precision_manufacturing_outlined,
-                ),
+                ProductionMachineGrid(rows: ops.byMachine, metric: metric),
                 ProductionHourlyHeatmap(cells: ops.heatmap, shifts: ops.byShift, metric: metric),
               ],
             ),

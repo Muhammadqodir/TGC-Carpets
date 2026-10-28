@@ -131,10 +131,25 @@ class ProductionOperationsAnalyticsTest extends TestCase
         $this->assertSame(7, collect($data['heatmap'])->sum('total_quantity'), 'produced events only');
     }
 
-    private function report(): array
+    public function test_trend_splits_each_production_day_by_shift(): void
+    {
+        $trend = collect($this->report()['trend'])
+            ->mapWithKeys(fn ($r) => [$r['label'] . '/' . $r['user_id'] => $r['total_quantity']]);
+
+        $this->assertEquals([
+            '2026-10-01/' . $this->day->id   => 3,
+            '2026-10-01/' . $this->night->id => 3,   // 21:00 and the 02:30 after midnight
+            '2026-10-02/' . $this->day->id   => 1,
+        ], $trend->all());
+
+        $monthly = $this->report('&trend_by=month')['trend'];
+        $this->assertSame(['2026-10', '2026-10'], array_column($monthly, 'label'));
+    }
+
+    private function report(string $extra = ''): array
     {
         return $this->actingAs($this->admin)
-            ->getJson('/api/v1/analytics/production/operations?period_from=2026-10-01&period_to=2026-10-02')
+            ->getJson('/api/v1/analytics/production/operations?period_from=2026-10-01&period_to=2026-10-02' . $extra)
             ->assertOk()
             ->json('data');
     }

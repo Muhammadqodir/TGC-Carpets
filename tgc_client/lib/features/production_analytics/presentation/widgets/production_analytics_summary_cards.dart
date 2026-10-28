@@ -89,7 +89,10 @@ class _SummaryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
@@ -111,6 +114,7 @@ class _SummaryCard extends StatelessWidget {
                       ),
                     ],
                   ],
+                ),
                 ),
                 Text(
                   label,

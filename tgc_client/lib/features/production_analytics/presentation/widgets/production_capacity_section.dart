@@ -335,3 +335,206 @@ class _Stat extends StatelessWidget {
     );
   }
 }
+
+/// Machines as small cards, 1–4 per row depending on width. Bars share
+/// one scale across all machines, like the shift rows.
+class ProductionMachineGrid extends StatelessWidget {
+  final List<ProductionCapacityStats> rows;
+  final AnalyticsMetric metric;
+
+  const ProductionMachineGrid({super.key, required this.rows, required this.metric});
+
+  static const _accent = Color(0xFF2196A6);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scale = rows.fold<double>(0, (m, r) => r.bestOf(metric) > m ? r.bestOf(metric) : m);
+    final total = rows.fold<double>(0, (s, r) => s + r.totalOf(metric));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+          child: Row(
+            children: [
+              const Icon(Icons.precision_manufacturing_outlined, size: 18, color: _accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Stanoklar bo\'yicha',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (rows.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Ma\'lumot mavjud emas', style: TextStyle(color: AppColors.textSecondary)),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, c) {
+              final w = c.maxWidth;
+              final cols = w >= 1100 ? 4 : w >= 800 ? 3 : w >= 500 ? 2 : 1;
+              const gap = 12.0;
+              final cardW = (w - gap * (cols - 1)) / cols;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final r in rows)
+                    SizedBox(
+                      width: cardW,
+                      child: _MachineCard(
+                        row: r,
+                        metric: metric,
+                        scale: scale,
+                        share: total > 0 ? r.totalOf(metric) / total * 100 : 0,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _MachineCard extends StatelessWidget {
+  final ProductionCapacityStats row;
+  final AnalyticsMetric metric;
+  final double scale;
+  final double share;
+
+  const _MachineCard({
+    required this.row,
+    required this.metric,
+    required this.scale,
+    required this.share,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final idle = row.workingDays == 0;
+    final util = row.utilizationOf(metric);
+    final secondary = theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  row.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: idle ? AppColors.textSecondary : AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (util != null)
+                Text(
+                  '${util.toStringAsFixed(0)}%',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: _CapacityRow._utilColor(util),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    metric.format(row.totalOf(metric)),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: idle ? AppColors.textSecondary : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              if (!idle) ...[
+                const SizedBox(width: 6),
+                Text('${share.toStringAsFixed(1)}%', style: secondary),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (idle)
+            Text('Bu davrda ishlamagan', style: secondary)
+          else ...[
+            _CapacityBar(avg: row.avgOf(metric), best: row.bestOf(metric), scale: scale),
+            const SizedBox(height: 8),
+            _line(secondary, 'O\'rtacha/kun', metric.format(row.avgOf(metric))),
+            _line(
+              secondary,
+              'Eng yaxshi',
+              '${metric.format(row.bestOf(metric))}${_CapacityRow._date(row.bestDateOf(metric))}',
+            ),
+            _line(secondary, 'Ish kuni', '${row.workingDays}'),
+          ],
+          if (row.totalDefects > 0 || row.extraPrints > 0) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (row.totalDefects > 0)
+                  _Stat(
+                    label: 'Brak',
+                    value: row.defectRate != null && !idle
+                        ? '${row.totalDefects} · ${row.defectRate!.toStringAsFixed(1)}%'
+                        : '${row.totalDefects}',
+                    color: AppColors.error,
+                  ),
+                if (row.extraPrints > 0)
+                  _Stat(label: 'Qayta chop', value: '${row.extraPrints}', color: AppColors.warning),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _line(TextStyle? style, String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: style, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Text(
+              value,
+              style: style?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+}

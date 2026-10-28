@@ -39,7 +39,7 @@ class ProductionBatchTable extends StatelessWidget {
     AppTableColumn(
         label: 'Jami m²', fixedWidth: 100, alignment: Alignment.center),
     AppTableColumn(
-        label: 'Amallar', fixedWidth: 100, alignment: Alignment.center),
+        label: 'Amallar', fixedWidth: 136, alignment: Alignment.center),
   ];
 
   static const _columnsMobile = <AppTableColumn>[
