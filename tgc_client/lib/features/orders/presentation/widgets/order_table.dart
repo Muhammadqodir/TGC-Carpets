@@ -63,7 +63,8 @@ class OrderTable extends StatelessWidget {
     ),
     AppTableColumn(
       label: 'Amallar',
-      fixedWidth: 210,
+      // Up to five 40px buttons (view, copy, edit, delivered, delete).
+      fixedWidth: 236,
       alignment: Alignment.center,
     ),
   ];
@@ -349,6 +350,8 @@ class _ActionsCell extends StatelessWidget {
         children: [
           if (onViewDetail != null)
             IconButton(
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedView,
                 color: AppColors.primaryLight,
@@ -356,8 +359,10 @@ class _ActionsCell extends StatelessWidget {
               onPressed: () => onViewDetail!(order),
               tooltip: 'Tafsilotlar',
             ),
-          if (onCopy != null) ...[            const SizedBox(width: 4),
+          if (onCopy != null) ...[            const SizedBox(width: 2),
             IconButton(
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedCopy01,
                 color: AppColors.textSecondary,
@@ -367,8 +372,10 @@ class _ActionsCell extends StatelessWidget {
             ),
           ],
           if (onEdit != null) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
             IconButton(
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedEdit02,
                 color: AppColors.warning,
@@ -378,8 +385,10 @@ class _ActionsCell extends StatelessWidget {
             ),
           ],
           if (_canMarkDelivered && onMarkDelivered != null) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
             IconButton(
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedDeliveryTruck01,
                 color: AppColors.success,
@@ -389,8 +398,10 @@ class _ActionsCell extends StatelessWidget {
             ),
           ],
           if (order.status == 'pending' && onDelete != null) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
             IconButton(
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
               icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedRemoveCircle,
                 color: AppColors.error,

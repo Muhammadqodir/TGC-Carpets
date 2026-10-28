@@ -1,5 +1,16 @@
 import 'package:equatable/equatable.dart';
 
+/// Short axis label: 950, 12.5k, 1.2M. m² totals run into six figures and
+/// don't fit the chart's left axis written out in full.
+String compactNumber(num v) {
+  String trim(double x) =>
+      x == x.roundToDouble() ? x.toStringAsFixed(0) : x.toStringAsFixed(1);
+  final a = v.abs();
+  if (a >= 1e6) return '${trim(v / 1e6)}M';
+  if (a >= 1e3) return '${trim(v / 1e3)}k';
+  return trim(v.toDouble());
+}
+
 /// What the order statistics page counts: carpets (dona) or area (m²).
 enum AnalyticsMetric {
   quantity,

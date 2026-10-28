@@ -57,13 +57,16 @@ class AnalyticsTrendChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 36,
-                getTitlesWidget: (value, _) => Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                getTitlesWidget: (value, meta) => value == meta.max &&
+                        value % meta.appliedInterval != 0
+                    ? const SizedBox.shrink()
+                    : Text(
+                        compactNumber(value),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
               ),
             ),
             bottomTitles: AxisTitles(

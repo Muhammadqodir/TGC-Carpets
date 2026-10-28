@@ -205,13 +205,18 @@ class _ChartView extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 36,
-                  getTitlesWidget: (v, _) => Text(
-                    v.toInt().toString(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  getTitlesWidget: (v, meta) => v == meta.max &&
+                          v % meta.appliedInterval != 0
+                      // fl_chart also labels the odd-valued top edge; it
+                      // collides with the last gridline label.
+                      ? const SizedBox.shrink()
+                      : Text(
+                          compactNumber(v),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                 ),
               ),
               bottomTitles: AxisTitles(

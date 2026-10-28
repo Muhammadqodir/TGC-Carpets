@@ -292,7 +292,7 @@ class _FilterBar extends StatelessWidget {
             value: state.typeId,
             items: [
               const DropdownMenuItem(value: null, child: Text('Barchasi')),
-              ...typeOptions.map((e) => DropdownMenuItem(
+              ...typeOptions.where((e) => e.id != null).map((e) => DropdownMenuItem(
                     value: e.id,
                     child: Text(e.name, overflow: TextOverflow.ellipsis),
                   )),
@@ -306,7 +306,7 @@ class _FilterBar extends StatelessWidget {
             value: state.qualityId,
             items: [
               const DropdownMenuItem(value: null, child: Text('Barchasi')),
-              ...qualityOptions.map((e) => DropdownMenuItem(
+              ...qualityOptions.where((e) => e.id != null).map((e) => DropdownMenuItem(
                     value: e.id,
                     child: Text(e.name, overflow: TextOverflow.ellipsis),
                   )),
@@ -320,7 +320,7 @@ class _FilterBar extends StatelessWidget {
             value: state.colorId,
             items: [
               const DropdownMenuItem(value: null, child: Text('Barchasi')),
-              ...colorOptions.map((e) => DropdownMenuItem(
+              ...colorOptions.where((e) => e.id != null).map((e) => DropdownMenuItem(
                     value: e.id,
                     child: Text(e.name, overflow: TextOverflow.ellipsis),
                   )),
@@ -334,7 +334,7 @@ class _FilterBar extends StatelessWidget {
             value: state.sizeId,
             items: [
               const DropdownMenuItem(value: null, child: Text('Barchasi')),
-              ...sizeOptions.map((e) => DropdownMenuItem(
+              ...sizeOptions.where((e) => e.id != null).map((e) => DropdownMenuItem(
                     value: e.id,
                     child: Text(e.name, overflow: TextOverflow.ellipsis),
                   )),
@@ -348,7 +348,7 @@ class _FilterBar extends StatelessWidget {
             value: state.edgeId,
             items: [
               const DropdownMenuItem(value: null, child: Text('Barchasi')),
-              ...edgeOptions.map((e) => DropdownMenuItem(
+              ...edgeOptions.where((e) => e.id != null).map((e) => DropdownMenuItem(
                     value: e.id,
                     child: Text(e.name, overflow: TextOverflow.ellipsis),
                   )),

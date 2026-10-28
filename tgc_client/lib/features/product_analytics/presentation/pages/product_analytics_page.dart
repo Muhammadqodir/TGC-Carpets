@@ -100,6 +100,10 @@ class _ProductAnalyticsViewState extends State<_ProductAnalyticsView> {
               AnalyticsPeriodSelector(
                 periodFrom: periodFrom,
                 periodTo:   periodTo,
+                trailing: _MetricSwitcher(
+                  value: _metric,
+                  onChanged: (m) => setState(() => _metric = m),
+                ),
                 onPeriodChanged: (range) {
                   context.read<ProductAnalyticsBloc>().add(
                         ProductAnalyticsPeriodChanged(
@@ -135,7 +139,6 @@ class _ProductAnalyticsViewState extends State<_ProductAnalyticsView> {
                           data: data,
                           isWide: isWide,
                           metric: _metric,
-                          onMetricChanged: (m) => setState(() => _metric = m),
                         );
                       },
                     ),
@@ -156,13 +159,11 @@ class _AnalyticsContent extends StatelessWidget {
   final ProductAnalyticsEntity data;
   final bool isWide;
   final AnalyticsMetric metric;
-  final ValueChanged<AnalyticsMetric> onMetricChanged;
 
   const _AnalyticsContent({
     required this.data,
     required this.isWide,
     required this.metric,
-    required this.onMetricChanged,
   });
 
   @override
@@ -199,15 +200,6 @@ class _AnalyticsContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Metric switcher: count carpets or square metres
-          Align(
-            alignment: Alignment.centerRight,
-            child: _MetricSwitcher(
-              value: metric,
-              onChanged: onMetricChanged,
-            ),
-          ),
-
           // Summary cards
           AnalyticsSummaryCards(
             totalOrders: data.summary.totalOrders,

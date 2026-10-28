@@ -8,11 +8,15 @@ class AnalyticsPeriodSelector extends StatelessWidget {
   final String periodTo;
   final ValueChanged<(String from, String to)> onPeriodChanged;
 
+  /// Shown at the right end of the preset row (e.g. the Dona / m² switch).
+  final Widget? trailing;
+
   const AnalyticsPeriodSelector({
     super.key,
     required this.periodFrom,
     required this.periodTo,
     required this.onPeriodChanged,
+    this.trailing,
   });
 
   @override
@@ -32,42 +36,52 @@ class AnalyticsPeriodSelector extends StatelessWidget {
                 ?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _PresetChip(
-                  label: '7 kun',
-                  isSelected: _isPreset(7),
-                  onTap: () => _applyPreset(7),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _PresetChip(
+                        label: '7 kun',
+                        isSelected: _isPreset(7),
+                        onTap: () => _applyPreset(7),
+                      ),
+                      const SizedBox(width: 8),
+                      _PresetChip(
+                        label: '30 kun',
+                        isSelected: _isPreset(30),
+                        onTap: () => _applyPreset(30),
+                      ),
+                      const SizedBox(width: 8),
+                      _PresetChip(
+                        label: '90 kun',
+                        isSelected: _isPreset(90),
+                        onTap: () => _applyPreset(90),
+                      ),
+                      const SizedBox(width: 8),
+                      _PresetChip(
+                        label: '1 yil',
+                        isSelected: _isPreset(365),
+                        onTap: () => _applyPreset(365),
+                      ),
+                      const SizedBox(width: 8),
+                      _DateRangeChip(
+                        periodFrom: periodFrom,
+                        periodTo: periodTo,
+                        isCustom: !_isAnyPreset,
+                        onTap: () => _pickCustomRange(context),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                _PresetChip(
-                  label: '30 kun',
-                  isSelected: _isPreset(30),
-                  onTap: () => _applyPreset(30),
-                ),
-                const SizedBox(width: 8),
-                _PresetChip(
-                  label: '90 kun',
-                  isSelected: _isPreset(90),
-                  onTap: () => _applyPreset(90),
-                ),
-                const SizedBox(width: 8),
-                _PresetChip(
-                  label: '1 yil',
-                  isSelected: _isPreset(365),
-                  onTap: () => _applyPreset(365),
-                ),
-                const SizedBox(width: 8),
-                _DateRangeChip(
-                  periodFrom: periodFrom,
-                  periodTo:   periodTo,
-                  isCustom:   !_isAnyPreset,
-                  onTap: () => _pickCustomRange(context),
-                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 12),
+                trailing!,
               ],
-            ),
+            ],
           ),
         ],
       ),
@@ -75,7 +89,7 @@ class AnalyticsPeriodSelector extends StatelessWidget {
   }
 
   bool _isPreset(int days) {
-    final to   = DateTime.parse(periodTo);
+    final to = DateTime.parse(periodTo);
     final from = DateTime.parse(periodFrom);
     final today = _today();
     return to.year == today.year &&
@@ -89,7 +103,7 @@ class AnalyticsPeriodSelector extends StatelessWidget {
 
   void _applyPreset(int days) {
     final today = _today();
-    final from  = today.subtract(Duration(days: days - 1));
+    final from = today.subtract(Duration(days: days - 1));
     onPeriodChanged((
       DateFormat('yyyy-MM-dd').format(from),
       DateFormat('yyyy-MM-dd').format(today),
@@ -99,12 +113,12 @@ class AnalyticsPeriodSelector extends StatelessWidget {
   Future<void> _pickCustomRange(BuildContext context) async {
     final initial = DateTimeRange(
       start: DateTime.parse(periodFrom),
-      end:   DateTime.parse(periodTo),
+      end: DateTime.parse(periodTo),
     );
     final picked = await showDateRangePicker(
-      context:          context,
-      firstDate:        DateTime(2020),
-      lastDate:         DateTime.now(),
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
       initialDateRange: initial,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
@@ -186,7 +200,8 @@ class _DateRangeChip extends StatelessWidget {
       label: Text(label),
       avatar: const Icon(Icons.date_range, size: 16),
       onPressed: onTap,
-      backgroundColor: isCustom ? AppColors.primary.withAlpha(20) : AppColors.surface,
+      backgroundColor:
+          isCustom ? AppColors.primary.withAlpha(20) : AppColors.surface,
       labelStyle: TextStyle(
         color: isCustom ? AppColors.primary : AppColors.textSecondary,
         fontSize: 13,
