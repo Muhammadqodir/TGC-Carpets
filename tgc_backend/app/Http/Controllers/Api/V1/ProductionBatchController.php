@@ -16,6 +16,7 @@ use App\Models\ProductionUnit;
 use App\Models\StockMovement;
 use App\Services\ProductionBatchService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -315,6 +316,8 @@ class ProductionBatchController extends Controller
             'serial'          => ['nullable', 'string', 'regex:/^TGC-U-\d{8}$/'],
             // true for a replacement label: recorded, never counted
             'reprint'         => ['sometimes', 'boolean'],
+            // when the label came out of the printer, sent by the app's offline queue
+            'printed_at'      => ['nullable', 'date'],
         ]);
 
         $result = $this->service->incrementProducedQuantity(
@@ -323,6 +326,7 @@ class ProductionBatchController extends Controller
             $validated['idempotency_key'] ?? null,
             $validated['serial'] ?? null,
             (bool) ($validated['reprint'] ?? false),
+            $this->printedAt($validated['printed_at'] ?? null),
         );
 
         return response()->json([
@@ -333,6 +337,50 @@ class ProductionBatchController extends Controller
                 'serial'        => $result['unit']->serial,
                 'reprint_count' => $result['unit']->reprint_count,
             ] : null,
+        ]);
+    }
+
+    /**
+     * The device's print time, in app time, trusted only inside a window
+     * that a queued print can plausibly have waited: a PC with a wrong
+     * clock must not date a carpet into another week. Outside it, or
+     * absent, the print is dated now.
+     */
+    private function printedAt(?string $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $at = Carbon::parse($value)->setTimezone(config('app.timezone'));
+
+        return $at->between(now()->subDays(7), now()->addMinutes(2)) ? $at : null;
+    }
+
+    /**
+     * POST /production-batches-print-labels/verify
+     *
+     * The app's print queue asks which of the labels it already had a
+     * 200 for are really on record, by idempotency key. A key missing
+     * here is sent again; the key makes that safe.
+     */
+    public function verifyPrintedLabels(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'keys'   => ['required', 'array', 'max:500'],
+            'keys.*' => ['uuid'],
+        ]);
+
+        $keys = array_values(array_unique($validated['keys']));
+
+        $recorded = DB::table('production_events')->whereIn('idempotency_key', $keys)->pluck('idempotency_key')
+            ->merge(LabelReprint::whereIn('idempotency_key', $keys)->pluck('idempotency_key'))
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'recorded' => $recorded,
+            'missing'  => array_values(array_diff($keys, $recorded->all())),
         ]);
     }
 

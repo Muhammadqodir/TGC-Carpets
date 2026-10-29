@@ -12,6 +12,6 @@ return [
 
     // Hour (local time, 0-23) a production day starts at, for the shift and
     // machine report. A night shift that runs past midnight is one working
-    // day, not two halves. 0 = calendar days.
-    'production_day_start_hour' => (int) env('PRODUCTION_DAY_START_HOUR', 8),
+    // day, not two halves. 0 = calendar days. The shifts change at 07:00.
+    'production_day_start_hour' => (int) env('PRODUCTION_DAY_START_HOUR', 7),
 ];

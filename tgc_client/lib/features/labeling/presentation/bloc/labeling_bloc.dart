@@ -1,20 +1,39 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:uuid/uuid.dart';
+import 'dart:async';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../data/services/label_print_queue.dart';
+import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/repositories/labeling_repository.dart';
 import 'labeling_event.dart';
 import 'labeling_state.dart';
 
+/// The labeling list as the operator sees it: the server's lines plus the
+/// labels printed here that the server has not confirmed yet (see
+/// [LabelPrintQueue]). Printing itself never waits for the network.
 class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
   final LabelingRepository _repository;
+  final LabelPrintQueue _queue;
+  late final StreamSubscription<LabelPrintQueueUpdate> _queueSub;
 
-  LabelingBloc({required LabelingRepository repository})
-      : _repository = repository,
+  /// The lines as the server last reported them.
+  List<LabelingItemEntity> _serverItems = const [];
+
+  LabelingBloc({
+    required LabelingRepository repository,
+    required LabelPrintQueue queue,
+  })  : _repository = repository,
+        _queue = queue,
         super(const LabelingInitial()) {
     on<LabelingLoadRequested>(_onLoadRequested);
     on<LabelingRefreshRequested>(_onRefreshRequested);
-    on<LabelingPrintRequested>(_onPrintRequested);
+    on<LabelingPrintStarted>(_onPrintStarted);
     on<LabelingPrintCompleted>(_onPrintCompleted);
+    on<LabelingQueueChanged>(_onQueueChanged);
+
+    _queueSub = _queue.updates.listen(
+      (u) => add(LabelingQueueChanged(confirmedItem: u.confirmedItem)),
+    );
   }
 
   Future<void> _onLoadRequested(
@@ -33,97 +52,74 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
     await _fetchItems(emit);
   }
 
-  Future<void> _onPrintRequested(
-    LabelingPrintRequested event,
-    Emitter<LabelingState> emit,
-  ) async {
+  void _onPrintStarted(LabelingPrintStarted event, Emitter<LabelingState> emit) {
     final current = state;
     if (current is! LabelingLoaded) return;
-
-    // Every print reaches the server, even on a line whose plan is already
-    // met: the server records it as a reprint instead of counting a carpet,
-    // so no physical label goes unrecorded.
-
-    // One key per physical label. Generated once at the first tap for this
-    // item and reused on every retry, so a network failure followed by the
-    // operator tapping Print again resends the same key rather than a fresh
-    // one — see instructions/phase-2/02-idempotency-key.md. A reprint never
-    // takes the pending key: the server would replay it as that reprint, and
-    // the carpet the next tap labels would go uncounted.
-    final idempotencyKey = event.reprint
-        ? const Uuid().v4()
-        : current.pendingKeys[event.itemId] ?? const Uuid().v4();
-
-    final pendingKeys = event.reprint
-        ? current.pendingKeys
-        : {...current.pendingKeys, event.itemId: idempotencyKey};
-
-    // Mark item as printing
-    emit(current.copyWith(
-      printingItems: {...current.printingItems, event.itemId: true},
-      pendingKeys: pendingKeys,
-    ));
-
-    final result = await _repository.printLabel(
-      batchId: event.batchId,
-      itemId: event.itemId,
-      idempotencyKey: idempotencyKey,
-      reprint: event.reprint,
-    );
-
-    result.fold(
-      (failure) {
-        // On API failure, remove from printing state immediately. Keep the
-        // pending key so the next tap for this item retries with the same
-        // key instead of minting a new one.
-        // `current` predates the key, so it is put back explicitly: without
-        // it a count whose response was lost went out again under a new key
-        // and counted a second carpet.
-        final updated = Map<int, bool>.from(current.printingItems)
-          ..remove(event.itemId);
-        emit(current.copyWith(printingItems: updated, pendingKeys: pendingKeys));
-        emit(LabelingError(failure.message));
-        emit(current.copyWith(printingItems: updated, pendingKeys: pendingKeys));
-      },
-      (updatedItem) {
-        // Success (including a replay of an already-recorded key): clear
-        // the pending key for this item.
-        final updatedPendingKeys = Map<int, String>.from(current.pendingKeys)
-          ..remove(event.itemId);
-
-        // Replace updated item; remove fully-labeled ones so no network refresh is needed
-        final updatedItems = current.items
-            .map((i) => i.id == updatedItem.id ? updatedItem : i)
-            .where((i) => !i.isFullyLabeled)
-            .toList();
-
-        emit(LabelingLoaded(
-          items: updatedItems,
-          printingItems: current.printingItems,
-          pendingKeys: updatedPendingKeys,
-        ));
-      },
-    );
+    emit(current.copyWith(printingItems: {...current.printingItems, event.itemId: true}));
   }
 
-  Future<void> _onPrintCompleted(
-    LabelingPrintCompleted event,
-    Emitter<LabelingState> emit,
-  ) async {
+  void _onPrintCompleted(LabelingPrintCompleted event, Emitter<LabelingState> emit) {
     final current = state;
     if (current is! LabelingLoaded) return;
-
-    final updatedPrinting = Map<int, bool>.from(current.printingItems)
-      ..remove(event.itemId);
-
-    emit(current.copyWith(printingItems: updatedPrinting));
+    final printing = Map<int, bool>.from(current.printingItems)..remove(event.itemId);
+    emit(current.copyWith(printingItems: printing));
   }
 
+  /// A label was queued, printed, dropped or confirmed. A confirmation
+  /// carries the server's counts for that line; only the counts are taken,
+  /// the rest of the line stays as the list loaded it.
+  void _onQueueChanged(LabelingQueueChanged event, Emitter<LabelingState> emit) {
+    final confirmed = event.confirmedItem;
+    if (confirmed != null) {
+      _serverItems = _serverItems
+          .map((i) => i.id == confirmed.id
+              ? i.copyWith(
+                  producedQuantity: confirmed.producedQuantity,
+                  defectQuantity: confirmed.defectQuantity,
+                )
+              : i)
+          .toList(growable: false);
+    }
+    final current = state;
+    if (current is LabelingLoaded) {
+      emit(_loaded(printingItems: current.printingItems));
+    }
+  }
+
+  /// A label the server accepts while the list is in flight may or may not
+  /// be in it, and is no longer counted locally: fetch once more so it is
+  /// neither lost nor counted twice.
   Future<void> _fetchItems(Emitter<LabelingState> emit) async {
-    final result = await _repository.getLabelingItems();
-    result.fold(
-      (failure) => emit(LabelingError(failure.message)),
-      (items) => emit(LabelingLoaded(items: items)),
-    );
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final before = _queue.confirmations;
+      final result = await _repository.getLabelingItems();
+      final failure = result.fold((f) => f, (items) {
+        _serverItems = items;
+        return null;
+      });
+      if (failure != null) {
+        emit(LabelingError(failure.message));
+        return;
+      }
+      if (_queue.confirmations == before) break;
+    }
+    emit(_loaded());
+  }
+
+  LabelingLoaded _loaded({Map<int, bool> printingItems = const {}}) {
+    final items = _serverItems
+        .map((i) {
+          final local = _queue.localCountFor(i.id);
+          return local == 0 ? i : i.copyWith(producedQuantity: i.producedQuantity + local);
+        })
+        .where((i) => !i.isFullyLabeled)
+        .toList(growable: false);
+    return LabelingLoaded(items: items, printingItems: printingItems);
+  }
+
+  @override
+  Future<void> close() async {
+    await _queueSub.cancel();
+    return super.close();
   }
 }

@@ -18,6 +18,7 @@ import '../../features/auth/domain/usecases/login_usecase.dart';
 import '../../features/auth/domain/usecases/logout_usecase.dart';
 import '../../features/auth/domain/usecases/get_current_user_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
 
 // Products feature
 import '../../features/products/data/datasources/product_remote_datasource.dart';
@@ -125,6 +126,7 @@ import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
 import '../../features/labeling/data/datasources/labeling_remote_datasource.dart';
 import '../../features/labeling/data/repositories/labeling_repository_impl.dart';
 import '../../features/labeling/domain/repositories/labeling_repository.dart';
+import '../../features/labeling/data/services/label_print_queue.dart';
 import '../../features/labeling/data/services/print_history_service.dart';
 import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
 
@@ -498,8 +500,29 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<PrintHistoryService>(
     () => PrintHistoryService(sl<SharedPreferences>()),
   );
+  sl.registerLazySingleton<LabelPrintQueue>(
+    () {
+      final queue = LabelPrintQueue(
+        repository: sl<LabelingRepository>(),
+        prefs: sl<SharedPreferences>(),
+        currentUserId: () {
+          final auth = sl<AuthBloc>().state;
+          return auth is AuthAuthenticated ? auth.user.id : null;
+        },
+      );
+      // Labels printed offline or by a shift that logged out go through
+      // as soon as the network is back or that account logs in again.
+      sl<Connectivity>().onConnectivityChanged.listen((_) => queue.wake());
+      sl<AuthBloc>().stream.listen((_) => queue.wake());
+      return queue..start();
+    },
+    dispose: (queue) => queue.dispose(),
+  );
   sl.registerFactory(
-    () => LabelingBloc(repository: sl<LabelingRepository>()),
+    () => LabelingBloc(
+      repository: sl<LabelingRepository>(),
+      queue: sl<LabelPrintQueue>(),
+    ),
   );
 
   // ─── Scanner Feature ──────────────────────────────────────────────────────
@@ -829,4 +852,8 @@ Future<void> initDependencies() async {
       getAnalyticsUseCase: sl<GetProductionAnalyticsUseCase>(),
     ),
   );
+
+  // Labels queued in an earlier session are sent from launch, without
+  // waiting for someone to open the labeling page.
+  sl<LabelPrintQueue>();
 }

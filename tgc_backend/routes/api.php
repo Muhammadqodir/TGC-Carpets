@@ -206,6 +206,8 @@ Route::prefix('v1')->group(function (): void {
             ->name('production-batches.labeling-items');
         Route::get('production-batches-scan', [ProductionBatchController::class, 'scanItem'])
             ->name('production-batches.scan');
+        Route::post('production-batches-print-labels/verify', [ProductionBatchController::class, 'verifyPrintedLabels'])
+            ->name('production-batches.print-labels.verify');
         Route::get('production-batches/{productionBatch}/items/{item}', [ProductionBatchController::class, 'showItem'])
             ->name('production-batches.items.show');
         Route::post('production-batches/{productionBatch}/items/{item}/print-label', [ProductionBatchController::class, 'printLabel'])

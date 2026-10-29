@@ -9,14 +9,13 @@ import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 import 'package:usb_label_print/usb_label_print.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../data/services/label_print_queue.dart';
 import '../../data/services/print_history_service.dart';
-import '../../domain/repositories/labeling_repository.dart';
 import '../../domain/entities/print_history_entity.dart';
 import '../../domain/label_print_code.dart';
 import '../../domain/label_qr_format.dart';
@@ -154,6 +153,10 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     return false;
   }
 
+  /// Every label printed from history is a reprint of an already-counted
+  /// carpet: queued like any print (see LabelPrintQueue), so the server
+  /// records who printed it and when, without counting. Entries saved
+  /// before the batch line id was kept cannot be recorded.
   Future<void> _onPrint(PrintHistoryEntity item) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
     // A double click prints once.
@@ -162,15 +165,28 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     final key = _keyFor(item.variantId);
     setState(() => _printingItems.add(item.variantId));
 
+    final auth = sl<AuthBloc>().state;
+    final userId = auth is AuthAuthenticated ? auth.user.id : null;
+    final queue = sl<LabelPrintQueue>();
+    final queued = item.itemId == null || userId == null
+        ? null
+        : await queue.holdReprint(
+            batchId: item.batchId,
+            itemId: item.itemId!,
+            userId: userId,
+            productName: item.productName,
+            sizeLabel: item.sizeWidth == null || item.sizeLength == null
+                ? null
+                : '${item.sizeWidth}×${item.sizeLength}',
+          );
+    var printed = false;
+
     try {
       // Let that rebuild paint first, so the print code carries this minute
       // and not the moment the page was opened.
       await WidgetsBinding.instance.endOfFrame;
       final path = await _renderLabel(key);
-      if (path == null) {
-        setState(() => _printingItems.remove(item.variantId));
-        return;
-      }
+      if (path == null) return;
 
       try {
         if (_isPrintingPlatform) {
@@ -179,19 +195,20 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
             printerName: _selectedPrinter!,
             config: _config,
           );
+          printed = true;
         } else {
-          await SharePlus.instance.share(
+          final shared = await SharePlus.instance.share(
             ShareParams(
               files: [XFile(path, mimeType: 'image/png')],
               text: item.productName,
             ),
           );
+          printed = shared.status != ShareResultStatus.dismissed;
         }
-        
-        final recorded = await _recordReprint(item);
-        if (mounted) {
+
+        if (printed && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            recorded
+            queued != null
                 ? const SnackBar(
                     content: Text('Yorliq qayta chop etildi'),
                     backgroundColor: AppColors.success,
@@ -208,23 +225,18 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
       } finally {
         _deleteTempFile(path);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Yorliq chop etilmadi: $e'), backgroundColor: AppColors.error),
+        );
+      }
     } finally {
-      setState(() => _printingItems.remove(item.variantId));
+      if (queued != null) {
+        printed ? await queue.release(queued.key) : await queue.discard(queued.key);
+      }
+      if (mounted) setState(() => _printingItems.remove(item.variantId));
     }
-  }
-
-  /// Every label printed from history is a reprint of an already-counted
-  /// carpet: the server records who printed it and when, without counting.
-  /// Entries saved before the batch line id was kept cannot be recorded.
-  Future<bool> _recordReprint(PrintHistoryEntity item) async {
-    if (item.itemId == null) return false;
-    final result = await sl<LabelingRepository>().printLabel(
-      batchId: item.batchId,
-      itemId: item.itemId!,
-      idempotencyKey: const Uuid().v4(),
-      reprint: true,
-    );
-    return result.isRight();
   }
 
   Future<void> _clearHistory() async {

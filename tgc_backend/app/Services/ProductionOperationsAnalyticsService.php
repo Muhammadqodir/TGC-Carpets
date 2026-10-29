@@ -328,7 +328,7 @@ class ProductionOperationsAnalyticsService
 
     private function dayStartHour(): int
     {
-        return max(0, min(23, (int) config('analytics.production_day_start_hour', 8)));
+        return max(0, min(23, (int) config('analytics.production_day_start_hour', 7)));
     }
 
     /** SQL for the production day a timestamp column belongs to. */

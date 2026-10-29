@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/labeling_item_entity.dart';
+
 abstract class LabelingEvent extends Equatable {
   const LabelingEvent();
 
@@ -15,21 +17,15 @@ class LabelingRefreshRequested extends LabelingEvent {
   const LabelingRefreshRequested();
 }
 
-class LabelingPrintRequested extends LabelingEvent {
-  final int batchId;
+/// A label is being rendered and sent to the printer: the card shows a
+/// spinner. The count itself goes through LabelPrintQueue.
+class LabelingPrintStarted extends LabelingEvent {
   final int itemId;
 
-  /// A replacement for a torn or misprinted label: recorded, not counted.
-  final bool reprint;
-
-  const LabelingPrintRequested({
-    required this.batchId,
-    required this.itemId,
-    this.reprint = false,
-  });
+  const LabelingPrintStarted({required this.itemId});
 
   @override
-  List<Object?> get props => [batchId, itemId, reprint];
+  List<Object?> get props => [itemId];
 }
 
 class LabelingPrintCompleted extends LabelingEvent {
@@ -39,4 +35,14 @@ class LabelingPrintCompleted extends LabelingEvent {
 
   @override
   List<Object?> get props => [itemId];
+}
+
+class LabelingQueueChanged extends LabelingEvent {
+  /// The line as the server has it after a label was accepted.
+  final LabelingItemEntity? confirmedItem;
+
+  const LabelingQueueChanged({this.confirmedItem});
+
+  @override
+  List<Object?> get props => [confirmedItem];
 }

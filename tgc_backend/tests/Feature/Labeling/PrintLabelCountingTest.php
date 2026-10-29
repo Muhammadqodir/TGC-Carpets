@@ -11,6 +11,7 @@ use App\Models\ProductionUnit;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -119,6 +120,54 @@ class PrintLabelCountingTest extends TestCase
 
         $this->assertSame(1, LabelReprint::count());
         $this->assertSame(0, $line->fresh()->produced_quantity);
+    }
+
+    public function test_a_queued_print_is_dated_by_when_it_was_printed(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-29 10:00:00', 'Asia/Tashkent'));
+        $line = $this->line(planned: 2);
+
+        // Printed at 06:55 on the night shift, sent at 10:00 once the network was back.
+        $this->print($line, printedAt: '2026-10-29T06:55:00+05:00')->assertJsonPath('counted', true);
+        $this->print($line, reprint: true, printedAt: '2026-10-29T01:55:00Z');
+
+        $event = ProductionEvent::where('production_batch_item_id', $line->id)->sole();
+        $this->assertSame('2026-10-29 06:55:00', $event->occurred_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-29 06:55:00', ProductionUnit::where('production_batch_item_id', $line->id)->sole()->printed_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-29 06:55:00', LabelReprint::sole()->printed_at->format('Y-m-d H:i:s'));
+        Carbon::setTestNow();
+    }
+
+    public function test_a_print_time_from_a_wrong_clock_is_replaced_by_now(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-29 10:00:00', 'Asia/Tashkent'));
+        $line = $this->line(planned: 3);
+
+        $this->print($line, printedAt: '2026-09-01T10:00:00+05:00');
+        $this->print($line, printedAt: '2026-10-30T10:00:00+05:00');
+
+        $this->assertSame(
+            ['2026-10-29 10:00:00', '2026-10-29 10:00:00'],
+            ProductionEvent::where('production_batch_item_id', $line->id)->pluck('occurred_at')->map->format('Y-m-d H:i:s')->all(),
+        );
+        Carbon::setTestNow();
+    }
+
+    public function test_verify_reports_which_queued_labels_are_on_record(): void
+    {
+        $line    = $this->line(planned: 1);
+        $counted = (string) Str::uuid();
+        $over    = (string) Str::uuid();
+        $lost    = (string) Str::uuid();
+
+        $this->print($line, key: $counted);
+        $this->print($line, key: $over);   // past the plan: a label_reprints row
+
+        $this->actingAs($this->shift1, 'sanctum')
+            ->postJson('/api/v1/production-batches-print-labels/verify', ['keys' => [$counted, $over, $lost]])
+            ->assertOk()
+            ->assertJsonPath('missing', [$lost])
+            ->assertJsonCount(2, 'recorded');
     }
 
     public function test_scan_lists_reprints_among_the_prints(): void
@@ -250,12 +299,13 @@ class PrintLabelCountingTest extends TestCase
         ]);
     }
 
-    private function print(ProductionBatchItem $line, bool $reprint = false, ?User $by = null, ?string $key = null): TestResponse
+    private function print(ProductionBatchItem $line, bool $reprint = false, ?User $by = null, ?string $key = null, ?string $printedAt = null): TestResponse
     {
         return $this->actingAs($by ?? $this->shift1, 'sanctum')
             ->postJson("/api/v1/production-batches/{$line->production_batch_id}/items/{$line->id}/print-label", [
                 'idempotency_key' => $key ?? (string) Str::uuid(),
                 'reprint'         => $reprint,
+                'printed_at'      => $printedAt,
             ])
             ->assertOk();
     }

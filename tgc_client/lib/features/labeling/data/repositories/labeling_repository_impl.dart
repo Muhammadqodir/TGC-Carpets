@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../domain/entities/label_print_result.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/repositories/labeling_repository.dart';
 import '../datasources/labeling_remote_datasource.dart';
@@ -26,20 +27,28 @@ class LabelingRepositoryImpl implements LabelingRepository {
   }
 
   @override
-  Future<Either<Failure, LabelingItemEntity>> printLabel({
+  Future<Either<Failure, LabelPrintResult>> printLabel({
     required int batchId,
     required int itemId,
     required String idempotencyKey,
     bool reprint = false,
-  }) async {
+    DateTime? printedAt,
+  }) =>
+      _guard(() => remoteDataSource.printLabel(
+            batchId: batchId,
+            itemId: itemId,
+            idempotencyKey: idempotencyKey,
+            reprint: reprint,
+            printedAt: printedAt,
+          ));
+
+  @override
+  Future<Either<Failure, Set<String>>> verifyPrintedLabels(List<String> keys) =>
+      _guard(() => remoteDataSource.verifyPrintedLabels(keys));
+
+  Future<Either<Failure, T>> _guard<T>(Future<T> Function() call) async {
     try {
-      final result = await remoteDataSource.printLabel(
-        batchId: batchId,
-        itemId: itemId,
-        idempotencyKey: idempotencyKey,
-        reprint: reprint,
-      );
-      return Right(result);
+      return Right(await call());
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on UnauthorizedException {

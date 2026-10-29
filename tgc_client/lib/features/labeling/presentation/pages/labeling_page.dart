@@ -15,7 +15,9 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../data/services/label_print_queue.dart';
 import '../../data/services/print_history_service.dart';
+import '../widgets/label_print_queue_indicator.dart';
 import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
@@ -174,6 +176,12 @@ class _LabelingViewState extends State<_LabelingView> {
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
   final _historyService = sl<PrintHistoryService>();
+  final _printQueue = sl<LabelPrintQueue>();
+
+  int? get _userId {
+    final auth = sl<AuthBloc>().state;
+    return auth is AuthAuthenticated ? auth.user.id : null;
+  }
 
   @override
   void initState() {
@@ -317,20 +325,23 @@ class _LabelingViewState extends State<_LabelingView> {
   /// production were counted twice that way.
   final Set<int> _printInProgress = {};
 
+  /// Prints at once and counts at once; the record goes to the server from
+  /// [LabelPrintQueue] in the background. The label is written to the queue
+  /// before it is printed and dropped again only if the printer refused it,
+  /// so no label that came out goes unrecorded.
+  ///
   /// [reprint]: a replacement for a torn or misprinted label, recorded on the
   /// server but not counted as a carpet.
   Future<void> _onPrint(LabelingItemEntity item, {bool reprint = false}) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
+    final userId = _userId;
+    if (userId == null) return;
     if (!_printInProgress.add(item.id)) return;
 
-    // Dispatch to BLoC to mark item as printing / increment count on backend
-    context.read<LabelingBloc>().add(
-          LabelingPrintRequested(
-            batchId: item.batchId,
-            itemId: item.id,
-            reprint: reprint,
-          ),
-        );
+    final bloc = context.read<LabelingBloc>();
+    bloc.add(LabelingPrintStarted(itemId: item.id));
+    final queued = await _printQueue.hold(item: item, userId: userId, reprint: reprint);
+    var printed = false;
 
     try {
       // Add item to off-screen rendering map, wait for the frame to paint it
@@ -339,7 +350,7 @@ class _LabelingViewState extends State<_LabelingView> {
 
       final key = _keyFor(item.id);
       final path = await _renderLabel(key);
-      if (path == null) return; // finally cleans up
+      if (path == null) return; // finally drops the queued label
 
       try {
         if (_isPrintingPlatform) {
@@ -348,28 +359,40 @@ class _LabelingViewState extends State<_LabelingView> {
             printerName: _selectedPrinter!,
             config: _config,
           );
+          printed = true;
         } else {
-          await SharePlus.instance.share(
+          final shared = await SharePlus.instance.share(
             ShareParams(
               files: [XFile(path, mimeType: 'image/png')],
               text: item.productName,
             ),
           );
+          printed = shared.status != ShareResultStatus.dismissed;
         }
 
-        // Save to print history after successful print
-        await _historyService.addToHistory(item);
-        // BLoC already removes fully-labeled items locally; no network refresh needed
+        if (printed) await _historyService.addToHistory(item);
       } finally {
         _deleteTempFile(path);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Yorliq chop etilmadi: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } finally {
+      if (printed) {
+        await _printQueue.release(queued.key);
+      } else {
+        await _printQueue.discard(queued.key);
+      }
       // Remove off-screen widget and re-enable button
       _printInProgress.remove(item.id);
       if (mounted) setState(() => _renderingItems.remove(item.id));
-      context.read<LabelingBloc>().add(
-            LabelingPrintCompleted(itemId: item.id),
-          );
+      bloc.add(LabelingPrintCompleted(itemId: item.id));
     }
   }
 
@@ -682,6 +705,7 @@ class _LabelingViewState extends State<_LabelingView> {
               onPressed: () => Navigator.of(context).maybePop(),
             ),
             actions: [
+              LabelPrintQueueIndicator(queue: _printQueue),
               IconButton(
                 icon: const HugeIcon(
                   icon: HugeIcons.strokeRoundedSettings01,

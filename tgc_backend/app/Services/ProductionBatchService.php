@@ -190,6 +190,11 @@ class ProductionBatchService
      * produced_quantity >= (planned_quantity - defect_quantity).
      * If so, the batch is automatically transitioned to completed.
      *
+     * $printedAt is when the label physically came out of the printer. The
+     * app prints first and sends the record from an offline queue, so the
+     * request can arrive minutes or hours later; the event, unit and reprint
+     * rows are dated by the print, not by the request. Null = now.
+     *
      * @return array{item: ProductionBatchItem, unit: ?ProductionUnit, counted: bool}
      */
     public function incrementProducedQuantity(
@@ -198,11 +203,13 @@ class ProductionBatchService
         ?string $idempotencyKey = null,
         ?string $serial = null,
         bool $reprint = false,
+        ?\DateTimeInterface $printedAt = null,
     ): array {
         $unit    = null;
         $counted = false;
+        $at      = $printedAt ?? now();
 
-        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, $reprint, &$unit, &$counted): void {
+        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, $reprint, $at, &$unit, &$counted): void {
             // A deadlock retry runs this again from the top.
             $unit    = null;
             $counted = false;
@@ -248,7 +255,7 @@ class ProductionBatchService
                     LabelReprint::create([
                         'production_batch_item_id' => $item->id,
                         'printed_by'               => $userId,
-                        'printed_at'               => now(),
+                        'printed_at'               => $at,
                         'reason'                   => $reprint ? LabelReprint::REASON_REPRINT : LabelReprint::REASON_OVER_TARGET,
                         'idempotency_key'          => $idempotencyKey,
                     ]);
@@ -265,7 +272,7 @@ class ProductionBatchService
                 'production_batch_item_id' => $item->id,
                 'event_type'               => ProductionEvent::TYPE_PRODUCED,
                 'quantity'                 => 1,
-                'occurred_at'              => now(),
+                'occurred_at'              => $at,
                 'user_id'                  => $userId,
                 'idempotency_key'          => $idempotencyKey,
                 'created_at'               => now(),
@@ -292,7 +299,7 @@ class ProductionBatchService
                 'production_batch_item_id' => $item->id,
                 'serial'                   => 'PENDING',
                 'printed_by'               => $userId,
-                'printed_at'               => now(),
+                'printed_at'               => $at,
                 'status'                   => ProductionUnit::STATUS_GOOD,
             ]);
             // Two-step: the serial derives from the auto-increment id, and
