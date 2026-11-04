@@ -150,3 +150,78 @@ class ShipmentImportItemEntity extends Equatable {
         producedForClient, productionBatchItemId, unmatchedReason,
       ];
 }
+
+/// One carpet picked from the order list and how many of it to load.
+typedef ShipmentPickSelection = ({ShipmentImportItemEntity item, int quantity});
+
+/// One carpet (variant) a client still owes, across every open order line
+/// they have for it — what the "pick from orders" list shows as one row,
+/// matching the shipment form's one row per product.
+class ShipmentPickItem extends Equatable {
+  /// The open order lines for this carpet, oldest order first. Never empty.
+  final List<ShipmentImportItemEntity> lines;
+
+  const ShipmentPickItem(this.lines);
+
+  ShipmentImportItemEntity get first => lines.first;
+  int get variantId => first.variantId;
+
+  /// What every line still owes together, regardless of stock.
+  int get remaining =>
+      lines.fold(0, (sum, l) => sum + (l.orderRemaining ?? l.availableQuantity));
+
+  /// The orders these lines are on, oldest first, each once.
+  List<int> get orderIds =>
+      lines.map((l) => l.orderId).whereType<int>().toSet().toList();
+
+  /// The carpet as one item for [ShipmentItemRow.fromImportItem]: every line
+  /// in [ShipmentImportItemEntity.openLines], oldest first, so the form row
+  /// fills the oldest order first and ships against all of them.
+  ShipmentImportItemEntity asImportItem() {
+    final f = first;
+    return ShipmentImportItemEntity(
+      orderItemId: f.orderItemId,
+      variantId: f.variantId,
+      productName: f.productName,
+      colorName: f.colorName,
+      colorImageUrl: f.colorImageUrl,
+      qualityName: f.qualityName,
+      typeName: f.typeName,
+      sizeLength: f.sizeLength,
+      sizeWidth: f.sizeWidth,
+      productUnit: f.productUnit,
+      edgeCode: f.edgeCode,
+      edgeTitle: f.edgeTitle,
+      availableQuantity: remaining,
+      orderRemaining: f.orderRemaining,
+      orderId: f.orderId,
+      orderDate: f.orderDate,
+      clientOpenRemaining: remaining,
+      openLines: [
+        for (final l in lines)
+          (
+            orderItemId: l.orderItemId!,
+            orderId: l.orderId,
+            orderDate: l.orderDate,
+            remaining: l.orderRemaining ?? l.availableQuantity,
+          ),
+      ],
+      stockQuantity: f.stockQuantity,
+    );
+  }
+
+  /// One item per variant, in the order the server sent the lines (by size,
+  /// then name and colour, then order date). Lines with no order item —
+  /// which only the scanner produces — are dropped.
+  static List<ShipmentPickItem> group(List<ShipmentImportItemEntity> lines) {
+    final byVariant = <int, List<ShipmentImportItemEntity>>{};
+    for (final l in lines) {
+      if (l.orderItemId == null) continue;
+      byVariant.putIfAbsent(l.variantId, () => []).add(l);
+    }
+    return [for (final ls in byVariant.values) ShipmentPickItem(ls)];
+  }
+
+  @override
+  List<Object?> get props => [lines];
+}

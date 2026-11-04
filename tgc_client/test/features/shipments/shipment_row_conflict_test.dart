@@ -56,14 +56,34 @@ void main() {
     form.dispose();
   });
 
-  test('a stock import of one product on two lines is one row', () {
+  test('a product picked on two order lines is one row, oldest line first', () {
+    final picked = ShipmentPickItem([
+      _item(orderItemId: 1, available: 2, orderRemaining: 2),
+      _item(orderItemId: 2, available: 3, orderRemaining: 3),
+    ]);
+    expect(picked.remaining, 5);
+
     final form = ShipmentFormController()
-      ..importFromStock([
-        _item(orderItemId: 1, available: 2, orderRemaining: 2),
-        _item(orderItemId: 2, available: 3, orderRemaining: 3),
-      ]);
+      ..addFromList([(item: picked.asImportItem(), quantity: 4)]);
+    expect(form.items.single.parsedQuantity, 4);
+    expect(form.items.single.pieces.map((p) => (p.orderItemId, p.quantity)), [(1, 2), (2, 2)]);
+    expect(form.items.single.beyondOrder, 0);
+    form.dispose();
+  });
+
+  test('picking from the list adds to scanned rows instead of wiping them', () {
+    final form = ShipmentFormController();
+    form.addOrIncrementItem(_item(orderItemId: 1, available: 5, orderRemaining: 5));
+    form.addOrIncrementItem(_item(orderItemId: 1, available: 5, orderRemaining: 5));
+    expect(form.items.single.parsedQuantity, 2);
+
+    final picked = ShipmentPickItem([_item(orderItemId: 1, available: 5, orderRemaining: 5)]);
+    form.addFromList([(item: picked.asImportItem(), quantity: 3)]);
+
+    expect(form.items, hasLength(1));
+    expect(form.items.single.scanned, isTrue, reason: 'still the scanned row');
     expect(form.items.single.parsedQuantity, 5);
-    expect(form.items.single.pieces.map((p) => (p.orderItemId, p.quantity)), [(1, 2), (2, 3)]);
+    expect(form.items.single.orderLines.map((l) => l.orderItemId), [1]);
     form.dispose();
   });
 }

@@ -33,13 +33,11 @@ abstract class ShipmentRemoteDataSource {
 
   Future<List<ShipmentImportClientModel>> getShipmentImportClients();
 
-  Future<List<ShipmentImportQualityModel>> getShipmentImportQualities({
-    required int clientId,
-  });
-
+  /// Every open order line of [clientId], whatever the warehouse holds;
+  /// only those of [qualityName] when one is given.
   Future<List<ShipmentImportItemModel>> getShipmentImportItems({
     required int clientId,
-    required String qualityName,
+    String? qualityName,
   });
 
   /// Resolves a scanned label QR code to a shippable item for [clientId].
@@ -181,34 +179,16 @@ class ShipmentRemoteDataSourceImpl implements ShipmentRemoteDataSource {
   }
 
   @override
-  Future<List<ShipmentImportQualityModel>> getShipmentImportQualities({
-    required int clientId,
-  }) async {
-    try {
-      final response = await _dio.get(
-        ApiEndpoints.shipmentImportQualities,
-        queryParameters: {'client_id': clientId},
-      );
-      final body = response.data as Map<String, dynamic>;
-      return (body['data'] as List)
-          .map((e) => ShipmentImportQualityModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      _handleDioError(e);
-    }
-  }
-
-  @override
   Future<List<ShipmentImportItemModel>> getShipmentImportItems({
     required int clientId,
-    required String qualityName,
+    String? qualityName,
   }) async {
     try {
       final response = await _dio.get(
         ApiEndpoints.shipmentImportItems,
         queryParameters: {
           'client_id': clientId,
-          'quality_name': qualityName,
+          if (qualityName != null) 'quality_name': qualityName,
         },
       );
       final body = response.data as Map<String, dynamic>;

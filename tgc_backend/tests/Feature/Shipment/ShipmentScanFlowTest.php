@@ -273,8 +273,10 @@ class ShipmentScanFlowTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_beyond_the_order_without_stock_is_refused_in_words_a_worker_reads(): void
+    public function test_a_line_picked_from_the_list_without_stock_is_received_and_shipped(): void
     {
+        // The factory does not use the warehouse: a carpet picked from the
+        // client's order list ships like a scanned one, its shortfall booked in.
         $variant = $this->variant();
         $line    = $this->orderLine($this->clientA, $variant, 1);
         $this->receive($variant, 1);
@@ -287,10 +289,63 @@ class ShipmentScanFlowTest extends TestCase
             'scanned_batch_item_ids' => [],
         ]];
 
-        $message = $this->saveForm()->assertStatus(422)->json('errors')['items.0.quantity'][0];
-        $this->assertStringContainsString('omborda yetarli emas', $message);
-        $this->assertStringContainsString('omborda 1 dona, yuk xatida 3 dona', $message);
-        $this->assertSame(0, Order::whereNotNull('created_from_shipment_id')->count(), 'rolled back');
+        $this->saveForm()->assertCreated();
+
+        $this->assertSame(3, $this->ledger($variant, 'in'), '1 received earlier + 2 booked in on save');
+        $this->assertSame(0, $this->stock($variant));
+        $this->assertSame(1, $this->shippedOn($line), 'the line takes what it owes');
+        $this->assertSame(1, Order::whereNotNull('created_from_shipment_id')->count(), 'the excess ships beyond the order');
+    }
+
+    // ── Picking from the client's order list ──────────────────────────────────
+
+    public function test_the_list_shows_every_open_order_line_whatever_the_stock(): void
+    {
+        $inStock   = $this->variant();
+        $noStock   = $this->variant();
+        $lineStock = $this->orderLine($this->clientA, $inStock, 2);
+        $lineNone  = $this->orderLine($this->clientA, $noStock, 4);
+        $this->receive($inStock, 1);
+        $this->orderLine($this->clientB, $noStock, 9);   // someone else's
+
+        $clients = collect($this->actingAs($this->worker, 'sanctum')
+            ->getJson('/api/v1/shipment-import/clients')->assertOk()->json('data'));
+        $this->assertSame(2, $clients->firstWhere('id', $this->clientA->id)['item_count']);
+
+        // No quality_name: every quality at once, as the 1.3.11 picker asks.
+        $items = collect($this->actingAs($this->worker, 'sanctum')
+            ->getJson("/api/v1/shipment-import/items?client_id={$this->clientA->id}")
+            ->assertOk()->json('data'))->keyBy('order_item_id');
+
+        $this->assertCount(2, $items);
+        $this->assertSame(4, $items[$lineNone->id]['available_quantity'], 'owed, not capped by stock');
+        $this->assertSame(0, $items[$lineNone->id]['stock_quantity']);
+        $this->assertSame(2, $items[$lineStock->id]['available_quantity'], 'owed, not capped by the 1 in stock');
+        $this->assertSame(1, $items[$lineStock->id]['stock_quantity']);
+    }
+
+    public function test_the_list_still_filters_by_quality_for_older_apps(): void
+    {
+        $variant = $this->variant();
+        $line    = $this->orderLine($this->clientA, $variant, 1);
+        $quality = $variant->productColor->product->productQuality->quality_name;
+
+        $qualities = $this->actingAs($this->worker, 'sanctum')
+            ->getJson("/api/v1/shipment-import/qualities?client_id={$this->clientA->id}")
+            ->assertOk()->json('data');
+        $this->assertSame([['quality_name' => $quality, 'item_count' => 1]], $qualities);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->getJson('/api/v1/shipment-import/items?' . http_build_query([
+                'client_id' => $this->clientA->id, 'quality_name' => $quality,
+            ]))
+            ->assertOk()->assertJsonPath('data.0.order_item_id', $line->id);
+
+        $this->actingAs($this->worker, 'sanctum')
+            ->getJson('/api/v1/shipment-import/items?' . http_build_query([
+                'client_id' => $this->clientA->id, 'quality_name' => 'NO SUCH QUALITY',
+            ]))
+            ->assertOk()->assertJsonCount(0, 'data');
     }
 
     public function test_a_done_order_that_loses_its_carpet_goes_back_to_production_and_returns_on_cancel(): void

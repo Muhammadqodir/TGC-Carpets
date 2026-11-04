@@ -31,13 +31,9 @@ abstract class ShipmentRepository {
 
   Future<Either<Failure, List<ShipmentImportClientEntity>>> getShipmentImportClients();
 
-  Future<Either<Failure, List<ShipmentImportQualityEntity>>> getShipmentImportQualities({
-    required int clientId,
-  });
-
   Future<Either<Failure, List<ShipmentImportItemEntity>>> getShipmentImportItems({
     required int clientId,
-    required String qualityName,
+    String? qualityName,
   });
 
   /// Resolves a scanned label QR code to a shippable item for [clientId].

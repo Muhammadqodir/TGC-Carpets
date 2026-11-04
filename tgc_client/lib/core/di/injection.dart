@@ -150,7 +150,6 @@ import '../../features/shipment_pricing/presentation/bloc/shipment_pricing_cubit
 import '../../features/shipments/domain/usecases/create_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_orders_for_shipment_usecase.dart';
 import '../../features/shipments/domain/usecases/get_shipment_import_clients_usecase.dart';
-import '../../features/shipments/domain/usecases/get_shipment_import_qualities_usecase.dart';
 import '../../features/shipments/domain/usecases/get_shipment_import_items_usecase.dart';
 import '../../features/shipments/presentation/bloc/shipments_bloc.dart';
 import '../../features/shipments/presentation/bloc/shipment_form_bloc.dart';
@@ -562,15 +561,11 @@ Future<void> initDependencies() async {
     () => GetShipmentImportClientsUseCase(sl<ShipmentRepository>()),
   );
   sl.registerLazySingleton(
-    () => GetShipmentImportQualitiesUseCase(sl<ShipmentRepository>()),
-  );
-  sl.registerLazySingleton(
     () => GetShipmentImportItemsUseCase(sl<ShipmentRepository>()),
   );
   sl.registerFactory(
     () => ShipmentImportBloc(
       getClientsUseCase: sl<GetShipmentImportClientsUseCase>(),
-      getQualitiesUseCase: sl<GetShipmentImportQualitiesUseCase>(),
       getItemsUseCase: sl<GetShipmentImportItemsUseCase>(),
     ),
   );

@@ -48,7 +48,6 @@ class ApiEndpoints {
 
   // Shipment Import (step-by-step import from stock for shipment form)
   static const String shipmentImportClients = '/shipment-import/clients';
-  static const String shipmentImportQualities = '/shipment-import/qualities';
   static const String shipmentImportItems = '/shipment-import/items';
   static const String shipmentImportScan = '/shipment-import/scan';
 

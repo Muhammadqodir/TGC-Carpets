@@ -37,8 +37,8 @@ class ShipmentService
      *
      * Flow per item:
      *   1. Give scanned lines that have no order item one to hang off (a single
-     *      auto-created order for the whole shipment), and book in any scanned
-     *      carpet the warehouse never received.
+     *      auto-created order for the whole shipment), and book in any carpet
+     *      the warehouse never received.
      *   2. Validate sufficient stock for every variant.
      *   3. Create the Shipment header.
      *   4. Create a WarehouseDocument of type 'out' to represent the outgoing stock.
@@ -49,8 +49,10 @@ class ShipmentService
      * physically exist, which the order and stock tables do not always agree
      * with — the carpet may have been produced against another client's order,
      * or never booked into the warehouse at all. Both are repaired here rather
-     * than refused, but ONLY for lines the client marked `scanned`; everything
-     * posted by the order/stock import wizards keeps the old strict behaviour.
+     * than refused. Inventing an order line stays ONLY for lines the client
+     * marked `scanned`; the stock repair covers every line, because the factory
+     * does not use the warehouse (November 2026) and a line picked from the
+     * client's orders is as real a carpet on the lorry as a scanned one.
      */
     public function create(array $data, int $userId): Shipment
     {
@@ -67,7 +69,7 @@ class ShipmentService
             [$data['items'], $autoOrderId] = $this->createOrderLinesForScannedItems(
                 $data['items'], (int) $data['client_id'], $userId, $shipmentDate
             );
-            $this->receiveScannedCarpetsNotInStock($data['items'], $userId, $shipmentDate);
+            $this->receiveCarpetsNotInStock($data['items'], $userId, $shipmentDate);
 
             // Inside the transaction, and holding row locks, so the balance we
             // read is the balance we write against. See instructions/phase-1/03.
@@ -836,10 +838,9 @@ class ShipmentService
      * on 2026-10-28), so going past one line is usually not beyond the order
      * at all — it is the next order.
      *
-     * Every piece keeps its line's `scanned` flag — so a scanned carpet the
-     * warehouse never booked is still received on the way out, and a wizard
-     * line still has to be covered by stock — and its share of the scanned
-     * batch item ids, in order, so production moves with the right carpets.
+     * Every piece keeps its line's `scanned` flag and its share of the
+     * scanned batch item ids, in order, so production moves with the right
+     * carpets.
      *
      * @param array<int, array<string, mixed>> $items
      * @return array<int, array<string, mixed>>
@@ -1303,52 +1304,45 @@ class ShipmentService
     }
 
     /**
-     * Books in scanned carpets the warehouse never received.
+     * Books in carpets the warehouse never received.
      *
-     * A label in a worker's hand is evidence the carpet exists; a missing
-     * stock_movement only means nobody recorded it arriving. Rather than
-     * refuse the shipment (assertSufficientStock would) or let the ledger go
-     * negative, the shortfall is received here as a normal warehouse IN
-     * document, so the carpet's life is still in → out and every stock report
-     * stays add-up-able.
+     * A carpet on the lorry exists, whether its label was scanned or it was
+     * picked from the client's order list; a missing stock_movement only means
+     * nobody recorded it arriving. The factory does not book carpets into the
+     * warehouse at all, so rather than refuse the shipment
+     * (assertSufficientStock would) or let the ledger go negative, the
+     * shortfall is received here as a normal warehouse IN document, so the
+     * carpet's life is still in → out and every stock report stays
+     * add-up-able.
      *
-     * Only shortfalls on variants with at least one scanned line are covered:
-     * a wizard line short on stock is still a real error and still throws.
+     * Until November 2026 only variants with a scanned line were covered, and
+     * a line picked from the list without stock was refused with "omborda
+     * yetarli emas" — which, with no warehouse in use, was every such line.
      */
-    private function receiveScannedCarpetsNotInStock(
+    private function receiveCarpetsNotInStock(
         array $items,
         int $userId,
         Carbon $shipmentDate,
     ): void {
         $requestedPerVariant = [];
-        $scannedVariants     = [];
 
         foreach ($items as $item) {
             $variantId = (int) $item['product_variant_id'];
             $requestedPerVariant[$variantId] = ($requestedPerVariant[$variantId] ?? 0) + (int) $item['quantity'];
-
-            if (filter_var($item['scanned'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $scannedVariants[$variantId] = true;
-            }
         }
 
-        if ($scannedVariants === []) {
+        if ($requestedPerVariant === []) {
             return;
         }
 
         // Same lock, same order, as assertSufficientStock() — so two shipments
-        // scanning the same carpet cannot both read "no stock" and each book
-        // one in.
-        $lockIds = array_keys($scannedVariants);
+        // of the same carpet cannot both read "no stock" and each book one in.
+        $lockIds = array_keys($requestedPerVariant);
         sort($lockIds);
         ProductVariant::whereIn('id', $lockIds)->orderBy('id')->lockForUpdate()->get();
 
         $shortfalls = [];
         foreach ($requestedPerVariant as $variantId => $requested) {
-            if (! isset($scannedVariants[$variantId])) {
-                continue;
-            }
-
             $shortfall = $requested - $this->getStock($variantId);
             if ($shortfall > 0) {
                 $shortfalls[$variantId] = $shortfall;
@@ -1363,8 +1357,8 @@ class ShipmentService
             'type'          => WarehouseDocument::TYPE_IN,
             'user_id'       => $userId,
             'document_date' => $shipmentDate->toDateString(),
-            'notes'         => 'Yuk xati uchun avtomatik qabul: skanerlangan, '
-                . 'lekin omborga kirim qilinmagan mahsulotlar.',
+            'notes'         => 'Yuk xati uchun avtomatik qabul: '
+                . 'omborga kirim qilinmagan mahsulotlar.',
         ]);
 
         foreach ($shortfalls as $variantId => $quantity) {
@@ -1372,7 +1366,7 @@ class ShipmentService
                 'warehouse_document_id' => $document->id,
                 'product_variant_id'    => $variantId,
                 'quantity'              => $quantity,
-                'notes'                 => 'Skanerlangan yorliq asosida.',
+                'notes'                 => 'Yuk xati asosida.',
             ]);
 
             StockMovement::create([
@@ -1386,7 +1380,7 @@ class ShipmentService
             $this->stockService->applyDelta($variantId, StockMovement::TYPE_IN, $quantity);
         }
 
-        Log::info('shipment.scan.stock_auto_received', [
+        Log::info('shipment.stock_auto_received', [
             'warehouse_document_id' => $document->id,
             'user_id'               => $userId,
             'variants'              => $shortfalls,

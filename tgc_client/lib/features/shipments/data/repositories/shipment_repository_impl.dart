@@ -119,25 +119,9 @@ class ShipmentRepositoryImpl implements ShipmentRepository {
   }
 
   @override
-  Future<Either<Failure, List<ShipmentImportQualityEntity>>> getShipmentImportQualities({
-    required int clientId,
-  }) async {
-    try {
-      final result = await remoteDataSource.getShipmentImportQualities(clientId: clientId);
-      return Right(result);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on UnauthorizedException {
-      return const Left(UnauthorizedFailure());
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message, statusCode: e.statusCode));
-    }
-  }
-
-  @override
   Future<Either<Failure, List<ShipmentImportItemEntity>>> getShipmentImportItems({
     required int clientId,
-    required String qualityName,
+    String? qualityName,
   }) async {
     try {
       final result = await remoteDataSource.getShipmentImportItems(

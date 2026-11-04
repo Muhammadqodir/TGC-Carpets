@@ -10,7 +10,7 @@ class GetShipmentImportItemsUseCase {
 
   Future<Either<Failure, List<ShipmentImportItemEntity>>> call({
     required int clientId,
-    required String qualityName,
+    String? qualityName,
   }) =>
       repository.getShipmentImportItems(
         clientId: clientId,

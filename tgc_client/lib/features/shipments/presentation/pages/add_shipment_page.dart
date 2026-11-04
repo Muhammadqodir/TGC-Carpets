@@ -20,8 +20,8 @@ import '../../data/services/shipment_form_draft_service.dart';
 import '../bloc/shipment_form_bloc.dart';
 import '../bloc/shipment_form_event.dart';
 import '../bloc/shipment_form_state.dart';
-import '../widgets/stock_picker_for_shipment_sheet.dart'
-    show StockPickerForShipmentSheet;
+import '../../domain/entities/shipment_import_entities.dart';
+import '../widgets/order_list_picker_sheet.dart';
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
 import '../widgets/shipment_qr_scanner_page.dart';
@@ -187,8 +187,28 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     _suspendSave = false;
   }
 
-  Future<void> _importFromOrder() async {
-    final result = await StockPickerForShipmentSheet.show(context);
+  /// Loading by hand: tick carpets off the client's open orders, grouped by
+  /// size, and say how many of each. Adds to whatever is already on the form
+  /// (scanned or picked before), offering only what is still left.
+  Future<void> _pickFromOrders() async {
+    final client = _selectedClient;
+    final result = await OrderListPickerSheet.show(
+      context,
+      // Locked to the form's client: another client's order lines would be
+      // refused when the shipment is saved.
+      client: client == null
+          ? null
+          : ShipmentImportClientEntity(
+              id: client.id,
+              shopName: client.shopName,
+              region: client.region,
+              contactName: client.contactName,
+              itemCount: 0,
+            ),
+      onForm: {
+        for (final row in _ctrl.items) row.variantId: row.parsedQuantity,
+      },
+    );
     if (result == null || !mounted) return;
 
     if (_selectedClient == null) {
@@ -198,6 +218,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
           uuid: '',
           shopName: result.client.shopName,
           region: result.client.region,
+          contactName: result.client.contactName,
           phone: null,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -208,7 +229,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     // No last-price fetch here any more: this form does not carry prices, so
     // the round trip per item bought nothing. The same lookup now backs the
     // "Oxirgi narxlar" button in the pricing feature, where prices are typed.
-    _ctrl.importFromStock(result.selectedItems);
+    _ctrl.addFromList(result.selections);
   }
 
   Future<void> _scanQr() async {
@@ -557,11 +578,9 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                       ),
                     ),
 
-                    // ── Items header + import buttons ──────────────────────────
-                    // Two labelled buttons ate a phone's whole row and left
-                    // the heading clipped mid-word, so below the desktop
-                    // breakpoint they collapse to icons and keep their labels
-                    // as tooltips.
+                    // ── Items header + "pick from orders" button ───────────────
+                    // Labelled on phones too, shorter: as a bare icon nobody
+                    // found it, and asked for a way to load by hand.
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final isDesktop = constraints.maxWidth >=
@@ -591,27 +610,20 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                 ),
                               ),
                             ),
-                            if (isDesktop) ...[
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(0, 4, 12, 4),
-                                child: TextButton.icon(
-                                  onPressed: _importFromOrder,
-                                  icon: const Icon(Icons.download_rounded,
-                                      size: 16),
-                                  label: const Text('Buyurtmadan import'),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
+                              child: TextButton.icon(
+                                onPressed: _pickFromOrders,
+                                icon: const Icon(Icons.playlist_add_rounded,
+                                    size: 20),
+                                label: Text(isDesktop
+                                    ? 'Buyurtmalardan tanlash'
+                                    : 'Ro\'yxatdan'),
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
                                 ),
                               ),
-                            ] else ...[
-                              IconButton(
-                                onPressed: _importFromOrder,
-                                icon: const Icon(Icons.download_rounded,
-                                    size: 22),
-                                color: AppColors.primary,
-                                tooltip: 'Buyurtmadan import',
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              const SizedBox(width: 4),
-                            ],
+                            ),
                           ],
                         );
                       },
@@ -635,12 +647,21 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'Buyurtmadan import qiling',
+                                    'Skanerlang yoki buyurtmalardan tanlang',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
                                             color: AppColors.textSecondary),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: _pickFromOrders,
+                                    icon: const Icon(
+                                        Icons.playlist_add_rounded,
+                                        size: 20),
+                                    label: const Text(
+                                        'Buyurtmalardan tanlash'),
                                   ),
                                 ],
                               ),

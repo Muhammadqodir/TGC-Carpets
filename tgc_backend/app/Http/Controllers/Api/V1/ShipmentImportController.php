@@ -12,15 +12,25 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Provides three step-by-step endpoints used by the shipment
- * "import from stock" wizard:
+ * Provides the step-by-step endpoints used by the shipment
+ * "pick from the client's orders" list:
  *
- *   1. GET /shipment-import/clients   – clients with stock-available order items
+ *   1. GET /shipment-import/clients   – clients with open order items
  *   2. GET /shipment-import/qualities – qualities for a given client
- *   3. GET /shipment-import/items     – shippable items for a given client + quality
+ *   3. GET /shipment-import/items     – open items for a given client
+ *                                       (and quality, when one is given)
  *
- * "Shippable" means: (order_qty - shipped_qty) > 0 AND stock_qty > 0.
- * available_quantity = min(order_qty - shipped_qty, stock_qty).
+ * "Open" means: (order_qty - shipped_qty) > 0 on an order that is neither
+ * cancelled nor closed as delivered. available_quantity = what the line
+ * still owes.
+ *
+ * Stock is NOT a condition. These used to INNER JOIN stock_movements and
+ * require stock > 0, but the factory does not book carpets into the
+ * warehouse, so almost every variant has no movements and the list showed
+ * only a handful of a client's orders (November 2026). scan() dropped the
+ * same gate for the same reason in August. Stock still rides along as
+ * `stock_quantity` for information, and ShipmentService books in any
+ * shortfall when the shipment is saved.
  */
 class ShipmentImportController extends Controller
 {
@@ -58,14 +68,13 @@ class ShipmentImportController extends Controller
             ->join('orders AS o', 'o.id', '=', 'oi.order_id')
             ->join('clients AS c', 'c.id', '=', 'o.client_id')
             ->leftJoin(DB::raw(self::SHIPPED_SUB . ' AS si'), 'si.order_item_id', '=', 'oi.id')
-            ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
+            
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
             // including the auto-order of a cancelled scanned shipment — and
             // nor does one closed as delivered outside the system
             // (OrderService::markDelivered).
             ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
-            ->whereRaw('sm.stock > 0')
             ->select([
                 'c.id',
                 'c.shop_name',
@@ -107,7 +116,7 @@ class ShipmentImportController extends Controller
             ->join('products AS p', 'p.id', '=', 'pc.product_id')
             ->join('product_qualities AS pq', 'pq.id', '=', 'p.product_quality_id')
             ->leftJoin(DB::raw(self::SHIPPED_SUB . ' AS si'), 'si.order_item_id', '=', 'oi.id')
-            ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
+            
             ->where('o.client_id', $request->integer('client_id'))
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
@@ -115,7 +124,6 @@ class ShipmentImportController extends Controller
             // nor does one closed as delivered outside the system
             // (OrderService::markDelivered).
             ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
-            ->whereRaw('sm.stock > 0')
             ->select([
                 'pq.quality_name',
                 DB::raw('COUNT(oi.id) AS item_count'),
@@ -135,17 +143,20 @@ class ShipmentImportController extends Controller
     // ── Step 3: Items ──────────────────────────────────────────────────────────
 
     /**
-     * GET /shipment-import/items?client_id={id}&quality_name={name}
+     * GET /shipment-import/items?client_id={id}[&quality_name={name}]
      *
-     * Returns all shippable items for the given client + quality.
-     * available_quantity = min(order_qty - shipped_qty, stock_qty).
+     * Returns every open order line of the given client, of one quality when
+     * `quality_name` is sent (apps before 1.3.11 always send it) and of all
+     * qualities otherwise. available_quantity = what the line still owes.
+     * Sorted by size first, since the picker groups by size, then by order
+     * date so a carpet's oldest order comes first.
      * Response shape: { data: [{ order_item_id, variant_id, product_name, ... }] }
      */
     public function items(Request $request): JsonResponse
     {
         $request->validate([
             'client_id'    => 'required|integer|exists:clients,id',
-            'quality_name' => 'required|string',
+            'quality_name' => 'sometimes|nullable|string',
         ]);
 
         $rows = DB::table('order_items AS oi')
@@ -159,16 +170,18 @@ class ShipmentImportController extends Controller
             ->leftJoin('product_types AS pt', 'pt.id', '=', 'p.product_type_id')
             ->leftJoin('product_edges AS pe', 'pe.id', '=', 'pv.product_edge_id')
             ->leftJoin(DB::raw(self::SHIPPED_SUB . ' AS si'), 'si.order_item_id', '=', 'oi.id')
-            ->join(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
+            ->leftJoin(DB::raw(self::STOCK_SUB . ' AS sm'), 'sm.product_variant_id', '=', 'oi.product_variant_id')
             ->where('o.client_id', $request->integer('client_id'))
-            ->where('pq.quality_name', $request->string('quality_name'))
+            ->when(
+                $request->filled('quality_name'),
+                fn ($q) => $q->where('pq.quality_name', $request->string('quality_name')),
+            )
             ->whereRaw('(oi.quantity - COALESCE(si.shipped_qty, 0)) > 0')
             // A cancelled order owes nothing, however much it never shipped —
             // including the auto-order of a cancelled scanned shipment — and
             // nor does one closed as delivered outside the system
             // (OrderService::markDelivered).
             ->whereNotIn('o.status', [\App\Models\Order::STATUS_CANCELED, \App\Models\Order::STATUS_SHIPPED])
-            ->whereRaw('sm.stock > 0')
             ->select([
                 'oi.id AS order_item_id',
                 'o.id AS order_id',
@@ -176,6 +189,7 @@ class ShipmentImportController extends Controller
                 'pv.id AS variant_id',
                 'p.name AS product_name',
                 'co.name AS color_name',
+                'pc.image AS color_image',
                 'p.unit AS product_unit',
                 'pq.quality_name',
                 'pt.type AS type_name',
@@ -183,13 +197,16 @@ class ShipmentImportController extends Controller
                 'ps.width AS size_width',
                 'pe.code AS edge_code',
                 'pe.title AS edge_title',
-                DB::raw('LEAST(oi.quantity - COALESCE(si.shipped_qty, 0), sm.stock) AS available_quantity'),
+                DB::raw('(oi.quantity - COALESCE(si.shipped_qty, 0)) AS available_quantity'),
                 DB::raw('(oi.quantity - COALESCE(si.shipped_qty, 0)) AS order_remaining'),
+                DB::raw('COALESCE(sm.stock, 0) AS stock_quantity'),
             ])
-            ->orderBy('p.name')
-            ->orderBy('co.name')
             ->orderBy('ps.width')
             ->orderBy('ps.length')
+            ->orderBy('p.name')
+            ->orderBy('co.name')
+            ->orderBy('o.order_date')
+            ->orderBy('oi.id')
             ->get();
 
         return response()->json([
@@ -200,7 +217,9 @@ class ShipmentImportController extends Controller
                 'variant_id'         => $r->variant_id,
                 'product_name'       => $r->product_name,
                 'color_name'         => $r->color_name,
-                'color_image_url'    => null,
+                'color_image_url'    => $r->color_image
+                    ? rtrim(config('app.url'), '/') . '/storage/' . $r->color_image
+                    : null,
                 'quality_name'       => $r->quality_name,
                 'type_name'          => $r->type_name,
                 'size_length'        => $r->size_length !== null ? (int) $r->size_length : null,
@@ -212,6 +231,7 @@ class ShipmentImportController extends Controller
                 // What the order line still owes, apart from stock: past this
                 // the app warns "beyond the order" (see splitOverOrderedLines).
                 'order_remaining'    => (int) $r->order_remaining,
+                'stock_quantity'     => (int) $r->stock_quantity,
             ]),
         ]);
     }
@@ -235,9 +255,8 @@ class ShipmentImportController extends Controller
      * ownership) still run in StoreShipmentRequest when the shipment is
      * actually submitted.
      *
-     * Unlike items() — the stock wizard, which is *about* picking from stock —
-     * this lookup deliberately does NOT require stock_movements to exist for
-     * the variant. The worker is standing in front of the physical carpet with
+     * Like items() since November 2026, this lookup does NOT require
+     * stock_movements to exist for the variant. The worker is standing in front of the physical carpet with
      * its label in hand; whether it was ever booked into the warehouse is a
      * separate bookkeeping question, and gating on it made 5,457 of prod's
      * 5,929 batch items unscannable (2026-08-03 field test). Stock still rides

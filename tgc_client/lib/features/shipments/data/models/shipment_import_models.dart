@@ -20,20 +20,6 @@ class ShipmentImportClientModel extends ShipmentImportClientEntity {
   }
 }
 
-class ShipmentImportQualityModel extends ShipmentImportQualityEntity {
-  const ShipmentImportQualityModel({
-    required super.qualityName,
-    required super.itemCount,
-  });
-
-  factory ShipmentImportQualityModel.fromJson(Map<String, dynamic> json) {
-    return ShipmentImportQualityModel(
-      qualityName: json['quality_name'] as String,
-      itemCount: json['item_count'] as int? ?? 0,
-    );
-  }
-}
-
 class ShipmentImportItemModel extends ShipmentImportItemEntity {
   const ShipmentImportItemModel({
     required super.orderItemId,

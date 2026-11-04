@@ -9,12 +9,23 @@ abstract class ShipmentImportEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Triggers initial data load: fetches all clients with shippable items.
+/// Opens the picker. With [client] (the one already on the shipment form) it
+/// goes straight to that client's order list; without, it lists the clients
+/// with open orders first.
+///
+/// [onForm] is how many of each carpet the form already holds, by variant id,
+/// so the list offers only what is still left to load.
 class ShipmentImportStarted extends ShipmentImportEvent {
-  const ShipmentImportStarted();
+  final ShipmentImportClientEntity? client;
+  final Map<int, int> onForm;
+
+  const ShipmentImportStarted({this.client, this.onForm = const {}});
+
+  @override
+  List<Object?> get props => [client, onForm];
 }
 
-/// User selected a client — loads qualities for that client.
+/// User picked a client — loads every open order line of theirs.
 class ShipmentImportClientSelected extends ShipmentImportEvent {
   final ShipmentImportClientEntity client;
   const ShipmentImportClientSelected(this.client);
@@ -23,31 +34,52 @@ class ShipmentImportClientSelected extends ShipmentImportEvent {
   List<Object?> get props => [client];
 }
 
-/// User selected a quality — loads shippable items for client + quality.
-class ShipmentImportQualitySelected extends ShipmentImportEvent {
-  final ShipmentImportQualityEntity quality;
-  const ShipmentImportQualitySelected(this.quality);
+/// Shows one quality only, or every quality when [qualityName] is null.
+class ShipmentImportQualityFilterChanged extends ShipmentImportEvent {
+  final String? qualityName;
+  const ShipmentImportQualityFilterChanged(this.qualityName);
 
   @override
-  List<Object?> get props => [quality];
+  List<Object?> get props => [qualityName];
 }
 
-/// Toggles selection for a single item (by orderItemId).
+/// Narrows the list to carpets whose name or colour contains [query].
+class ShipmentImportSearchChanged extends ShipmentImportEvent {
+  final String query;
+  const ShipmentImportSearchChanged(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
+/// Ticks or unticks one carpet (by variant id). Ticking starts it at all
+/// that is still left to load.
 class ShipmentImportItemToggled extends ShipmentImportEvent {
-  final int orderItemId;
-  const ShipmentImportItemToggled(this.orderItemId);
+  final int variantId;
+  const ShipmentImportItemToggled(this.variantId);
 
   @override
-  List<Object?> get props => [orderItemId];
+  List<Object?> get props => [variantId];
 }
 
-/// Selects or deselects all visible items.
-class ShipmentImportSelectAllToggled extends ShipmentImportEvent {
-  final bool select;
-  const ShipmentImportSelectAllToggled(this.select);
+/// The quantity typed or stepped for a ticked carpet.
+class ShipmentImportItemQuantityChanged extends ShipmentImportEvent {
+  final int variantId;
+  final int quantity;
+  const ShipmentImportItemQuantityChanged(this.variantId, this.quantity);
 
   @override
-  List<Object?> get props => [select];
+  List<Object?> get props => [variantId, quantity];
+}
+
+/// Ticks or unticks several carpets at once — everything shown, or one size.
+class ShipmentImportSelectionSet extends ShipmentImportEvent {
+  final List<int> variantIds;
+  final bool select;
+  const ShipmentImportSelectionSet(this.variantIds, {required this.select});
+
+  @override
+  List<Object?> get props => [variantIds, select];
 }
 
 /// Navigates back one step in the wizard.

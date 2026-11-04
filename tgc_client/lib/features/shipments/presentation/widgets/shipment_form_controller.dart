@@ -61,23 +61,25 @@ class ShipmentFormController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Replaces all current rows with items from the stock import wizard,
-  /// one row per product however many order lines it covers.
-  void importFromStock(List<ShipmentImportItemEntity> items) {
-    _clearRows();
-    importedOrder = null;
-
-    for (final item in items) {
-      if (item.availableQuantity <= 0) continue;
+  /// Adds what was picked from the client's order list, one row per product
+  /// however many order lines it covers.
+  ///
+  /// Adds to the form, never replaces it: picking from the list is often
+  /// done after scanning part of the lorry, and the old import wiped every
+  /// scanned row. A product already on the form gets the picked quantity on
+  /// top, and the lines it did not know about yet; the list only offered
+  /// what the form did not already hold.
+  void addFromList(List<ShipmentPickSelection> selections) {
+    for (final (:item, :quantity) in selections) {
+      if (quantity <= 0) continue;
       final existing = _rowOf(item.variantId);
       if (existing == null) {
-        final row = ShipmentItemRow.fromImportItem(item);
+        final row = ShipmentItemRow.fromImportItem(item, initialQuantity: quantity);
         _hookRow(row);
         _items.add(row);
       } else {
         existing.absorbLineOf(item);
-        existing.quantityCtrl.text =
-            '${existing.parsedQuantity + item.availableQuantity}';
+        existing.quantityCtrl.text = '${existing.parsedQuantity + quantity}';
       }
     }
 
@@ -147,8 +149,8 @@ class ShipmentFormController extends ChangeNotifier {
 
   /// Replaces every row and the note with data read back from a saved draft.
   ///
-  /// [importedOrder] stays null: a draft carries only the rows, and the one
-  /// live import path ([importFromStock]) leaves it null too.
+  /// [importedOrder] stays null: a draft carries only the rows, and the
+  /// order list ([addFromList]) never sets it either.
   void restoreFrom({
     required List<ShipmentItemRow> newItems,
     required String notes,
