@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,7 +20,7 @@ import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/label_print_queue.dart';
 import '../../data/services/print_history_service.dart';
 import '../widgets/label_print_queue_indicator.dart';
-import '../widgets/label_undo_sheet.dart';
+import '../widgets/label_undo_toast.dart';
 import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
@@ -402,54 +403,71 @@ class _LabelingViewState extends State<_LabelingView> {
   // ── Undo ──────────────────────────────────────────────────────────────────
   //
   // A tap on the wrong card prints a label and counts a carpet that was
-  // never made. Three ways back, all through LabelPrintQueue.undo: the
-  // snackbar right after the print, the list of recent labels in the app
-  // bar, and Ctrl/⌘+Z for the last one.
+  // never made. Each carpet label gets a card in the bottom-right corner
+  // for 20 seconds with an undo button; several quick prints stack, so each
+  // one can still be taken back. Ctrl/⌘+Z takes back the newest. All of it
+  // goes through LabelPrintQueue.undo.
 
-  /// "Printed — undo?" for a few seconds after each carpet label.
+  static const _undoOffer = Duration(seconds: 20);
+  static const _undoResult = Duration(seconds: 5);
+  static const _maxUndoToasts = 4;
+
+  /// The corner cards, oldest first.
+  final List<_UndoToast> _undoToasts = [];
+
+  @override
+  void dispose() {
+    for (final t in _undoToasts) {
+      t.timer?.cancel();
+    }
+    super.dispose();
+  }
+
   void _offerUndo(QueuedLabelPrint queued) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text('Chop etildi: ${queued.productName} ${queued.sizeLabel ?? ''}'),
-        action: SnackBarAction(
-          label: 'Bekor qilish',
-          textColor: Colors.white,
-          onPressed: () => _undo(queued.key, '${queued.productName} ${queued.sizeLabel ?? ''}'),
-        ),
-      ));
+    final toast = _UndoToast(
+      key: queued.key,
+      label: '${queued.productName} ${queued.sizeLabel ?? ''}'.trim(),
+    );
+    setState(() {
+      _undoToasts.add(toast);
+      while (_undoToasts.length > _maxUndoToasts) {
+        _undoToasts.removeAt(0).timer?.cancel();
+      }
+    });
+    _closeAfter(toast, _undoOffer);
   }
 
-  Future<void> _undo(String key, String label) async {
-    final outcome = await _printQueue.undo(key);
+  void _closeAfter(_UndoToast toast, Duration after) {
+    toast.timer?.cancel();
+    toast.timer = Timer(after, () => _closeToast(toast));
+  }
+
+  void _closeToast(_UndoToast toast) {
+    toast.timer?.cancel();
+    if (mounted) setState(() => _undoToasts.remove(toast));
+  }
+
+  Future<void> _undoToast(_UndoToast toast) async {
+    if (toast.status != LabelUndoToastStatus.offered) return;
+    toast.timer?.cancel();
+    final outcome = await _printQueue.undo(toast.key);
     if (!mounted) return;
-    final done = outcome != LabelUndoOutcome.unavailable;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        backgroundColor: done ? AppColors.success : AppColors.warning,
-        duration: Duration(seconds: done ? 6 : 3),
-        content: Text(done
-            ? 'Bekor qilindi: $label. Chop etilgan yorliqni yo\'q qiling.'
-            : 'Bu yorliqni bekor qilib bo\'lmaydi (allaqachon bekor qilingan).'),
-      ));
+    setState(() => toast.status = outcome == LabelUndoOutcome.unavailable
+        ? LabelUndoToastStatus.unavailable
+        : LabelUndoToastStatus.undone);
+    _closeAfter(toast, _undoResult);
   }
 
-  /// The app-bar list of this shift's recent labels.
-  Future<void> _pickUndo() async {
-    final userId = _userId;
-    if (userId == null) return;
-    final picked = await LabelUndoSheet.show(context, queue: _printQueue, userId: userId);
-    if (picked == null || !mounted) return;
-    if (await confirmLabelUndo(context, picked) && mounted) {
-      await _undo(picked.key, '${picked.productName} ${picked.sizeLabel ?? ''}');
-    }
-  }
-
-  /// Ctrl/⌘+Z: the last label, after asking.
+  /// Ctrl/⌘+Z: the newest card's label at once — it is on screen — or,
+  /// with no card left, the last label printed, after asking.
   Future<void> _undoLast() async {
+    final offered = _undoToasts.where((t) => t.status == LabelUndoToastStatus.offered);
+    if (offered.isNotEmpty) {
+      await _undoToast(offered.last);
+      return;
+    }
+
     final userId = _userId;
     if (userId == null) return;
     final recent = _printQueue.recentFor(userId);
@@ -460,9 +478,36 @@ class _LabelingViewState extends State<_LabelingView> {
       return;
     }
     final last = recent.first;
-    if (await confirmLabelUndo(context, last) && mounted) {
-      await _undo(last.key, '${last.productName} ${last.sizeLabel ?? ''}');
-    }
+    if (!await confirmLabelUndo(context, last) || !mounted) return;
+    final toast = _UndoToast(key: last.key, label: '${last.productName} ${last.sizeLabel ?? ''}'.trim());
+    setState(() => _undoToasts.add(toast));
+    await _undoToast(toast);
+  }
+
+  Widget _buildUndoToasts() {
+    // Above the 56 px pagination bar, so its buttons stay reachable.
+    return Positioned(
+      right: 16,
+      bottom: 72,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final t in _undoToasts)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LabelUndoToast(
+                key: ValueKey(t.key),
+                label: t.label,
+                status: t.status,
+                duration: t.status == LabelUndoToastStatus.offered ? _undoOffer : _undoResult,
+                onUndo: () => _undoToast(t),
+                onClose: () => _closeToast(t),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _onReprint(LabelingItemEntity item) async {
@@ -785,11 +830,6 @@ class _LabelingViewState extends State<_LabelingView> {
                 actions: [
                   LabelPrintQueueIndicator(queue: _printQueue),
                   IconButton(
-                    icon: const Icon(Icons.undo_rounded),
-                    tooltip: 'Chop etishni bekor qilish (Ctrl+Z)',
-                    onPressed: _pickUndo,
-                  ),
-                  IconButton(
                     icon: const HugeIcon(
                       icon: HugeIcons.strokeRoundedSettings01,
                       strokeWidth: 2,
@@ -837,6 +877,9 @@ class _LabelingViewState extends State<_LabelingView> {
                     ),
                   ),
     
+                  // ── Undo cards, bottom-right ───────────────────────────────
+                  if (_undoToasts.isNotEmpty) _buildUndoToasts(),
+
                   // ── Off-screen labels rendered on-demand (only while printing) ─
                   ..._renderingItems.values.map((item) {
                     final key = _keyFor(item.id);
@@ -1463,4 +1506,15 @@ class _PlaceholderImage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One corner card: the label it can take back and where it is.
+class _UndoToast {
+  _UndoToast({required this.key, required this.label});
+
+  /// The print's idempotency key.
+  final String key;
+  final String label;
+  LabelUndoToastStatus status = LabelUndoToastStatus.offered;
+  Timer? timer;
 }
