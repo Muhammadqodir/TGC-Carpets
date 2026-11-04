@@ -65,12 +65,16 @@ class LabelingBloc extends Bloc<LabelingEvent, LabelingState> {
     emit(current.copyWith(printingItems: printing));
   }
 
-  /// A label was queued, printed, dropped or confirmed. A confirmation
-  /// carries the server's counts for that line; only the counts are taken,
-  /// the rest of the line stays as the list loaded it.
+  /// A label was queued, printed, dropped, undone or confirmed. A
+  /// confirmation carries the server's counts for that line; only the counts
+  /// are taken, the rest of the line stays as the list loaded it. A line the
+  /// list does not have — finished, until an undo took its last carpet
+  /// back — is added as the server sent it.
   void _onQueueChanged(LabelingQueueChanged event, Emitter<LabelingState> emit) {
     final confirmed = event.confirmedItem;
-    if (confirmed != null) {
+    if (confirmed != null && !_serverItems.any((i) => i.id == confirmed.id)) {
+      _serverItems = [..._serverItems, confirmed];
+    } else if (confirmed != null) {
       _serverItems = _serverItems
           .map((i) => i.id == confirmed.id
               ? i.copyWith(

@@ -19,4 +19,8 @@ abstract class LabelingRepository {
 
   /// The subset of [keys] the server has on record.
   Future<Either<Failure, Set<String>>> verifyPrintedLabels(List<String> keys);
+
+  /// Takes back the label printed with idempotency key [key]: the carpet
+  /// stops counting. Safe to repeat.
+  Future<Either<Failure, LabelUndoResult>> undoPrintedLabel(String key);
 }

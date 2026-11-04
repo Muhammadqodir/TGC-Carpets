@@ -78,10 +78,11 @@ class ProductionOperationsAnalyticsService
     }
 
     /**
-     * One row per account that printed labels. Counts 'produced' events
-     * only: scrap/correction events are bookkeeping by whoever fixed the
-     * line (often an admin), not output of a shift, and would show that
-     * person as a shift with negative production.
+     * One row per account that printed labels. Counts 'produced' events,
+     * less the prints the shift took back (printedOutput()): other
+     * scrap/correction events are bookkeeping by whoever fixed the line
+     * (often an admin), not output of a shift, and would show that person
+     * as a shift with negative production.
      *
      * Defects are put on the account that recorded the defect document,
      * which is the only person a defect event knows. If someone other
@@ -91,7 +92,7 @@ class ProductionOperationsAnalyticsService
     private function byShift(string $from, string $to): array
     {
         $daily = $this->dailyRows(
-            $this->eventsQuery($from, $to)->where('e.event_type', ProductionEvent::TYPE_PRODUCED),
+            $this->eventsQuery($from, $to)->where(fn ($q) => $this->printedOutput($q)),
             'e.user_id',
         );
 
@@ -129,7 +130,7 @@ class ProductionOperationsAnalyticsService
 
     /**
      * Output per period bucket per account that printed — the per-shift
-     * bars of the trend chart. 'produced' events only, like byShift(), so
+     * bars of the trend chart. The shift's printed output, like byShift(), so
      * the bars add up to the shift totals. Buckets are production days
      * (or ISO weeks / months of them).
      */
@@ -143,7 +144,7 @@ class ProductionOperationsAnalyticsService
         $bucket = "DATE_FORMAT(DATE_SUB(e.occurred_at, INTERVAL {$this->dayStartHour()} HOUR), '{$format}')";
 
         return $this->eventsQuery($from, $to)
-            ->where('e.event_type', ProductionEvent::TYPE_PRODUCED)
+            ->where(fn ($q) => $this->printedOutput($q))
             ->selectRaw(
                 "{$bucket} as label, e.user_id, "
                 . 'SUM(e.quantity) as total_quantity, ' . $this->sqmSum() . ' as total_sqm'
@@ -168,7 +169,7 @@ class ProductionOperationsAnalyticsService
     private function heatmap(string $from, string $to): array
     {
         return $this->eventsQuery($from, $to)
-            ->where('e.event_type', ProductionEvent::TYPE_PRODUCED)
+            ->where(fn ($q) => $this->printedOutput($q))
             ->selectRaw(
                 'e.user_id, WEEKDAY(e.occurred_at) as weekday, HOUR(e.occurred_at) as hour, '
                 . 'SUM(e.quantity) as total_quantity, ' . $this->sqmSum() . ' as total_sqm'
@@ -206,6 +207,20 @@ class ProductionOperationsAnalyticsService
         }
 
         return $query;
+    }
+
+    /**
+     * What a shift's labels added up to: its 'produced' events, less the
+     * prints it took back (see ProductionBatchService::undoLabelPrint).
+     * Other corrections stay out — they are someone fixing a line, not a
+     * shift's output.
+     */
+    private function printedOutput($query)
+    {
+        return $query->where('e.event_type', ProductionEvent::TYPE_PRODUCED)
+            ->orWhere(fn ($q) => $q
+                ->where('e.event_type', ProductionEvent::TYPE_CORRECTION)
+                ->where('e.reason', 'like', ProductionEvent::UNDO_REASON_PREFIX . '%'));
     }
 
     /** Net output, the same event types that make up produced_quantity. */

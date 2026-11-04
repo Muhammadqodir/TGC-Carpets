@@ -242,6 +242,161 @@ void main() {
     });
   });
 
+  group('undo', () {
+    test('a label not sent yet is dropped and never reaches the server', () async {
+      server.offline = true;
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+      final key = q.recentFor(shift1).single.key;
+      expect(q.localCountFor(9121), 1);
+
+      expect(await q.undo(key), LabelUndoOutcome.droppedUnsent);
+      expect(q.localCountFor(9121), 0);
+      expect(q.recentFor(shift1), isEmpty);
+
+      server.offline = false;
+      q.wake();
+      await settle();
+      expect(server.recordedKeys, isNot(contains(key)));
+      expect(server.undoCalls, isEmpty);
+      expect(q.entries, isEmpty);
+    });
+
+    test('a label on the server is taken back there, and the screen drops it at once', () async {
+      final q = newQueue();
+      await printOne(q, line());
+      await printOne(q, line());
+      await settle();
+      expect(server.counted, 2);
+      expect(q.entries, isEmpty, reason: 'both verified and gone from the queue');
+
+      server.offline = true;
+      final last = q.recentFor(shift1).first;
+      expect(await q.undo(last.key), LabelUndoOutcome.queued);
+      expect(q.localCountFor(9121), -1, reason: 'on screen at once, before the server');
+      expect(await q.undo(last.key), LabelUndoOutcome.unavailable, reason: 'not twice');
+
+      server.offline = false;
+      q.wake();
+      await settle();
+      expect(server.undoneKeys, {last.key});
+      expect(server.counted, 1);
+      expect(q.entries, isEmpty);
+      expect(q.localCountFor(9121), 0);
+      expect(q.recentFor(shift1).map((r) => r.key), isNot(contains(last.key)));
+    });
+
+    test('a label whose request is out right now is undone after it lands', () async {
+      server.hold = Completer<void>();
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+      final key = q.recentFor(shift1).single.key;
+
+      expect(await q.undo(key), LabelUndoOutcome.queued, reason: 'cannot be dropped: it may already be counted');
+      server.hold!.complete();
+      await settle();
+
+      expect(server.recordedKeys, contains(key));
+      expect(server.undoneKeys, {key});
+      expect(server.counted, 0);
+      expect(q.entries, isEmpty);
+    });
+
+    test('an undo survives closing the app', () async {
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+      server.offline = true;
+      final key = q.recentFor(shift1).single.key;
+      await q.undo(key);
+      q.dispose();
+      queues.remove(q);
+
+      server.offline = false;
+      final again = newQueue();
+      await settle();
+      expect(server.undoneKeys, {key});
+      expect(again.entries, isEmpty);
+      expect(again.recentFor(shift1), isEmpty, reason: 'still known as undone');
+    });
+
+    test('an undo the server refuses can be dropped, and the carpet counts again', () async {
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+      final key = q.recentFor(shift1).single.key;
+
+      server.refuseUndo = "Bu gilam allaqachon omborga qabul qilingan, bekor qilib bo'lmaydi.";
+      await q.undo(key);
+      await settle();
+      final failed = q.entries.single;
+      expect(failed.status, QueuedPrintStatus.failed);
+      expect(failed.lastError, contains('omborga'));
+      expect(q.localCountFor(9121), 0, reason: 'a refused undo takes nothing off');
+
+      await q.remove(failed.key);
+      expect(q.recentFor(shift1).single.key, key, reason: 'back on the undo list');
+      expect(server.counted, 1);
+    });
+
+    test('a taken-back label the server lost is not sent again', () async {
+      server.forgetOnVerify = true;
+      server.hold = Completer<void>();
+      final q = LabelPrintQueue(
+        repository: server,
+        prefs: prefs,
+        currentUserId: () => user,
+        verifyAfter: const Duration(hours: 1),
+        tick: const Duration(hours: 1),
+      )..start();
+      queues.add(q);
+      await printOne(q, line());
+      await settle();
+      final key = q.recentFor(shift1).single.key;
+      await q.undo(key);
+      server.hold!.complete();
+      await settle();
+      expect(server.undoneKeys, {key});
+
+      // A late verify finds the print gone; it must not come back.
+      server.calls.clear();
+      await q.verify();
+      await settle();
+      expect(server.calls, isEmpty);
+    });
+
+    test('a reprint offers nothing to take back, and other shifts see none of it', () async {
+      final q = newQueue();
+      await printOne(q, line(), reprint: true);
+      await printOne(q, line());
+      await settle();
+      expect(q.recentFor(shift1), hasLength(1));
+      expect(q.recentFor(shift2), isEmpty);
+    });
+  });
+
+  group('LabelingBloc undo', () {
+    test('taking back the last carpet of a finished line brings the line back', () async {
+      server.items = [line(id: 9121, produced: 3, planned: 4)];
+      server.producedBefore[9121] = 3;
+      final q = newQueue();
+      final bloc = LabelingBloc(repository: server, queue: q)..add(const LabelingLoadRequested());
+      await settle();
+
+      await printOne(q, line(id: 9121, produced: 3, planned: 4));
+      await settle();
+      expect((bloc.state as LabelingLoaded).items, isEmpty, reason: 'finished, off the list');
+
+      await q.undo(q.recentFor(shift1).single.key);
+      await settle();
+      final items = (bloc.state as LabelingLoaded).items;
+      expect(items.single.producedQuantity, 3);
+      await bloc.close();
+    });
+  });
+
   group('LabelingBloc', () {
     test('counts a print on screen at once, before the server answers', () async {
       server.offline = true;
@@ -354,6 +509,33 @@ class _FakeServerRepo implements LabelingRepository {
       counted -= keys.length;
     }
     return Right(keys.where(recordedKeys.contains).toSet());
+  }
+
+  final undoCalls = <String>[];
+  final undoneKeys = <String>{};
+  String? refuseUndo;
+
+  @override
+  Future<Either<Failure, LabelUndoResult>> undoPrintedLabel(String key) async {
+    undoCalls.add(key);
+    if (offline) return const Left(NetworkFailure('Serverga ulanib bo\'lmadi.'));
+    if (refuseUndo != null) return Left(ServerFailure(refuseUndo!, statusCode: 422));
+    final call = calls.where((c) => c.key == key && !c.reprint).firstOrNull;
+    if (call == null || !recordedKeys.contains(key)) return const Right(LabelUndoResult(status: 'not_found'));
+    if (!undoneKeys.add(key)) return const Right(LabelUndoResult(status: 'already_undone'));
+    counted--;
+    produced[call.itemId] = (produced[call.itemId] ?? 0) - 1;
+    return Right(LabelUndoResult(
+      status: 'undone',
+      item: LabelingItemEntity(
+        id: call.itemId,
+        batchId: 1323,
+        plannedQuantity: 4,
+        producedQuantity: produced[call.itemId]!,
+        variantId: 5984,
+        productName: '1568',
+      ),
+    ));
   }
 
   @override

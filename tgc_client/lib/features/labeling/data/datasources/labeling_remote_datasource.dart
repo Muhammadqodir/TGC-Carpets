@@ -24,6 +24,11 @@ abstract class LabelingRemoteDataSource {
 
   /// The subset of [keys] the server has on record.
   Future<Set<String>> verifyPrintedLabels(List<String> keys);
+
+  /// Takes back the label printed with idempotency key [key]. Throws a
+  /// [ServerException] on an answer that does not look like the server's,
+  /// so the queue sends it again; the server makes that safe.
+  Future<LabelUndoResult> undoPrintedLabel(String key);
 }
 
 class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
@@ -90,6 +95,29 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
         throw const ServerException(message: 'Server javobi noto\'g\'ri');
       }
       return recorded.map((k) => k.toString()).toSet();
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<LabelUndoResult> undoPrintedLabel(String key) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.printedLabelsUndo,
+        data: {'key': key},
+      );
+      final body = response.data;
+      final status = body is Map ? body['status'] : null;
+      final data = body is Map ? body['data'] : null;
+      if (status is! String || !LabelUndoResult.statuses.contains(status) ||
+          (data != null && data is! Map<String, dynamic>)) {
+        throw const ServerException(message: 'Server javobi noto\'g\'ri, qayta yuboriladi');
+      }
+      return LabelUndoResult(
+        status: status,
+        item: data == null ? null : LabelingItemModel.fromJson(data as Map<String, dynamic>),
+      );
     } on DioException catch (e) {
       _handleDioError(e);
     }

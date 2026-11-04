@@ -22,6 +22,14 @@ class ProductionEvent extends Model
      *   defect_quantity   == SUM(quantity) WHERE event_type = defect
      */
     const PRODUCED_TYPES = [self::TYPE_PRODUCED, self::TYPE_SCRAP, self::TYPE_CORRECTION];
+
+    /**
+     * Reason prefix of the correction that takes back an accidental label
+     * print, followed by that print's idempotency key. Unlike other
+     * corrections it is the shift's own output going down, so the shift
+     * analytics count it with the 'produced' events it cancels.
+     */
+    const UNDO_REASON_PREFIX = 'undo:';
     const DEFECT_TYPES   = [self::TYPE_DEFECT];
 
     protected $fillable = [

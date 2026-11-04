@@ -46,6 +46,10 @@ class LabelingRepositoryImpl implements LabelingRepository {
   Future<Either<Failure, Set<String>>> verifyPrintedLabels(List<String> keys) =>
       _guard(() => remoteDataSource.verifyPrintedLabels(keys));
 
+  @override
+  Future<Either<Failure, LabelUndoResult>> undoPrintedLabel(String key) =>
+      _guard(() => remoteDataSource.undoPrintedLabel(key));
+
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() call) async {
     try {
       return Right(await call());

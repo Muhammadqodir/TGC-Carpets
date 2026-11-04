@@ -385,6 +385,29 @@ class ProductionBatchController extends Controller
     }
 
     /**
+     * POST /production-batches-print-labels/undo
+     *
+     * Takes back a label printed by mistake, by the idempotency key it was
+     * printed with (see ProductionBatchService::undoLabelPrint). `status`:
+     * undone, already_undone (a resend), not_counted (a reprint or a print
+     * past the plan, which never counted) or not_found (the print never
+     * reached the server). `data` is the line as it now stands, when known.
+     */
+    public function undoPrintedLabel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'key' => ['required', 'uuid'],
+        ]);
+
+        $result = $this->service->undoLabelPrint($validated['key'], $request->user()->id);
+
+        return response()->json([
+            'status' => $result['status'],
+            'data'   => $result['item'] ? new ProductionBatchItemResource($result['item']) : null,
+        ]);
+    }
+
+    /**
      * GET /production-batches/scan?code={code}
      *
      * Two formats, resolved to the same response shape:

@@ -101,6 +101,8 @@ class ApiEndpoints {
   static const String labelingItems = '/production-batches-labeling-items';
   static const String printedLabelsVerify =
       '/production-batches-print-labels/verify';
+  static const String printedLabelsUndo =
+      '/production-batches-print-labels/undo';
 
   // Product Variants
   static const String productVariants = '/product-variants';

@@ -279,6 +279,117 @@ class PrintLabelCountingTest extends TestCase
         $this->assertStringContainsString('SKIPPED', Artisan::output());
     }
 
+    // ── Undo: a label printed by mistake ─────────────────────────────────────
+
+    public function test_undo_takes_the_carpet_back_and_keeps_the_ledger_add_up(): void
+    {
+        $line = $this->line(planned: 3);
+        $this->print($line);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key);
+        $this->assertSame(2, $line->fresh()->produced_quantity);
+
+        $this->undo($key)
+            ->assertOk()
+            ->assertJsonPath('status', 'undone')
+            ->assertJsonPath('data.id', $line->id)
+            ->assertJsonPath('data.produced_quantity', 1);
+
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+        $this->assertSame(1, (int) ProductionEvent::where('production_batch_item_id', $line->id)
+            ->whereIn('event_type', ProductionEvent::PRODUCED_TYPES)->sum('quantity'), 'events = counter');
+        $this->assertSame(
+            [ProductionUnit::STATUS_GOOD, ProductionUnit::STATUS_SCRAPPED],
+            ProductionUnit::where('production_batch_item_id', $line->id)->orderBy('id')->pluck('status')->all(),
+            'the undone label is the scrapped one',
+        );
+
+        // The app's queue resends after a lost answer: nothing changes.
+        $this->undo($key)->assertOk()->assertJsonPath('status', 'already_undone');
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+    }
+
+    public function test_undoing_the_print_that_completed_the_batch_reopens_it(): void
+    {
+        $line = $this->line(planned: 1);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key);
+        $this->assertSame(ProductionBatch::STATUS_COMPLETED, $line->productionBatch->fresh()->status);
+
+        $this->undo($key)->assertOk()->assertJsonPath('status', 'undone');
+
+        $batch = $line->productionBatch->fresh();
+        $this->assertSame(ProductionBatch::STATUS_IN_PROGRESS, $batch->status);
+        $this->assertNull($batch->completed_datetime);
+
+        // Printed again, it counts and completes the batch again.
+        $this->print($line)->assertJsonPath('counted', true);
+        $this->assertSame(ProductionBatch::STATUS_COMPLETED, $line->productionBatch->fresh()->status);
+    }
+
+    public function test_only_the_shift_that_printed_can_undo(): void
+    {
+        $line = $this->line(planned: 2);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key);
+
+        $this->undo($key, $this->shift2)->assertStatus(422)->assertJsonValidationErrors('key');
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+    }
+
+    public function test_an_old_print_cannot_be_undone(): void
+    {
+        $line = $this->line(planned: 2);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key, printedAt: now()->subHours(25)->toIso8601String());
+
+        $this->undo($key)->assertStatus(422)->assertJsonValidationErrors('key');
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+    }
+
+    public function test_a_carpet_already_received_or_shipped_cannot_be_undone(): void
+    {
+        $line = $this->line(planned: 2);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key);
+        ProductionUnit::where('production_batch_item_id', $line->id)->update(['status' => ProductionUnit::STATUS_SHIPPED]);
+
+        $this->undo($key)->assertStatus(422);
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+    }
+
+    public function test_a_print_that_never_counted_has_nothing_to_undo(): void
+    {
+        $line = $this->line(planned: 1);
+        $this->print($line);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key)->assertJsonPath('counted', false);   // past the plan
+
+        $this->undo($key)->assertOk()->assertJsonPath('status', 'not_counted');
+        $this->undo((string) Str::uuid())->assertOk()->assertJsonPath('status', 'not_found')->assertJsonPath('data', null);
+        $this->assertSame(1, $line->fresh()->produced_quantity);
+    }
+
+    public function test_an_undone_print_leaves_the_shift_analytics(): void
+    {
+        config(['analytics.production_day_start_hour' => 0]);
+        $line = $this->line(planned: 5);
+        $this->print($line);
+        $key = (string) Str::uuid();
+        $this->print($line, key: $key);
+        $this->undo($key)->assertOk();
+
+        $today = now()->toDateString();
+        $report = $this->actingAs(User::factory()->admin()->create(), 'sanctum')
+            ->getJson("/api/v1/analytics/production/operations?period_from={$today}&period_to={$today}")
+            ->assertOk()->json('data');
+
+        $shift = collect($report['by_shift'])->firstWhere('name', '1 SMENA (YORLIQ)');
+        $this->assertSame(1, $shift['total_quantity'], 'two printed, one taken back');
+        $this->assertSame(1, (int) collect($report['heatmap'])->sum('total_quantity'));
+        $this->assertSame(1, (int) collect($report['trend'])->sum('total_quantity'));
+    }
+
     private function line(int $planned, int $defect = 0): ProductionBatchItem
     {
         $batch = ProductionBatch::create([
@@ -308,6 +419,12 @@ class PrintLabelCountingTest extends TestCase
                 'printed_at'      => $printedAt,
             ])
             ->assertOk();
+    }
+
+    private function undo(string $key, ?User $by = null): TestResponse
+    {
+        return $this->actingAs($by ?? $this->shift1, 'sanctum')
+            ->postJson('/api/v1/production-batches-print-labels/undo', ['key' => $key]);
     }
 
     private function reconcileUnits(): string

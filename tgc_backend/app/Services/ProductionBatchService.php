@@ -10,7 +10,9 @@ use App\Models\ProductionBatchItem;
 use App\Models\ProductionEvent;
 use App\Models\ProductionUnit;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class ProductionBatchService
@@ -339,6 +341,160 @@ class ProductionBatchService
         ]);
 
         return ['item' => $freshItem, 'unit' => $unit, 'counted' => $counted];
+    }
+
+    /** How long after printing a label the shift can still take it back. */
+    public const UNDO_WINDOW_HOURS = 24;
+
+    /**
+     * Takes back a label printed by mistake, by the idempotency key it was
+     * printed with: the carpet stops counting as produced.
+     *
+     * The ledger stays append-only. A -1 'correction' event with reason
+     * "undo:{key}" cancels the 'produced' event, dated and attributed like
+     * it so the shift and the hour lose exactly that carpet; the counter
+     * goes down by one; the label's unit is marked scrapped (the worker
+     * throws the label away). A batch that the print completed goes back to
+     * in progress.
+     *
+     * Allowed only for the account that printed it, within
+     * UNDO_WINDOW_HOURS, and while the carpet is still on the floor (not
+     * received into the warehouse or shipped). Repeating an undo is a no-op,
+     * so the app's queue can resend it safely.
+     *
+     * @return array{status: 'undone'|'already_undone'|'not_counted'|'not_found', item: ?ProductionBatchItem}
+     */
+    public function undoLabelPrint(string $key, int $userId): array
+    {
+        $status = 'not_found';
+        $itemId = null;
+
+        DB::transaction(function () use ($key, $userId, &$status, &$itemId): void {
+            $status = 'not_found';
+            $itemId = null;
+
+            $event = ProductionEvent::where('idempotency_key', $key)->first();
+
+            if (! $event) {
+                // A reprint or a print past the plan never counted, so there
+                // is no carpet to take back.
+                $reprint = LabelReprint::where('idempotency_key', $key)->first();
+                if ($reprint) {
+                    $status = 'not_counted';
+                    $itemId = $reprint->production_batch_item_id;
+                }
+
+                return;
+            }
+
+            $itemId = $event->production_batch_item_id;
+
+            if ($event->event_type !== ProductionEvent::TYPE_PRODUCED) {
+                $status = 'not_counted';
+
+                return;
+            }
+
+            // Same lock order as incrementProducedQuantity(): the line first.
+            $locked = ProductionBatchItem::whereKey($itemId)->lockForUpdate()->first();
+            $reason = ProductionEvent::UNDO_REASON_PREFIX . $key;
+
+            if (ProductionEvent::where('production_batch_item_id', $itemId)
+                ->where('event_type', ProductionEvent::TYPE_CORRECTION)
+                ->where('reason', $reason)
+                ->exists()) {
+                $status = 'already_undone';
+
+                return;
+            }
+
+            if ((int) $event->user_id !== $userId) {
+                throw ValidationException::withMessages(['key' => [
+                    "Bu yorliqni boshqa smena chop etgan. Uni faqat o'sha smena bekor qila oladi.",
+                ]]);
+            }
+
+            if (Carbon::parse($event->occurred_at)->lt(now()->subHours(self::UNDO_WINDOW_HOURS))) {
+                throw ValidationException::withMessages(['key' => [
+                    'Yorliq ' . self::UNDO_WINDOW_HOURS . " soatdan oldin chop etilgan, endi bekor qilib bo'lmaydi.",
+                ]]);
+            }
+
+            if ($locked->produced_quantity <= 0) {
+                throw ValidationException::withMessages(['key' => [
+                    "Bu qatorda bekor qilinadigan gilam qolmagan (boshqa buyurtmaga o'tkazilgan bo'lishi mumkin).",
+                ]]);
+            }
+
+            // The unit minted with this print: same line, printer and second.
+            // Two prints in one second share these, so take one still on the
+            // floor.
+            $unit = ProductionUnit::where('production_batch_item_id', $itemId)
+                ->where('printed_by', $event->user_id)
+                ->where('printed_at', $event->occurred_at)
+                ->orderByRaw('status = ? DESC', [ProductionUnit::STATUS_GOOD])
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($unit && in_array($unit->status, [ProductionUnit::STATUS_RECEIVED, ProductionUnit::STATUS_SHIPPED], true)) {
+                throw ValidationException::withMessages(['key' => [
+                    $unit->status === ProductionUnit::STATUS_SHIPPED
+                        ? "Bu gilam allaqachon yuk xati bilan jo'natilgan, bekor qilib bo'lmaydi."
+                        : "Bu gilam allaqachon omborga qabul qilingan, bekor qilib bo'lmaydi.",
+                ]]);
+            }
+
+            $batch = ProductionBatch::lockForUpdate()->find($locked->production_batch_id);
+            $wasAllLabeled = $batch && ! $batch->items()
+                ->whereRaw('produced_quantity < (planned_quantity - defect_quantity)')
+                ->exists();
+
+            ProductionEvent::create([
+                'production_batch_item_id' => $itemId,
+                'event_type'               => ProductionEvent::TYPE_CORRECTION,
+                'quantity'                 => -1,
+                'occurred_at'              => $event->occurred_at,
+                'user_id'                  => $event->user_id,
+                'reason'                   => $reason,
+                'created_at'               => now(),
+            ]);
+            $locked->decrement('produced_quantity');
+
+            if ($unit && $unit->status === ProductionUnit::STATUS_GOOD) {
+                $unit->update(['status' => ProductionUnit::STATUS_SCRAPPED]);
+            }
+
+            // Only a batch this line's labels completed reopens: one closed
+            // by hand with lines still short stays closed.
+            if ($batch && $wasAllLabeled && $batch->status === ProductionBatch::STATUS_COMPLETED) {
+                $batch->update([
+                    'status'             => ProductionBatch::STATUS_IN_PROGRESS,
+                    'completed_datetime' => null,
+                ]);
+            }
+
+            $status = 'undone';
+
+            Log::info('production.label_print_undone', [
+                'production_batch_item_id' => $itemId,
+                'event_id'                 => $event->id,
+                'unit_id'                  => $unit?->id,
+                'user_id'                  => $userId,
+            ]);
+        });
+
+        $item = $itemId === null ? null : ProductionBatchItem::find($itemId)?->load([
+            'productionBatch',
+            'variant.productColor.product.productType',
+            'variant.productColor.product.productQuality',
+            'variant.productColor.color',
+            'variant.productSize',
+            'variant.productEdge',
+            'sourceOrderItem.order.client',
+        ]);
+
+        return ['status' => $status, 'item' => $item];
     }
 
     private function isDuplicateKey(QueryException $e): bool

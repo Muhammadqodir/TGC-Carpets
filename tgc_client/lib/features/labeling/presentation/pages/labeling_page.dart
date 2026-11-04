@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -18,6 +19,7 @@ import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../data/services/label_print_queue.dart';
 import '../../data/services/print_history_service.dart';
 import '../widgets/label_print_queue_indicator.dart';
+import '../widgets/label_undo_sheet.dart';
 import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
@@ -393,6 +395,73 @@ class _LabelingViewState extends State<_LabelingView> {
       _printInProgress.remove(item.id);
       if (mounted) setState(() => _renderingItems.remove(item.id));
       bloc.add(LabelingPrintCompleted(itemId: item.id));
+      if (printed && queued.countsLocally) _offerUndo(queued);
+    }
+  }
+
+  // ── Undo ──────────────────────────────────────────────────────────────────
+  //
+  // A tap on the wrong card prints a label and counts a carpet that was
+  // never made. Three ways back, all through LabelPrintQueue.undo: the
+  // snackbar right after the print, the list of recent labels in the app
+  // bar, and Ctrl/⌘+Z for the last one.
+
+  /// "Printed — undo?" for a few seconds after each carpet label.
+  void _offerUndo(QueuedLabelPrint queued) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text('Chop etildi: ${queued.productName} ${queued.sizeLabel ?? ''}'),
+        action: SnackBarAction(
+          label: 'Bekor qilish',
+          textColor: Colors.white,
+          onPressed: () => _undo(queued.key, '${queued.productName} ${queued.sizeLabel ?? ''}'),
+        ),
+      ));
+  }
+
+  Future<void> _undo(String key, String label) async {
+    final outcome = await _printQueue.undo(key);
+    if (!mounted) return;
+    final done = outcome != LabelUndoOutcome.unavailable;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        backgroundColor: done ? AppColors.success : AppColors.warning,
+        duration: Duration(seconds: done ? 6 : 3),
+        content: Text(done
+            ? 'Bekor qilindi: $label. Chop etilgan yorliqni yo\'q qiling.'
+            : 'Bu yorliqni bekor qilib bo\'lmaydi (allaqachon bekor qilingan).'),
+      ));
+  }
+
+  /// The app-bar list of this shift's recent labels.
+  Future<void> _pickUndo() async {
+    final userId = _userId;
+    if (userId == null) return;
+    final picked = await LabelUndoSheet.show(context, queue: _printQueue, userId: userId);
+    if (picked == null || !mounted) return;
+    if (await confirmLabelUndo(context, picked) && mounted) {
+      await _undo(picked.key, '${picked.productName} ${picked.sizeLabel ?? ''}');
+    }
+  }
+
+  /// Ctrl/⌘+Z: the last label, after asking.
+  Future<void> _undoLast() async {
+    final userId = _userId;
+    if (userId == null) return;
+    final recent = _printQueue.recentFor(userId);
+    if (recent.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bekor qilinadigan yorliq yo\'q.')),
+      );
+      return;
+    }
+    final last = recent.first;
+    if (await confirmLabelUndo(context, last) && mounted) {
+      await _undo(last.key, '${last.productName} ${last.sizeLabel ?? ''}');
     }
   }
 
@@ -692,125 +761,141 @@ class _LabelingViewState extends State<_LabelingView> {
         }
       },
       builder: (context, state) {
-        return Scaffold(
-          backgroundColor: const Color(0xFFE8ECEF),
-          appBar: AppBar(
-            title: const Text('Yorliqlash'),
-            titleSpacing: 0,
-            leading: IconButton(
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedArrowLeft01,
-                strokeWidth: 2,
-              ),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            actions: [
-              LabelPrintQueueIndicator(queue: _printQueue),
-              IconButton(
-                icon: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedSettings01,
-                  strokeWidth: 2,
+        // Ctrl/⌘+Z on the printing PCs. A focused text field keeps its own
+        // undo: its shortcut sits deeper and wins.
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undoLast,
+            const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undoLast,
+          },
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              backgroundColor: const Color(0xFFE8ECEF),
+              appBar: AppBar(
+                title: const Text('Yorliqlash'),
+                titleSpacing: 0,
+                leading: IconButton(
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowLeft01,
+                    strokeWidth: 2,
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
                 ),
-                tooltip: 'Sozlamalar',
-                onPressed: _showSettingsDialog,
-              ),
-              IconButton(
-                icon: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedClock01,
-                  strokeWidth: 2,
-                ),
-                tooltip: 'Chop etish tarixi',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => PrintHistoryPage(
-                        historyService: _historyService,
-                      ),
+                actions: [
+                  LabelPrintQueueIndicator(queue: _printQueue),
+                  IconButton(
+                    icon: const Icon(Icons.undo_rounded),
+                    tooltip: 'Chop etishni bekor qilish (Ctrl+Z)',
+                    onPressed: _pickUndo,
+                  ),
+                  IconButton(
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedSettings01,
+                      strokeWidth: 2,
                     ),
-                  );
-                },
+                    tooltip: 'Sozlamalar',
+                    onPressed: _showSettingsDialog,
+                  ),
+                  IconButton(
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedClock01,
+                      strokeWidth: 2,
+                    ),
+                    tooltip: 'Chop etish tarixi',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PrintHistoryPage(
+                            historyService: _historyService,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedReload,
+                      strokeWidth: 2,
+                    ),
+                    tooltip: 'Yangilash',
+                    onPressed: _refresh,
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedReload,
-                  strokeWidth: 2,
-                ),
-                tooltip: 'Yangilash',
-                onPressed: _refresh,
-              ),
-            ],
-          ),
-          body: Stack(
-            // Clip.none ensures off-screen positioned labels are still painted
-            // so that RepaintBoundary.toImage() can capture them.
-            clipBehavior: Clip.none,
-            children: [
-              // ── Main UI column ─────────────────────────────────────────
-              Positioned.fill(
-                child: Column(
-                  children: [
-                    Expanded(child: _buildContent(state)),
-                  ],
-                ),
-              ),
-
-              // ── Off-screen labels rendered on-demand (only while printing) ─
-              ..._renderingItems.values.map((item) {
-                final key = _keyFor(item.id);
-                final barcodeValue = labelBarcodeValue(
-                  stored: item.variantBarcode,
-                  variantId: item.variantId,
-                );
-                // NOT switched to item.unitSerial here on purpose: _onPrint()
-                // below renders and sends to the printer optimistically,
-                // BEFORE the print-label API response (which carries the new
-                // serial) resolves — the network call and the physical print
-                // are decoupled today. Wiring the serial into the printed QR
-                // needs that sequencing reworked first (await the response,
-                // then render), which is exactly why
-                // instructions/phase-3/02-production-units-serials.md stages
-                // "print the serial" as a later, separate client release
-                // (§7 step 4) rather than bundling it with the backend
-                // change. Backend still mints/tracks a real unit serial per
-                // print in the background regardless — see
-                // ProductionBatchService::incrementProducedQuantity().
-                final qrData = buildLabelQr(batchId: item.batchId, itemId: item.id);
-
-                return Positioned(
-                  // Positioned far off-screen so the label never flashes
-                  // over the UI, but is still painted (Clip.none) so that
-                  // RepaintBoundary.toImage() can capture it.
-                  left: -100000,
-                  top: -100000,
-                  child: SizedBox(
-                    width: _config.widthPx.toDouble(),
-                    height: _config.heightPx.toDouble(),
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: RepaintBoundary(
-                        key: key,
-                        child: getLabelWidget(
-                          style: _labelStyle,
-                          productName: item.productName,
-                          quality: item.qualityName ?? '',
-                          type: item.productTypeName ?? '',
-                          color: item.colorName ?? '',
-                          sizeLabel: item.sizeLabel,
-                          edgeCode: item.edgeCode,
-                          barcodeValue: barcodeValue,
-                          qrData: qrData,
-                          printCode: buildLabelPrintCode(
-                            shift: _shift,
-                            clientId: item.clientId,
-                            printedAt: DateTime.now(),
+              body: Stack(
+                // Clip.none ensures off-screen positioned labels are still painted
+                // so that RepaintBoundary.toImage() can capture them.
+                clipBehavior: Clip.none,
+                children: [
+                  // ── Main UI column ─────────────────────────────────────────
+                  Positioned.fill(
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildContent(state)),
+                      ],
+                    ),
+                  ),
+    
+                  // ── Off-screen labels rendered on-demand (only while printing) ─
+                  ..._renderingItems.values.map((item) {
+                    final key = _keyFor(item.id);
+                    final barcodeValue = labelBarcodeValue(
+                      stored: item.variantBarcode,
+                      variantId: item.variantId,
+                    );
+                    // NOT switched to item.unitSerial here on purpose: _onPrint()
+                    // below renders and sends to the printer optimistically,
+                    // BEFORE the print-label API response (which carries the new
+                    // serial) resolves — the network call and the physical print
+                    // are decoupled today. Wiring the serial into the printed QR
+                    // needs that sequencing reworked first (await the response,
+                    // then render), which is exactly why
+                    // instructions/phase-3/02-production-units-serials.md stages
+                    // "print the serial" as a later, separate client release
+                    // (§7 step 4) rather than bundling it with the backend
+                    // change. Backend still mints/tracks a real unit serial per
+                    // print in the background regardless — see
+                    // ProductionBatchService::incrementProducedQuantity().
+                    final qrData = buildLabelQr(batchId: item.batchId, itemId: item.id);
+    
+                    return Positioned(
+                      // Positioned far off-screen so the label never flashes
+                      // over the UI, but is still painted (Clip.none) so that
+                      // RepaintBoundary.toImage() can capture it.
+                      left: -100000,
+                      top: -100000,
+                      child: SizedBox(
+                        width: _config.widthPx.toDouble(),
+                        height: _config.heightPx.toDouble(),
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: RepaintBoundary(
+                            key: key,
+                            child: getLabelWidget(
+                              style: _labelStyle,
+                              productName: item.productName,
+                              quality: item.qualityName ?? '',
+                              type: item.productTypeName ?? '',
+                              color: item.colorName ?? '',
+                              sizeLabel: item.sizeLabel,
+                              edgeCode: item.edgeCode,
+                              barcodeValue: barcodeValue,
+                              qrData: qrData,
+                              printCode: buildLabelPrintCode(
+                                shift: _shift,
+                                clientId: item.clientId,
+                                printedAt: DateTime.now(),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              }),
-            ],
+                    );
+                  }),
+                ],
+              ),
+            ),
           ),
         );
       },
