@@ -63,6 +63,7 @@ class ProductionBatchItemResource extends JsonResource
                                         'id'           => $this->variant->productColor->product->productType->id,
                                         'type'         => $this->variant->productColor->product->productType->type,
                                         'is_printable' => (bool) $this->variant->productColor->product->productType->is_printable,
+                                        'has_variable_length' => (bool) $this->variant->productColor->product->productType->has_variable_length,
                                     ]
                                     : null,
                                 'quality_name'    => $this->variant->productColor->product->relationLoaded('productQuality') && $this->variant->productColor->product->productQuality

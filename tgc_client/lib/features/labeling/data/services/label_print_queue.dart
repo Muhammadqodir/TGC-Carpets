@@ -40,6 +40,8 @@ class QueuedLabelPrint {
     required this.printedAt,
     required this.productName,
     this.sizeLabel,
+    this.carpetNumber,
+    this.lengthCm,
     this.status = QueuedPrintStatus.printing,
     this.attempts = 0,
     this.lastError,
@@ -63,6 +65,14 @@ class QueuedLabelPrint {
   final String productName;
   final String? sizeLabel;
 
+  /// The unique number printed on this label. Null on labels queued before
+  /// labels had numbers.
+  final String? carpetNumber;
+
+  /// The real length printed on a Kovrolin label, in cm. Null for a
+  /// fixed-size carpet: it counts at its size's length.
+  final int? lengthCm;
+
   /// Set on an undo: the key of the label it takes back. Sent in queue
   /// order like a print, so it always reaches the server after that label.
   final String? undoes;
@@ -84,6 +94,8 @@ class QueuedLabelPrint {
         'printed_at': printedAt.toIso8601String(),
         'product_name': productName,
         'size_label': sizeLabel,
+        if (carpetNumber != null) 'carpet_number': carpetNumber,
+        if (lengthCm != null) 'length_cm': lengthCm,
         'status': status.name,
         'attempts': attempts,
         'last_error': lastError,
@@ -101,6 +113,8 @@ class QueuedLabelPrint {
         printedAt: DateTime.parse(json['printed_at'] as String),
         productName: json['product_name'] as String? ?? '',
         sizeLabel: json['size_label'] as String?,
+        carpetNumber: json['carpet_number'] as String?,
+        lengthCm: json['length_cm'] as int?,
         status: QueuedPrintStatus.values.asNameMap()[json['status']] ?? QueuedPrintStatus.pending,
         attempts: json['attempts'] as int? ?? 0,
         lastError: json['last_error'] as String?,
@@ -317,6 +331,7 @@ class LabelPrintQueue {
     required LabelingItemEntity item,
     required int userId,
     bool reprint = false,
+    String? carpetNumber,
   }) =>
       _hold(QueuedLabelPrint(
         key: const Uuid().v4(),
@@ -328,6 +343,8 @@ class LabelPrintQueue {
         printedAt: _clock(),
         productName: item.productName,
         sizeLabel: item.sizeLabel,
+        carpetNumber: carpetNumber,
+        lengthCm: item.actualLengthCm,
       ));
 
   /// [hold] for a reprint from the print history, which has no line counts.
@@ -337,6 +354,8 @@ class LabelPrintQueue {
     required int userId,
     required String productName,
     String? sizeLabel,
+    String? carpetNumber,
+    int? lengthCm,
   }) =>
       _hold(QueuedLabelPrint(
         key: const Uuid().v4(),
@@ -348,6 +367,8 @@ class LabelPrintQueue {
         printedAt: _clock(),
         productName: productName,
         sizeLabel: sizeLabel,
+        carpetNumber: carpetNumber,
+        lengthCm: lengthCm,
       ));
 
   Future<QueuedLabelPrint> _hold(QueuedLabelPrint entry) async {
@@ -493,6 +514,8 @@ class LabelPrintQueue {
       idempotencyKey: entry.key,
       reprint: entry.reprint,
       printedAt: entry.printedAt,
+      carpetNumber: entry.carpetNumber,
+      lengthCm: entry.lengthCm,
     );
     _inFlightKey = null;
 

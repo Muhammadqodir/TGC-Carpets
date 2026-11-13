@@ -23,6 +23,7 @@ class LabelingItemModel extends LabelingItemEntity {
     super.qualityName,
     super.productTypeName,
     super.isTypePrintable = true,
+    super.hasVariableLength = false,
     super.edgeCode,
     super.unitSerial,
   });
@@ -63,6 +64,7 @@ class LabelingItemModel extends LabelingItemEntity {
       qualityName:     productMap?['quality_name'] as String?,
       productTypeName: productTypeMap?['type'] as String?,
       isTypePrintable: productTypeMap?['is_printable'] as bool? ?? true,
+      hasVariableLength: productTypeMap?['has_variable_length'] as bool? ?? false,
       edgeCode:        edgeMap?['code'] as String?,
       unitSerial:      unitSerial,
     );

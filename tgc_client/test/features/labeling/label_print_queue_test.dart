@@ -10,6 +10,7 @@ import 'package:tgc_client/core/error/exceptions.dart';
 import 'package:tgc_client/core/error/failures.dart';
 import 'package:tgc_client/features/labeling/data/datasources/labeling_remote_datasource.dart';
 import 'package:tgc_client/features/labeling/data/services/label_print_queue.dart';
+import 'package:tgc_client/features/labeling/domain/entities/carpet_number_block.dart';
 import 'package:tgc_client/features/labeling/domain/entities/label_print_result.dart';
 import 'package:tgc_client/features/labeling/domain/entities/labeling_item_entity.dart';
 import 'package:tgc_client/features/labeling/domain/repositories/labeling_repository.dart';
@@ -77,6 +78,82 @@ void main() {
       q.dispose();
     }
     queues.clear();
+  });
+
+  group('LabelPrintQueue carpet numbers', () {
+    test('a label held offline sends its number after a restart, and every resend repeats it', () async {
+      server.offline = true;
+      final first = newQueue();
+      final held = await first.hold(item: line(), userId: shift1, carpetNumber: '210000000010');
+      await first.release(held.key);
+      await settle();
+
+      first.dispose();
+      queues.remove(first);
+
+      server.offline = false;
+      newQueue();
+      await settle();
+
+      expect(server.counted, 1);
+      expect(server.sentNumbers, everyElement('210000000010'));
+    });
+
+    test('a label queued before labels had numbers still goes through', () async {
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+
+      expect(server.counted, 1);
+      expect(server.sentNumbers, everyElement(isNull));
+    });
+  });
+
+  group('LabelPrintQueue carpet lengths', () {
+    test('a Kovrolin length held offline survives a restart and every resend repeats it', () async {
+      server.offline = true;
+      final first = newQueue();
+      final roll = line().copyWith(actualLengthCm: 2870);
+      final held = await first.hold(item: roll, userId: shift1, carpetNumber: '210000000010');
+      expect(held.sizeLabel, '200×2870');
+      await first.release(held.key);
+      await settle();
+
+      first.dispose();
+      queues.remove(first);
+
+      server.offline = false;
+      newQueue();
+      await settle();
+
+      expect(server.counted, 1);
+      expect(server.sentLengths, isNotEmpty);
+      expect(server.sentLengths, everyElement(2870));
+    });
+
+    test('a fixed-size carpet sends no length', () async {
+      final q = newQueue();
+      await printOne(q, line());
+      await settle();
+
+      expect(server.sentLengths, everyElement(isNull));
+    });
+
+    test('a history reprint repeats the length on its label', () async {
+      final q = newQueue();
+      final held = await q.holdReprint(
+        batchId: 1323,
+        itemId: 9121,
+        userId: shift1,
+        productName: '1568',
+        sizeLabel: '200×3120',
+        lengthCm: 3120,
+      );
+      await q.release(held.key);
+      await settle();
+
+      expect(server.sentLengths, everyElement(3120));
+    });
   });
 
   group('LabelPrintQueue', () {
@@ -461,6 +538,12 @@ class _FakeServerRepo implements LabelingRepository {
   bool forgetOnVerify = false;
   Completer<void>? hold;
   final verified = <String>[];
+  final sentNumbers = <String?>[];
+  final sentLengths = <int?>[];
+
+  @override
+  Future<Either<Failure, CarpetNumberBlock>> requestCarpetNumberBlock() async =>
+      const Left(NetworkFailure('Serverga ulanib bo\'lmadi.'));
 
   @override
   Future<Either<Failure, LabelPrintResult>> printLabel({
@@ -469,8 +552,12 @@ class _FakeServerRepo implements LabelingRepository {
     required String idempotencyKey,
     bool reprint = false,
     DateTime? printedAt,
+    String? carpetNumber,
+    int? lengthCm,
   }) async {
+    sentLengths.add(lengthCm);
     calls.add(_Call(idempotencyKey, itemId, reprint, printedAt));
+    sentNumbers.add(carpetNumber);
     if (hold != null && !hold!.isCompleted) await hold!.future;
     if (offline) return const Left(NetworkFailure('Serverga ulanib bo\'lmadi.'));
     if (notFoundItems.contains(itemId)) return const Left(ServerFailure('Not found', statusCode: 404));

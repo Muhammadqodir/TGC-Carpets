@@ -24,6 +24,16 @@ void main() {
       expect(server.bodies[0], {'idempotency_key': 'k1'});
       expect(server.bodies[1], {'idempotency_key': 'k2', 'reprint': true});
     });
+
+    test('sends a Kovrolin roll\'s real length in cm, and nothing for other carpets', () async {
+      final server = _FakeServer();
+      final dio = Dio(BaseOptions(baseUrl: 'https://erp.test/api/v1'))..httpClientAdapter = server;
+      final source = LabelingRemoteDataSourceImpl(dio);
+
+      await source.printLabel(batchId: 1323, itemId: 9121, idempotencyKey: 'k1', lengthCm: 2870);
+
+      expect(server.bodies[0], {'idempotency_key': 'k1', 'length_cm': 2870});
+    });
   });
 
   group('scan screen', () {

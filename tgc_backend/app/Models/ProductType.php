@@ -14,10 +14,11 @@ class ProductType extends Model
     const STATUS_ACTIVE   = 'active';
     const STATUS_ARCHIVED = 'archived';
 
-    protected $fillable = ['type', 'status', 'is_printable'];
+    protected $fillable = ['type', 'status', 'is_printable', 'has_variable_length'];
 
     protected $casts = [
-        'is_printable' => 'boolean',
+        'is_printable'        => 'boolean',
+        'has_variable_length' => 'boolean',
     ];
 
     public function products(): HasMany

@@ -1,12 +1,9 @@
-import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:usb_label_print/usb_label_print.dart';
 
-import '../../../domain/product_barcode.dart';
+import 'label_layout_80_50.dart';
 
-/// A fully parameterised label widget that renders at [config.widthPx] ×
-/// [config.heightPx] logical pixels — the exact dimensions required by the
-/// thermal printer.
+/// A fully parameterised label widget that renders on a fixed canvas, 80 × 50
+/// mm at 300 DPI. The layout itself is in [Label8050Layout].
 ///
 /// For screen preview, wrap this with [FittedBox] inside a sized container:
 /// ```dart
@@ -26,6 +23,7 @@ class PrintLabel7050 extends StatelessWidget {
     super.key,
     required this.barcodeValue,
     required this.qrData,
+    this.carpetBarcode,
     this.productName,
     this.quality,
     this.type,
@@ -34,9 +32,6 @@ class PrintLabel7050 extends StatelessWidget {
     this.edgeCode,
     this.printCode,
   });
-
-  /// Fixed internal canvas: 80 × 50 mm at 300 DPI.
-  static const _kConfig = LabelConfig(widthMm: 80, heightMm: 50, dpi: 300);
 
   /// Human-readable product name / model shown in the spec section.
   final String? productName;
@@ -56,210 +51,38 @@ class PrintLabel7050 extends StatelessWidget {
   /// Edge code (e.g. "R").
   final String? edgeCode;
 
-  /// Product barcode (e.g. "2984200000429"). Printed as EAN-13 when it is
-  /// one, so shop scanners and systems read it as a normal retail barcode.
+  /// Product barcode (e.g. "2984200000429"), printed as a plain Code 128.
   final String barcodeValue;
+
+  /// The unique number of this one carpet, printed as a second Code 128.
+  final String? carpetBarcode;
 
   /// Small code printed vertically on the right edge, e.g. "S_123_04_14 15.59"
   /// (see label_print_code.dart). Left off when null.
   final String? printCode;
 
-  /// Data encoded into the QR code — format recommended: "<docId>/<variantId>".
+  /// The text scanned from the label, printed as a Data Matrix.
+  /// See label_qr_format.dart.
   final String qrData;
 
   @override
   Widget build(BuildContext context) {
-    final w = _kConfig.widthPx.toDouble();
-    final h = _kConfig.heightPx.toDouble();
-    final pad = w * 0.015;
-    final specFontSize = h * 0.125;
-    // The barcode digits and the print code share one size.
-    final smallTextStyle = TextStyle(
-      fontSize: h * 0.045,
-      fontWeight: FontWeight.bold,
-      color: Colors.black,
-    );
-
-    return FittedBox(
-      fit: BoxFit.contain,
-      child: Container(
-      width: w,
-      height: h,
-      color: Colors.white,
-      padding: EdgeInsets.all(pad * 1.5),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: pad),
-                          _SpecRow(
-                            label: 'Quality',
-                            value: quality ?? '—',
-                            fontSize: specFontSize,
-                          ),
-                          _SpecRow(
-                            label: 'Design',
-                            value: productName ?? '—',
-                            fontSize: specFontSize,
-                            isBold: true,
-                          ),
-                          _SpecRow(
-                            label: 'Size',
-                            value: edgeCode != null
-                                ? '${sizeLabel ?? '—'} $edgeCode'
-                                : sizeLabel ?? '—',
-                            fontSize: specFontSize,
-                            isBold: true,
-                          ),
-                          _SpecRow(
-                            label: 'Color',
-                            value: color ?? '—',
-                            fontSize: specFontSize,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (printCode != null) ...[
-                      Center(
-                        child: RotatedBox(
-                          quarterTurns: 3, // reads bottom to top
-                          child: Text(
-                            printCode!,
-                            maxLines: 1,
-                            softWrap: false,
-                            style: smallTextStyle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: h * 0.27,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: h * 0.27,
-                        child: BarcodeWidget(
-                          data: barcodeValue,
-                          barcode: isEan13(barcodeValue)
-                              ? Barcode.ean13()
-                              : Barcode.code128(),
-                          // White margins scanners need: ~11 bar widths
-                          // from the label edge, ~7 before the QR code.
-                          padding: EdgeInsets.only(
-                            left: h * 0.045,
-                            right: h * 0.09,
-                          ),
-                          drawText: true,
-                          textPadding: h * 0.018,
-                          style: smallTextStyle,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: pad),
-                    SizedBox(
-                      height: h * 0.276,
-                      width: h * 0.276,
-                      child: RotatedBox(
-                        quarterTurns: 1,
-                        child: BarcodeWidget(
-                          data: qrData,
-                          barcode: Barcode.qrCode(),
-                          drawText: false,
-                          textPadding: h * 0.018,
-                          style: TextStyle(
-                            fontSize: h * 0.055,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // ── Barcode ───────────────────────────────────────────────────
-            ],
-          ),
-        ],
+    return Label8050Layout(
+      barcodeValue: barcodeValue,
+      scanData: qrData,
+      carpetBarcode: carpetBarcode,
+      specLabels: const ['Quality', 'Design', 'Size', 'Color'],
+      specLabelStyle: const Label8050CaptionStyle(
+        width: 177,
+        fontSize: 48,
+        lineHeight: 1.1,
       ),
-      ),
-    );
-  }
-}
-
-// ── Internal spec row ─────────────────────────────────────────────────────────
-
-class _SpecRow extends StatelessWidget {
-  const _SpecRow({
-    required this.label,
-    required this.value,
-    required this.fontSize,
-    this.isBold = false,
-  });
-
-  final String label;
-  final String value;
-  final double fontSize;
-  final bool isBold;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: fontSize * 0.26),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          SizedBox(
-            width: fontSize * 2.4,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.visible,
-              style: TextStyle(
-                fontSize: fontSize * 0.65,
-                height: 1.1,
-              ),
-            ),
-          ),
-          Text(
-            ':',
-            style: TextStyle(
-              fontSize: fontSize * 0.78,
-              height: 1.1,
-            ), // gap between label and value
-          ),
-          SizedBox(width: fontSize * 0.1), // extra gap for readability
-          Expanded(
-            child: Text(
-              value.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: fontSize,
-                height: 1,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ],
-      ),
+      productName: productName,
+      quality: quality,
+      color: color,
+      sizeLabel: sizeLabel,
+      edgeCode: edgeCode,
+      printCode: printCode,
     );
   }
 }

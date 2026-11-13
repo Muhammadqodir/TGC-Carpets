@@ -1,4 +1,5 @@
-/// The product barcode printed on every label: an EAN-13, digits only.
+/// The product barcode number on every label: EAN-13 digits, drawn as a plain
+/// Code 128 since the labels were made compact.
 ///
 /// Mirrors `ProductVariant::barcodeFor` on the backend. Some clients' systems
 /// accept digits only, so this replaced "TGC-00000042". TGC has no GS1 company

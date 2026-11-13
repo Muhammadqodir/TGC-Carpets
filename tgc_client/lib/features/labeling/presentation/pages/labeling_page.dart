@@ -17,13 +17,16 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../data/services/carpet_number_pool.dart';
 import '../../data/services/label_print_queue.dart';
+import '../../domain/carpet_number.dart';
 import '../../data/services/print_history_service.dart';
 import '../widgets/label_print_queue_indicator.dart';
 import '../widgets/label_undo_toast.dart';
 import '../widgets/client_filter_sidebar.dart';
 import '../widgets/machine_filter_sidebar.dart';
 import '../widgets/size_filter_sidebar.dart';
+import '../widgets/carpet_length_dialog.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/label_print_code.dart';
 import '../../domain/label_qr_format.dart';
@@ -154,6 +157,9 @@ class _LabelingViewState extends State<_LabelingView> {
   // ── Items currently being rendered off-screen (only while printing) ───────
   final Map<int, LabelingItemEntity> _renderingItems = {};
 
+  // ── The carpet number each of those labels prints ─────────────────────────
+  final Map<int, String> _renderingNumbers = {};
+
   // ── Tracks previous loaded count to detect when the list empties ──────────
   int _lastItemCount = 0;
 
@@ -180,6 +186,7 @@ class _LabelingViewState extends State<_LabelingView> {
   final _printerService = PrinterService();
   final _historyService = sl<PrintHistoryService>();
   final _printQueue = sl<LabelPrintQueue>();
+  final _carpetNumbers = sl<CarpetNumberPool>();
 
   int? get _userId {
     final auth = sl<AuthBloc>().state;
@@ -191,6 +198,9 @@ class _LabelingViewState extends State<_LabelingView> {
     super.initState();
     context.read<LabelingBloc>().add(const LabelingLoadRequested());
     _loadSettings().then((_) => _loadPrinters());
+    // Only PCs that print ever hold numbers, and they get them before the
+    // first tap, while the network is up.
+    _carpetNumbers.topUp();
   }
 
   Future<void> _loadSettings() async {
@@ -262,14 +272,14 @@ class _LabelingViewState extends State<_LabelingView> {
     final machineGroups = <String, List<LabelingItemEntity>>{};
     for (final item in printableItems) {
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
+      if (_selectedSize != null && item.nominalSizeLabel != _selectedSize) continue;
       machineGroups.putIfAbsent(item.machineName ?? '—', () => []).add(item);
     }
 
     final clientGroups = <String, List<LabelingItemEntity>>{};
     for (final item in printableItems) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) continue;
+      if (_selectedSize != null && item.nominalSizeLabel != _selectedSize) continue;
       clientGroups.putIfAbsent(item.clientName ?? '—', () => []).add(item);
     }
 
@@ -277,13 +287,13 @@ class _LabelingViewState extends State<_LabelingView> {
     for (final item in printableItems) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) continue;
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) continue;
-      sizeGroups.putIfAbsent(item.sizeLabel, () => []).add(item);
+      sizeGroups.putIfAbsent(item.nominalSizeLabel, () => []).add(item);
     }
 
     final displayed = printableItems.where((item) {
       if (_selectedMachine != null && (item.machineName ?? '—') != _selectedMachine) return false;
       if (_selectedClient != null && (item.clientName ?? '—') != _selectedClient) return false;
-      if (_selectedSize != null && item.sizeLabel != _selectedSize) return false;
+      if (_selectedSize != null && item.nominalSizeLabel != _selectedSize) return false;
       return true;
     }).toList(growable: false);
 
@@ -335,20 +345,68 @@ class _LabelingViewState extends State<_LabelingView> {
   ///
   /// [reprint]: a replacement for a torn or misprinted label, recorded on the
   /// server but not counted as a carpet.
+  /// The real length last typed for each line, in cm, offered again for its
+  /// next roll. Only for this session: a new shift measures afresh.
+  final Map<int, int> _lastLengthCm = {};
+
   Future<void> _onPrint(LabelingItemEntity item, {bool reprint = false}) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
     final userId = _userId;
     if (userId == null) return;
     if (!_printInProgress.add(item.id)) return;
 
+    // A Kovrolin roll's length differs every time: it is measured and typed
+    // in, then printed on the label and counted by the server.
+    if (item.hasVariableLength) {
+      final lengthCm = await showCarpetLengthDialog(
+        context,
+        item: item,
+        lastCm: _lastLengthCm[item.id],
+      );
+      if (lengthCm == null || !mounted) {
+        _printInProgress.remove(item.id);
+        return;
+      }
+      _lastLengthCm[item.id] = lengthCm;
+      item = item.copyWith(actualLengthCm: lengthCm);
+    }
+
     final bloc = context.read<LabelingBloc>();
     bloc.add(LabelingPrintStarted(itemId: item.id));
-    final queued = await _printQueue.hold(item: item, userId: userId, reprint: reprint);
+
+    final number = await _carpetNumbers.take();
+    if (number == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Yorliq raqamlari tugadi. Internetga ulanib, qayta urinib ko\'ring.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      _printInProgress.remove(item.id);
+      bloc.add(LabelingPrintCompleted(itemId: item.id));
+      return;
+    }
+    _warnIfNumbersRunLow();
+
+    final queued = await _printQueue.hold(
+      item: item,
+      userId: userId,
+      reprint: reprint,
+      carpetNumber: number,
+    );
     var printed = false;
 
     try {
       // Add item to off-screen rendering map, wait for the frame to paint it
-      if (mounted) setState(() => _renderingItems[item.id] = item);
+      if (mounted) {
+        setState(() {
+          _renderingItems[item.id] = item;
+          _renderingNumbers[item.id] = number;
+        });
+      }
       await WidgetsBinding.instance.endOfFrame;
 
       final key = _keyFor(item.id);
@@ -373,7 +431,7 @@ class _LabelingViewState extends State<_LabelingView> {
           printed = shared.status != ShareResultStatus.dismissed;
         }
 
-        if (printed) await _historyService.addToHistory(item);
+        if (printed) await _historyService.addToHistory(item, carpetNumber: number);
       } finally {
         _deleteTempFile(path);
       }
@@ -394,10 +452,29 @@ class _LabelingViewState extends State<_LabelingView> {
       }
       // Remove off-screen widget and re-enable button
       _printInProgress.remove(item.id);
-      if (mounted) setState(() => _renderingItems.remove(item.id));
+      if (mounted) {
+        setState(() {
+          _renderingItems.remove(item.id);
+          _renderingNumbers.remove(item.id);
+        });
+      }
       bloc.add(LabelingPrintCompleted(itemId: item.id));
       if (printed && queued.countsLocally) _offerUndo(queued);
     }
+  }
+
+  /// A PC tops up on its own while it has a network, so this only shows after
+  /// a long time offline, while there is still time to do something about it.
+  void _warnIfNumbersRunLow() {
+    final left = _carpetNumbers.remaining;
+    if (left > 50 || left % 10 != 0 || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Yorliq raqamlari kam qoldi: $left ta. Internetga ulaning.'),
+        backgroundColor: AppColors.warning,
+      ),
+    );
   }
 
   // ── Undo ──────────────────────────────────────────────────────────────────
@@ -663,6 +740,7 @@ class _LabelingViewState extends State<_LabelingView> {
                               color: 'Beige',
                               sizeLabel: '200x300 R',
                               barcodeValue: productBarcode(1),
+                              carpetBarcode: carpetNumber(1),
                               qrData: buildLabelQr(batchId: 1, itemId: 1),
                               printCode: buildLabelPrintCode(
                                 shift: _shift,
@@ -924,6 +1002,7 @@ class _LabelingViewState extends State<_LabelingView> {
                               sizeLabel: item.sizeLabel,
                               edgeCode: item.edgeCode,
                               barcodeValue: barcodeValue,
+                              carpetBarcode: _renderingNumbers[item.id],
                               qrData: qrData,
                               printCode: buildLabelPrintCode(
                                 shift: _shift,
@@ -954,6 +1033,7 @@ class _LabelingViewState extends State<_LabelingView> {
     required String sizeLabel,
     required String barcodeValue,
     required String qrData,
+    String? carpetBarcode,
     String? edgeCode,
     String? printCode,
   }) {
@@ -967,6 +1047,7 @@ class _LabelingViewState extends State<_LabelingView> {
           sizeLabel: sizeLabel,
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
+          carpetBarcode: carpetBarcode,
           qrData: qrData,
           printCode: printCode,
         );
@@ -979,6 +1060,7 @@ class _LabelingViewState extends State<_LabelingView> {
           sizeLabel: sizeLabel,
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
+          carpetBarcode: carpetBarcode,
           qrData: qrData,
           printCode: printCode,
         );

@@ -1,3 +1,4 @@
+import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgc_client/features/labeling/data/models/labeling_item_model.dart';
@@ -13,7 +14,9 @@ void main() {
     test('matches the agreed example', () {
       expect(
         buildLabelPrintCode(
-            shift: 'S', clientId: 123, printedAt: DateTime(2026, 4, 14, 15, 59)),
+            shift: 'S',
+            clientId: 123,
+            printedAt: DateTime(2026, 4, 14, 15, 59)),
         'S_123_04_14 15.59',
       );
     });
@@ -29,7 +32,9 @@ void main() {
     test('a carpet made for stock has client 0', () {
       expect(
         buildLabelPrintCode(
-            shift: 'I', clientId: null, printedAt: DateTime(2026, 12, 31, 23, 0)),
+            shift: 'I',
+            clientId: null,
+            printedAt: DateTime(2026, 12, 31, 23, 0)),
         'I_0_12_31 23.00',
       );
     });
@@ -103,7 +108,9 @@ void main() {
     };
 
     labels.forEach((name, build) {
-      testWidgets('$name prints the code vertically', (tester) async {
+      testWidgets(
+          '$name prints the code flat under the scan code, bottom right',
+          (tester) async {
         await tester.pumpWidget(MaterialApp(home: build('S_123_04_14 15.59')));
 
         expect(tester.takeException(), isNull);
@@ -111,8 +118,23 @@ void main() {
         expect(code, findsOneWidget);
         expect(
           find.ancestor(of: code, matching: find.byType(RotatedBox)),
-          findsOneWidget,
+          findsNothing,
         );
+
+        final scanCode = tester.getRect(find.byWidgetPredicate((w) =>
+            w is BarcodeWidget && w.barcode.name == Barcode.dataMatrix().name));
+        final codeRect = tester.getRect(code);
+        expect(codeRect.top, greaterThanOrEqualTo(scanCode.bottom));
+        expect(codeRect.right, moreOrLessEquals(scanCode.right));
+
+        // As tall as the product barcode's bars: 140 less its digits and gap,
+        // measured as a ratio since the test screen scales the label.
+        final product = tester.getRect(find.byWidgetPredicate((w) =>
+            w is BarcodeWidget &&
+            String.fromCharCodes(w.data) == '2984200059847'));
+        expect(scanCode.top, moreOrLessEquals(product.top));
+        expect(scanCode.height / product.height,
+            moreOrLessEquals((140 - 30 - 8) / 140));
       });
 
       testWidgets('$name leaves it off without a code', (tester) async {
@@ -124,7 +146,8 @@ void main() {
     });
 
     testWidgets('the Arabic template no longer prints "صحيح"', (tester) async {
-      await tester.pumpWidget(MaterialApp(home: labels['PrintLabel7050Arab']!('I_0_01_01 00.00')));
+      await tester.pumpWidget(
+          MaterialApp(home: labels['PrintLabel7050Arab']!('I_0_01_01 00.00')));
 
       expect(find.text('صحيح'), findsNothing);
     });

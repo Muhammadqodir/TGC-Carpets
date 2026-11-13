@@ -210,6 +210,8 @@ Route::prefix('v1')->group(function (): void {
             ->name('production-batches.print-labels.verify');
         Route::post('production-batches-print-labels/undo', [ProductionBatchController::class, 'undoPrintedLabel'])
             ->name('production-batches.print-labels.undo');
+        Route::post('production-batches-print-labels/number-block', [ProductionBatchController::class, 'issueCarpetNumbers'])
+            ->name('production-batches.print-labels.number-block');
         Route::get('production-batches/{productionBatch}/items/{item}', [ProductionBatchController::class, 'showItem'])
             ->name('production-batches.items.show');
         Route::post('production-batches/{productionBatch}/items/{item}/print-label', [ProductionBatchController::class, 'printLabel'])

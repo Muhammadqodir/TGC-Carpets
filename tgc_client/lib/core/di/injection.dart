@@ -126,6 +126,7 @@ import '../../features/employees/presentation/bloc/employee_form_bloc.dart';
 import '../../features/labeling/data/datasources/labeling_remote_datasource.dart';
 import '../../features/labeling/data/repositories/labeling_repository_impl.dart';
 import '../../features/labeling/domain/repositories/labeling_repository.dart';
+import '../../features/labeling/data/services/carpet_number_pool.dart';
 import '../../features/labeling/data/services/label_print_queue.dart';
 import '../../features/labeling/data/services/print_history_service.dart';
 import '../../features/labeling/presentation/bloc/labeling_bloc.dart';
@@ -498,6 +499,12 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<PrintHistoryService>(
     () => PrintHistoryService(sl<SharedPreferences>()),
+  );
+  sl.registerLazySingleton<CarpetNumberPool>(
+    () => CarpetNumberPool(
+      repository: sl<LabelingRepository>(),
+      prefs: sl<SharedPreferences>(),
+    ),
   );
   sl.registerLazySingleton<LabelPrintQueue>(
     () {

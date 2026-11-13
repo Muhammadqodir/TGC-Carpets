@@ -103,6 +103,8 @@ class ApiEndpoints {
       '/production-batches-print-labels/verify';
   static const String printedLabelsUndo =
       '/production-batches-print-labels/undo';
+  static const String carpetNumberBlock =
+      '/production-batches-print-labels/number-block';
 
   // Product Variants
   static const String productVariants = '/product-variants';

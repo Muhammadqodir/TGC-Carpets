@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
+import '../entities/carpet_number_block.dart';
 import '../entities/label_print_result.dart';
 import '../entities/labeling_item_entity.dart';
 
@@ -15,7 +16,12 @@ abstract class LabelingRepository {
     required String idempotencyKey,
     bool reprint = false,
     DateTime? printedAt,
+    String? carpetNumber,
+    int? lengthCm,
   });
+
+  /// Another block of carpet numbers for this PC to print from.
+  Future<Either<Failure, CarpetNumberBlock>> requestCarpetNumberBlock();
 
   /// The subset of [keys] the server has on record.
   Future<Either<Failure, Set<String>>> verifyPrintedLabels(List<String> keys);

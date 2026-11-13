@@ -1,5 +1,6 @@
-/// The QR format physically printed on every production-batch label and
-/// understood by the backend scan endpoint (`P{batchId} I{itemId}`).
+/// The text physically printed on every production-batch label and understood
+/// by the backend scan endpoint (`P{batchId} I{itemId}`). New labels carry it
+/// in a Data Matrix, labels already on carpets in a QR code; scanners read both.
 ///
 /// Single source of truth — do not build this string inline anywhere else.
 /// See instructions/phase-0/11.

@@ -105,7 +105,8 @@ class _ScanFeedback {
 class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   final MobileScannerController _scannerCtrl = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
-    formats: [BarcodeFormat.qrCode],
+    // Data Matrix on new labels, QR on the ones already on carpets.
+    formats: [BarcodeFormat.dataMatrix, BarcodeFormat.qrCode],
   );
   final ShipmentRepository _repo = sl<ShipmentRepository>();
 
@@ -469,7 +470,7 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Yorliqdagi QR kodni markazga joylashtiring',
+                    'Yorliqdagi kodni markazga joylashtiring',
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                     textAlign: TextAlign.center,
                   ),

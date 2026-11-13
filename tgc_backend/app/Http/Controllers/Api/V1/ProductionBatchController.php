@@ -8,6 +8,7 @@ use App\Http\Requests\Production\UpdateProductionBatchRequest;
 use App\Http\Requests\Production\UpdateProductionBatchItemRequest;
 use App\Http\Resources\ProductionBatchResource;
 use App\Http\Resources\ProductionBatchItemResource;
+use App\Models\CarpetNumberBlock;
 use App\Models\LabelReprint;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ProductionBatchController extends Controller
@@ -318,6 +320,10 @@ class ProductionBatchController extends Controller
             'reprint'         => ['sometimes', 'boolean'],
             // when the label came out of the printer, sent by the app's offline queue
             'printed_at'      => ['nullable', 'date'],
+            // the number on this label; loose on purpose, see carpetNumber()
+            'carpet_number'   => ['nullable', 'string', 'max:32'],
+            // the real length printed on a Kovrolin label; loose on purpose, see lengthCm()
+            'length_cm'       => ['nullable'],
         ]);
 
         $result = $this->service->incrementProducedQuantity(
@@ -327,6 +333,8 @@ class ProductionBatchController extends Controller
             $validated['serial'] ?? null,
             (bool) ($validated['reprint'] ?? false),
             $this->printedAt($validated['printed_at'] ?? null),
+            $this->carpetNumber($validated['carpet_number'] ?? null, $item->id),
+            $this->lengthCm($validated['length_cm'] ?? null, $item->id),
         );
 
         return response()->json([
@@ -336,6 +344,7 @@ class ProductionBatchController extends Controller
             'unit' => $result['unit'] ? [
                 'serial'        => $result['unit']->serial,
                 'reprint_count' => $result['unit']->reprint_count,
+                'length_cm'     => $result['unit']->length_cm,
             ] : null,
         ]);
     }
@@ -355,6 +364,69 @@ class ProductionBatchController extends Controller
         $at = Carbon::parse($value)->setTimezone(config('app.timezone'));
 
         return $at->between(now()->subDays(7), now()->addMinutes(2)) ? $at : null;
+    }
+
+    /**
+     * A number that fails its check is logged and left off rather than refused
+     * with a 422: the app's queue gives up on a refused label, and that label is
+     * already out of the printer, so its carpet would never be counted.
+     */
+    private function carpetNumber(?string $value, int $itemId): ?string
+    {
+        if ($value === null || CarpetNumberBlock::isValidNumber($value)) {
+            return $value;
+        }
+
+        Log::warning('Invalid carpet number on a printed label', [
+            'carpet_number'            => $value,
+            'production_batch_item_id' => $itemId,
+        ]);
+
+        return null;
+    }
+
+    /** Longest real length a label may carry: 1 000 m, far past any roll. */
+    public const MAX_LENGTH_CM = 100000;
+
+    /**
+     * The real length typed in for this carpet, in whole centimetres. Like a
+     * bad carpet number, a value that makes no sense is logged and left off
+     * rather than refused: the label is already printed, and a 422 would lose
+     * the carpet. It then counts at its size's nominal length.
+     */
+    private function lengthCm(mixed $value, int $itemId): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_INT) !== false
+            && (int) $value > 0 && (int) $value <= self::MAX_LENGTH_CM) {
+            return (int) $value;
+        }
+
+        Log::warning('Invalid carpet length on a printed label', [
+            'length_cm'                => $value,
+            'production_batch_item_id' => $itemId,
+        ]);
+
+        return null;
+    }
+
+    /**
+     * POST /production-batches-print-labels/number-block
+     *
+     * Hands the calling PC its next block of carpet numbers, ahead of printing:
+     * see CarpetNumberBlock. A response that gets lost only leaves a gap.
+     */
+    public function issueCarpetNumbers(Request $request): JsonResponse
+    {
+        $block = CarpetNumberBlock::create(['issued_to' => $request->user()->id]);
+
+        return response()->json([
+            'first_serial' => $block->firstSerial(),
+            'last_serial'  => $block->lastSerial(),
+        ]);
     }
 
     /**

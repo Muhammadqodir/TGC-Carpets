@@ -25,6 +25,15 @@ class PrintHistoryEntity extends Equatable {
   /// than with a client they may not belong to.
   final int? clientId;
 
+  /// The unique number on this label, which a reprint repeats. Null on entries
+  /// saved before labels had numbers; those reprint without one, like the
+  /// label already on that carpet.
+  final String? carpetNumber;
+
+  /// The real length printed on this Kovrolin label, in cm, which a reprint
+  /// repeats. Null for a fixed-size carpet.
+  final int? actualLengthCm;
+
   const PrintHistoryEntity({
     required this.variantId,
     required this.productName,
@@ -40,11 +49,15 @@ class PrintHistoryEntity extends Equatable {
     required this.printedAt,
     this.itemId,
     this.clientId,
+    this.carpetNumber,
+    this.actualLengthCm,
   });
 
+  /// The size as printed: the real length when the label carried one.
   String get sizeLabel {
-    if (sizeLength == null || sizeWidth == null) return '—';
-    return '${sizeWidth}×$sizeLength';
+    final length = actualLengthCm ?? sizeLength;
+    if (length == null || sizeWidth == null) return '—';
+    return '${sizeWidth}×$length';
   }
 
   Map<String, dynamic> toJson() {
@@ -63,6 +76,8 @@ class PrintHistoryEntity extends Equatable {
       'printedAt': printedAt,
       'itemId': itemId,
       'clientId': clientId,
+      'carpetNumber': carpetNumber,
+      if (actualLengthCm != null) 'actualLengthCm': actualLengthCm,
     };
   }
 
@@ -82,6 +97,8 @@ class PrintHistoryEntity extends Equatable {
       printedAt: json['printedAt'] as int,
       itemId: json['itemId'] as int?,
       clientId: json['clientId'] as int?,
+      carpetNumber: json['carpetNumber'] as String?,
+      actualLengthCm: json['actualLengthCm'] as int?,
     );
   }
 
@@ -97,5 +114,7 @@ class PrintHistoryEntity extends Equatable {
         printedAt,
         itemId,
         clientId,
+        carpetNumber,
+        actualLengthCm,
       ];
 }

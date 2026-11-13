@@ -41,7 +41,8 @@ class _ScannerViewState extends State<_ScannerView> {
     detectionSpeed: _detectionSpeed,
     formats: _useBarcodeMode
         ? [BarcodeFormat.code128, BarcodeFormat.ean13]
-        : [BarcodeFormat.qrCode],
+        // Data Matrix on new labels, QR on the ones already on carpets.
+        : [BarcodeFormat.dataMatrix, BarcodeFormat.qrCode],
   );
 
   bool _isProcessing = false;
@@ -147,7 +148,7 @@ class _ScannerViewState extends State<_ScannerView> {
                         Text(
                           _useBarcodeMode
                               ? 'Barkodni markazga joylashtiring'
-                              : 'QR kodni markazga joylashtiring',
+                              : 'Yorliqdagi kodni markazga joylashtiring',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,

@@ -354,7 +354,8 @@ class ProductionOperationsAnalyticsService
 
     private function sqmSum(): string
     {
-        return 'COALESCE(SUM(e.quantity * s.width * s.length), 0) / 10000';
+        // A Kovrolin roll's event carries its real length; see ProductionAnalyticsService::sqmExpr().
+        return 'COALESCE(SUM(e.quantity * s.width * COALESCE(e.length_cm, s.length)), 0) / 10000';
     }
 
     /** Same definition as ProductionAnalyticsService: defects as a share of everything made. */

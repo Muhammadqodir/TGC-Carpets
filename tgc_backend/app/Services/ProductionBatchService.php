@@ -197,6 +197,15 @@ class ProductionBatchService
      * request can arrive minutes or hours later; the event, unit and reprint
      * rows are dated by the print, not by the request. Null = now.
      *
+     * $carpetNumber is the number printed on this label (see CarpetNumberBlock).
+     * The label is already out of the printer, so a problem with the number must
+     * never lose the carpet: a number another carpet already has is logged and
+     * left off, and the carpet still counts.
+     *
+     * $lengthCm is the real length printed on the label of a carpet whose type
+     * has a variable length (Kovrolin), stored on the event, the unit and the
+     * reprint row. Null = the size's nominal length.
+     *
      * @return array{item: ProductionBatchItem, unit: ?ProductionUnit, counted: bool}
      */
     public function incrementProducedQuantity(
@@ -206,12 +215,14 @@ class ProductionBatchService
         ?string $serial = null,
         bool $reprint = false,
         ?\DateTimeInterface $printedAt = null,
+        ?string $carpetNumber = null,
+        ?int $lengthCm = null,
     ): array {
         $unit    = null;
         $counted = false;
         $at      = $printedAt ?? now();
 
-        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, $reprint, $at, &$unit, &$counted): void {
+        DB::transaction(function () use ($item, $userId, $idempotencyKey, $serial, $reprint, $at, $carpetNumber, $lengthCm, &$unit, &$counted): void {
             // A deadlock retry runs this again from the top.
             $unit    = null;
             $counted = false;
@@ -259,6 +270,8 @@ class ProductionBatchService
                         'printed_by'               => $userId,
                         'printed_at'               => $at,
                         'reason'                   => $reprint ? LabelReprint::REASON_REPRINT : LabelReprint::REASON_OVER_TARGET,
+                        'carpet_number'            => $carpetNumber,
+                        'length_cm'                => $lengthCm,
                         'idempotency_key'          => $idempotencyKey,
                     ]);
                 } catch (QueryException $e) {
@@ -274,6 +287,7 @@ class ProductionBatchService
                 'production_batch_item_id' => $item->id,
                 'event_type'               => ProductionEvent::TYPE_PRODUCED,
                 'quantity'                 => 1,
+                'length_cm'                => $lengthCm,
                 'occurred_at'              => $at,
                 'user_id'                  => $userId,
                 'idempotency_key'          => $idempotencyKey,
@@ -300,6 +314,8 @@ class ProductionBatchService
             $newUnit = ProductionUnit::create([
                 'production_batch_item_id' => $item->id,
                 'serial'                   => 'PENDING',
+                'carpet_number'            => $this->unusedCarpetNumber($carpetNumber, $item->id),
+                'length_cm'                => $lengthCm,
                 'printed_by'               => $userId,
                 'printed_at'               => $at,
                 'status'                   => ProductionUnit::STATUS_GOOD,
@@ -341,6 +357,26 @@ class ProductionBatchService
         ]);
 
         return ['item' => $freshItem, 'unit' => $unit, 'counted' => $counted];
+    }
+
+    /**
+     * $number, unless another carpet already has it. That should never happen:
+     * it would take a PC's saved numbers being copied to another PC. Two labels
+     * in the same race reach the unique index instead; the request fails, the
+     * app sends it again, and this check catches it then.
+     */
+    private function unusedCarpetNumber(?string $number, int $itemId): ?string
+    {
+        if ($number === null || ! ProductionUnit::where('carpet_number', $number)->exists()) {
+            return $number;
+        }
+
+        Log::warning('Carpet number already used by another carpet', [
+            'carpet_number'            => $number,
+            'production_batch_item_id' => $itemId,
+        ]);
+
+        return null;
     }
 
     /** How long after printing a label the shift can still take it back. */
@@ -454,6 +490,8 @@ class ProductionBatchService
                 'production_batch_item_id' => $itemId,
                 'event_type'               => ProductionEvent::TYPE_CORRECTION,
                 'quantity'                 => -1,
+                // the same roll's length, so production m² loses exactly it
+                'length_cm'                => $event->length_cm,
                 'occurred_at'              => $event->occurred_at,
                 'user_id'                  => $event->user_id,
                 'reason'                   => $reason,

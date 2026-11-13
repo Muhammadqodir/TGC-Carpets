@@ -33,7 +33,7 @@ class ProductionEvent extends Model
     const DEFECT_TYPES   = [self::TYPE_DEFECT];
 
     protected $fillable = [
-        'production_batch_item_id', 'event_type', 'quantity',
+        'production_batch_item_id', 'event_type', 'quantity', 'length_cm',
         'occurred_at', 'user_id', 'defect_document_id', 'idempotency_key', 'reason',
         'created_at',
     ];
@@ -42,6 +42,7 @@ class ProductionEvent extends Model
     {
         return [
             'quantity'    => 'integer',
+            'length_cm'   => 'integer',
             'occurred_at' => 'datetime',
         ];
     }

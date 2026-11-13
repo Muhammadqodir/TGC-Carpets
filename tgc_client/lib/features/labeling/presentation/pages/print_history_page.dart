@@ -66,14 +66,14 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
   bool _isLoadingPrinters = false;
 
   // ── Render keys per variant id ────────────────────────────────────────────
-  final Map<int, GlobalKey> _repaintKeys = {};
+  final Map<String, GlobalKey> _repaintKeys = {};
 
   // ── Current history items ─────────────────────────────────────────────────
   List<PrintHistoryEntity> _items = [];
   bool _isLoading = true;
 
   // ── Printing state ────────────────────────────────────────────────────────
-  final Set<int> _printingItems = {};
+  final Set<String> _printingItems = {};
 
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
@@ -126,8 +126,13 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
     });
   }
 
-  GlobalKey _keyFor(int variantId) =>
-      _repaintKeys.putIfAbsent(variantId, () => GlobalKey());
+  /// One entry per label; entries saved before labels had numbers are one per
+  /// product.
+  String _entryId(PrintHistoryEntity item) =>
+      item.carpetNumber ?? 'variant-${item.variantId}';
+
+  GlobalKey _keyFor(PrintHistoryEntity item) =>
+      _repaintKeys.putIfAbsent(_entryId(item), () => GlobalKey());
 
   Future<String?> _renderLabel(GlobalKey key) async {
     final renderer = LabelRenderer(key);
@@ -160,10 +165,11 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
   Future<void> _onPrint(PrintHistoryEntity item) async {
     if (_isPrintingPlatform && !_assertPrinterSelected()) return;
     // A double click prints once.
-    if (_printingItems.contains(item.variantId)) return;
+    final entryId = _entryId(item);
+    if (_printingItems.contains(entryId)) return;
 
-    final key = _keyFor(item.variantId);
-    setState(() => _printingItems.add(item.variantId));
+    final key = _keyFor(item);
+    setState(() => _printingItems.add(entryId));
 
     final auth = sl<AuthBloc>().state;
     final userId = auth is AuthAuthenticated ? auth.user.id : null;
@@ -177,7 +183,9 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
             productName: item.productName,
             sizeLabel: item.sizeWidth == null || item.sizeLength == null
                 ? null
-                : '${item.sizeWidth}×${item.sizeLength}',
+                : item.sizeLabel,
+            carpetNumber: item.carpetNumber,
+            lengthCm: item.actualLengthCm,
           );
     var printed = false;
 
@@ -235,7 +243,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
       if (queued != null) {
         printed ? await queue.release(queued.key) : await queue.discard(queued.key);
       }
-      if (mounted) setState(() => _printingItems.remove(item.variantId));
+      if (mounted) setState(() => _printingItems.remove(entryId));
     }
   }
 
@@ -322,7 +330,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
 
           // ── Off-screen hidden labels for RepaintBoundary rendering ─
           ..._items.map((item) {
-            final key = _keyFor(item.variantId);
+            final key = _keyFor(item);
             final barcodeValue = labelBarcodeValue(
               stored: item.variantBarcode,
               variantId: item.variantId,
@@ -384,6 +392,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           color: item.colorName,
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
+          carpetBarcode: item.carpetNumber,
           qrData: qrData,
           printCode: printCode,
         );
@@ -395,6 +404,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           color: item.colorName,
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
+          carpetBarcode: item.carpetNumber,
           qrData: qrData,
           printCode: printCode,
         );
@@ -460,7 +470,7 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
                   width: cardWidth,
                   child: _HistoryCard(
                     item: item,
-                    isPrinting: _printingItems.contains(item.variantId),
+                    isPrinting: _printingItems.contains(_entryId(item)),
                     isPrintPlatform: _isPrintingPlatform,
                     onPrint: () => _onPrint(item),
                   ),
@@ -636,6 +646,14 @@ class _HistoryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 _InfoChips(item: item),
+                if (item.carpetNumber != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    item.carpetNumber!,
+                    style: textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 // ── Print time ───────────────────────────────────────────
                 Row(

@@ -26,7 +26,8 @@ class ProductTypeController extends Controller
 
         $validated = $request->validate([
             'type'         => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')],
-            'is_printable' => ['sometimes', 'boolean'],
+            'is_printable'        => ['sometimes', 'boolean'],
+            'has_variable_length' => ['sometimes', 'boolean'],
         ]);
 
         $productType = ProductType::create($validated);
@@ -37,7 +38,10 @@ class ProductTypeController extends Controller
     /** Adding a name that was hidden brings the old row back, links intact. */
     private function restoreHidden(Request $request, ProductType $productType): JsonResponse
     {
-        $validated = $request->validate(['is_printable' => ['sometimes', 'boolean']]);
+        $validated = $request->validate([
+            'is_printable'        => ['sometimes', 'boolean'],
+            'has_variable_length' => ['sometimes', 'boolean'],
+        ]);
 
         $productType->restore();
         $productType->update($validated);
@@ -49,7 +53,8 @@ class ProductTypeController extends Controller
     {
         $validated = $request->validate([
             'type'         => ['required', 'string', 'max:100', Rule::unique('product_types', 'type')->ignore($productType->id)],
-            'is_printable' => ['sometimes', 'boolean'],
+            'is_printable'        => ['sometimes', 'boolean'],
+            'has_variable_length' => ['sometimes', 'boolean'],
         ]);
 
         $productType->update($validated);

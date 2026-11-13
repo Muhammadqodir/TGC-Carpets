@@ -16,6 +16,8 @@ class LabelReprint extends Model
         'printed_by',
         'printed_at',
         'reason',
+        'carpet_number',
+        'length_cm',
         'idempotency_key',
     ];
 

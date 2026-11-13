@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../domain/carpet_number.dart';
+import '../../domain/entities/carpet_number_block.dart';
 import '../../domain/entities/label_print_result.dart';
 import '../models/labeling_item_model.dart';
 
@@ -20,7 +22,14 @@ abstract class LabelingRemoteDataSource {
     required String idempotencyKey,
     bool reprint = false,
     DateTime? printedAt,
+    String? carpetNumber,
+    int? lengthCm,
   });
+
+  /// Another block of carpet numbers. Throws a [ServerException] on an answer
+  /// that does not look like a block: printing a number from a garbled one
+  /// could repeat a number already on a carpet.
+  Future<CarpetNumberBlock> requestCarpetNumberBlock();
 
   /// The subset of [keys] the server has on record.
   Future<Set<String>> verifyPrintedLabels(List<String> keys);
@@ -56,6 +65,8 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
     required String idempotencyKey,
     bool reprint = false,
     DateTime? printedAt,
+    String? carpetNumber,
+    int? lengthCm,
   }) async {
     try {
       final response = await _dio.post(
@@ -64,6 +75,8 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
           'idempotency_key': idempotencyKey,
           if (reprint) 'reprint': true,
           if (printedAt != null) 'printed_at': printedAt.toUtc().toIso8601String(),
+          if (carpetNumber != null) 'carpet_number': carpetNumber,
+          if (lengthCm != null) 'length_cm': lengthCm,
         },
       );
       final body = response.data;
@@ -77,6 +90,22 @@ class LabelingRemoteDataSourceImpl implements LabelingRemoteDataSource {
         item: LabelingItemModel.fromJson(data, unitSerial: unitMap?['serial'] as String?),
         counted: counted,
       );
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<CarpetNumberBlock> requestCarpetNumberBlock() async {
+    try {
+      final response = await _dio.post(ApiEndpoints.carpetNumberBlock);
+      final body = response.data;
+      final first = body is Map ? body['first_serial'] : null;
+      final last = body is Map ? body['last_serial'] : null;
+      if (first is! int || last is! int || first < 1 || last < first || last > carpetNumberMaxSerial) {
+        throw const ServerException(message: 'Server javobi noto\'g\'ri');
+      }
+      return CarpetNumberBlock(firstSerial: first, lastSerial: last);
     } on DioException catch (e) {
       _handleDioError(e);
     }

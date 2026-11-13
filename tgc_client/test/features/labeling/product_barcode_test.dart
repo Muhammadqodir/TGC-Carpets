@@ -87,13 +87,43 @@ void main() {
     };
 
     labels.forEach((name, build) {
-      testWidgets('$name draws the product barcode as EAN-13', (tester) async {
+      testWidgets('$name draws the product barcode as a plain Code 128',
+          (tester) async {
         await tester.pumpWidget(MaterialApp(home: build('2984200059847')));
 
         expect(tester.takeException(), isNull);
         final product = productBarcodeOn(tester);
-        expect(product.barcode.name, 'EAN 13');
+        expect(product.barcode.name, 'CODE 128');
         expect(String.fromCharCodes(product.data), '2984200059847');
+      });
+
+      testWidgets('$name draws the scan code as a Data Matrix', (tester) async {
+        await tester.pumpWidget(MaterialApp(home: build('2984200059847')));
+
+        final scanCode = tester
+            .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
+            .singleWhere((w) => w.barcode.name == scanCodeName);
+        expect(String.fromCharCodes(scanCode.data), 'P1 I1');
+      });
+
+      testWidgets('$name draws a long value without overflowing',
+          (tester) async {
+        await tester.pumpWidget(MaterialApp(
+          home: PrintLabel7050(
+            barcodeValue: '2984200059847',
+            carpetBarcode: '210000012345',
+            qrData: 'P12345 I123456',
+            quality: 'ASL PODSHOX GILAMI ASL PODSHOX GILAMI',
+            productName: 'A VERY LONG DESIGN NAME INDEED',
+            sizeLabel: '400×1000',
+            edgeCode: 'R',
+            color: 'A VERY LONG COLOUR NAME INDEED',
+            printCode: 'S_123456_11_06 15.59',
+          ),
+        ));
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('ASL PODSHOX GILAMI ASL PODSHOX GILAMI'), findsOneWidget);
       });
 
       testWidgets('$name still draws a non-EAN value instead of failing',
@@ -109,7 +139,9 @@ void main() {
   });
 }
 
-/// The label's product barcode, i.e. the one next to the QR code.
+final scanCodeName = Barcode.dataMatrix().name;
+
+/// The label's product barcode, on a label with no carpet number.
 BarcodeWidget productBarcodeOn(WidgetTester tester) => tester
     .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
-    .singleWhere((w) => w.barcode.name != 'QR-Code');
+    .singleWhere((w) => w.barcode.name != scanCodeName);

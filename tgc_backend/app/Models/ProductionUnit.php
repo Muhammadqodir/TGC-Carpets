@@ -23,6 +23,8 @@ class ProductionUnit extends Model
     protected $fillable = [
         'production_batch_item_id',
         'serial',
+        'carpet_number',
+        'length_cm',
         'printed_by',
         'printed_at',
         'status',
@@ -37,6 +39,7 @@ class ProductionUnit extends Model
         return [
             'printed_at'    => 'datetime',
             'reprint_count' => 'integer',
+            'length_cm'     => 'integer',
             'backfilled_at' => 'datetime',
         ];
     }

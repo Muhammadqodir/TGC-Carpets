@@ -27,7 +27,16 @@ class LabelingItemEntity extends Equatable {
   final String? qualityName;
   final String? productTypeName;
   final bool isTypePrintable;
+
+  /// The type's carpets come off the machine at a different length each
+  /// time (Kovrolin): the real length is typed in before every label.
+  final bool hasVariableLength;
   final String? edgeCode;
+
+  /// The real length of the carpet this label is for, in cm, typed in just
+  /// before printing. Null everywhere else: the item as loaded from the
+  /// server names only the size's nominal length.
+  final int? actualLengthCm;
 
   /// The per-carpet unit serial minted by the last print-label call
   /// (`TGC-U-00001234`) — see instructions/phase-3/02-production-units-serials.md.
@@ -60,11 +69,21 @@ class LabelingItemEntity extends Equatable {
     this.qualityName,
     this.productTypeName,
     this.isTypePrintable = true,
+    this.hasVariableLength = false,
     this.edgeCode,
     this.unitSerial,
+    this.actualLengthCm,
   });
 
+  /// The size as printed: the real length when one was typed in.
   String get sizeLabel {
+    final length = actualLengthCm ?? sizeLength;
+    if (length == null || sizeWidth == null) return '—';
+    return '${sizeWidth}×$length';
+  }
+
+  /// The size the line was planned at, whatever a label says.
+  String get nominalSizeLabel {
     if (sizeLength == null || sizeWidth == null) return '—';
     return '${sizeWidth}×$sizeLength';
   }
@@ -79,6 +98,7 @@ class LabelingItemEntity extends Equatable {
     int? producedQuantity,
     int? defectQuantity,
     String? unitSerial,
+    int? actualLengthCm,
   }) {
     return LabelingItemEntity(
       id: id,
@@ -102,8 +122,10 @@ class LabelingItemEntity extends Equatable {
       qualityName: qualityName,
       productTypeName: productTypeName,
       isTypePrintable: isTypePrintable,
+      hasVariableLength: hasVariableLength,
       edgeCode: edgeCode,
       unitSerial: unitSerial ?? this.unitSerial,
+      actualLengthCm: actualLengthCm ?? this.actualLengthCm,
     );
   }
 

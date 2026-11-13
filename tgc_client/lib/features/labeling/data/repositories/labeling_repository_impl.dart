@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../domain/entities/carpet_number_block.dart';
 import '../../domain/entities/label_print_result.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/repositories/labeling_repository.dart';
@@ -33,6 +34,8 @@ class LabelingRepositoryImpl implements LabelingRepository {
     required String idempotencyKey,
     bool reprint = false,
     DateTime? printedAt,
+    String? carpetNumber,
+    int? lengthCm,
   }) =>
       _guard(() => remoteDataSource.printLabel(
             batchId: batchId,
@@ -40,7 +43,13 @@ class LabelingRepositoryImpl implements LabelingRepository {
             idempotencyKey: idempotencyKey,
             reprint: reprint,
             printedAt: printedAt,
+            carpetNumber: carpetNumber,
+            lengthCm: lengthCm,
           ));
+
+  @override
+  Future<Either<Failure, CarpetNumberBlock>> requestCarpetNumberBlock() =>
+      _guard(remoteDataSource.requestCarpetNumberBlock);
 
   @override
   Future<Either<Failure, Set<String>>> verifyPrintedLabels(List<String> keys) =>

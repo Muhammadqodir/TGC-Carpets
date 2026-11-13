@@ -143,11 +143,19 @@ class ProductionAnalyticsService
         return 'COALESCE(SUM(' . $this->quantityExpr($source) . '), 0)';
     }
 
+    /**
+     * Square metres made. An event carries the real length of a carpet whose
+     * type has a variable length (Kovrolin); every other event, and the legacy
+     * counter, counts at the size's nominal length.
+     */
     private function sqmExpr(string $source): string
     {
-        $qty = $this->quantityExpr($source);
+        $qty    = $this->quantityExpr($source);
+        $length = $source === 'events'
+            ? 'COALESCE(production_events.length_cm, product_sizes.length)'
+            : 'product_sizes.length';
 
-        return "COALESCE(SUM({$qty} * product_sizes.width * product_sizes.length), 0) / 10000";
+        return "COALESCE(SUM({$qty} * product_sizes.width * {$length}), 0) / 10000";
     }
 
     /**
