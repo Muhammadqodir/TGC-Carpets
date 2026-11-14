@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -10,6 +11,7 @@ import 'package:tgc_client/core/ui/widgets/app_badge.dart';
 import 'package:tgc_client/core/ui/widgets/typograpthy.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/hardware/hardware_scanner.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
 import '../../../../core/ui/widgets/count_input.dart';
@@ -21,10 +23,12 @@ import '../bloc/shipment_form_bloc.dart';
 import '../bloc/shipment_form_event.dart';
 import '../bloc/shipment_form_state.dart';
 import '../../domain/entities/shipment_import_entities.dart';
+import '../../domain/repositories/shipment_repository.dart';
 import '../widgets/order_list_picker_sheet.dart';
 import '../widgets/shipment_form_controller.dart';
 import '../widgets/shipment_item_row.dart';
 import '../widgets/shipment_qr_scanner_page.dart';
+import '../widgets/shipment_scan_flow.dart';
 import 'shipment_review_page.dart';
 
 /// Entry point for the "add shipment" form.
@@ -69,6 +73,16 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
   bool get _hasClient => _selectedClient != null;
 
+  /// True on a Zebra PDA: the trigger button scans straight onto this list,
+  /// with no camera page in between.
+  bool _hardwareScanner = false;
+  StreamSubscription<String>? _scanSub;
+
+  /// True while a trigger scan is being resolved or confirmed. Further
+  /// trigger scans are dropped until it is done, so one carpet is never
+  /// resolved twice over a slow network.
+  bool _pdaBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +90,13 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     _shipmentDate = DateTime.now();
     _ctrl.addListener(_onFormChanged);
     _initDraft();
+    _initHardwareScanner();
+  }
+
+  Future<void> _initHardwareScanner() async {
+    if (!await HardwareScanner.instance.isAvailable() || !mounted) return;
+    setState(() => _hardwareScanner = true);
+    _scanSub = HardwareScanner.instance.scans.listen(_onHardwareScan);
   }
 
   Future<void> _initDraft() async {
@@ -119,6 +140,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
   @override
   void dispose() {
+    _scanSub?.cancel();
     _listCtrl.dispose();
     _highlightTimer?.cancel();
     _ctrl.removeListener(_onFormChanged);
@@ -256,6 +278,122 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
     _showScanOutcome(outcome);
   }
 
+  /// A carpet read by the PDA's trigger. Goes through the same steps as the
+  /// camera page — check, resolve, ask when it is not simply this client's
+  /// own, add — but stays on the list, so the worker sees each carpet land.
+  Future<void> _onHardwareScan(String raw) async {
+    final code = cleanScannedLabel(raw);
+    if (code == null || !mounted || !_ready) return;
+
+    // Something is on top of the list (camera page, review, a sheet or a
+    // dialog): the scan is not meant for it.
+    if (_pdaBusy || !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+
+    final client = _selectedClient;
+    if (client == null) {
+      await _showScanRejection(const ShipmentScanRejection(
+        'Avval mijozni tanlang',
+        message: 'Yuk xatiga gilam qo\'shish uchun mijozni tanlang, '
+            'keyin yorliqni skanerlang.',
+        isWarning: true,
+      ));
+      return;
+    }
+
+    final flow = ShipmentScanFlow(
+      repo: sl<ShipmentRepository>(),
+      controller: _ctrl,
+      clientId: client.id,
+      clientName: client.shopName,
+    );
+
+    final refused = flow.precheck(code);
+    if (refused != null) {
+      await _showScanRejection(refused);
+      return;
+    }
+
+    setState(() => _pdaBusy = true);
+    try {
+      final (item, rejection) = await flow.resolve(code);
+      if (!mounted) return;
+      // The client may have been changed while the server was asked.
+      if (_selectedClient?.id != client.id) return;
+
+      if (rejection != null || item == null) {
+        setState(() => _pdaBusy = false);
+        await _showScanRejection(
+            rejection ?? const ShipmentScanRejection('Skanerlashda xatolik'));
+        return;
+      }
+
+      setState(() => _pdaBusy = false);
+      if (!await flow.confirm(context, item) || !mounted) return;
+
+      final outcome = flow.apply(item, code);
+      if (outcome == null) return;
+      HapticFeedback.lightImpact();
+      _showScanOutcome(outcome);
+    } finally {
+      if (mounted && _pdaBusy) setState(() => _pdaBusy = false);
+    }
+  }
+
+  /// A trigger scan that added nothing, said loudly enough to notice with
+  /// both hands on a carpet, and left up until the worker taps it away.
+  Future<void> _showScanRejection(ShipmentScanRejection rejection) async {
+    HapticFeedback.heavyImpact();
+    Future.delayed(
+        const Duration(milliseconds: 160), HapticFeedback.heavyImpact);
+    SystemSound.play(SystemSoundType.alert);
+
+    final color = rejection.isWarning ? AppColors.warning : AppColors.error;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(
+          rejection.isWarning ? Icons.info_rounded : Icons.error_rounded,
+          color: color,
+          size: 56,
+        ),
+        title: Text(
+          rejection.headline,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: rejection.message == null
+            ? null
+            : Text(
+                rejection.message!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 15, height: 1.4),
+              ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: FilledButton.styleFrom(backgroundColor: color),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Back from a successful scan: point at the row it changed and say what
   /// happened, with the next scan one tap away in the snackbar as well as on
   /// the floating button.
@@ -293,11 +431,14 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
           '${outcome.incremented ? 'Miqdor oshirildi' : 'Qo\'shildi'}: '
           '${outcome.title} — $quantity dona',
         ),
-        action: SnackBarAction(
-          label: 'Yana',
-          textColor: Colors.white,
-          onPressed: _scanQr,
-        ),
+        // On a PDA the next scan is the trigger button, not this.
+        action: _hardwareScanner
+            ? null
+            : SnackBarAction(
+                label: 'Yana',
+                textColor: Colors.white,
+                onPressed: _scanQr,
+              ),
       ));
   }
 
@@ -414,9 +555,15 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
               backgroundColor: AppColors.background,
               // The main action on the floor, under the thumb: scan, look at
               // the list, scan again.
+              // On a PDA it fires the built-in imager, same as the yellow
+              // side buttons; the camera moves to the app bar.
               floatingActionButton: FloatingActionButton.extended(
-                onPressed: _scanQr,
-                icon: const Icon(Icons.qr_code_scanner_rounded),
+                onPressed: _hardwareScanner
+                    ? HardwareScanner.instance.softTrigger
+                    : _scanQr,
+                icon: Icon(_hardwareScanner
+                    ? Icons.barcode_reader
+                    : Icons.qr_code_scanner_rounded),
                 label: const Text('Skanerlash'),
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -432,6 +579,12 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
+                  if (_hardwareScanner)
+                    IconButton(
+                      tooltip: 'Kamera bilan skanerlash',
+                      icon: const Icon(Icons.photo_camera_outlined),
+                      onPressed: _scanQr,
+                    ),
                   IconButton(
                     tooltip: 'Formani tozalash',
                     icon: const HugeIcon(
@@ -465,291 +618,384 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
                   const SizedBox(width: 16),
                 ],
               ),
-              body: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Date + Client bar ──────────────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border(
-                            bottom: BorderSide(color: AppColors.divider)),
-                      ),
-                      child: Row(
-                        children: [
-                          // Date picker
-                          InkWell(
-                            onTap: _pickDate,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              height: 40,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.divider),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.calendar_today_outlined,
-                                      size: 16, color: AppColors.primary),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _formattedDate,
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
+              body: Stack(
+                children: [
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Date + Client bar ──────────────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: const BoxDecoration(
+                            color: AppColors.surface,
+                            border: Border(
+                                bottom: BorderSide(color: AppColors.divider)),
                           ),
-                          const SizedBox(width: 12),
-
-                          // Client picker
-                          Expanded(
-                            child: InkWell(
-                              onTap: _pickClient,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                height: 40,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: !_hasClient
-                                        ? AppColors.divider
-                                        : AppColors.primary,
-                                    width: !_hasClient ? 1.0 : 1.5,
+                          child: Row(
+                            children: [
+                              // Date picker
+                              InkWell(
+                                onTap: _pickDate,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    border:
+                                        Border.all(color: AppColors.divider),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: _hasClient
-                                      ? AppColors.primary
-                                          .withValues(alpha: 0.05)
-                                      : null,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.calendar_today_outlined,
+                                          size: 16, color: AppColors.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _formattedDate,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.store_outlined,
-                                      size: 16,
-                                      color: !_hasClient
-                                          ? AppColors.textSecondary
-                                          : AppColors.primary,
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Client picker
+                              Expanded(
+                                child: InkWell(
+                                  onTap: _pickClient,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    height: 40,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: !_hasClient
+                                            ? AppColors.divider
+                                            : AppColors.primary,
+                                        width: !_hasClient ? 1.0 : 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: _hasClient
+                                          ? AppColors.primary
+                                              .withValues(alpha: 0.05)
+                                          : null,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _selectedClient?.shopName ??
-                                            'Mijoz tanlash...',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.store_outlined,
+                                          size: 16,
+                                          color: !_hasClient
+                                              ? AppColors.textSecondary
+                                              : AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _selectedClient?.shopName ??
+                                                'Mijoz tanlash...',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: !_hasClient
+                                                      ? AppColors.textSecondary
+                                                      : null,
+                                                ),
+                                          ),
+                                        ),
+                                        if (_selectedClient != null)
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(
+                                                  () => _selectedClient = null);
+                                              _onFormChanged();
+                                            },
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 18,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (_hardwareScanner)
+                          _ScannerReadyBar(ready: _hasClient),
+
+                        // ── Items header + "pick from orders" button ───────────────
+                        // Labelled on phones too, shorter: as a bare icon nobody
+                        // found it, and asked for a way to load by hand.
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isDesktop = constraints.maxWidth >=
+                                AppConstants.desktopBreakpoint;
+
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(12, 12, 8, 8),
+                                    child: Text(
+                                      // The total the worker counts the lorry
+                                      // against, where they look while scanning.
+                                      _ctrl.totalQuantity > 0
+                                          ? 'Mahsulotlar · ${_ctrl.totalQuantity} dona'
+                                          : 'Mahsulotlar',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(0, 4, 8, 4),
+                                  child: TextButton.icon(
+                                    onPressed: _pickFromOrders,
+                                    icon: const Icon(Icons.playlist_add_rounded,
+                                        size: 20),
+                                    label: Text(isDesktop
+                                        ? 'Buyurtmalardan tanlash'
+                                        : 'Ro\'yxatdan'),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        // ── Table header ───────────────────────────────────────────
+                        const _TableHeader(),
+                        const Divider(height: 1, color: AppColors.divider),
+
+                        // ── Table rows ─────────────────────────────────────────────
+                        Expanded(
+                          child: _ctrl.items.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      HugeIcon(
+                                        icon: HugeIcons
+                                            .strokeRoundedContainerTruck,
+                                        size: 48,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Skanerlang yoki buyurtmalardan tanlang',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodyMedium
                                             ?.copyWith(
-                                              color: !_hasClient
-                                                  ? AppColors.textSecondary
-                                                  : null,
-                                            ),
+                                                color: AppColors.textSecondary),
                                       ),
-                                    ),
-                                    if (_selectedClient != null)
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(
-                                              () => _selectedClient = null);
-                                          _onFormChanged();
-                                        },
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 18,
-                                          color: AppColors.textSecondary,
-                                        ),
+                                      const SizedBox(height: 12),
+                                      OutlinedButton.icon(
+                                        onPressed: _pickFromOrders,
+                                        icon: const Icon(
+                                            Icons.playlist_add_rounded,
+                                            size: 20),
+                                        label: const Text(
+                                            'Buyurtmalardan tanlash'),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Items header + "pick from orders" button ───────────────
-                    // Labelled on phones too, shorter: as a bare icon nobody
-                    // found it, and asked for a way to load by hand.
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isDesktop = constraints.maxWidth >=
-                            AppConstants.desktopBreakpoint;
-
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(12, 12, 8, 8),
-                                child: Text(
-                                  // The total the worker counts the lorry
-                                  // against, where they look while scanning.
-                                  _ctrl.totalQuantity > 0
-                                      ? 'Mahsulotlar · ${_ctrl.totalQuantity} dona'
-                                      : 'Mahsulotlar',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
-                              child: TextButton.icon(
-                                onPressed: _pickFromOrders,
-                                icon: const Icon(Icons.playlist_add_rounded,
-                                    size: 20),
-                                label: Text(isDesktop
-                                    ? 'Buyurtmalardan tanlash'
-                                    : 'Ro\'yxatdan'),
-                                style: TextButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-
-                    // ── Table header ───────────────────────────────────────────
-                    const _TableHeader(),
-                    const Divider(height: 1, color: AppColors.divider),
-
-                    // ── Table rows ─────────────────────────────────────────────
-                    Expanded(
-                      child: _ctrl.items.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  HugeIcon(
-                                    icon: HugeIcons.strokeRoundedContainerTruck,
-                                    size: 48,
-                                    color: AppColors.textSecondary,
+                                    ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'Skanerlang yoki buyurtmalardan tanlang',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                            color: AppColors.textSecondary),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton.icon(
-                                    onPressed: _pickFromOrders,
-                                    icon: const Icon(
-                                        Icons.playlist_add_rounded,
-                                        size: 20),
-                                    label: const Text(
-                                        'Buyurtmalardan tanlash'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              controller: _listCtrl,
-                              // Room for the scan button over the last row.
-                              padding: const EdgeInsets.only(bottom: 88),
-                              itemCount: _ctrl.items.length,
-                              separatorBuilder: (_, __) => const Divider(
-                                  height: 1, color: AppColors.divider),
-                              itemBuilder: (context, index) {
-                                final row = _ctrl.items[index];
-                                final highlighted = row.id == _highlightRowId;
-                                return AnimatedContainer(
-                                  key: ValueKey('hl-${row.id}'),
-                                  duration: const Duration(milliseconds: 400),
-                                  color: highlighted
-                                      ? AppColors.success.withValues(alpha: 0.15)
-                                      : Colors.transparent,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                  final isDesktop = constraints.maxWidth >=
-                                      AppConstants.desktopBreakpoint;
-                                  if (isDesktop) {
-                                    return _ItemRow(
-                                      key: ValueKey(row.id),
-                                      row: row,
-                                      form: _ctrl,
-                                      index: index,
-                                      onRemove: () => _ctrl.removeRow(index),
-                                      onChanged: _ctrl.notifyChanged,
+                                )
+                              : ListView.separated(
+                                  controller: _listCtrl,
+                                  // Room for the scan button over the last row.
+                                  padding: const EdgeInsets.only(bottom: 88),
+                                  itemCount: _ctrl.items.length,
+                                  separatorBuilder: (_, __) => const Divider(
+                                      height: 1, color: AppColors.divider),
+                                  itemBuilder: (context, index) {
+                                    final row = _ctrl.items[index];
+                                    final highlighted =
+                                        row.id == _highlightRowId;
+                                    return AnimatedContainer(
+                                      key: ValueKey('hl-${row.id}'),
+                                      duration:
+                                          const Duration(milliseconds: 400),
+                                      color: highlighted
+                                          ? AppColors.success
+                                              .withValues(alpha: 0.15)
+                                          : Colors.transparent,
+                                      child: LayoutBuilder(
+                                          builder: (context, constraints) {
+                                        final isDesktop =
+                                            constraints.maxWidth >=
+                                                AppConstants.desktopBreakpoint;
+                                        if (isDesktop) {
+                                          return _ItemRow(
+                                            key: ValueKey(row.id),
+                                            row: row,
+                                            form: _ctrl,
+                                            index: index,
+                                            onRemove: () =>
+                                                _ctrl.removeRow(index),
+                                            onChanged: _ctrl.notifyChanged,
+                                          );
+                                        } else {
+                                          return _ItemRowMobile(
+                                            key: ValueKey(row.id),
+                                            row: row,
+                                            form: _ctrl,
+                                            index: index,
+                                            onRemove: () =>
+                                                _ctrl.removeRow(index),
+                                            onChanged: _ctrl.notifyChanged,
+                                          );
+                                        }
+                                      }),
                                     );
-                                  } else {
-                                    return _ItemRowMobile(
-                                      key: ValueKey(row.id),
-                                      row: row,
-                                      form: _ctrl,
-                                      index: index,
-                                      onRemove: () => _ctrl.removeRow(index),
-                                      onChanged: _ctrl.notifyChanged,
-                                    );
-                                  }
-                                }),
-                                );
-                              },
-                            ),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider),
+                                  },
+                                ),
+                        ),
+                        const Divider(height: 1, color: AppColors.divider),
 
-                    // Notes moved to the review step (ShipmentReviewPage),
-                    // where the whole list is read once before saving.
+                        // Notes moved to the review step (ShipmentReviewPage),
+                        // where the whole list is read once before saving.
 
-                    // ── Status bar ─────────────────────────────────────────────
-                    DesktopStatusBar(
-                      child: Row(
-                        children: [
-                          _TotalChip(
-                            label: 'Mahsulotlar',
-                            value: '${_ctrl.filledItems.length}',
+                        // ── Status bar ─────────────────────────────────────────────
+                        DesktopStatusBar(
+                          child: Row(
+                            children: [
+                              _TotalChip(
+                                label: 'Mahsulotlar',
+                                value: '${_ctrl.filledItems.length}',
+                              ),
+                              const SizedBox(width: 16),
+                              _TotalChip(
+                                label: 'Jami dona',
+                                value: '${_ctrl.totalQuantity}',
+                              ),
+                              const SizedBox(width: 16),
+                              _TotalChip(
+                                label: 'Jami m²',
+                                value:
+                                    '${_ctrl.totalSqm.toStringAsFixed(2)} m²',
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Sana: $_formattedDate',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                              const SizedBox(width: 24),
+                            ],
                           ),
-                          const SizedBox(width: 16),
-                          _TotalChip(
-                            label: 'Jami dona',
-                            value: '${_ctrl.totalQuantity}',
-                          ),
-                          const SizedBox(width: 16),
-                          _TotalChip(
-                            label: 'Jami m²',
-                            value: '${_ctrl.totalSqm.toStringAsFixed(2)} m²',
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Sana: $_formattedDate',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(width: 24),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (_pdaBusy) const Positioned.fill(child: _ResolvingScrim()),
+                ],
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Under the client bar on a PDA: whether a trigger press will do anything.
+class _ScannerReadyBar extends StatelessWidget {
+  final bool ready;
+  const _ScannerReadyBar({required this.ready});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ready ? AppColors.success : AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: color.withValues(alpha: 0.12),
+      child: Row(
+        children: [
+          Icon(
+            ready ? Icons.barcode_reader : Icons.store_outlined,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              ready
+                  ? 'Skaner tayyor: tugmani bosib yorliqdagi 21… kodni o\'qing'
+                  : 'Skanerlashdan oldin mijozni tanlang',
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Over the list while a trigger scan is checked on the server, so the
+/// worker can tell "still working" from "nothing happened".
+class _ResolvingScrim extends StatelessWidget {
+  const _ResolvingScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.45),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(strokeWidth: 4),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Tekshirilmoqda…',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1185,7 +1431,8 @@ class ShipmentRowNote extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (caption != null)
-            Text(caption, style: small?.copyWith(color: AppColors.textSecondary)),
+            Text(caption,
+                style: small?.copyWith(color: AppColors.textSecondary)),
           for (final (icon, color, text) in notes)
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -1224,7 +1471,12 @@ class ShipmentRowNote extends StatelessWidget {
         'qolgan $owed dona',
       ].join(' · ');
     }
-    final ids = lines.map((l) => l.orderId).whereType<int>().toSet().map((id) => '#$id').toList();
+    final ids = lines
+        .map((l) => l.orderId)
+        .whereType<int>()
+        .toSet()
+        .map((id) => '#$id')
+        .toList();
     final shown = ids.length > 4 ? [...ids.take(4), '…'] : ids;
     return [
       '${lines.length} ta buyurtmada qolgan $owed dona',

@@ -92,10 +92,16 @@ class ShipmentFormController extends ChangeNotifier {
   /// client's orders is one row of 3, not three rows. Never capped: carpets
   /// past what the client owes still ship, beyond the order, and the scanner
   /// has already asked before handing such a carpet over.
-  ScanAddResult addOrIncrementItem(ShipmentImportItemEntity item) {
+  ///
+  /// [carpetNumber] is the scanned 21… number, when the label had one.
+  ScanAddResult addOrIncrementItem(
+    ShipmentImportItemEntity item, {
+    String? carpetNumber,
+  }) {
     final row = _rowOf(item.variantId);
 
     if (row != null) {
+      if (carpetNumber != null) row.carpetNumbers.add(carpetNumber);
       row.absorbLineOf(item);
       row.scanned = true;
       row.quantityCtrl.text = '${row.parsedQuantity + 1}';
@@ -113,6 +119,7 @@ class ShipmentFormController extends ChangeNotifier {
       scanned: true,
     );
     created.addScannedBatchItem(item.productionBatchItemId);
+    if (carpetNumber != null) created.carpetNumbers.add(carpetNumber);
     if (item.producedForClient != null) {
       created.producedForClients.add(item.producedForClient!);
     }
@@ -120,6 +127,14 @@ class ShipmentFormController extends ChangeNotifier {
     _items.add(created);
     notifyListeners();
     return ScanAddResult.added;
+  }
+
+  /// The row already holding the carpet numbered [carpetNumber], or null.
+  ShipmentItemRow? rowWithCarpet(String carpetNumber) {
+    for (final r in _items) {
+      if (r.carpetNumbers.contains(carpetNumber)) return r;
+    }
+    return null;
   }
 
   /// The row of [variantId], or null.
@@ -177,6 +192,7 @@ class ShipmentFormController extends ChangeNotifier {
       existing.scanned = existing.scanned || row.scanned;
       existing.scannedBatchItemIds.addAll(row.scannedBatchItemIds);
       existing.producedForClients.addAll(row.producedForClients);
+      existing.carpetNumbers.addAll(row.carpetNumbers);
       final total = row.clientOpenRemaining;
       if (total != null &&
           (existing.clientOpenRemaining == null ||

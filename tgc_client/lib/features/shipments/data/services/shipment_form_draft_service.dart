@@ -89,6 +89,7 @@ class ShipmentFormDraftService {
         'scanned': r.scanned,
         'scanned_batch_item_ids': r.scannedBatchItemIds,
         'produced_for_clients': r.producedForClients.toList(),
+        'carpet_numbers': r.carpetNumbers.toList(),
         'product_name': r.productName,
         'color_name': r.colorName,
         'color_image_url': r.colorImageUrl,
@@ -148,6 +149,9 @@ class ShipmentFormDraftService {
     }
     for (final name in (json['produced_for_clients'] as List<dynamic>?) ?? []) {
       if (name is String) row.producedForClients.add(name);
+    }
+    for (final number in (json['carpet_numbers'] as List<dynamic>?) ?? []) {
+      if (number is String) row.carpetNumbers.add(number);
     }
 
     return row;

@@ -614,6 +614,9 @@ class ShipmentScanFlowTest extends TestCase
             'PB{batch} PBI{item} — printed 2026-05-06..14'       => ['PB{%b} PBI{%i}', true],
             'PB{batch} VAR{variant} — print-history reprint'     => ['PB{%b} VAR{%v}', false],
             'TGC-U serial — minted per print, not yet on labels' => ['%s', true],
+            '21 carpet number — printed since 2026-11-14'        => ['%n', true],
+            '21 carpet number of a torn-label reprint'           => ['%r', true],
+            '21 carpet number read with a trailing CR'           => ["%n\r\n", true],
             'lower case'                                         => ['p%b i%i', true],
             'two spaces'                                         => ['P%b  I%i', true],
             'tab between'                                        => ["P%b\tI%i", true],
@@ -634,6 +637,8 @@ class ShipmentScanFlowTest extends TestCase
             '%i' => $carpets->id,
             '%v' => $variant->id,
             '%s' => $this->unitSerial($carpets),
+            '%n' => $this->carpetNumber($carpets),
+            '%r' => $this->reprintNumber($carpets),
         ]);
 
         $response = $this->scan($code)->assertOk();
@@ -655,6 +660,7 @@ class ShipmentScanFlowTest extends TestCase
             'the old product barcode text'      => ['TGC-VAR-00000042'],
             'the digits-only product barcode'   => ['2984200000429'],
             'a URL'                             => ['https://erp.tgc-carpets.uz/p/1'],
+            'carpet number never issued'        => ['210000099990'],
         ];
     }
 
@@ -677,6 +683,24 @@ class ShipmentScanFlowTest extends TestCase
             ->assertJsonPath('message', 'Mahsulot topilmadi.')
             ->assertJsonValidationErrors(['label'])
             ->assertJsonMissingValidationErrors(['code', 'client_id']);
+    }
+
+    public function test_the_product_barcode_next_to_the_carpet_number_says_which_code_to_scan(): void
+    {
+        $this->scan('2984200000429')
+            ->assertStatus(422)
+            ->assertJsonPath('errors.label.0', fn (string $m) => str_contains($m, '21 bilan'));
+    }
+
+    public function test_a_carpet_number_whose_print_was_undone_is_refused(): void
+    {
+        [$carpets] = $this->ownCarpet();
+        $number = $this->carpetNumber($carpets);
+        ProductionUnit::where('carpet_number', $number)->update(['status' => ProductionUnit::STATUS_SCRAPPED]);
+
+        $this->scan($number)
+            ->assertStatus(422)
+            ->assertJsonPath('errors.label.0', fn (string $m) => str_contains($m, 'bekor qilingan'));
     }
 
     // ── Getting the request there ─────────────────────────────────────────────
@@ -819,6 +843,46 @@ class ShipmentScanFlowTest extends TestCase
         $unit->update(['serial' => sprintf('TGC-U-%08d', $unit->id)]);
 
         return $unit->serial;
+    }
+
+    private int $nextCarpetSerial = 1;
+
+    /** A unit minted by a print, carrying its 21 carpet number. */
+    private function carpetNumber(ProductionBatchItem $carpets): string
+    {
+        $number = $this->freshCarpetNumber();
+        $this->unitSerial($carpets);
+        ProductionUnit::where('production_batch_item_id', $carpets->id)
+            ->latest('id')->first()->update(['carpet_number' => $number]);
+
+        return $number;
+    }
+
+    /** A torn-label reprint, which carries a fresh number of its own. */
+    private function reprintNumber(ProductionBatchItem $carpets): string
+    {
+        $number = $this->freshCarpetNumber();
+        \App\Models\LabelReprint::create([
+            'production_batch_item_id' => $carpets->id,
+            'printed_by'               => $this->worker->id,
+            'printed_at'               => now(),
+            'reason'                   => \App\Models\LabelReprint::REASON_REPRINT,
+            'carpet_number'            => $number,
+        ]);
+
+        return $number;
+    }
+
+    /** 21 + 9-digit serial + UPC-A style check digit, as CarpetNumberBlock. */
+    private function freshCarpetNumber(): string
+    {
+        $digits = '21' . str_pad((string) $this->nextCarpetSerial++, 9, '0', STR_PAD_LEFT);
+        $sum = 0;
+        foreach (str_split($digits) as $i => $d) {
+            $sum += (int) $d * ($i % 2 === 0 ? 3 : 1);
+        }
+
+        return $digits . ((10 - $sum % 10) % 10);
     }
 
     // ── The app, reduced to what reaches the server ───────────────────────────

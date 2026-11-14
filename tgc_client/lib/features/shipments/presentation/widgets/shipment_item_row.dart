@@ -93,6 +93,12 @@ class ShipmentItemRow {
   /// stays visible on the form until the shipment is saved.
   final Set<String> producedForClients = {};
 
+  /// The unique 21… numbers of the carpets scanned into this row. One
+  /// physical carpet has one number, so a second scan of it is refused
+  /// instead of shipping it twice. Labels printed before November 2026 have
+  /// no number and add nothing here.
+  final Set<String> carpetNumbers = {};
+
   /// What the client owed for this carpet across ALL open orders at the last
   /// scan. Null for wizard rows and older servers, where [orderLines] are the
   /// best the form knows.

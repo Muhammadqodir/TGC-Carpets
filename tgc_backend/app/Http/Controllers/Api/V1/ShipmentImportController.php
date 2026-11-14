@@ -291,6 +291,17 @@ class ShipmentImportController extends Controller
         $clientId = $request->integer('client_id');
         $inForm = $this->inFormQuantities($request->input('in_form'));
 
+        // A carpet number belongs to one physical carpet, so it can say more
+        // than "unknown label": that its print was undone, or that it is the
+        // product barcode next to it on the label.
+        $refused = $this->refuseCarpetCode($code);
+        if ($refused !== null) {
+            return response()->json([
+                'message' => 'Mahsulot topilmadi.',
+                'errors'  => ['label' => [$refused]],
+            ], 422);
+        }
+
         $scanned = $this->resolveVariantFromCode($code);
         if (! $scanned) {
             // 422, not 404: prod's nginx replaces every upstream 404 body with
@@ -676,8 +687,46 @@ class ShipmentImportController extends Controller
      *
      * @return array{variant_id:int, source_order_item_id:int|null, product_name:string}|null
      */
+    /**
+     * Why a carpet-number or product-barcode scan cannot be shipped, or null
+     * to carry on with the normal lookup.
+     */
+    private function refuseCarpetCode(string $code): ?string
+    {
+        // The product barcode (29842 + variant id) sits next to the carpet
+        // number on the label, and a PDA reads whichever one it is aimed at.
+        if (preg_match('/^29842\d{8}$/', $code)) {
+            return "Bu mahsulot shtrix-kodi. Yorliqning o'ng yuqori burchagidagi 21 bilan boshlanadigan kodni skanerlang.";
+        }
+
+        if (preg_match('/^21\d{10}$/', $code)) {
+            $unit = ProductionUnit::where('carpet_number', $code)->first();
+            if ($unit && $unit->status === ProductionUnit::STATUS_SCRAPPED) {
+                return "Bu yorliq bekor qilingan (xato chop etilgan). Gilamga yangi yorliq chop eting.";
+            }
+        }
+
+        return null;
+    }
+
     private function resolveVariantFromCode(string $code): ?array
     {
+        // The unique carpet number printed since November 2026 (21 + 9-digit
+        // serial + check digit). Stored on the unit its print minted, or on
+        // the reprint that replaced a torn label.
+        if (preg_match('/^21\d{10}$/', $code)) {
+            $batchItemId = ProductionUnit::where('carpet_number', $code)->value('production_batch_item_id')
+                ?? \App\Models\LabelReprint::where('carpet_number', $code)->value('production_batch_item_id');
+
+            if ($batchItemId === null) {
+                return null;
+            }
+
+            return $this->batchItemPayload(
+                ProductionBatchItem::with('variant.productColor.product')->find($batchItemId)
+            );
+        }
+
         if (preg_match('/^TGC-U-\d{8}$/', $code)) {
             $unit = ProductionUnit::where('serial', $code)->first();
             if (! $unit) {
