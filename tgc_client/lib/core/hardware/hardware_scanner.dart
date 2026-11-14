@@ -4,11 +4,17 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+/// Receives one decoded barcode.
+typedef HardwareScanHandler = void Function(String code);
+
 /// The built-in barcode imager of a Zebra PDA (TC15), driven through
 /// DataWedge by MainActivity.kt.
 ///
-/// On every other device [isAvailable] is false and [scans] never emits, so
-/// pages can listen unconditionally and fall back to the camera.
+/// Scans go to whoever claimed the scanner last ([claim]) — the shipment
+/// page while it is open, the product page while it is showing — and
+/// otherwise to the app-wide fallback set by [start], which opens the
+/// product screen. On every other device [isAvailable] is false and nothing
+/// is ever delivered, so callers need no platform checks.
 class HardwareScanner {
   HardwareScanner._();
   static final HardwareScanner instance = HardwareScanner._();
@@ -17,7 +23,9 @@ class HardwareScanner {
   static const _events = EventChannel('uz.mq.tgc/scanner/events');
 
   bool? _available;
-  Stream<String>? _scans;
+  StreamSubscription<dynamic>? _sub;
+  HardwareScanHandler? _fallback;
+  final List<HardwareScanHandler> _claims = [];
 
   /// True on a device with DataWedge (a Zebra PDA). Cached after the first
   /// call; false on iOS, desktop and web.
@@ -32,16 +40,25 @@ class HardwareScanner {
     return _available!;
   }
 
-  /// Each decoded barcode's text. The native receiver is registered only
-  /// while something listens, so a scan on a page that does not listen is
-  /// dropped rather than queued.
-  Stream<String> get scans {
-    if (kIsWeb || !Platform.isAndroid) return const Stream.empty();
-    return _scans ??= _events
-        .receiveBroadcastStream()
-        .map((event) => event is Map ? event['data'] as String? : null)
-        .where((data) => data != null && data.isNotEmpty)
-        .cast<String>();
+  /// Starts listening for the whole app; [fallback] gets every scan nobody
+  /// has claimed.
+  Future<void> start(HardwareScanHandler fallback) async {
+    _fallback = fallback;
+    if (_sub != null || !await isAvailable()) return;
+    _sub = _events.receiveBroadcastStream().listen((event) {
+      final data = event is Map ? event['data'] : null;
+      if (data is! String || data.isEmpty) return;
+      final handler = _claims.isNotEmpty ? _claims.last : _fallback;
+      handler?.call(data);
+    });
+  }
+
+  /// Takes the scanner until the returned callback is called. Claims stack:
+  /// the latest one wins, and releasing it hands scans back to the one
+  /// before.
+  VoidCallback claim(HardwareScanHandler handler) {
+    _claims.add(handler);
+    return () => _claims.remove(handler);
   }
 
   /// Fires the imager as if the trigger button were pressed.

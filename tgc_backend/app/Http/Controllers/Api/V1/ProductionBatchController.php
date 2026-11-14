@@ -497,6 +497,57 @@ class ProductionBatchController extends Controller
     {
         $code = trim((string) $request->input('code'));
 
+        // The unique carpet number printed since November 2026: one physical
+        // carpet, so the answer can say who printed this very label and when.
+        if (preg_match('/^21\d{10}$/', $code)) {
+            $with = [
+                'batchItem.productionBatch' => fn ($q) => $q->with(['machine', 'creator', 'responsibleEmployee']),
+                'batchItem.variant.productColor.product.productType',
+                'batchItem.variant.productColor.product.productQuality',
+                'batchItem.variant.productColor.color',
+                'batchItem.variant.productSize',
+                'batchItem.variant.productEdge',
+                'batchItem.sourceOrderItem.order.client',
+            ];
+
+            $unit = ProductionUnit::with([...$with, 'printedByUser'])
+                ->where('carpet_number', $code)
+                ->first();
+            if ($unit) {
+                return response()->json(
+                    $this->buildScanResponse($unit->batchItem, [
+                        'serial'          => $code,
+                        'status'          => $unit->status,
+                        'printed_at'      => $unit->printed_at?->toISOString(),
+                        'printed_by_name' => $unit->printedByUser?->name,
+                        'reprint_count'   => $unit->reprint_count,
+                        'length_cm'       => $unit->length_cm,
+                    ])
+                );
+            }
+
+            // A torn label's replacement carries a number of its own.
+            $reprint = LabelReprint::with([...$with, 'printedByUser'])
+                ->where('carpet_number', $code)
+                ->latest('id')
+                ->first();
+            if ($reprint) {
+                return response()->json(
+                    $this->buildScanResponse($reprint->batchItem, [
+                        'serial'          => $code,
+                        'status'          => 'reprint',
+                        'printed_at'      => $reprint->printed_at?->toISOString(),
+                        'printed_by_name' => $reprint->printedByUser?->name,
+                        'reprint_count'   => 0,
+                        'length_cm'       => $reprint->length_cm,
+                    ])
+                );
+            }
+
+            // 422, not 404: prod's nginx used to swallow 404 bodies.
+            return response()->json(['message' => "Bu raqamli gilam topilmadi: {$code}"], 422);
+        }
+
         if (preg_match('/^TGC-U-\d{8}$/', $code)) {
             $unit = ProductionUnit::with([
                     'printedByUser',

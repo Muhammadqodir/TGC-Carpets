@@ -76,7 +76,8 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
   /// True on a Zebra PDA: the trigger button scans straight onto this list,
   /// with no camera page in between.
   bool _hardwareScanner = false;
-  StreamSubscription<String>? _scanSub;
+  /// Gives the scanner back to the rest of the app when the page closes.
+  VoidCallback? _releaseScanner;
 
   /// True while a trigger scan is being resolved or confirmed. Further
   /// trigger scans are dropped until it is done, so one carpet is never
@@ -96,7 +97,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
   Future<void> _initHardwareScanner() async {
     if (!await HardwareScanner.instance.isAvailable() || !mounted) return;
     setState(() => _hardwareScanner = true);
-    _scanSub = HardwareScanner.instance.scans.listen(_onHardwareScan);
+    _releaseScanner = HardwareScanner.instance.claim(_onHardwareScan);
   }
 
   Future<void> _initDraft() async {
@@ -140,7 +141,7 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
 
   @override
   void dispose() {
-    _scanSub?.cancel();
+    _releaseScanner?.call();
     _listCtrl.dispose();
     _highlightTimer?.cancel();
     _ctrl.removeListener(_onFormChanged);

@@ -177,7 +177,7 @@ class _ScannerViewState extends State<_ScannerView> {
   }
 }
 
-@visibleForTesting
+/// The carpet a label names; also shown by ScanInfoPage for PDA scans.
 class ScanResultView extends StatelessWidget {
   final ScannedItemEntity item;
   final VoidCallback onReset;
@@ -222,8 +222,7 @@ class ScanResultView extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
-                      _InfoRow(
-                          label: 'Mahsulot', value: item.product.name),
+                      _InfoRow(label: 'Mahsulot', value: item.product.name),
                       if (item.product.sizeLabel != null)
                         _InfoRow(
                             label: 'O\'lcham', value: item.product.sizeLabel!),
@@ -242,8 +241,7 @@ class ScanResultView extends StatelessWidget {
                       if (item.product.sku != null)
                         _InfoRow(label: 'SKU', value: item.product.sku!),
                       if (item.product.barcode != null)
-                        _InfoRow(
-                            label: 'Barkod', value: item.product.barcode!),
+                        _InfoRow(label: 'Barkod', value: item.product.barcode!),
                       if (item.stockQuantity != null)
                         _InfoRow(
                             label: 'Omborda hozir',
@@ -296,8 +294,8 @@ class ScanResultView extends StatelessWidget {
                       if (item.productionBatch.createdAt != null)
                         _InfoRow(
                             label: 'Boshlangan',
-                            value: _formatDate(
-                                item.productionBatch.createdAt!)),
+                            value:
+                                _formatDate(item.productionBatch.createdAt!)),
                       if (item.productionBatch.completedDatetime != null)
                         _InfoRow(
                             label: 'Tugallangan',
@@ -349,7 +347,8 @@ class ScanResultView extends StatelessWidget {
                             value: [
                               print.printedByName ?? 'Noma\'lum',
                               if (print.kind == 'reprint') '· qayta chop etish',
-                              if (print.kind == 'over_target') '· rejadan ortiq',
+                              if (print.kind == 'over_target')
+                                '· rejadan ortiq',
                             ].join(' '),
                           ),
                         if (item.labelPrints!.beforeTracking > 0)
@@ -386,7 +385,11 @@ class ScanResultView extends StatelessWidget {
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
-                        _InfoRow(label: 'Seriya', value: item.unit!.serial),
+                        _InfoRow(
+                            label: item.unit!.serial.startsWith('21')
+                                ? 'Gilam raqami'
+                                : 'Seriya',
+                            value: item.unit!.serial),
                         _InfoRow(
                             label: 'Holati',
                             value: _unitStatusLabel(item.unit!.status)),
@@ -443,7 +446,8 @@ class ScanResultView extends StatelessWidget {
                           if (item.destination!.orderDate != null)
                             _InfoRow(
                                 label: 'Buyurtma sanasi',
-                                value: _formatDay(item.destination!.orderDate!)),
+                                value:
+                                    _formatDay(item.destination!.orderDate!)),
                           if (item.destination!.orderStatus != null)
                             _InfoRow(
                                 label: 'Buyurtma holati',
@@ -522,6 +526,8 @@ class ScanResultView extends StatelessWidget {
         return 'Omborga qabul qilingan';
       case 'shipped':
         return 'Jo\'natilgan';
+      case 'reprint':
+        return 'Qayta chop etilgan yorliq';
       default:
         return status;
     }
@@ -605,5 +611,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Labeling;
 
+use App\Models\CarpetNumberBlock;
 use App\Models\Client;
 use App\Models\Machine;
 use App\Models\Order;
@@ -143,6 +144,32 @@ class ScanItemDetailsTest extends TestCase
 
         $this->assertSame('A MIJOZ', $data['destination']['client_name']);
         $this->assertSame(['from_client_name' => 'B MIJOZ', 'shipment_id' => $shipment->id], $data['reattribution']);
+    }
+
+    public function test_scanning_the_21_carpet_number_shows_that_very_carpet(): void
+    {
+        $worker  = User::factory()->labelManager()->create(['name' => '1 SMENA (YORLIQ)']);
+        $variant = ProductVariant::factory()->create();
+        $carpets = $this->batchItem($variant, null, $worker, planned: 3);
+        $url     = "/api/v1/production-batches/{$carpets->production_batch_id}/items/{$carpets->id}/print-label";
+        $number  = CarpetNumberBlock::numberFor(1);
+
+        $this->actingAs($worker, 'sanctum')->postJson($url, [
+            'idempotency_key' => (string) Str::uuid(),
+            'carpet_number'   => $number,
+        ])->assertOk();
+        $this->assertSame(1, ProductionUnit::where('carpet_number', $number)->count());
+
+        $this->actingAs($worker, 'sanctum')
+            ->getJson('/api/v1/production-batches-scan?code=' . $number)
+            ->assertOk()
+            ->assertJsonPath('data.item.id', $carpets->id)
+            ->assertJsonPath('data.unit.serial', $number)
+            ->assertJsonPath('data.unit.printed_by_name', '1 SMENA (YORLIQ)');
+
+        $this->actingAs($worker, 'sanctum')
+            ->getJson('/api/v1/production-batches-scan?code=210000099990')
+            ->assertStatus(422);
     }
 
     private function batchItem(ProductVariant $variant, ?OrderItem $for, User $by, int $planned): ProductionBatchItem

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/di/injection.dart';
+import 'core/hardware/scan_anywhere.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,8 +36,7 @@ void main() async {
     try {
       final prefs = await SharedPreferences.getInstance()
           .timeout(const Duration(seconds: 5));
-      final isLabelTerminal =
-          prefs.getBool('isLabelPrintingTerminal') ?? false;
+      final isLabelTerminal = prefs.getBool('isLabelPrintingTerminal') ?? false;
       if (isLabelTerminal) {
         await windowManager.setFullScreen(true);
       }
@@ -47,4 +47,6 @@ void main() async {
 
   await initDependencies();
   runApp(const App());
+  // Zebra PDA: a label scanned on any page opens the product screen.
+  startScanAnywhere();
 }
