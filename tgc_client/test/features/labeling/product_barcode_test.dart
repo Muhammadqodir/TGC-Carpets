@@ -5,62 +5,75 @@ import 'package:tgc_client/features/labeling/domain/product_barcode.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50.dart';
 import 'package:tgc_client/features/labeling/presentation/widgets/labels/print_label_70_50_arab.dart';
 
-/// The label's product barcode is digits only, the same number the backend
+/// The label's product barcode is 8 digits, the same number the backend
 /// stores (ProductBarcodeTest in tgc_backend uses the same table), and never
 /// falls back to the "TGC-" text some clients' systems reject.
 void main() {
   group('productBarcode', () {
     const sameAsBackend = {
-      1: '2984200000016',
-      42: '2984200000429',
-      5984: '2984200059847',
-      9999999: '2984299999994',
+      1: '50000012',
+      42: '50000425',
+      5984: '50059843',
+      999999: '59999997',
     };
 
     sameAsBackend.forEach((id, expected) {
       test('variant $id → $expected', () {
         expect(productBarcode(id), expected);
-        expect(isEan13(productBarcode(id)), isTrue);
+        expect(isEan8(productBarcode(id)), isTrue);
+        expect(isProductBarcode(productBarcode(id)), isTrue);
       });
     });
 
     test('ids that do not fit are refused rather than truncated', () {
       expect(() => productBarcode(0), throwsArgumentError);
-      expect(() => productBarcode(10000000), throwsArgumentError);
+      expect(() => productBarcode(1000000), throwsArgumentError);
     });
   });
 
-  group('isEan13', () {
-    test('accepts a real retail EAN-13 and ours', () {
+  group('check digits', () {
+    test('agree with real retail codes', () {
       expect(isEan13('4006381333931'), isTrue);
-      expect(isEan13('2984200059847'), isTrue);
+      expect(isEan8('96385074'), isTrue); // GS1's own EAN-8 example
     });
 
-    test('rejects a wrong check digit, letters and wrong lengths', () {
+    test('reject a wrong check digit, letters and wrong lengths', () {
+      expect(isEan8('50059842'), isFalse);
       expect(isEan13('2984200059846'), isFalse);
       expect(isEan13('TGC-00005984'), isFalse);
-      expect(isEan13('298420005984'), isFalse);
-      expect(isEan13('29842000598470'), isFalse);
-      expect(isEan13(''), isFalse);
+      expect(isEan8('5005984'), isFalse);
+      expect(isEan8(''), isFalse);
+    });
+  });
+
+  group('isProductBarcode', () {
+    test('knows the current code and the 13-digit one before it', () {
+      expect(isProductBarcode('50059843'), isTrue);
+      expect(isProductBarcode('2984200059847'), isTrue);
+    });
+
+    test('is not fooled by other codes on or near a label', () {
+      expect(isProductBarcode('96385074'), isFalse); // someone else's EAN-8
+      expect(isProductBarcode('4006381333931'), isFalse);
+      expect(isProductBarcode('210000000010'), isFalse); // a carpet number
+      expect(isProductBarcode('P12 I5984'), isFalse);
     });
   });
 
   group('labelBarcodeValue', () {
-    test('prints the server value when it is already digits', () {
-      expect(labelBarcodeValue(stored: '2984200059847', variantId: 5984),
-          '2984200059847');
+    test('prints the server value when it is already the 8 digits', () {
+      expect(labelBarcodeValue(stored: '50059843', variantId: 5984), '50059843');
     });
 
-    test('print history saved before the switch reprints without TGC-', () {
-      expect(labelBarcodeValue(stored: 'TGC-00005984', variantId: 5984),
-          '2984200059847');
-      expect(labelBarcodeValue(stored: 'TGC-VAR-00005984', variantId: 5984),
-          '2984200059847');
+    test('older values saved in print history reprint as the 8 digits', () {
+      for (final old in ['2984200059847', 'TGC-00005984', 'TGC-VAR-00005984']) {
+        expect(labelBarcodeValue(stored: old, variantId: 5984), '50059843');
+      }
     });
 
     test('no stored value falls back to the derived one', () {
-      expect(labelBarcodeValue(stored: null, variantId: 42), '2984200000429');
-      expect(labelBarcodeValue(stored: '', variantId: 42), '2984200000429');
+      expect(labelBarcodeValue(stored: null, variantId: 42), '50000425');
+      expect(labelBarcodeValue(stored: '', variantId: 42), '50000425');
     });
   });
 
@@ -89,16 +102,16 @@ void main() {
     labels.forEach((name, build) {
       testWidgets('$name draws the product barcode as a plain Code 128',
           (tester) async {
-        await tester.pumpWidget(MaterialApp(home: build('2984200059847')));
+        await tester.pumpWidget(MaterialApp(home: build('50059843')));
 
         expect(tester.takeException(), isNull);
         final product = productBarcodeOn(tester);
         expect(product.barcode.name, 'CODE 128');
-        expect(String.fromCharCodes(product.data), '2984200059847');
+        expect(String.fromCharCodes(product.data), '50059843');
       });
 
       testWidgets('$name draws the scan code as a Data Matrix', (tester) async {
-        await tester.pumpWidget(MaterialApp(home: build('2984200059847')));
+        await tester.pumpWidget(MaterialApp(home: build('50059843')));
 
         final scanCode = tester
             .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
@@ -110,7 +123,7 @@ void main() {
           (tester) async {
         await tester.pumpWidget(MaterialApp(
           home: PrintLabel7050(
-            barcodeValue: '2984200059847',
+            barcodeValue: '50059843',
             carpetBarcode: '210000012345',
             qrData: 'P12345 I123456',
             quality: 'ASL PODSHOX GILAMI ASL PODSHOX GILAMI',

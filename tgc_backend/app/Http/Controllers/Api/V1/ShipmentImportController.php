@@ -693,9 +693,9 @@ class ShipmentImportController extends Controller
      */
     private function refuseCarpetCode(string $code): ?string
     {
-        // The product barcode (29842 + variant id) sits next to the carpet
-        // number on the label, and a PDA reads whichever one it is aimed at.
-        if (preg_match('/^29842\d{8}$/', $code)) {
+        // The product barcode sits next to the carpet number on the label, and
+        // a PDA reads whichever one it is aimed at.
+        if (ProductVariant::idFromBarcode($code) !== null) {
             return "Bu mahsulot shtrix-kodi. Yorliqning o'ng yuqori burchagidagi 21 bilan boshlanadigan kodni skanerlang.";
         }
 

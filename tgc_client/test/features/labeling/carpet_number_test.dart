@@ -196,7 +196,7 @@ void main() {
     testWidgets('prints the number as a second Code 128', (tester) async {
       await tester.pumpWidget(MaterialApp(
         home: PrintLabel7050(
-          barcodeValue: '2984200059847',
+          barcodeValue: '50059843',
           carpetBarcode: carpetNumber(1),
           qrData: 'P1 I1',
         ),
@@ -207,7 +207,7 @@ void main() {
           .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
           .where((w) => w.barcode.name == 'CODE 128')
           .map((w) => String.fromCharCodes(w.data));
-      expect(printed, ['2984200059847', '210000000010']);
+      expect(printed, ['50059843', '210000000010']);
     });
   });
 }

@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 /// Color   : BEIGE                   ═  on the right
 ///
 /// ║║║║║║║║║║║║║║║║               ┌──┐
-/// 2984200059847      S_123_04_14 15.59
+/// 50059843      S_123_04_14 15.59
 /// ```
 ///
 /// The square code is exactly as tall as the product barcode's bars, and the

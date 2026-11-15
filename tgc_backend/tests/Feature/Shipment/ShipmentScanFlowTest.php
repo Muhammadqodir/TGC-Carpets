@@ -659,6 +659,7 @@ class ShipmentScanFlowTest extends TestCase
             'April 2026 dev format batch/item'  => ['%b/%i'],
             'the old product barcode text'      => ['TGC-VAR-00000042'],
             'the digits-only product barcode'   => ['2984200000429'],
+            'the 8-digit product barcode'       => ['50000425'],
             'a URL'                             => ['https://erp.tgc-carpets.uz/p/1'],
             'carpet number never issued'        => ['210000099990'],
         ];
@@ -687,9 +688,11 @@ class ShipmentScanFlowTest extends TestCase
 
     public function test_the_product_barcode_next_to_the_carpet_number_says_which_code_to_scan(): void
     {
-        $this->scan('2984200000429')
-            ->assertStatus(422)
-            ->assertJsonPath('errors.label.0', fn (string $m) => str_contains($m, '21 bilan'));
+        foreach (['50000425', '2984200000429'] as $productBarcode) {
+            $this->scan($productBarcode)
+                ->assertStatus(422)
+                ->assertJsonPath('errors.label.0', fn (string $m) => str_contains($m, '21 bilan'));
+        }
     }
 
     public function test_a_carpet_number_whose_print_was_undone_is_refused(): void

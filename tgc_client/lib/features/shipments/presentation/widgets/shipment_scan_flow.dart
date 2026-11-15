@@ -87,7 +87,7 @@ class ShipmentScanFlow {
         );
       }
     }
-    if (code.startsWith(productBarcodePrefix) && isEan13(code)) {
+    if (isProductBarcode(code)) {
       return const ShipmentScanRejection(
         'Boshqa kodni skanerlang',
         message: 'Bu mahsulot shtrix-kodi. Yorliqning o\'ng yuqori '

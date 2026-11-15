@@ -32,7 +32,7 @@ void main() {
           'defect_quantity': 0,
           'warehouse_received_quantity': 1,
         },
-        'product': {'name': '1568', 'size_label': '200×300', 'barcode': '2984200059847'},
+        'product': {'name': '1568', 'size_label': '200×300', 'barcode': '50059843'},
         'production_batch': {
           'id': 1323,
           'status': 'completed',

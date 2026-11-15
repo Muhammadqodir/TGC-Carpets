@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Product barcodes become digits only ("TGC-00000042" → "2984200000429",
- * see ProductVariant::barcodeFor) because some clients' systems reject the
+ * see ProductVariant::legacyBarcodeFor) because some clients' systems reject the
  * letters. Labels already on carpets keep resolving through
  * ProductVariant::idFromBarcode, so nothing needs reprinting to keep scanning.
  */
@@ -14,7 +14,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $this->rewrite(fn (int $id) => ProductVariant::barcodeFor($id));
+        $this->rewrite(fn (int $id) => ProductVariant::legacyBarcodeFor($id));
     }
 
     public function down(): void

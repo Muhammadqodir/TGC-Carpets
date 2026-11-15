@@ -70,34 +70,53 @@ class ProductVariant extends Model
     // ── Barcode ───────────────────────────────────────────────────────────────
 
     /**
-     * First five digits of every product barcode printed on a label.
+     * First digit of every product barcode printed on a label since November
+     * 2026: an EAN-8 of "5", the variant id in 6 digits and a check digit
+     * ("50059843" for variant 5984). Short enough that a PDA aimed at the
+     * label's 21 carpet number does not catch it instead.
      *
-     * Some clients' systems accept digits only, so the barcode is an EAN-13
-     * instead of the old "TGC-00000042". TGC has no GS1 company prefix, so the
-     * number sits in GS1's in-store range (starting with 2). GS1 never gives
-     * those numbers to a manufacturer, so they can't clash with another
-     * factory's barcode. "842" spells TGC on a phone keypad and keeps our codes
-     * apart from the 2000000… numbers that shop software generates for itself.
+     * TGC has no GS1 prefix (the user's decision, 2026-09-17), so a shop
+     * system could in theory hold a foreign retail product with the same
+     * 8 digits; the user accepted that on 2026-11-15.
      *
-     * Never change it: clients keep these numbers in their own systems.
+     * Never change it again: clients keep these numbers in their own systems.
      */
-    public const BARCODE_PREFIX = '29842';
+    public const BARCODE_PREFIX = '5';
 
-    /** EAN-13 for a variant: the prefix, the variant id in 7 digits, a check digit. */
+    /**
+     * The EAN-13 printed from 2026-09-17 to 2026-11-15 ("29842" + 7-digit id +
+     * check). Still on carpets and in clients' systems, so it keeps resolving.
+     */
+    public const LEGACY_BARCODE_PREFIX = '29842';
+
+    /** EAN-8 for a variant: the prefix, the variant id in 6 digits, a check digit. */
     public static function barcodeFor(int $variantId): string
+    {
+        if ($variantId < 1 || $variantId > 999_999) {
+            throw new \InvalidArgumentException("Variant id {$variantId} does not fit the 6 digits of a product barcode.");
+        }
+
+        $digits = self::BARCODE_PREFIX . str_pad((string) $variantId, 6, '0', STR_PAD_LEFT);
+
+        return $digits . self::eanCheckDigit($digits);
+    }
+
+    /** The 13-digit barcode a variant had before November 2026. */
+    public static function legacyBarcodeFor(int $variantId): string
     {
         if ($variantId < 1 || $variantId > 9_999_999) {
             throw new \InvalidArgumentException("Variant id {$variantId} does not fit the 7 digits of a product barcode.");
         }
 
-        $digits = self::BARCODE_PREFIX . str_pad((string) $variantId, 7, '0', STR_PAD_LEFT);
+        $digits = self::LEGACY_BARCODE_PREFIX . str_pad((string) $variantId, 7, '0', STR_PAD_LEFT);
 
-        return $digits . self::ean13CheckDigit($digits);
+        return $digits . self::eanCheckDigit($digits);
     }
 
     /**
-     * The variant id behind a product barcode: the EAN-13 from barcodeFor(), or
-     * the "TGC-00000042" / "TGC-VAR-00000042" still printed on older labels.
+     * The variant id behind a product barcode: the EAN-8 from barcodeFor(),
+     * the EAN-13 printed before it, or the "TGC-00000042" / "TGC-VAR-00000042"
+     * on the oldest labels.
      */
     public static function idFromBarcode(string $barcode): ?int
     {
@@ -107,19 +126,25 @@ class ProductVariant extends Model
             return (int) $m[1] ?: null;
         }
 
-        if (preg_match('/^' . self::BARCODE_PREFIX . '(\d{7})(\d)$/', $barcode, $m)
-            && self::ean13CheckDigit(substr($barcode, 0, 12)) === $m[2]) {
-            return (int) $m[1] ?: null;
+        foreach ([[self::BARCODE_PREFIX, 6], [self::LEGACY_BARCODE_PREFIX, 7]] as [$prefix, $idDigits]) {
+            if (preg_match('/^' . $prefix . '(\d{' . $idDigits . '})(\d)$/', $barcode, $m)
+                && self::eanCheckDigit(substr($barcode, 0, -1)) === $m[2]) {
+                return (int) $m[1] ?: null;
+            }
         }
 
         return null;
     }
 
-    private static function ean13CheckDigit(string $twelveDigits): string
+    /**
+     * The EAN/UPC check digit: weights 3 and 1 alternating from the rightmost
+     * data digit, so one function serves EAN-8 and EAN-13.
+     */
+    private static function eanCheckDigit(string $digits): string
     {
         $sum = 0;
-        foreach (str_split($twelveDigits) as $i => $digit) {
-            $sum += (int) $digit * ($i % 2 === 0 ? 1 : 3);
+        foreach (array_reverse(str_split($digits)) as $i => $digit) {
+            $sum += (int) $digit * ($i % 2 === 0 ? 3 : 1);
         }
 
         return (string) ((10 - $sum % 10) % 10);

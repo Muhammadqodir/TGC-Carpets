@@ -94,13 +94,13 @@ void main() {
   group('label templates', () {
     final labels = <String, Widget Function(String?)>{
       'PrintLabel7050': (code) => PrintLabel7050(
-            barcodeValue: '2984200059847',
+            barcodeValue: '50059843',
             qrData: 'P1 I1',
             productName: '1568',
             printCode: code,
           ),
       'PrintLabel7050Arab': (code) => PrintLabel7050Arab(
-            barcodeValue: '2984200059847',
+            barcodeValue: '50059843',
             qrData: 'P1 I1',
             productName: '1568',
             printCode: code,
@@ -131,7 +131,7 @@ void main() {
         // measured as a ratio since the test screen scales the label.
         final product = tester.getRect(find.byWidgetPredicate((w) =>
             w is BarcodeWidget &&
-            String.fromCharCodes(w.data) == '2984200059847'));
+            String.fromCharCodes(w.data) == '50059843'));
         expect(scanCode.top, moreOrLessEquals(product.top));
         expect(scanCode.height / product.height,
             moreOrLessEquals((140 - 30 - 8) / 140));

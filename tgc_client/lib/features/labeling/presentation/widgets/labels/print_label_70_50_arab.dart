@@ -51,7 +51,7 @@ class PrintLabel7050Arab extends StatelessWidget {
   /// Edge code (e.g. "R").
   final String? edgeCode;
 
-  /// Product barcode (e.g. "2984200000429"), printed as a plain Code 128.
+  /// Product barcode (e.g. "50000425"), printed as a plain Code 128.
   final String barcodeValue;
 
   /// The unique number of this one carpet, printed as a second Code 128.

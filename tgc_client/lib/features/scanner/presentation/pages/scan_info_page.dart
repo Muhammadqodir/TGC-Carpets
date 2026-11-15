@@ -94,7 +94,7 @@ class _ScanInfoViewState extends State<_ScanInfoView> {
 
   static String? _refusalFor(String code) {
     if (ScanInfoPage.canShow(code)) return null;
-    if (code.startsWith(productBarcodePrefix) && isEan13(code)) {
+    if (isProductBarcode(code)) {
       return 'Bu mahsulot shtrix-kodi. Gilam haqida ma\'lumot uchun '
           'yorliqdagi 21 bilan boshlanadigan kodni yoki kvadrat kodni '
           'skanerlang.';

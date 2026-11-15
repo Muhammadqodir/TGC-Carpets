@@ -30,44 +30,55 @@ class ProductBarcodeTest extends TestCase
     public static function variantIds(): array
     {
         return [
-            'first variant'         => [1, '2984200000016'],
-            'double digits'         => [42, '2984200000429'],
-            'a real one from prod'  => [5984, '2984200059847'],
-            'largest that fits'     => [9_999_999, '2984299999994'],
+            'first variant'         => [1, '50000012'],
+            'double digits'         => [42, '50000425'],
+            'a real one from prod'  => [5984, '50059843'],
+            'largest that fits'     => [999_999, '59999997'],
         ];
     }
 
     #[DataProvider('variantIds')]
-    public function test_barcode_is_a_valid_in_store_ean13_that_names_the_variant(int $id, string $expected): void
+    public function test_barcode_is_a_valid_ean8_starting_with_5_that_names_the_variant(int $id, string $expected): void
     {
         $barcode = ProductVariant::barcodeFor($id);
 
         $this->assertSame($expected, $barcode);
-        $this->assertMatchesRegularExpression('/^\d{13}$/', $barcode);
-        $this->assertStringStartsWith('2', $barcode, 'GS1 never assigns numbers starting with 2 to a manufacturer');
-        $this->assertTrue($this->hasValidEan13CheckDigit($barcode));
+        $this->assertMatchesRegularExpression('/^5\d{7}$/', $barcode);
+        $this->assertTrue($this->hasValidEanCheckDigit($barcode));
         $this->assertSame($id, ProductVariant::idFromBarcode($barcode));
+    }
+
+    public function test_the_13_digit_barcode_printed_before_november_2026_is_unchanged(): void
+    {
+        $this->assertSame('2984200059847', ProductVariant::legacyBarcodeFor(5984));
+        $this->assertSame('2984200000429', ProductVariant::legacyBarcodeFor(42));
+        $this->assertTrue($this->hasValidEanCheckDigit(ProductVariant::legacyBarcodeFor(5984)));
     }
 
     public function test_the_check_digit_matches_a_real_manufacturer_ean13(): void
     {
         // 4006381333931 is a real retail EAN-13; the test's own check agrees with it,
         // so it is a fair judge of the codes above.
-        $this->assertTrue($this->hasValidEan13CheckDigit('4006381333931'));
-        $this->assertFalse($this->hasValidEan13CheckDigit('4006381333932'));
+        $this->assertTrue($this->hasValidEanCheckDigit('4006381333931'));
+        $this->assertFalse($this->hasValidEanCheckDigit('4006381333932'));
+        // 96385074 is the EAN-8 GS1 uses as its own example.
+        $this->assertTrue($this->hasValidEanCheckDigit('96385074'));
     }
 
-    public function test_ids_outside_seven_digits_are_refused_rather_than_truncated(): void
+    public function test_ids_outside_six_digits_are_refused_rather_than_truncated(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        ProductVariant::barcodeFor(10_000_000);
+        ProductVariant::barcodeFor(1_000_000);
     }
 
     public static function barcodesToRead(): array
     {
         return [
-            'current barcode'                    => ['2984200059847', 5984],
-            'with spaces around it'              => [" 2984200059847\n", 5984],
+            'current barcode'                    => ['50059843', 5984],
+            'with spaces around it'              => [" 50059843\n", 5984],
+            'the 13-digit barcode before it'     => ['2984200059847', 5984],
+            'wrong EAN-8 check digit'            => ['50059842', null],
+            'another manufacturer EAN-8'         => ['96385074', null],
             'old label TGC-'                     => ['TGC-00005984', 5984],
             'old label TGC-VAR-'                 => ['TGC-VAR-00005984', 5984],
             'wrong check digit (misread)'        => ['2984200059846', null],
@@ -99,8 +110,9 @@ class ProductBarcodeTest extends TestCase
         $variant = ProductVariant::factory()->create();
         ProductVariant::factory()->create(); // a neighbour the lookup must not return
         $legacy  = sprintf('TGC-%08d', $variant->id);
+        $ean13   = ProductVariant::legacyBarcodeFor($variant->id);
 
-        foreach ([$variant->barcode_value, $legacy] as $printed) {
+        foreach ([$variant->barcode_value, $ean13, $legacy] as $printed) {
             $this->actingAs($user, 'sanctum')
                 ->getJson("/api/v1/product-variants/barcode/{$printed}")
                 ->assertOk()
@@ -114,10 +126,30 @@ class ProductBarcodeTest extends TestCase
                 ->assertJsonPath('data.0.id', $variant->id);
         }
 
-        $misread = substr($variant->barcode_value, 0, 12) . ((int) substr($variant->barcode_value, 12) + 1) % 10;
+        $misread = substr($variant->barcode_value, 0, -1) . ((int) substr($variant->barcode_value, -1) + 1) % 10;
         $this->actingAs($user, 'sanctum')
             ->getJson("/api/v1/product-variants/barcode/{$misread}")
             ->assertNotFound();
+    }
+
+    public function test_the_ean8_migration_rewrites_every_barcode_and_rolls_back(): void
+    {
+        $variants = ProductVariant::factory()->count(3)->create();
+        foreach ($variants as $variant) {
+            DB::table('product_variants')->where('id', $variant->id)
+                ->update(['barcode_value' => ProductVariant::legacyBarcodeFor($variant->id)]);
+        }
+        $migration = require database_path('migrations/2026_11_15_000001_make_product_barcodes_ean8.php');
+
+        $migration->up();
+        foreach ($variants as $variant) {
+            $this->assertSame(ProductVariant::barcodeFor($variant->id), $variant->fresh()->barcode_value);
+        }
+
+        $migration->down();
+        foreach ($variants as $variant) {
+            $this->assertSame(ProductVariant::legacyBarcodeFor($variant->id), $variant->fresh()->barcode_value);
+        }
     }
 
     public function test_migration_rewrites_every_barcode_and_rolls_back(): void
@@ -131,7 +163,7 @@ class ProductBarcodeTest extends TestCase
 
         $migration->up();
         foreach ($variants as $variant) {
-            $this->assertSame(ProductVariant::barcodeFor($variant->id), $variant->fresh()->barcode_value);
+            $this->assertSame(ProductVariant::legacyBarcodeFor($variant->id), $variant->fresh()->barcode_value);
         }
 
         $migration->down();
@@ -162,13 +194,14 @@ class ProductBarcodeTest extends TestCase
         $this->assertSame(DataType::TYPE_STRING, $cell->getDataType());
     }
 
-    private function hasValidEan13CheckDigit(string $code): bool
+    /** EAN-8 or EAN-13: weights 1 and 3 alternating back from the check digit. */
+    private function hasValidEanCheckDigit(string $code): bool
     {
         $sum = 0;
-        foreach (str_split($code) as $i => $digit) {
+        foreach (array_reverse(str_split($code)) as $i => $digit) {
             $sum += (int) $digit * ($i % 2 === 0 ? 1 : 3);
         }
 
-        return strlen($code) === 13 && ctype_digit($code) && $sum % 10 === 0;
+        return in_array(strlen($code), [8, 13], true) && ctype_digit($code) && $sum % 10 === 0;
     }
 }
