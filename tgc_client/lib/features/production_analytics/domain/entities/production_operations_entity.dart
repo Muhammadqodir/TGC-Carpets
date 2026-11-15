@@ -130,6 +130,45 @@ class ProductionShiftTrendPoint extends Equatable {
   List<Object?> get props => [label, userId, totalQuantity, totalSqm];
 }
 
+/// One shift's printed output of one product quality.
+class ProductionShiftQualityRow extends Equatable {
+  final int userId;
+  final int? qualityId;
+  final String qualityName;
+  final int totalQuantity;
+  final double totalSqm;
+
+  const ProductionShiftQualityRow({
+    required this.userId,
+    required this.qualityId,
+    required this.qualityName,
+    required this.totalQuantity,
+    required this.totalSqm,
+  });
+
+  @override
+  List<Object?> get props => [userId, qualityId, qualityName, totalQuantity, totalSqm];
+}
+
+/// One shift's Kovrolin rolls of one width (cm). Lengths vary per roll, so
+/// only the width groups them; m² carries the real printed lengths.
+class ProductionShiftWidthRow extends Equatable {
+  final int userId;
+  final int? width;
+  final int totalQuantity;
+  final double totalSqm;
+
+  const ProductionShiftWidthRow({
+    required this.userId,
+    required this.width,
+    required this.totalQuantity,
+    required this.totalSqm,
+  });
+
+  @override
+  List<Object?> get props => [userId, width, totalQuantity, totalSqm];
+}
+
 class ProductionOperationsEntity extends Equatable {
   /// Local hour a production day starts at (a night shift is one day).
   final int dayStartHour;
@@ -143,6 +182,10 @@ class ProductionOperationsEntity extends Equatable {
   final List<ProductionCapacityStats> byShift;
   final List<ProductionCapacityStats> byMachine;
   final List<ProductionHeatmapCell> heatmap;
+  final List<ProductionShiftQualityRow> byShiftQuality;
+
+  /// Kovrolin only.
+  final List<ProductionShiftWidthRow> byShiftWidth;
 
   const ProductionOperationsEntity({
     required this.dayStartHour,
@@ -154,9 +197,22 @@ class ProductionOperationsEntity extends Equatable {
     required this.byShift,
     required this.byMachine,
     required this.heatmap,
+    this.byShiftQuality = const [],
+    this.byShiftWidth = const [],
   });
 
   @override
-  List<Object?> get props =>
-      [dayStartHour, periodDays, backfilledExcluded, trendBy, summary, trend, byShift, byMachine, heatmap];
+  List<Object?> get props => [
+        dayStartHour,
+        periodDays,
+        backfilledExcluded,
+        trendBy,
+        summary,
+        trend,
+        byShift,
+        byMachine,
+        heatmap,
+        byShiftQuality,
+        byShiftWidth,
+      ];
 }

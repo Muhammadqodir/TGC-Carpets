@@ -46,7 +46,9 @@ class ProductionAnalyticsController extends Controller
      * GET /api/v1/analytics/production/operations
      *
      * Output, capacity, defects and reprints per shift (the account that
-     * printed the label) and per machine, plus a weekday × hour heatmap.
+     * printed the label) and per machine, plus a weekday × hour heatmap,
+     * each shift's output by quality (by_shift_quality) and its Kovrolin
+     * rolls by width (by_shift_width).
      * Query params: period_from, period_to (production days),
      * trend_by (day|week|month, default day) for the per-shift trend.
      */

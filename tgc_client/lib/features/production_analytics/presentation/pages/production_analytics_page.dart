@@ -16,6 +16,9 @@ import '../widgets/production_capacity_section.dart';
 import '../widgets/production_hourly_chart.dart';
 import '../widgets/production_shift_trend_chart.dart';
 import '../widgets/production_ops_summary_cards.dart';
+import '../widgets/production_report_pdf_button.dart';
+import '../widgets/production_shift_breakdown_section.dart';
+import '../../domain/production_shift_breakdown.dart';
 
 class ProductionAnalyticsPage extends StatelessWidget {
   const ProductionAnalyticsPage({super.key});
@@ -63,6 +66,14 @@ class _ProductionAnalyticsViewState extends State<_ProductionAnalyticsView> {
           icon: const Icon(Icons.arrow_back_ios_new_outlined, size: 20),
         ),
         actions: [
+          BlocBuilder<ProductionAnalyticsBloc, ProductionAnalyticsState>(
+            builder: (context, state) {
+              if (state is ProductionAnalyticsLoaded) {
+                return ProductionReportPdfButton(data: state.data);
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           BlocBuilder<ProductionAnalyticsBloc, ProductionAnalyticsState>(
             builder: (context, state) {
               if (state is ProductionAnalyticsLoaded) {
@@ -244,6 +255,25 @@ class _OperationsBlock extends StatelessWidget {
         ProductionOpsSummaryCards(ops: ops, metric: metric),
         const SizedBox(height: 12),
         shifts,
+        const SizedBox(height: 12),
+        ProductionShiftBreakdownSection(
+          title: 'Smenalar — sifat bo\'yicha',
+          subtitle: 'Har bir smena qaysi sifatdan qancha chop etgan',
+          icon: Icons.layers_outlined,
+          lineHeader: 'Sifat',
+          groups: shiftQualityGroups(ops),
+          emptyText: 'Bu davrda chop etilgan yorliq yo\'q.',
+        ),
+        const SizedBox(height: 12),
+        ProductionShiftBreakdownSection(
+          title: 'Kovrolin — rulon eni bo\'yicha',
+          subtitle: 'Faqat eni bo\'yicha; m² — chop etilgan haqiqiy uzunlik bilan',
+          icon: Icons.straighten_rounded,
+          lineHeader: 'Eni',
+          countHeader: 'Rulon',
+          groups: shiftWidthGroups(ops),
+          emptyText: 'Bu davrda Kovrolin ishlab chiqarilmagan.',
+        ),
         const SizedBox(height: 12),
         machines,
         const SizedBox(height: 12),

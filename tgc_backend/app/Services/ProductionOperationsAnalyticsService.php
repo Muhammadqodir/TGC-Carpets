@@ -37,7 +37,8 @@ class ProductionOperationsAnalyticsService
     public function getReport(string $from, string $to, string $trendBy = 'day'): array
     {
         $dayStart = $this->dayStartHour();
-        $cacheKey = "analytics:production-ops:{$from}:{$to}:{$trendBy}:{$dayStart}";
+        // v2: by_shift_quality / by_shift_width added; a v1 entry would lack them.
+        $cacheKey = "analytics:production-ops:v2:{$from}:{$to}:{$trendBy}:{$dayStart}";
 
         return Cache::remember($cacheKey, $this->resolveTtl($to), fn (): array => [
             'day_start_hour' => $dayStart,
@@ -45,6 +46,8 @@ class ProductionOperationsAnalyticsService
             'trend'          => $this->trend($from, $to, $trendBy),
             'by_shift'       => $this->byShift($from, $to),
             'by_machine'     => $this->byMachine($from, $to),
+            'by_shift_quality' => $this->byShiftQuality($from, $to),
+            'by_shift_width'   => $this->byShiftWidth($from, $to),
             'heatmap'        => $this->heatmap($from, $to),
         ]);
     }
@@ -107,6 +110,67 @@ class ProductionOperationsAnalyticsService
         $names = DB::table('users')->whereIn('id', $ids)->pluck('name', 'id');
 
         return $this->assembleRows($ids, $names, $daily, $defects, $reprints);
+    }
+
+    /**
+     * Each shift's printed output split by product quality. The same
+     * output as byShift() (labels printed, less prints taken back), so a
+     * shift's quality rows add up to its total. A product with no quality
+     * gets quality_id null.
+     */
+    private function byShiftQuality(string $from, string $to): array
+    {
+        return $this->eventsQuery($from, $to)
+            ->where(fn ($q) => $this->printedOutput($q))
+            ->leftJoin('product_qualities as q', 'q.id', '=', 'p.product_quality_id')
+            ->selectRaw(
+                'e.user_id, q.id as quality_id, q.quality_name, '
+                . 'SUM(e.quantity) as total_quantity, ' . $this->sqmSum() . ' as total_sqm'
+            )
+            ->groupBy('e.user_id', 'q.id', 'q.quality_name')
+            ->orderBy('e.user_id')
+            ->orderByDesc('total_quantity')
+            ->get()
+            ->filter(fn ($r) => (int) $r->total_quantity !== 0)
+            ->map(fn ($r) => [
+                'user_id'        => (int) $r->user_id,
+                'quality_id'     => $r->quality_id === null ? null : (int) $r->quality_id,
+                'quality_name'   => $r->quality_name ?? 'Sifatsiz',
+                'total_quantity' => (int) $r->total_quantity,
+                'total_sqm'      => round((float) $r->total_sqm, 2),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Rolls of a variable-length type (Kovrolin) each shift printed, split
+     * by roll width only: lengths differ roll to roll, so m² carries the
+     * real printed length while the grouping ignores it.
+     */
+    private function byShiftWidth(string $from, string $to): array
+    {
+        return $this->eventsQuery($from, $to)
+            ->where(fn ($q) => $this->printedOutput($q))
+            ->join('product_types as t', 't.id', '=', 'p.product_type_id')
+            ->where('t.has_variable_length', true)
+            ->selectRaw(
+                'e.user_id, s.width, '
+                . 'SUM(e.quantity) as total_quantity, ' . $this->sqmSum() . ' as total_sqm'
+            )
+            ->groupBy('e.user_id', 's.width')
+            ->orderBy('e.user_id')
+            ->orderBy('s.width')
+            ->get()
+            ->filter(fn ($r) => (int) $r->total_quantity !== 0)
+            ->map(fn ($r) => [
+                'user_id'        => (int) $r->user_id,
+                'width'          => $r->width === null ? null : (int) $r->width,
+                'total_quantity' => (int) $r->total_quantity,
+                'total_sqm'      => round((float) $r->total_sqm, 2),
+            ])
+            ->values()
+            ->all();
     }
 
     /** Every machine, including ones with no output in the period: an idle loom is the finding. */

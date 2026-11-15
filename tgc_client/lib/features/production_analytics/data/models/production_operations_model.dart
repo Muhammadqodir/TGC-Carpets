@@ -59,6 +59,8 @@ class ProductionOperationsModel extends ProductionOperationsEntity {
     required super.byShift,
     required super.byMachine,
     required super.heatmap,
+    super.byShiftQuality,
+    super.byShiftWidth,
   });
 
   factory ProductionOperationsModel.fromJson(Map<String, dynamic> json) {
@@ -93,6 +95,25 @@ class ProductionOperationsModel extends ProductionOperationsEntity {
           hour:          (c['hour'] as num?)?.toInt() ?? 0,
           totalQuantity: (c['total_quantity'] as num?)?.toInt() ?? 0,
           totalSqm:      (c['total_sqm'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList(),
+      byShiftQuality: (json['by_shift_quality'] as List<dynamic>? ?? []).map((e) {
+        final r = e as Map<String, dynamic>;
+        return ProductionShiftQualityRow(
+          userId:        (r['user_id'] as num?)?.toInt() ?? 0,
+          qualityId:     (r['quality_id'] as num?)?.toInt(),
+          qualityName:   r['quality_name'] as String? ?? '',
+          totalQuantity: (r['total_quantity'] as num?)?.toInt() ?? 0,
+          totalSqm:      (r['total_sqm'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList(),
+      byShiftWidth: (json['by_shift_width'] as List<dynamic>? ?? []).map((e) {
+        final r = e as Map<String, dynamic>;
+        return ProductionShiftWidthRow(
+          userId:        (r['user_id'] as num?)?.toInt() ?? 0,
+          width:         (r['width'] as num?)?.toInt(),
+          totalQuantity: (r['total_quantity'] as num?)?.toInt() ?? 0,
+          totalSqm:      (r['total_sqm'] as num?)?.toDouble() ?? 0.0,
         );
       }).toList(),
     );
