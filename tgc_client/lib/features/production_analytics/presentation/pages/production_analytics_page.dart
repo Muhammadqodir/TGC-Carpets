@@ -167,6 +167,10 @@ class _AnalyticsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ops = data.operations;
+    // On a phone the charts take the card's full width.
+    final chartPadding = MediaQuery.sizeOf(context).width < 600
+        ? const EdgeInsets.fromLTRB(4, 4, 4, 8)
+        : const EdgeInsets.fromLTRB(8, 4, 12, 8);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -178,7 +182,7 @@ class _AnalyticsContent extends StatelessWidget {
             _SectionCard(
               title: 'Ishlab chiqarish dinamikasi',
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
+                padding: chartPadding,
                 child: ProductionShiftTrendChart(
                   trend:      ops.trend,
                   shifts:     ops.byShift,
@@ -241,6 +245,7 @@ class _OperationsBlock extends StatelessWidget {
       rows: ops.byMachine,
       metric: metric,
     );
+    final narrow = MediaQuery.sizeOf(context).width < 600;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -280,12 +285,12 @@ class _OperationsBlock extends StatelessWidget {
         _SectionCard(
           title: 'Soatlik ishlab chiqarish',
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 12, 8),
+            padding: narrow ? const EdgeInsets.fromLTRB(4, 0, 4, 8) : const EdgeInsets.fromLTRB(8, 0, 12, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 0, 10),
+                  padding: EdgeInsets.fromLTRB(narrow ? 12 : 8, 0, narrow ? 12 : 0, 10),
                   child: Text(
                     'Tanlangan davrda har bir soatda jami qancha ishlab chiqarilgan '
                     '(yorliq chop etilgan vaqt bo\'yicha)',

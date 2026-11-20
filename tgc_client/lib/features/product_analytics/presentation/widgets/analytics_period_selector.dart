@@ -21,69 +21,91 @@ class AnalyticsPeriodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = Text(
+      'Davr',
+      style: Theme.of(context)
+          .textTheme
+          .labelSmall
+          ?.copyWith(color: AppColors.textSecondary),
+    );
+    final presets = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _PresetChip(
+            label: '7 kun',
+            isSelected: _isPreset(7),
+            onTap: () => _applyPreset(7),
+          ),
+          const SizedBox(width: 8),
+          _PresetChip(
+            label: '30 kun',
+            isSelected: _isPreset(30),
+            onTap: () => _applyPreset(30),
+          ),
+          const SizedBox(width: 8),
+          _PresetChip(
+            label: '90 kun',
+            isSelected: _isPreset(90),
+            onTap: () => _applyPreset(90),
+          ),
+          const SizedBox(width: 8),
+          _PresetChip(
+            label: '1 yil',
+            isSelected: _isPreset(365),
+            onTap: () => _applyPreset(365),
+          ),
+          const SizedBox(width: 8),
+          _DateRangeChip(
+            periodFrom: periodFrom,
+            periodTo: periodTo,
+            isCustom: !_isAnyPreset,
+            onTap: () => _pickCustomRange(context),
+          ),
+        ],
+      ),
+    );
+
     return Container(
       width: double.infinity,
       color: AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Davr',
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _PresetChip(
-                        label: '7 kun',
-                        isSelected: _isPreset(7),
-                        onTap: () => _applyPreset(7),
-                      ),
-                      const SizedBox(width: 8),
-                      _PresetChip(
-                        label: '30 kun',
-                        isSelected: _isPreset(30),
-                        onTap: () => _applyPreset(30),
-                      ),
-                      const SizedBox(width: 8),
-                      _PresetChip(
-                        label: '90 kun',
-                        isSelected: _isPreset(90),
-                        onTap: () => _applyPreset(90),
-                      ),
-                      const SizedBox(width: 8),
-                      _PresetChip(
-                        label: '1 yil',
-                        isSelected: _isPreset(365),
-                        onTap: () => _applyPreset(365),
-                      ),
-                      const SizedBox(width: 8),
-                      _DateRangeChip(
-                        periodFrom: periodFrom,
-                        periodTo: periodTo,
-                        isCustom: !_isAnyPreset,
-                        onTap: () => _pickCustomRange(context),
-                      ),
-                    ],
-                  ),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          // On a phone the trailing switch would leave room for two
+          // presets; it goes up next to the label instead.
+          if (trailing != null && c.maxWidth < 600) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: label),
+                    trailing!,
+                  ],
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                trailing!,
+                const SizedBox(height: 6),
+                presets,
               ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              label,
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(child: presets),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 12),
+                    trailing!,
+                  ],
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

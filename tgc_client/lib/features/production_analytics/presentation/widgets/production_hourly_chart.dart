@@ -5,8 +5,8 @@ import '../../../../core/ui/widgets/stacked_bar_chart.dart';
 import '../../../product_analytics/domain/entities/product_analytics_entity.dart';
 import '../../domain/entities/production_operations_entity.dart';
 
-/// Labels printed per clock hour over the whole period, stacked by shift
-/// in the same colours as the trend chart. Shows when the floor is busy,
+/// Labels printed per clock hour over the whole period, a bar per shift
+/// side by side in the same colours as the trend chart. Shows when the floor is busy,
 /// when it stalls, and how the hand-over between shifts goes.
 class ProductionHourlyChart extends StatelessWidget {
   final List<ProductionHeatmapCell> cells;
@@ -48,6 +48,8 @@ class ProductionHourlyChart extends StatelessWidget {
       names: names,
       format: metric.format,
       decimals: metric == AnalyticsMetric.sqm,
+      grouped: true,
+      startAtEnd: false,
     );
   }
 

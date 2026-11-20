@@ -5,9 +5,9 @@ import '../../../../core/ui/widgets/stacked_bar_chart.dart';
 import '../../../product_analytics/domain/entities/product_analytics_entity.dart';
 import '../../domain/entities/production_operations_entity.dart';
 
-/// Output per production day (or week / month), one stacked bar per
-/// period with a segment for each shift. Hover or tap a bar for the date
-/// and each shift's share.
+/// Output per production day (or week / month): a bar for each shift,
+/// side by side, so the shifts compare day by day. Hover or tap a bar for
+/// the date, each shift's output and the day's total.
 class ProductionShiftTrendChart extends StatelessWidget {
   final List<ProductionShiftTrendPoint> trend;
   final List<ProductionCapacityStats> shifts;
@@ -55,6 +55,7 @@ class ProductionShiftTrendChart extends StatelessWidget {
       names: names,
       format: metric.format,
       decimals: metric == AnalyticsMetric.sqm,
+      grouped: true,
     );
   }
 }

@@ -60,11 +60,26 @@ class ProductionOpsSummaryCards extends StatelessWidget {
       builder: (context, c) {
         final perRow = c.maxWidth > 900 ? 5 : (c.maxWidth > 560 ? 3 : 2);
         const gap = 12.0;
-        final w = (c.maxWidth - gap * (perRow - 1)) / perRow;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [for (final t in tiles) SizedBox(width: w, child: t)],
+        // Tiles in a row share its height (a label may take two lines on
+        // a phone), and a last row that is short widens its tiles.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < tiles.length; i += perRow) ...[
+              if (i > 0) const SizedBox(height: gap),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var j = i; j < i + perRow && j < tiles.length; j++) ...[
+                      if (j > i) const SizedBox(width: gap),
+                      Expanded(child: tiles[j]),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
         );
       },
     );
@@ -105,6 +120,7 @@ class _Tile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(icon, size: 16, color: color),
               const SizedBox(width: 6),
@@ -112,7 +128,7 @@ class _Tile extends StatelessWidget {
                 child: Text(
                   label,
                   style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -122,8 +138,11 @@ class _Tile extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
+            // One line, also when the row measures its height.
             child: Text(
               value,
+              maxLines: 1,
+              softWrap: false,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -133,7 +152,7 @@ class _Tile extends StatelessWidget {
           Text(
             caption,
             style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ],

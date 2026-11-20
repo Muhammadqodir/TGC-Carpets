@@ -21,28 +21,31 @@ class ProductionAnalyticsSummaryCards extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryCard(
-              label: 'Jami partiyalar',
-              value: totalBatches.toString(),
-              icon: Icons.precision_manufacturing_outlined,
-              color: AppColors.primary,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _SummaryCard(
+                label: 'Jami partiyalar',
+                value: totalBatches.toString(),
+                icon: Icons.precision_manufacturing_outlined,
+                color: AppColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              label: 'Jami ishlab chiqarilgan',
-              value: metric == AnalyticsMetric.quantity
-                  ? '$totalProduced dona'
-                  : '${totalSqm.toStringAsFixed(1)} m²',
-              icon: Icons.inventory_2_outlined,
-              color: AppColors.accent,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SummaryCard(
+                label: 'Jami ishlab chiqarilgan',
+                value: metric == AnalyticsMetric.quantity
+                    ? '$totalProduced dona'
+                    : '${totalSqm.toStringAsFixed(1)} m²',
+                icon: Icons.inventory_2_outlined,
+                color: AppColors.accent,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -63,8 +66,10 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Half a phone's width: tighter, so the label still reads in full.
+    final compact = MediaQuery.sizeOf(context).width < 480;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(compact ? 12 : 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
@@ -79,23 +84,27 @@ class _SummaryCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(compact ? 7 : 10),
             decoration: BoxDecoration(
               color: color.withAlpha(25),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: compact ? 18 : 22),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: compact ? 10 : 12),
           Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
+                  // One line, also when the row measures its height.
                   child: Text(
                     value,
+                    maxLines: 1,
+                    softWrap: false,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
@@ -107,7 +116,7 @@ class _SummaryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
