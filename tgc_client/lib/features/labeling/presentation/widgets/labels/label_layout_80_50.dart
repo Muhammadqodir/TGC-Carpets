@@ -6,16 +6,17 @@ import 'package:flutter/material.dart';
 ///
 /// ```
 /// Quality : RONALDO                 ═
-/// Design  : 1568                    ═  carpet number
+/// Design  : 1568                    ═  product barcode
 /// Size    : 400×10125 R             ═  turned −90°, digits
 /// Color   : BEIGE                   ═  on the right
 ///
-/// ║║║║║║║║║║║║║║║║               ┌──┐
-/// 50059843      S_123_04_14 15.59
+/// ║║║║║║║║║║║║║║║║║║║║║          ┌──┐
+/// 210000123459   S_123_04_14 15.59
 /// ```
 ///
-/// The square code is exactly as tall as the product barcode's bars, and the
-/// print code under it sits on the line of the barcode's digits.
+/// The longer carpet number lies along the bottom, the shorter product barcode
+/// stands in the corner. The square code is exactly as tall as the bars, and
+/// the print code under it sits on the line of the barcode's digits.
 ///
 /// Barcodes are sized from their own bars, never stretched to fill a space, so
 /// the bars stay even when the label is rasterised.
@@ -38,9 +39,13 @@ class Label8050Layout extends StatelessWidget {
   static const double canvasWidth = 945;
   static const double canvasHeight = 591;
 
-  /// Width of the narrowest bar, about 0.29 mm when printed. The widest that
-  /// keeps both barcodes on one row with the white margins they need.
+  /// Width of the product barcode's narrowest bar, about 0.29 mm when printed.
   static const double barModule = 3.5;
+
+  /// Width of the carpet number's narrowest bar, about 0.42 mm when printed:
+  /// wider, as it has the bottom row to itself. The widest that still leaves
+  /// the print code room beside it.
+  static const double carpetBarModule = 5;
 
   /// Barcode height, including its digits.
   static const double _barcodeHeight = 140;
@@ -54,6 +59,7 @@ class Label8050Layout extends StatelessWidget {
 
   /// The white margin Code 128 needs on each side, 10 bar widths.
   static const double _quietZone = 10 * barModule;
+  static const double _carpetQuietZone = 10 * carpetBarModule;
 
   static const double _margin = 20;
 
@@ -64,8 +70,8 @@ class Label8050Layout extends StatelessWidget {
   /// What the square code holds: the same text the old QR code held.
   final String scanData;
 
-  /// The unique number of this one carpet. The space stays empty without it,
-  /// so the rest of the label never moves.
+  /// The unique number of this one carpet, along the bottom. The space stays
+  /// empty without it, so the rest of the label never moves.
   final String? carpetBarcode;
 
   /// Row captions, in order: quality, design, size, colour.
@@ -136,11 +142,13 @@ class Label8050Layout extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(width: _quietZone - _margin),
-                      _LinearBarcode(barcodeValue),
-                      const SizedBox(width: _quietZone),
+                      const SizedBox(width: _carpetQuietZone - _margin),
+                      if (carpetBarcode != null) ...[
+                        _LinearBarcode(carpetBarcode!, module: carpetBarModule),
+                        const SizedBox(width: _carpetQuietZone),
+                      ],
                       // A long print code shrinks before it can reach the
-                      // product barcode.
+                      // carpet number.
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -162,15 +170,14 @@ class Label8050Layout extends StatelessWidget {
                 ),
               ],
             ),
-            if (carpetBarcode != null)
-              Positioned(
-                top: _quietZone - _margin,
-                right: 0,
-                child: RotatedBox(
-                  quarterTurns: 3,
-                  child: _LinearBarcode(carpetBarcode!),
-                ),
+            Positioned(
+              top: _quietZone - _margin,
+              right: 0,
+              child: RotatedBox(
+                quarterTurns: 3,
+                child: _LinearBarcode(barcodeValue),
               ),
+            ),
           ],
         ),
       ),
@@ -196,16 +203,19 @@ class Label8050CaptionStyle {
 /// A plain Code 128: the bars with the digits centred below, as narrow as the
 /// bars can be printed.
 class _LinearBarcode extends StatelessWidget {
-  const _LinearBarcode(this.data);
+  const _LinearBarcode(this.data, {this.module = Label8050Layout.barModule});
 
   final String data;
+
+  /// Width of the narrowest bar.
+  final double module;
 
   @override
   Widget build(BuildContext context) {
     final barcode = Barcode.code128();
 
     return SizedBox(
-      width: _modulesOf(barcode, data, 100) * Label8050Layout.barModule,
+      width: _modulesOf(barcode, data, 100) * module,
       height: Label8050Layout._barcodeHeight,
       child: BarcodeWidget(
         data: data,
