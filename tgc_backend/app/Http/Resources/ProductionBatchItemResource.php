@@ -50,6 +50,7 @@ class ProductionBatchItemResource extends JsonResource
                         'image_url' => $this->variant->productColor->image
                             ? Storage::disk('public')->url($this->variant->productColor->image)
                             : null,
+                        'thumb_url' => $this->variant->productColor->thumbUrl(),
                         'color' => $this->variant->productColor->relationLoaded('color') && $this->variant->productColor->color
                             ? ['id' => $this->variant->productColor->color->id, 'name' => $this->variant->productColor->color->name]
                             : null,

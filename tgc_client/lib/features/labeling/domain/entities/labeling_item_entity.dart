@@ -22,6 +22,10 @@ class LabelingItemEntity extends Equatable {
   final String productName;
   final String? colorName;
   final String? colorImageUrl;
+
+  /// Small JPEG of [colorImageUrl] for the card grid; null on old backends
+  /// or before the server has made it — fall back to [colorImageUrl].
+  final String? colorThumbUrl;
   final int? sizeLength;
   final int? sizeWidth;
   final String? qualityName;
@@ -64,6 +68,7 @@ class LabelingItemEntity extends Equatable {
     required this.productName,
     this.colorName,
     this.colorImageUrl,
+    this.colorThumbUrl,
     this.sizeLength,
     this.sizeWidth,
     this.qualityName,
@@ -117,6 +122,7 @@ class LabelingItemEntity extends Equatable {
       productName: productName,
       colorName: colorName,
       colorImageUrl: colorImageUrl,
+      colorThumbUrl: colorThumbUrl,
       sizeLength: sizeLength,
       sizeWidth: sizeWidth,
       qualityName: qualityName,

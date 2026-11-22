@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -181,6 +182,32 @@ class _LabelingViewState extends State<_LabelingView> {
 
   // ── Pagination ────────────────────────────────────────────────────────────
   int _currentPage = 0;
+
+  /// Photos already prefetched, keyed by URL and decode width.
+  final Set<String> _prefetchedPhotos = {};
+
+  /// Downloads and decodes the photos of the pages next to the one on screen
+  /// in the background, into the same image-cache entry the card will ask
+  /// for, so the next tap on "›" shows them at once instead of spinners.
+  void _prefetchPhotos(Iterable<LabelingItemEntity> items, int decodeWidth) {
+    final urls = items
+        .map((i) => i.colorThumbUrl ?? i.colorImageUrl)
+        .whereType<String>()
+        .where((url) => _prefetchedPhotos.add('$url@$decodeWidth'))
+        .toList();
+    if (urls.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final url in urls) {
+        precacheImage(
+          ResizeImage(CachedNetworkImageProvider(url), width: decodeWidth),
+          context,
+          // A failed prefetch just means the card loads it itself later.
+          onError: (_, __) => _prefetchedPhotos.remove('$url@$decodeWidth'),
+        );
+      }
+    });
+  }
 
   final _discoveryService = PrinterDiscoveryService();
   final _printerService = PrinterService();
@@ -1225,6 +1252,24 @@ class _LabelingViewState extends State<_LabelingView> {
                   (cardWidth / rowHeight.clamp(200, double.maxFinite))
                       .clamp(0.3, 2.0);
 
+              // Decode photos at card size, not at the phone-camera size
+              // of the original. The same width is used for the prefetch
+              // so the next page hits the very same cache entry.
+              final photoDecodeWidth = AppThumbnail.cacheWidthFor(
+                cardWidth,
+                rowHeight,
+                MediaQuery.devicePixelRatioOf(context),
+              );
+              _prefetchPhotos([
+                ...result.displayedItems
+                    .skip((safeCurrentPage + 1) * pageSize)
+                    .take(pageSize),
+                if (safeCurrentPage > 0)
+                  ...result.displayedItems
+                      .skip((safeCurrentPage - 1) * pageSize)
+                      .take(pageSize),
+              ], photoDecodeWidth);
+
               return Column(
                 children: [
                   Expanded(
@@ -1253,6 +1298,7 @@ class _LabelingViewState extends State<_LabelingView> {
                                 key: ValueKey(item.id),
                                 child: _LabelingCardWrapper(
                                   item: item,
+                                  photoDecodeWidth: photoDecodeWidth,
                                   isPrintPlatform: _isPrintingPlatform,
                                   onPrint: () => _onPrint(item),
                                   onReprint: () => _onReprint(item),
@@ -1359,12 +1405,14 @@ class _PaginationBar extends StatelessWidget {
 class _LabelingCardWrapper extends StatelessWidget {
   const _LabelingCardWrapper({
     required this.item,
+    required this.photoDecodeWidth,
     required this.isPrintPlatform,
     required this.onPrint,
     required this.onReprint,
   });
 
   final LabelingItemEntity item;
+  final int photoDecodeWidth;
   final bool isPrintPlatform;
   final VoidCallback onPrint;
   final VoidCallback onReprint;
@@ -1377,6 +1425,7 @@ class _LabelingCardWrapper extends StatelessWidget {
       builder: (context, isPrinting) {
         return _LabelingCard(
           item: item,
+          photoDecodeWidth: photoDecodeWidth,
           isPrinting: isPrinting,
           isPrintPlatform: isPrintPlatform,
           onPrint: onPrint,
@@ -1392,6 +1441,7 @@ class _LabelingCardWrapper extends StatelessWidget {
 class _LabelingCard extends StatelessWidget {
   const _LabelingCard({
     required this.item,
+    required this.photoDecodeWidth,
     required this.isPrinting,
     required this.isPrintPlatform,
     required this.onPrint,
@@ -1399,6 +1449,7 @@ class _LabelingCard extends StatelessWidget {
   });
 
   final LabelingItemEntity item;
+  final int photoDecodeWidth;
   final bool isPrinting;
   final bool isPrintPlatform;
   final VoidCallback onPrint;
@@ -1426,6 +1477,8 @@ class _LabelingCard extends StatelessWidget {
                 item.colorImageUrl != null
                     ? AppThumbnail(
                         imageUrl: item.colorImageUrl!,
+                        thumbUrl: item.colorThumbUrl,
+                        decodeWidth: photoDecodeWidth,
                       )
                     : const _PlaceholderImage(),
                 Positioned(
