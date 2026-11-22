@@ -20,10 +20,23 @@ use Illuminate\Support\Facades\Storage;
  */
 class ProductImageThumbnailer
 {
-    /** The shorter side is scaled down to this many pixels. */
-    public const SHORT_SIDE = 720;
+    /**
+     * The thumbnail is just big enough to cover a box of this size, the
+     * largest a label-terminal card shows a photo (with some headroom for
+     * screen scaling): portrait photos end up 800 wide, wide ones 500 tall.
+     */
+    public const COVER_WIDTH  = 800;
+    public const COVER_HEIGHT = 500;
 
-    private const QUALITY = 80;
+    private const QUALITY = 75;
+
+    /** A thumbnail must be at most this share of the original's bytes. */
+    private const MAX_SIZE_RATIO = 0.85;
+
+    public const MADE        = 'made';
+    public const EXISTS      = 'exists';
+    public const NOT_SMALLER = 'not_smaller';
+    public const FAILED      = 'failed';
 
     /** @var array<string, string|null> */
     private static array $urls = [];
@@ -54,10 +67,12 @@ class ProductImageThumbnailer
     }
 
     /**
-     * Writes the thumbnail for $image. Returns true when it exists afterwards.
+     * Writes the thumbnail for $image and returns one of the status consts.
+     * When the photo is already small (or compresses better than our copy
+     * would), no thumbnail is kept and the app shows the original instead.
      * Never throws: a failed thumbnail must not fail an upload.
      */
-    public static function generate(string $image, bool $force = false): bool
+    public static function generate(string $image, bool $force = false): string
     {
         try {
             unset(self::$urls[$image]);
@@ -65,20 +80,28 @@ class ProductImageThumbnailer
             $thumb = self::thumbPath($image);
 
             if (! $force && $disk->exists($thumb)) {
-                return true;
+                return self::EXISTS;
             }
             if (! function_exists('imagecreatefromstring') || ! $disk->exists($image)) {
-                return false;
+                return self::FAILED;
             }
 
-            $src = @imagecreatefromstring($disk->get($image));
+            $original = $disk->get($image);
+            $src = @imagecreatefromstring($original);
             if ($src === false) {
-                return false;
+                return self::FAILED;
             }
 
             $w = imagesx($src);
             $h = imagesy($src);
-            $scale = min(1.0, self::SHORT_SIDE / max(1, min($w, $h)));
+            $scale = max(self::COVER_WIDTH / max(1, $w), self::COVER_HEIGHT / max(1, $h));
+            if ($scale >= 1.0) {
+                // Already no bigger than a card: a re-encode would only grow it.
+                imagedestroy($src);
+                $disk->delete($thumb);
+
+                return self::NOT_SMALLER;
+            }
             $tw = max(1, (int) round($w * $scale));
             $th = max(1, (int) round($h * $scale));
 
@@ -94,11 +117,20 @@ class ProductImageThumbnailer
             imagedestroy($src);
             imagedestroy($dst);
 
-            return $bytes !== false && $bytes !== '' && $disk->put($thumb, $bytes);
+            if ($bytes === false || $bytes === '') {
+                return self::FAILED;
+            }
+            if (strlen($bytes) > strlen($original) * self::MAX_SIZE_RATIO) {
+                $disk->delete($thumb);
+
+                return self::NOT_SMALLER;
+            }
+
+            return $disk->put($thumb, $bytes) ? self::MADE : self::FAILED;
         } catch (\Throwable $e) {
             Log::warning('Product thumbnail failed', ['image' => $image, 'error' => $e->getMessage()]);
 
-            return false;
+            return self::FAILED;
         }
     }
 
