@@ -95,12 +95,14 @@ void main() {
     final labels = <String, Widget Function(String?)>{
       'PrintLabel7050': (code) => PrintLabel7050(
             barcodeValue: '50059843',
+            carpetBarcode: '210000000010',
             qrData: 'P1 I1',
             productName: '1568',
             printCode: code,
           ),
       'PrintLabel7050Arab': (code) => PrintLabel7050Arab(
             barcodeValue: '50059843',
+            carpetBarcode: '210000000010',
             qrData: 'P1 I1',
             productName: '1568',
             printCode: code,
@@ -127,13 +129,14 @@ void main() {
         expect(codeRect.top, greaterThanOrEqualTo(scanCode.bottom));
         expect(codeRect.right, moreOrLessEquals(scanCode.right));
 
-        // As tall as the product barcode's bars: 140 less its digits and gap,
-        // measured as a ratio since the test screen scales the label.
-        final product = tester.getRect(find.byWidgetPredicate((w) =>
+        // As tall as the bars of the carpet number beside it on the bottom
+        // row: 140 less its digits and gap, measured as a ratio since the
+        // test screen scales the label.
+        final number = tester.getRect(find.byWidgetPredicate((w) =>
             w is BarcodeWidget &&
-            String.fromCharCodes(w.data) == '50059843'));
-        expect(scanCode.top, moreOrLessEquals(product.top));
-        expect(scanCode.height / product.height,
+            String.fromCharCodes(w.data) == '210000000010'));
+        expect(scanCode.top, moreOrLessEquals(number.top));
+        expect(scanCode.height / number.height,
             moreOrLessEquals((140 - 30 - 8) / 140));
       });
 

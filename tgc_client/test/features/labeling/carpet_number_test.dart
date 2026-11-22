@@ -207,7 +207,47 @@ void main() {
           .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
           .where((w) => w.barcode.name == 'CODE 128')
           .map((w) => String.fromCharCodes(w.data));
-      expect(printed, ['50059843', '210000000010']);
+      expect(printed, unorderedEquals(['50059843', '210000000010']));
+    });
+
+    testWidgets('lays the number flat along the bottom, the product barcode turned in the corner',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: PrintLabel7050(
+          barcodeValue: '50059843',
+          carpetBarcode: carpetNumber(1),
+          qrData: 'P1 I1',
+        ),
+      ));
+
+      Finder code128(String data) => find.byWidgetPredicate((w) =>
+          w is BarcodeWidget && String.fromCharCodes(w.data) == data);
+      Finder turned(Finder f) =>
+          find.ancestor(of: f, matching: find.byType(RotatedBox));
+
+      final number = code128('210000000010');
+      final product = code128('50059843');
+      expect(turned(number), findsNothing);
+      expect(turned(product), findsOneWidget);
+
+      final numberRect = tester.getRect(number);
+      final productRect = tester.getRect(product);
+      expect(numberRect.top, greaterThan(productRect.top));
+      expect(productRect.left, greaterThan(numberRect.left));
+    });
+
+    testWidgets('keeps the product barcode in the corner without a number',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: PrintLabel7050(barcodeValue: '50059843', qrData: 'P1 I1'),
+      ));
+
+      expect(tester.takeException(), isNull);
+      final printed = tester
+          .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
+          .where((w) => w.barcode.name == 'CODE 128')
+          .map((w) => String.fromCharCodes(w.data));
+      expect(printed, ['50059843']);
     });
   });
 }
