@@ -382,9 +382,10 @@ class _LabelingViewState extends State<_LabelingView> {
     if (userId == null) return;
     if (!_printInProgress.add(item.id)) return;
 
-    // A Kovrolin roll's length differs every time: it is measured and typed
-    // in, then printed on the label and counted by the server.
-    if (item.hasVariableLength) {
+    // A Kovrolin roll's length differs every time, and so does any carpet
+    // planned longer than 20 m: it is measured and typed in, then printed on
+    // the label and counted by the server.
+    if (item.needsActualLength) {
       final lengthCm = await showCarpetLengthDialog(
         context,
         item: item,

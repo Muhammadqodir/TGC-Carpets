@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import '../../domain/carpet_length.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 
-/// Asks for the real length of the Kovrolin roll about to be labelled.
+/// Asks for the real length of the roll about to be labelled (Kovrolin, or
+/// anything planned longer than 20 m).
 /// Returns it in cm, or null when the worker cancels: nothing prints then.
 ///
 /// Starts from [lastCm], the length typed for this line last time, and never

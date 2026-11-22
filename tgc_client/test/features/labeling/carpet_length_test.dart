@@ -57,6 +57,29 @@ void main() {
     expect(roll.hasVariableLength, isTrue);
   });
 
+  test('Kovrolin and anything planned longer than 20 m need a real length', () {
+    LabelingItemEntity line(int? length, {bool variable = false}) =>
+        LabelingItemEntity(
+          id: 1,
+          batchId: 2,
+          plannedQuantity: 3,
+          producedQuantity: 0,
+          variantId: 4,
+          productName: 'K',
+          sizeWidth: 300,
+          sizeLength: length,
+          hasVariableLength: variable,
+        );
+
+    expect(line(2001).needsActualLength, isTrue);
+    expect(line(2500).needsActualLength, isTrue);
+    expect(line(2000).needsActualLength, isFalse);
+    expect(line(400).needsActualLength, isFalse);
+    expect(line(null).needsActualLength, isFalse);
+    expect(line(400, variable: true).needsActualLength, isTrue);
+    expect(line(null, variable: true).needsActualLength, isTrue);
+  });
+
   test('print history keeps the length, and old entries read without one', () {
     const entry = PrintHistoryEntity(
       variantId: 4,

@@ -87,6 +87,15 @@ class LabelingItemEntity extends Equatable {
     return '${sizeWidth}×$length';
   }
 
+  /// Planned lengths above this, in cm (20 m), are measured before every
+  /// label whatever the type: long rolls never come out at the planned length.
+  static const exactLengthAboveCm = 2000;
+
+  /// The real length is typed in before this line's every label: a
+  /// variable-length type (Kovrolin), or anything planned longer than 20 m.
+  bool get needsActualLength =>
+      hasVariableLength || (sizeLength ?? 0) > exactLengthAboveCm;
+
   /// The size the line was planned at, whatever a label says.
   String get nominalSizeLabel {
     if (sizeLength == null || sizeWidth == null) return '—';
