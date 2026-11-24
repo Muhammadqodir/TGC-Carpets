@@ -219,10 +219,13 @@
                         $product = $item->variant?->productColor?->product;
                         $quality = $product?->productQuality;
                         $size = $item->variant?->productSize;
-                        $sqm =
-                            $size && $product?->unit === 'm2'
-                                ? round(($size->length * $size->width * $item->quantity) / 10000, 2)
-                                : 0;
+                        // Area follows the size, not the pricing unit: a carpet
+                        // sold per piece still covers length × width. Gating on
+                        // unit === 'm2' left "Jami m²" as "—" on piece-priced
+                        // rows even though their "m²" cell had a value.
+                        $sqm = $size
+                            ? round(($size->length * $size->width * $item->quantity) / 10000, 2)
+                            : 0;
                         $totalNumber = $item->quantity;
                         $grandTotalSqm += $sqm;
                         $grandTotalNumber += $totalNumber;

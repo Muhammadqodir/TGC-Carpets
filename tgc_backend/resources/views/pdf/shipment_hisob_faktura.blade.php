@@ -218,14 +218,15 @@
                         $color   = $item->variant?->productColor?->color;
                         $quality = $product?->productQuality;
                         $size    = $item->variant?->productSize;
-                        $unit    = $product?->unit ?? 'piece';
                         $qty     = $item->quantity;
                         $price   = (float) $item->price;
 
                         // Display only — never used for money. The money column
                         // is ShipmentItem::lineTotal(), the single authoritative
                         // formula shared with the API resource and the ledger.
-                        $sqmPerUnit = ($size && $unit === 'm2')
+                        // Area follows the size, not the pricing unit, so
+                        // piece-priced carpets show their m² too.
+                        $sqmPerUnit = $size
                             ? ($size->length * $size->width) / 10000
                             : 0;
 

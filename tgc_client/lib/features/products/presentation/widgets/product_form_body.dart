@@ -44,7 +44,7 @@ class ProductFormBodyState extends State<ProductFormBody> {
 
   int? selectedTypeId;
   int? selectedQualityId;
-  String unit = 'piece';
+  String unit = 'm2'; // every TGC product is sold by area
   String status = 'active';
 
   @override
