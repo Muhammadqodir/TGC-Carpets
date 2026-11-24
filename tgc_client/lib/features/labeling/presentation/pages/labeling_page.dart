@@ -30,7 +30,6 @@ import '../widgets/size_filter_sidebar.dart';
 import '../widgets/carpet_length_dialog.dart';
 import '../../domain/entities/labeling_item_entity.dart';
 import '../../domain/label_print_code.dart';
-import '../../domain/label_qr_format.dart';
 import '../../domain/product_barcode.dart';
 import '../bloc/labeling_bloc.dart';
 import '../bloc/labeling_event.dart';
@@ -769,7 +768,6 @@ class _LabelingViewState extends State<_LabelingView> {
                               sizeLabel: '200x300 R',
                               barcodeValue: productBarcode(1),
                               carpetBarcode: carpetNumber(1),
-                              qrData: buildLabelQr(batchId: 1, itemId: 1),
                               printCode: buildLabelPrintCode(
                                 shift: _shift,
                                 clientId: 123,
@@ -993,20 +991,6 @@ class _LabelingViewState extends State<_LabelingView> {
                       stored: item.variantBarcode,
                       variantId: item.variantId,
                     );
-                    // NOT switched to item.unitSerial here on purpose: _onPrint()
-                    // below renders and sends to the printer optimistically,
-                    // BEFORE the print-label API response (which carries the new
-                    // serial) resolves — the network call and the physical print
-                    // are decoupled today. Wiring the serial into the printed QR
-                    // needs that sequencing reworked first (await the response,
-                    // then render), which is exactly why
-                    // instructions/phase-3/02-production-units-serials.md stages
-                    // "print the serial" as a later, separate client release
-                    // (§7 step 4) rather than bundling it with the backend
-                    // change. Backend still mints/tracks a real unit serial per
-                    // print in the background regardless — see
-                    // ProductionBatchService::incrementProducedQuantity().
-                    final qrData = buildLabelQr(batchId: item.batchId, itemId: item.id);
     
                     return Positioned(
                       // Positioned far off-screen so the label never flashes
@@ -1031,7 +1015,6 @@ class _LabelingViewState extends State<_LabelingView> {
                               edgeCode: item.edgeCode,
                               barcodeValue: barcodeValue,
                               carpetBarcode: _renderingNumbers[item.id],
-                              qrData: qrData,
                               printCode: buildLabelPrintCode(
                                 shift: _shift,
                                 clientId: item.clientId,
@@ -1060,7 +1043,6 @@ class _LabelingViewState extends State<_LabelingView> {
     required String color,
     required String sizeLabel,
     required String barcodeValue,
-    required String qrData,
     String? carpetBarcode,
     String? edgeCode,
     String? printCode,
@@ -1076,7 +1058,6 @@ class _LabelingViewState extends State<_LabelingView> {
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           carpetBarcode: carpetBarcode,
-          qrData: qrData,
           printCode: printCode,
         );
       case _LabelStyle.asosiyArab:
@@ -1089,7 +1070,6 @@ class _LabelingViewState extends State<_LabelingView> {
           edgeCode: edgeCode,
           barcodeValue: barcodeValue,
           carpetBarcode: carpetBarcode,
-          qrData: qrData,
           printCode: printCode,
         );
     }

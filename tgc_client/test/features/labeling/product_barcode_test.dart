@@ -81,7 +81,6 @@ void main() {
     final labels = <String, Widget Function(String)>{
       'PrintLabel7050': (value) => PrintLabel7050(
             barcodeValue: value,
-            qrData: 'P1 I1',
             productName: '1568',
             quality: 'Ronaldo',
             color: 'Beige',
@@ -90,7 +89,6 @@ void main() {
           ),
       'PrintLabel7050Arab': (value) => PrintLabel7050Arab(
             barcodeValue: value,
-            qrData: 'P1 I1',
             productName: '1568',
             quality: 'Ronaldo',
             color: 'Beige',
@@ -110,13 +108,16 @@ void main() {
         expect(String.fromCharCodes(product.data), '50059843');
       });
 
-      testWidgets('$name draws the scan code as a Data Matrix', (tester) async {
+      // Workers' scanners read the square code instead of the carpet
+      // number beside it, so it was dropped in November 2026.
+      testWidgets('$name draws no square code', (tester) async {
         await tester.pumpWidget(MaterialApp(home: build('50059843')));
 
-        final scanCode = tester
+        final kinds = tester
             .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
-            .singleWhere((w) => w.barcode.name == scanCodeName);
-        expect(String.fromCharCodes(scanCode.data), 'P1 I1');
+            .map((w) => w.barcode.name)
+            .toSet();
+        expect(kinds, {'CODE 128'});
       });
 
       testWidgets('$name draws a long value without overflowing',
@@ -125,7 +126,6 @@ void main() {
           home: PrintLabel7050(
             barcodeValue: '50059843',
             carpetBarcode: '210000012345',
-            qrData: 'P12345 I123456',
             quality: 'ASL PODSHOX GILAMI ASL PODSHOX GILAMI',
             productName: 'A VERY LONG DESIGN NAME INDEED',
             sizeLabel: '400×1000',
@@ -152,9 +152,6 @@ void main() {
   });
 }
 
-final scanCodeName = Barcode.dataMatrix().name;
-
 /// The label's product barcode, on a label with no carpet number.
-BarcodeWidget productBarcodeOn(WidgetTester tester) => tester
-    .widgetList<BarcodeWidget>(find.byType(BarcodeWidget))
-    .singleWhere((w) => w.barcode.name != scanCodeName);
+BarcodeWidget productBarcodeOn(WidgetTester tester) =>
+    tester.widget<BarcodeWidget>(find.byType(BarcodeWidget));

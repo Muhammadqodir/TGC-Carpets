@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/widgets/app_thumbnail.dart';
+import '../../../labeling/domain/carpet_number.dart';
 import '../../../labeling/domain/label_qr_format.dart';
 import '../../../shipments/presentation/widgets/shipment_qr_scanner_page.dart'
     show cleanScannedLabel;
@@ -41,8 +42,14 @@ class _ScannerViewState extends State<_ScannerView> {
     detectionSpeed: _detectionSpeed,
     formats: _useBarcodeMode
         ? [BarcodeFormat.code128, BarcodeFormat.ean13]
-        // Data Matrix on new labels, QR on the ones already on carpets.
-        : [BarcodeFormat.dataMatrix, BarcodeFormat.qrCode],
+        // The 21 carpet number (Code 128), the only code on labels printed
+        // since the square code was dropped, and the square codes still on
+        // older carpets (Data Matrix, QR).
+        : [
+            BarcodeFormat.code128,
+            BarcodeFormat.dataMatrix,
+            BarcodeFormat.qrCode,
+          ],
   );
 
   bool _isProcessing = false;
@@ -56,15 +63,21 @@ class _ScannerViewState extends State<_ScannerView> {
   void _onDetect(BarcodeCapture capture) {
     if (_isProcessing) return;
 
-    final code = cleanScannedLabel(capture.barcodes.firstOrNull?.rawValue);
-    if (code == null) return;
-
-    if (!isProductionLabelQr(code)) {
+    // The label's product barcode is Code 128 as well; the carpet number,
+    // when it is in view, says the most.
+    final codes = [
+      for (final b in capture.barcodes)
+        if (cleanScannedLabel(b.rawValue) case final String c) c,
+    ];
+    final code = codes.where(isCarpetNumber).firstOrNull ??
+        codes.where(isProductionLabelQr).firstOrNull;
+    if (code == null) {
+      if (codes.isEmpty) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.clearSnackBars();
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Noto\'g\'ri QR kod formati. Format: P123 I456'),
+          content: Text('Yorliqdagi 21 bilan boshlanadigan kodni skanerlang'),
           backgroundColor: AppColors.error,
           duration: Duration(seconds: 2),
         ),

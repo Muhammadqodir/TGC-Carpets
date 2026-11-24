@@ -68,8 +68,8 @@ class _ScanFeedback {
 class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
   final MobileScannerController _scannerCtrl = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
-    // Data Matrix on new labels, QR on the ones already on carpets, and the
-    // Code 128 carpet number (21…) printed since November 2026.
+    // The Code 128 carpet number (21…) printed since November 2026, plus the
+    // square codes still on carpets (Data Matrix, QR), which get a warning.
     formats: [
       BarcodeFormat.dataMatrix,
       BarcodeFormat.qrCode,
@@ -108,8 +108,14 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
 
   int _scannedCount = 0;
 
+  /// Running while only a square code is in view. The 21 number sits right
+  /// next to it, and the camera often decodes the square a frame or two
+  /// sooner, so the square code is taken only if no carpet number turns up.
+  Timer? _lineCodeWait;
+
   @override
   void dispose() {
+    _lineCodeWait?.cancel();
     _cooldown?.cancel();
     _scannerCtrl.dispose();
     super.dispose();
@@ -152,6 +158,20 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     final code = _bestCode(capture);
     if (code == null || code == _lastCode) return;
 
+    if (ShipmentScanFlow.isLineCode(code)) {
+      _lineCodeWait ??= Timer(const Duration(milliseconds: 800), () {
+        _lineCodeWait = null;
+        if (!mounted || _resolving || _sheetOpen || _feedback != null) return;
+        _accept(code);
+      });
+      return;
+    }
+    _lineCodeWait?.cancel();
+    _lineCodeWait = null;
+    _accept(code);
+  }
+
+  void _accept(String code) {
     // A different label ends any cooldown left over from the previous scan.
     _cooldown?.cancel();
     _lastCode = code;
@@ -164,6 +184,16 @@ class _ShipmentQrScannerPageState extends State<ShipmentQrScannerPage> {
     if (refused != null) {
       _showRejection(refused);
       return;
+    }
+    if (ShipmentScanFlow.isLineCode(code)) {
+      setState(() => _sheetOpen = true);
+      final addAnyway = await ShipmentScanFlow.confirmLineCode(context);
+      if (!mounted) return;
+      setState(() => _sheetOpen = false);
+      if (!addAnyway) {
+        _resume();
+        return;
+      }
     }
 
     setState(() => _resolving = true);

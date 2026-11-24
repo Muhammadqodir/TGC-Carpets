@@ -96,8 +96,7 @@ class _ScanInfoViewState extends State<_ScanInfoView> {
     if (ScanInfoPage.canShow(code)) return null;
     if (isProductBarcode(code)) {
       return 'Bu mahsulot shtrix-kodi. Gilam haqida ma\'lumot uchun '
-          'yorliqdagi 21 bilan boshlanadigan kodni yoki kvadrat kodni '
-          'skanerlang.';
+          'yorliqning pastidagi 21 bilan boshlanadigan kodni skanerlang.';
     }
     return 'Bu kod TGC yorlig\'iga o\'xshamaydi.';
   }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../labeling/domain/carpet_number.dart';
+import '../../../labeling/domain/label_qr_format.dart';
 import '../../../labeling/domain/product_barcode.dart';
 import '../../domain/entities/shipment_import_entities.dart';
 import '../../domain/repositories/shipment_repository.dart';
@@ -90,13 +91,86 @@ class ShipmentScanFlow {
     if (isProductBarcode(code)) {
       return const ShipmentScanRejection(
         'Boshqa kodni skanerlang',
-        message: 'Bu mahsulot shtrix-kodi. Yorliqning o\'ng yuqori '
-            'burchagidagi 21 bilan boshlanadigan kodni yoki kvadrat '
-            'kodni skanerlang.',
+        message: 'Bu mahsulot shtrix-kodi. Yorliqning pastidagi 21 bilan '
+            'boshlanadigan shtrix-kodni skanerlang.',
         isWarning: true,
       );
     }
     return null;
+  }
+
+  /// Whether [code] is the square code (Data Matrix, or QR on the oldest
+  /// labels): `P{batch} I{item}` names a production line, not one carpet, so
+  /// nothing records which carpet of the line went. Workers read it by
+  /// accident with the 21 number right next to it. A `TGC-U-` unit serial
+  /// does name one carpet and is left alone.
+  static bool isLineCode(String code) =>
+      isProductionLabelQr(code) && !code.toUpperCase().startsWith('TGC-U-');
+
+  /// Warns about a square code before it is added. Labels printed before
+  /// 14.11.2026 carry no 21 number, so the worker can still add the carpet;
+  /// the safe answer, the one a reflex tap picks, is to go back and scan the
+  /// 21 number.
+  static Future<bool> confirmLineCode(BuildContext context) async {
+    HapticFeedback.heavyImpact();
+    Future.delayed(
+        const Duration(milliseconds: 160), HapticFeedback.heavyImpact);
+    SystemSound.play(SystemSoundType.alert);
+
+    final answer = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.qr_code_2_rounded,
+            color: AppColors.warning, size: 56),
+        title: const Text(
+          '21 kodni skanerlang',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.warning,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: const Text(
+          'Kvadrat (QR) kod skanerlandi. U gilamning o\'zini emas, faqat '
+          'partiyani bildiradi.\n\n'
+          'Yorliqning pastidagi 21 bilan boshlanadigan shtrix-kodni '
+          'skanerlang. Faqat eski yorliqda 21 kod bo\'lmasa, baribir '
+          'qo\'shing.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+              child: const Text(
+                'OK, 21 kodni skanerlayman',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text(
+                'Eski yorliq, 21 kod yo\'q — baribir qo\'shish',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return answer == true;
   }
 
   /// Asks the server which open order line, if any, the carpet ships on.

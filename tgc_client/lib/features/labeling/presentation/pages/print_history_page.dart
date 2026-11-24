@@ -18,7 +18,6 @@ import '../../data/services/label_print_queue.dart';
 import '../../data/services/print_history_service.dart';
 import '../../domain/entities/print_history_entity.dart';
 import '../../domain/label_print_code.dart';
-import '../../domain/label_qr_format.dart';
 import '../../domain/product_barcode.dart';
 
 // ── Shared preference keys (same as labeling_page) ───────────────────────────
@@ -335,15 +334,6 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
               stored: item.variantBarcode,
               variantId: item.variantId,
             );
-            // item.itemId is the production_batch_item id — the entity the
-            // backend scan endpoint needs, not item.variantId. History
-            // entries saved before this field existed have no itemId; there
-            // is no way to recover it, so they fall back to the old (already
-            // unscannable) format rather than risk resolving to a different,
-            // wrong carpet. See instructions/phase-0/11.
-            final qrData = item.itemId != null
-                ? buildLabelQr(batchId: item.batchId, itemId: item.itemId!)
-                : 'PB{${item.batchId}} VAR{${item.variantId}}';
 
             return Positioned(
               left: -5000,
@@ -356,7 +346,6 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
                   child: _buildLabelWidget(
                     item: item,
                     barcodeValue: barcodeValue,
-                    qrData: qrData,
                   ),
                 ),
               ),
@@ -370,7 +359,6 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
   Widget _buildLabelWidget({
     required PrintHistoryEntity item,
     required String barcodeValue,
-    required String qrData,
   }) {
     final sizeLabel = item.sizeLength != null && item.sizeWidth != null
         ? item.sizeLabel
@@ -393,7 +381,6 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
           carpetBarcode: item.carpetNumber,
-          qrData: qrData,
           printCode: printCode,
         );
       case _LabelStyle.asosiyArab:
@@ -405,7 +392,6 @@ class _PrintHistoryPageState extends State<PrintHistoryPage> {
           sizeLabel: sizeLabel,
           barcodeValue: barcodeValue,
           carpetBarcode: item.carpetNumber,
-          qrData: qrData,
           printCode: printCode,
         );
     }

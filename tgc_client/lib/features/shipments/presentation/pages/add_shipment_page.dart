@@ -316,6 +316,10 @@ class _AddShipmentPageState extends State<AddShipmentPage> {
       await _showScanRejection(refused);
       return;
     }
+    if (ShipmentScanFlow.isLineCode(code) &&
+        (!await ShipmentScanFlow.confirmLineCode(context) || !mounted)) {
+      return;
+    }
 
     setState(() => _pdaBusy = true);
     try {

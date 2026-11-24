@@ -22,7 +22,6 @@ class PrintLabel7050 extends StatelessWidget {
   const PrintLabel7050({
     super.key,
     required this.barcodeValue,
-    required this.qrData,
     this.carpetBarcode,
     this.productName,
     this.quality,
@@ -61,15 +60,10 @@ class PrintLabel7050 extends StatelessWidget {
   /// (see label_print_code.dart). Left off when null.
   final String? printCode;
 
-  /// The text scanned from the label, printed as a Data Matrix.
-  /// See label_qr_format.dart.
-  final String qrData;
-
   @override
   Widget build(BuildContext context) {
     return Label8050Layout(
       barcodeValue: barcodeValue,
-      scanData: qrData,
       carpetBarcode: carpetBarcode,
       specLabels: const ['Quality', 'Design', 'Size', 'Color'],
       specLabelStyle: const Label8050CaptionStyle(

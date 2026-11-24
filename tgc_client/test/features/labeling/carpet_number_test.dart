@@ -198,7 +198,6 @@ void main() {
         home: PrintLabel7050(
           barcodeValue: '50059843',
           carpetBarcode: carpetNumber(1),
-          qrData: 'P1 I1',
         ),
       ));
 
@@ -216,7 +215,6 @@ void main() {
         home: PrintLabel7050(
           barcodeValue: '50059843',
           carpetBarcode: carpetNumber(1),
-          qrData: 'P1 I1',
         ),
       ));
 
@@ -239,7 +237,7 @@ void main() {
     testWidgets('keeps the product barcode in the corner without a number',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
-        home: PrintLabel7050(barcodeValue: '50059843', qrData: 'P1 I1'),
+        home: PrintLabel7050(barcodeValue: '50059843'),
       ));
 
       expect(tester.takeException(), isNull);

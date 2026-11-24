@@ -10,13 +10,18 @@ import 'package:flutter/material.dart';
 /// Size    : 400×10125 R             ═  turned −90°, digits
 /// Color   : BEIGE                   ═  on the right
 ///
-/// ║║║║║║║║║║║║║║║║║║║║║          ┌──┐
+/// ║║║║║║║║║║║║║║║║║║║║║
 /// 210000123459   S_123_04_14 15.59
 /// ```
 ///
 /// The longer carpet number lies along the bottom, the shorter product barcode
-/// stands in the corner. The square code is exactly as tall as the bars, and
-/// the print code under it sits on the line of the barcode's digits.
+/// stands in the corner, and the print code sits on the line of the carpet
+/// number's digits.
+///
+/// There is no square code any more (Data Matrix, until November 2026): a PDA
+/// aimed at the label read it instead of the carpet number, and it names only
+/// the production line, never the one carpet. The 21 number is the code to
+/// scan, everywhere.
 ///
 /// Barcodes are sized from their own bars, never stretched to fill a space, so
 /// the bars stay even when the label is rasterised.
@@ -24,7 +29,6 @@ class Label8050Layout extends StatelessWidget {
   const Label8050Layout({
     super.key,
     required this.barcodeValue,
-    required this.scanData,
     required this.specLabels,
     required this.specLabelStyle,
     this.carpetBarcode,
@@ -54,9 +58,6 @@ class Label8050Layout extends StatelessWidget {
   static const double _digitsSize = 30;
   static const double _digitsGap = 8;
 
-  /// Height of a barcode's bars alone, and so of the square code.
-  static const double _barsHeight = _barcodeHeight - _digitsSize - _digitsGap;
-
   /// The white margin Code 128 needs on each side, 10 bar widths.
   static const double _quietZone = 10 * barModule;
   static const double _carpetQuietZone = 10 * carpetBarModule;
@@ -66,9 +67,6 @@ class Label8050Layout extends StatelessWidget {
   static const double _specFontSize = 74;
 
   final String barcodeValue;
-
-  /// What the square code holds: the same text the old QR code held.
-  final String scanData;
 
   /// The unique number of this one carpet, along the bottom. The space stays
   /// empty without it, so the rest of the label never moves.
@@ -151,17 +149,15 @@ class Label8050Layout extends StatelessWidget {
                       // carpet number.
                       Expanded(
                         child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            _ScanCode(scanData),
-                            if (printCode != null) ...[
-                              const SizedBox(height: _digitsGap),
+                            if (printCode != null)
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerRight,
                                 child: _PrintCode(printCode!),
                               ),
-                            ],
                           ],
                         ),
                       ),
@@ -232,26 +228,6 @@ class _LinearBarcode extends StatelessWidget {
   }
 }
 
-/// The small square code everyone in the factory scans, exactly as tall as
-/// the product barcode's bars.
-class _ScanCode extends StatelessWidget {
-  const _ScanCode(this.data);
-
-  final String data;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: Label8050Layout._barsHeight,
-      child: BarcodeWidget(
-        data: data,
-        barcode: Barcode.dataMatrix(),
-        drawText: false,
-      ),
-    );
-  }
-}
-
 /// How many of its narrowest bars a Code 128 spans: every one has a bar that
 /// narrow in its stop pattern.
 int _modulesOf(Barcode barcode, String data, double height) {
@@ -264,7 +240,7 @@ int _modulesOf(Barcode barcode, String data, double height) {
   return (span / narrowest).round();
 }
 
-/// "S_123_04_14 15.59" under the square code, on the line of the digits.
+/// "S_123_04_14 15.59" in the bottom-right corner, on the line of the digits.
 class _PrintCode extends StatelessWidget {
   const _PrintCode(this.code);
 
